@@ -1,39 +1,42 @@
-import { execute, getDb, hashPin, queryAll, queryFirst } from '@/database/db';
+import { db, hashPin } from '@/database/db';
+import { sessions, users } from '@/database/schema';
 import type { AuthService } from '@/services/interfaces/auth';
 import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
-
-type UserWithPin = User & { pin_hash: string };
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 export class AuthSqliteService implements AuthService {
-  async getActiveUsers() {
-    await getDb();
-    return queryAll<User>('SELECT id, name, role FROM users WHERE is_active = 1 ORDER BY id;');
+  async getActiveUsers(): Promise<User[]> {
+    return db
+      .select({ id: users.id, name: users.name, role: users.role })
+      .from(users)
+      .where(eq(users.isActive, true))
+      .orderBy(asc(users.id))
+      .all() as User[];
   }
 
-  async authenticate({ userId, pin }: LoginPayload) {
-    const row = await queryFirst<UserWithPin>(
-      'SELECT id, name, role, pin_hash FROM users WHERE id = ? AND is_active = 1;',
-      [userId]
-    );
+  async authenticate({ userId, pin }: LoginPayload): Promise<User | null> {
+    const row = db
+      .select({ id: users.id, name: users.name, role: users.role, pinHash: users.pinHash })
+      .from(users)
+      .where(and(eq(users.id, userId), eq(users.isActive, true)))
+      .get();
 
-    if (!row || row.pin_hash !== hashPin(pin)) {
+    if (!row || row.pinHash !== hashPin(pin)) {
       return null;
     }
 
-    return { id: row.id, name: row.name, role: row.role };
+    return { id: row.id, name: row.name, role: row.role as User['role'] };
   }
 
-  async startSession(userId: number) {
-    await execute('INSERT INTO sessions (user_id) VALUES (?);', [userId]);
+  async startSession(userId: number): Promise<void> {
+    db.insert(sessions).values({ userId }).run();
   }
 
-  async endOpenSession(userId: number) {
-    await execute(
-      `UPDATE sessions
-       SET logged_out_at = cast(strftime('%s', 'now') as int)
-       WHERE user_id = ? AND logged_out_at IS NULL;`,
-      [userId]
-    );
+  async endOpenSession(userId: number): Promise<void> {
+    db.update(sessions)
+      .set({ loggedOutAt: sql`cast(strftime('%s', 'now') as int)` })
+      .where(and(eq(sessions.userId, userId), isNull(sessions.loggedOutAt)))
+      .run();
   }
 }

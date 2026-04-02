@@ -1,0 +1,132 @@
+import { sql } from 'drizzle-orm';
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  role: text('role', { enum: ['owner', 'staff'] }).notNull(),
+  pinHash: text('pin_hash').notNull(),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+});
+
+export const sessions = sqliteTable('sessions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id').notNull().references(() => users.id),
+  loggedInAt: integer('logged_in_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  loggedOutAt: integer('logged_out_at'),
+});
+
+export const suppliers = sqliteTable('suppliers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  phone: text('phone'),
+  notes: text('notes'),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+});
+
+export const ingredients = sqliteTable('ingredients', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  unit: text('unit').notNull(),
+  quantity: real('quantity').notNull().default(0),
+  lowStockThreshold: real('low_stock_threshold').notNull().default(10),
+  supplierId: integer('supplier_id').references(() => suppliers.id),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  index('idx_ingredients_low_stock').on(t.quantity, t.lowStockThreshold),
+]);
+
+export const categories = sqliteTable('categories', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+});
+
+export const products = sqliteTable('products', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  categoryId: integer('category_id').references(() => categories.id),
+  price: real('price').notNull(),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+});
+
+export const productIngredients = sqliteTable('product_ingredients', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  productId: integer('product_id').notNull().references(() => products.id),
+  ingredientId: integer('ingredient_id').notNull().references(() => ingredients.id),
+  quantityUsed: real('quantity_used').notNull(),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  uniqueIndex('product_ingredients_unique').on(t.productId, t.ingredientId),
+]);
+
+export const sales = sqliteTable('sales', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  staffId: integer('staff_id').notNull().references(() => users.id),
+  total: real('total').notNull(),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  index('idx_sales_created_at').on(t.createdAt),
+]);
+
+export const saleItems = sqliteTable('sale_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  saleId: integer('sale_id').notNull().references(() => sales.id),
+  productId: integer('product_id').notNull().references(() => products.id),
+  quantity: integer('quantity').notNull(),
+  unitPrice: real('unit_price').notNull(),
+});
+
+export const restockLogs = sqliteTable('restock_logs', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  ingredientId: integer('ingredient_id').notNull().references(() => ingredients.id),
+  quantityAdded: real('quantity_added').notNull(),
+  cost: real('cost').notNull(),
+  supplierId: integer('supplier_id').references(() => suppliers.id),
+  date: integer('date').notNull(),
+  syncedAt: integer('synced_at'),
+});
+
+export const expenses = sqliteTable('expenses', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  date: integer('date').notNull(),
+  category: text('category').notNull(),
+  amount: real('amount').notNull(),
+  description: text('description'),
+  supplierId: integer('supplier_id').references(() => suppliers.id),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  index('idx_expenses_date').on(t.date),
+]);
+
+export const employees = sqliteTable('employees', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  salaryType: text('salary_type', { enum: ['hourly', 'monthly'] }).notNull(),
+  rate: real('rate').notNull(),
+  syncedAt: integer('synced_at'),
+});
+
+export const payrollEntries = sqliteTable('payroll_entries', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  employeeId: integer('employee_id').notNull().references(() => employees.id),
+  periodStart: integer('period_start').notNull(),
+  periodEnd: integer('period_end').notNull(),
+  amount: real('amount').notNull(),
+  syncedAt: integer('synced_at'),
+});

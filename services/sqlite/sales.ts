@@ -1,97 +1,113 @@
-import { execute, queryAll, queryFirst } from '@/database/db';
+import { db } from '@/database/db';
+import { categories, ingredients, productIngredients, products, saleItems, sales, users } from '@/database/schema';
 import type { SalesService } from '@/services/interfaces/sales';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
 import type { Product, Sale, SaleItemInput } from '@/types/types';
+import { between, desc, eq, sql } from 'drizzle-orm';
 
 export class SalesSqliteService implements SalesService {
   async getHydrationData() {
-    const [products, sales] = await Promise.all([
-      queryAll<Product>(
-        `SELECT p.id, p.name, c.name as category, p.price
-         FROM products p
-         LEFT JOIN categories c ON c.id = p.category_id
-         WHERE p.is_active = 1
-         ORDER BY p.name;`
-      ),
-      queryAll<Sale>(
-        `SELECT s.id, s.created_at, u.name as staff_name, s.total
-         FROM sales s
-         JOIN users u ON u.id = s.staff_id
-         ORDER BY s.created_at DESC
-         LIMIT 50;`
-      ),
-    ]);
+    const productsList = db
+      .select({
+        id: products.id,
+        name: products.name,
+        category: categories.name,
+        price: products.price,
+      })
+      .from(products)
+      .leftJoin(categories, eq(categories.id, products.categoryId))
+      .where(eq(products.isActive, true))
+      .orderBy(products.name)
+      .all() as Product[];
 
-    return { products, sales };
+    const salesList = db
+      .select({
+        id: sales.id,
+        created_at: sales.createdAt,
+        staff_name: users.name,
+        total: sales.total,
+      })
+      .from(sales)
+      .innerJoin(users, eq(users.id, sales.staffId))
+      .orderBy(desc(sales.createdAt))
+      .limit(50)
+      .all() as Sale[];
+
+    return { products: productsList, sales: salesList };
   }
 
-  async createSale({ staffId, items }: CreateSalePayload) {
+  async createSale({ staffId, items }: CreateSalePayload): Promise<void> {
     if (items.length === 0) {
       return;
     }
 
-    const total = items.reduce((sum: number, item: SaleItemInput) => sum + item.unitPrice * item.quantity, 0);
+    const total = items.reduce((acc: number, item: SaleItemInput) => acc + item.unitPrice * item.quantity, 0);
     const createdAt = Math.floor(Date.now() / 1000);
 
-    const insert = await execute(
-      'INSERT INTO sales (created_at, staff_id, total, synced_at) VALUES (?, ?, ?, NULL);',
-      [createdAt, staffId, total]
-    );
+    db.transaction((tx) => {
+      const [newSale] = tx
+        .insert(sales)
+        .values({ createdAt, staffId, total })
+        .returning({ id: sales.id })
+        .all();
 
-    const saleId = insert.lastInsertRowId;
+      for (const item of items) {
+        tx.insert(saleItems)
+          .values({ saleId: newSale.id, productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice })
+          .run();
 
-    for (const item of items) {
-      await execute(
-        'INSERT INTO sale_items (sale_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?);',
-        [saleId, item.productId, item.quantity, item.unitPrice]
-      );
+        const recipe = tx
+          .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
+          .from(productIngredients)
+          .where(eq(productIngredients.productId, item.productId))
+          .all();
 
-      const recipe = await queryAll<{ ingredient_id: number; quantity_used: number }>(
-        'SELECT ingredient_id, quantity_used FROM product_ingredients WHERE product_id = ?;',
-        [item.productId]
-      );
-
-      for (const ingredient of recipe) {
-        await execute(
-          `UPDATE ingredients
-           SET quantity = MAX(0, quantity - ?),
-               updated_at = cast(strftime('%s', 'now') as int),
-               synced_at = NULL
-           WHERE id = ?;`,
-          [ingredient.quantity_used * item.quantity, ingredient.ingredient_id]
-        );
+        for (const entry of recipe) {
+          tx.update(ingredients)
+            .set({
+              quantity: sql`MAX(0, ${ingredients.quantity} - ${entry.quantityUsed * item.quantity})`,
+              updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+              syncedAt: null,
+            })
+            .where(eq(ingredients.id, entry.ingredientId))
+            .run();
+        }
       }
-    }
+    });
   }
 
-  async getTopSelling(limit = 5) {
-    return queryAll<{ name: string; quantity: number }>(
-      `SELECT p.name, SUM(si.quantity) as quantity
-       FROM sale_items si
-       JOIN products p ON p.id = si.product_id
-       GROUP BY si.product_id
-       ORDER BY quantity DESC
-       LIMIT ?;`,
-      [limit]
-    );
+  async getTopSelling(limit = 5): Promise<{ name: string; quantity: number }[]> {
+    return db
+      .select({ name: products.name, quantity: sql<number>`SUM(${saleItems.quantity})` })
+      .from(saleItems)
+      .innerJoin(products, eq(products.id, saleItems.productId))
+      .groupBy(saleItems.productId)
+      .orderBy(sql`SUM(${saleItems.quantity}) DESC`)
+      .limit(limit)
+      .all();
   }
 
-  async getSaleItems(saleId: number) {
-    return queryAll<SaleItemDetail>(
-      `SELECT si.id, p.name as product_name, si.quantity, si.unit_price
-       FROM sale_items si
-       JOIN products p ON p.id = si.product_id
-       WHERE si.sale_id = ?
-       ORDER BY si.id;`,
-      [saleId]
-    );
+  async getSaleItems(saleId: number): Promise<SaleItemDetail[]> {
+    return db
+      .select({
+        id: saleItems.id,
+        product_name: products.name,
+        quantity: saleItems.quantity,
+        unit_price: saleItems.unitPrice,
+      })
+      .from(saleItems)
+      .innerJoin(products, eq(products.id, saleItems.productId))
+      .where(eq(saleItems.saleId, saleId))
+      .orderBy(saleItems.id)
+      .all() as SaleItemDetail[];
   }
 
-  async getRevenueInRange(startUnix: number, endUnix: number) {
-    const row = await queryFirst<{ income: number }>(
-      'SELECT COALESCE(SUM(total), 0) as income FROM sales WHERE created_at BETWEEN ? AND ?;',
-      [startUnix, endUnix]
-    );
-    return row?.income ?? 0;
+  async getRevenueInRange(startUnix: number, endUnix: number): Promise<number> {
+    const row = db
+      .select({ total: sql<number>`COALESCE(SUM(${sales.total}), 0)` })
+      .from(sales)
+      .where(between(sales.createdAt, startUnix, endUnix))
+      .get();
+    return Number(row?.total ?? 0);
   }
 }
