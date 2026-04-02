@@ -1,15 +1,8 @@
 import { create } from 'zustand';
 
-import { execute, queryAll, queryFirst } from '@/lib/db';
-import type { Ingredient, Supplier } from '@/lib/types';
-
-type RestockLog = {
-  id: number;
-  ingredient_name: string;
-  quantity_added: number;
-  cost: number;
-  date: number;
-};
+import { execute, queryAll, queryFirst } from '@/database/db';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import type { Ingredient, Supplier } from '@/types/types';
 
 type InventoryState = {
   ingredients: Ingredient[];
@@ -17,30 +10,10 @@ type InventoryState = {
   restocks: RestockLog[];
   loading: boolean;
   hydrate: () => Promise<void>;
-  addIngredient: (payload: {
-    name: string;
-    unit: string;
-    quantity: number;
-    lowStockThreshold: number;
-    supplierId?: number;
-  }) => Promise<void>;
-  updateIngredient: (
-    id: number,
-    payload: Partial<{
-      name: string;
-      unit: string;
-      quantity: number;
-      low_stock_threshold: number;
-      supplier_id: number | null;
-    }>
-  ) => Promise<void>;
-  addSupplier: (payload: { name: string; phone?: string; notes?: string }) => Promise<void>;
-  addRestock: (payload: {
-    ingredientId: number;
-    quantityAdded: number;
-    cost: number;
-    supplierId?: number;
-  }) => Promise<void>;
+  addIngredient: (payload: AddIngredientPayload) => Promise<void>;
+  updateIngredient: (payload: UpdateIngredientPayload) => Promise<void>;
+  addSupplier: (payload: AddSupplierPayload) => Promise<void>;
+  addRestock: (payload: AddRestockPayload) => Promise<void>;
   lowStockCount: () => number;
 };
 
@@ -75,13 +48,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     quantity,
     lowStockThreshold,
     supplierId,
-  }: {
-    name: string;
-    unit: string;
-    quantity: number;
-    lowStockThreshold: number;
-    supplierId?: number;
-  }) => {
+  }: AddIngredientPayload) => {
     await execute(
       `INSERT INTO ingredients (name, unit, quantity, low_stock_threshold, supplier_id)
        VALUES (?, ?, ?, ?, ?);`,
@@ -90,16 +57,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     await get().hydrate();
   },
 
-  updateIngredient: async (
-    id: number,
-    payload: Partial<{
-      name: string;
-      unit: string;
-      quantity: number;
-      low_stock_threshold: number;
-      supplier_id: number | null;
-    }>
-  ) => {
+  updateIngredient: async ({ id, ...payload }: UpdateIngredientPayload) => {
     const existing = await queryFirst<Ingredient>(
       'SELECT id, name, unit, quantity, low_stock_threshold, supplier_id FROM ingredients WHERE id = ?;',
       [id]
@@ -131,7 +89,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     await get().hydrate();
   },
 
-  addSupplier: async ({ name, phone, notes }: { name: string; phone?: string; notes?: string }) => {
+  addSupplier: async ({ name, phone, notes }: AddSupplierPayload) => {
     await execute('INSERT OR IGNORE INTO suppliers (name, phone, notes) VALUES (?, ?, ?);', [
       name,
       phone ?? null,
@@ -145,12 +103,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     quantityAdded,
     cost,
     supplierId,
-  }: {
-    ingredientId: number;
-    quantityAdded: number;
-    cost: number;
-    supplierId?: number;
-  }) => {
+  }: AddRestockPayload) => {
     const now = Math.floor(Date.now() / 1000);
 
     await execute(

@@ -3,8 +3,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import { useSettingsStore } from '@/lib/stores/settings-store';
+import { useAuthStore } from '@/stores/auth';
+import { useSettingsStore } from '@/stores/settings';
 
 export default function SettingsScreen() {
   const { currentUser, logout } = useAuthStore();

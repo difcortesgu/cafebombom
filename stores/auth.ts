@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
-import { execute, getDb, hashPin, queryAll, queryFirst } from '@/lib/db';
-import type { User } from '@/lib/types';
+import { execute, getDb, hashPin, queryAll, queryFirst } from '@/database/db';
+import type { LoginPayload } from '@/types/auth';
+import type { User } from '@/types/types';
 
 type AuthState = {
   users: User[];
@@ -9,7 +10,7 @@ type AuthState = {
   loading: boolean;
   error: string | null;
   hydrate: () => Promise<void>;
-  login: (userId: number, pin: string) => Promise<boolean>;
+  login: (payload: LoginPayload) => Promise<boolean>;
   logout: () => Promise<void>;
 };
 
@@ -27,7 +28,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ users, loading: false });
   },
 
-  login: async (userId: number, pin: string) => {
+  login: async ({ userId, pin }: LoginPayload) => {
     set({ loading: true, error: null });
 
     const row = await queryFirst<User & { pin_hash: string }>(

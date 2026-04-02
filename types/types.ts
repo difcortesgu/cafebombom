@@ -1,4 +1,6 @@
 export type UserRole = 'owner' | 'staff';
+export type Unit = 'grams' | 'liters' | 'pieces';
+
 
 export type User = {
   id: number;
@@ -9,7 +11,7 @@ export type User = {
 export type Ingredient = {
   id: number;
   name: string;
-  unit: string;
+  unit: Unit;
   quantity: number;
   low_stock_threshold: number;
   supplier_id: number | null;

@@ -8,8 +8,8 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import { useInventoryStore } from '@/lib/stores/inventory-store';
+import { useAuthStore } from '@/stores/auth';
+import { useInventoryStore } from '@/stores/inventory';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -85,7 +85,7 @@ export default function TabLayout() {
             if (!selectedUserId) {
               return;
             }
-            const success = await login(selectedUserId, pin);
+            const success = await login({ userId: selectedUserId, pin });
             if (success) {
               setPin('');
             }

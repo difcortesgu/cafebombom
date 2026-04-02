@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 
-import { execute, queryAll, queryFirst } from '@/lib/db';
-import { getRevenueInRange } from '@/lib/stores/sales-store';
-import type { Employee, Expense, PayrollEntry } from '@/lib/types';
+import { execute, queryAll, queryFirst } from '@/database/db';
+import { getRevenueInRange } from '@/stores/sales';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, GetPnLPayload, PnLSummary } from '@/types/accounts';
+import type { Employee, Expense, PayrollEntry } from '@/types/types';
 
 type AccountsState = {
   expenses: Expense[];
@@ -10,20 +11,10 @@ type AccountsState = {
   payroll: PayrollEntry[];
   loading: boolean;
   hydrate: () => Promise<void>;
-  addExpense: (payload: {
-    category: string;
-    amount: number;
-    description?: string;
-    dateUnix?: number;
-  }) => Promise<void>;
-  addEmployee: (payload: { name: string; salaryType: 'hourly' | 'monthly'; rate: number }) => Promise<void>;
-  addPayroll: (payload: {
-    employeeId: number;
-    periodStart: number;
-    periodEnd: number;
-    amount: number;
-  }) => Promise<void>;
-  getPnL: (startUnix: number, endUnix: number) => Promise<{ income: number; expenses: number; net: number }>;
+  addExpense: (payload: AddExpensePayload) => Promise<void>;
+  addEmployee: (payload: AddEmployeePayload) => Promise<void>;
+  addPayroll: (payload: AddPayrollPayload) => Promise<void>;
+  getPnL: (payload: GetPnLPayload) => Promise<PnLSummary>;
 };
 
 export const useAccountsStore = create<AccountsState>((set, get) => ({
@@ -51,12 +42,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     amount,
     description,
     dateUnix,
-  }: {
-    category: string;
-    amount: number;
-    description?: string;
-    dateUnix?: number;
-  }) => {
+  }: AddExpensePayload) => {
     const date = dateUnix ?? Math.floor(Date.now() / 1000);
     await execute(
       'INSERT INTO expenses (date, category, amount, description, synced_at) VALUES (?, ?, ?, ?, NULL);',
@@ -69,11 +55,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     name,
     salaryType,
     rate,
-  }: {
-    name: string;
-    salaryType: 'hourly' | 'monthly';
-    rate: number;
-  }) => {
+  }: AddEmployeePayload) => {
     await execute(
       'INSERT OR IGNORE INTO employees (name, salary_type, rate, synced_at) VALUES (?, ?, ?, NULL);',
       [name, salaryType, rate]
@@ -86,12 +68,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     periodStart,
     periodEnd,
     amount,
-  }: {
-    employeeId: number;
-    periodStart: number;
-    periodEnd: number;
-    amount: number;
-  }) => {
+  }: AddPayrollPayload) => {
     await execute(
       `INSERT INTO payroll_entries (employee_id, period_start, period_end, amount, synced_at)
        VALUES (?, ?, ?, ?, NULL);`,
@@ -100,7 +77,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     await get().hydrate();
   },
 
-  getPnL: async (startUnix: number, endUnix: number) => {
+  getPnL: async ({ startUnix, endUnix }: GetPnLPayload) => {
     const income = await getRevenueInRange(startUnix, endUnix);
     const expenseRow = await queryFirst<{ expenses: number }>(
       'SELECT COALESCE(SUM(amount), 0) as expenses FROM expenses WHERE date BETWEEN ? AND ?;',

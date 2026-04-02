@@ -5,8 +5,8 @@ import { BarChart } from 'react-native-gifted-charts';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useInventoryStore } from '@/lib/stores/inventory-store';
-import { useSalesStore } from '@/lib/stores/sales-store';
+import { useInventoryStore } from '@/stores/inventory';
+import { useSalesStore } from '@/stores/sales';
 
 export default function DashboardScreen() {
   const router = useRouter();

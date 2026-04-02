@@ -1,14 +1,8 @@
 import { create } from 'zustand';
 
-import { dayRangeUnix, execute, queryAll, queryFirst } from '@/lib/db';
-import type { Product, Sale, SaleItemInput } from '@/lib/types';
-
-type SaleItemDetail = {
-  id: number;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-};
+import { dayRangeUnix, execute, queryAll, queryFirst } from '@/database/db';
+import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
+import type { Product, Sale, SaleItemInput } from '@/types/types';
 
 type SalesState = {
   products: Product[];
@@ -16,7 +10,7 @@ type SalesState = {
   saleItemsById: Record<number, SaleItemDetail[]>;
   loading: boolean;
   hydrate: () => Promise<void>;
-  createSale: (staffId: number, items: SaleItemInput[]) => Promise<void>;
+  createSale: (payload: CreateSalePayload) => Promise<void>;
   getTodayRevenue: () => number;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
 };
@@ -50,7 +44,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     set({ products, sales, loading: false });
   },
 
-  createSale: async (staffId: number, items: SaleItemInput[]) => {
+  createSale: async ({ staffId, items }: CreateSalePayload) => {
     if (items.length === 0) {
       return;
     }

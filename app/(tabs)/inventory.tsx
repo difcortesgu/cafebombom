@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useInventoryStore } from '@/lib/stores/inventory-store';
+import { useInventoryStore } from '@/stores/inventory';
 
 type Section = 'ingredients' | 'suppliers' | 'restock';
 
@@ -135,7 +135,8 @@ export default function InventoryScreen() {
                   <Pressable
                     style={styles.secondaryButton}
                     onPress={() =>
-                      updateIngredient(item.id, {
+                      updateIngredient({
+                        id: item.id,
                         quantity: Number(item.quantity) + 1,
                       })
                     }>

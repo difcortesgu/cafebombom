@@ -4,9 +4,9 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { dayRangeUnix } from '@/lib/db';
-import { useAccountsStore } from '@/lib/stores/accounts-store';
-import { useAuthStore } from '@/lib/stores/auth-store';
+import { dayRangeUnix } from '@/database/db';
+import { useAccountsStore } from '@/stores/accounts';
+import { useAuthStore } from '@/stores/auth';
 
 type Section = 'expenses' | 'employees' | 'payroll' | 'report';
 
@@ -227,7 +227,7 @@ export default function AccountsScreen() {
             style={styles.primaryButton}
             onPress={async () => {
               const { start, end } = dayRangeUnix();
-              const value = await getPnL(start, end);
+              const value = await getPnL({ startUnix: start, endUnix: end });
               setPnl(value);
             }}>
             <ThemedText style={styles.primaryText}>Calculate P&amp;L</ThemedText>

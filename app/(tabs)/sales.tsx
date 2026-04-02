@@ -4,8 +4,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import { getSaleItems, useSalesStore } from '@/lib/stores/sales-store';
+import { useAuthStore } from '@/stores/auth';
+import { getSaleItems, useSalesStore } from '@/stores/sales';
 
 type CartItem = {
   productId: number;
@@ -60,14 +60,14 @@ export default function SalesScreen() {
       return;
     }
 
-    await createSale(
-      user.id,
-      cart.map((item) => ({
+    await createSale({
+      staffId: user.id,
+      items: cart.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-      }))
-    );
+      })),
+    });
 
     setCart([]);
   };
