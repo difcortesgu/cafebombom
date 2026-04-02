@@ -4,8 +4,9 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
-import { getSaleItems, useSalesStore } from '@/stores/sales';
+import { useSalesStore } from '@/stores/sales';
 
 type CartItem = {
   productId: number;
@@ -79,7 +80,7 @@ export default function SalesScreen() {
       return;
     }
 
-    const items = await getSaleItems(saleId);
+    const items = await salesService.getSaleItems(saleId);
     setExpandedSaleId(saleId);
     setExpandedSaleItems(
       items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)}`).join('\n')
