@@ -1,98 +1,155 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { BarChart } from 'react-native-gifted-charts';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useInventoryStore } from '@/lib/stores/inventory-store';
+import { useSalesStore } from '@/lib/stores/sales-store';
 
-export default function HomeScreen() {
+export default function DashboardScreen() {
+  const router = useRouter();
+  const { lowStockCount, hydrate: hydrateInventory, ingredients } = useInventoryStore();
+  const { hydrate: hydrateSales, sales, getTodayRevenue, getTopSelling } = useSalesStore();
+  const todayRevenue = getTodayRevenue();
+  const lowStock = lowStockCount();
+
+  const topLowStock = useMemo(
+    () =>
+      ingredients
+        .filter((item) => item.quantity <= item.low_stock_threshold)
+        .slice(0, 3)
+        .map((item) => item.name),
+    [ingredients]
+  );
+
+  const salesBarData = useMemo(() => {
+    return sales.slice(0, 7).reverse().map((sale, idx) => ({
+      value: Number(sale.total),
+      label: `${idx + 1}`,
+      frontColor: '#D16A2F',
+    }));
+  }, [sales]);
+
+  useFocusEffect(
+    useCallback(() => {
+      hydrateInventory();
+      hydrateSales();
+    }, [hydrateInventory, hydrateSales])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      getTopSelling();
+    }, [getTopSelling])
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView contentContainerStyle={styles.container}>
+      <ThemedText type="title">Dashboard</ThemedText>
+      <ThemedText>Today at a glance</ThemedText>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
+      <View style={styles.grid}>
+        <ThemedView style={styles.card}>
+          <ThemedText type="subtitle">${todayRevenue.toFixed(2)}</ThemedText>
+          <ThemedText>Today&apos;s revenue</ThemedText>
+        </ThemedView>
+
+        <ThemedView style={styles.card}>
+          <ThemedText type="subtitle">{sales.length}</ThemedText>
+          <ThemedText>Recent sales</ThemedText>
+        </ThemedView>
+
+        <ThemedView style={styles.card}>
+          <ThemedText type="subtitle">{lowStock}</ThemedText>
+          <ThemedText>Low-stock alerts</ThemedText>
+        </ThemedView>
+      </View>
+
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">Sales trend</ThemedText>
+        <ThemedText style={styles.muted}>Last 7 sales totals</ThemedText>
+        <BarChart
+          data={salesBarData.length > 0 ? salesBarData : [{ value: 0, label: '0', frontColor: '#D16A2F' }]}
+          barWidth={24}
+          spacing={18}
+          isAnimated
+          noOfSections={4}
+          yAxisThickness={0}
+          xAxisThickness={1}
+          xAxisColor="#BFA48A"
+          yAxisTextStyle={{ color: '#8B8179' }}
+        />
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
+
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">Quick actions</ThemedText>
+        <View style={styles.actions}>
+          <Pressable style={styles.actionButton} onPress={() => router.push('/(tabs)/sales')}>
+            <ThemedText style={styles.actionText}>New Sale</ThemedText>
+          </Pressable>
+          <Pressable style={styles.actionButton} onPress={() => router.push('/(tabs)/inventory')}>
+            <ThemedText style={styles.actionText}>Stock In</ThemedText>
+          </Pressable>
+          <Pressable style={styles.actionButton} onPress={() => router.push('/(tabs)/accounts')}>
+            <ThemedText style={styles.actionText}>View P&amp;L</ThemedText>
+          </Pressable>
+        </View>
       </ThemedView>
-    </ParallaxScrollView>
+
+      <ThemedView style={styles.card}>
+        <ThemedText type="subtitle">Low stock watchlist</ThemedText>
+        {topLowStock.length === 0 ? (
+          <ThemedText style={styles.muted}>All ingredients above threshold.</ThemedText>
+        ) : (
+          topLowStock.map((name) => (
+            <ThemedText key={name} style={styles.warningText}>
+              - {name}
+            </ThemedText>
+          ))
+        )}
+      </ThemedView>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    padding: 16,
+    gap: 12,
+  },
+  grid: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E1D4C8',
+    padding: 12,
+    gap: 8,
+    minWidth: '48%',
+  },
+  muted: {
+    opacity: 0.7,
+  },
+  actions: {
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  actionButton: {
+    borderRadius: 10,
+    backgroundColor: '#B64D1A',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  actionText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  warningText: {
+    color: '#B25A12',
+    fontWeight: '600',
   },
 });
