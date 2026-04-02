@@ -1,4 +1,4 @@
-import { db } from '@/database/db';
+import { db, dbReady } from '@/database/db';
 import { ingredients, restockLogs, suppliers } from '@/database/schema';
 import type { InventoryService } from '@/services/interfaces/inventory';
 import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
@@ -7,6 +7,7 @@ import { asc, desc, eq, sql } from 'drizzle-orm';
 
 export class InventorySqliteService implements InventoryService {
   async getHydrationData() {
+    await dbReady;
     const ingredientsList = db
       .select({
         id: ingredients.id,
@@ -44,12 +45,14 @@ export class InventorySqliteService implements InventoryService {
   }
 
   async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<void> {
+    await dbReady;
     db.insert(ingredients)
       .values({ name, unit, quantity, lowStockThreshold, supplierId: supplierId ?? null })
       .run();
   }
 
   async updateIngredient({ id, ...payload }: UpdateIngredientPayload): Promise<void> {
+    await dbReady;
     const existing = db
       .select({
         name: ingredients.name,
@@ -81,6 +84,7 @@ export class InventorySqliteService implements InventoryService {
   }
 
   async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<void> {
+    await dbReady;
     db.insert(suppliers)
       .values({ name, phone: phone ?? null, notes: notes ?? null })
       .onConflictDoNothing()
@@ -88,6 +92,7 @@ export class InventorySqliteService implements InventoryService {
   }
 
   async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<void> {
+    await dbReady;
     const now = Math.floor(Date.now() / 1000);
 
     db.insert(restockLogs)

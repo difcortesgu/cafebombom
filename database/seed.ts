@@ -11,6 +11,7 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
     .get();
 
   if (!owner) {
+    // Hashes PINs using bcryptjs with 10 salt rounds
     db.insert(users).values([
       { name: 'Owner', role: 'owner', pinHash: hashPin('1234') },
       { name: 'Staff', role: 'staff', pinHash: hashPin('2222') },

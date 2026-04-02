@@ -143,6 +143,7 @@ function createSeedData(): WebData {
     users: [
       { id: 1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
       { id: 2, name: 'Staff', role: 'staff', pinHash: hashPin('2222'), isActive: true },
+      // Hashes PINs using bcryptjs with 10 salt rounds
     ],
     sessions: [],
     categories: [

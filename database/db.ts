@@ -10,5 +10,6 @@ expo.execSync('PRAGMA foreign_keys = ON;');
 
 export const db = drizzle(expo, { schema });
 
-migrate(db, migrations);
-seedDefaults(db);
+export const dbReady: Promise<void> = migrate(db, migrations).then(() => {
+	seedDefaults(db);
+});

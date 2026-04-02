@@ -1,13 +1,14 @@
-import { db } from '@/database/db';
+import { db, dbReady } from '@/database/db';
 import { sessions, users } from '@/database/schema';
 import type { AuthService } from '@/services/interfaces/auth';
 import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
-import { hashPin } from '@/utils/hash';
+import { verifyPin } from '@/utils/hash';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 export class AuthSqliteService implements AuthService {
   async getActiveUsers(): Promise<User[]> {
+    await dbReady;
     return db
       .select({ id: users.id, name: users.name, role: users.role })
       .from(users)
@@ -17,13 +18,14 @@ export class AuthSqliteService implements AuthService {
   }
 
   async authenticate({ userId, pin }: LoginPayload): Promise<User | null> {
+    await dbReady;
     const row = db
       .select({ id: users.id, name: users.name, role: users.role, pinHash: users.pinHash })
       .from(users)
       .where(and(eq(users.id, userId), eq(users.isActive, true)))
       .get();
 
-    if (!row || row.pinHash !== hashPin(pin)) {
+    if (!row || !verifyPin(pin, row.pinHash)) {
       return null;
     }
 
@@ -31,10 +33,12 @@ export class AuthSqliteService implements AuthService {
   }
 
   async startSession(userId: number): Promise<void> {
+    await dbReady;
     db.insert(sessions).values({ userId }).run();
   }
 
   async endOpenSession(userId: number): Promise<void> {
+    await dbReady;
     db.update(sessions)
       .set({ loggedOutAt: sql`cast(strftime('%s', 'now') as int)` })
       .where(and(eq(sessions.userId, userId), isNull(sessions.loggedOutAt)))

@@ -1,4 +1,4 @@
-import { db } from '@/database/db';
+import { db, dbReady } from '@/database/db';
 import { categories, ingredients, productIngredients, products, saleItems, sales, users } from '@/database/schema';
 import type { SalesService } from '@/services/interfaces/sales';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
@@ -7,6 +7,7 @@ import { between, desc, eq, sql } from 'drizzle-orm';
 
 export class SalesSqliteService implements SalesService {
   async getHydrationData() {
+    await dbReady;
     const productsList = db
       .select({
         id: products.id,
@@ -37,6 +38,7 @@ export class SalesSqliteService implements SalesService {
   }
 
   async createSale({ staffId, items }: CreateSalePayload): Promise<void> {
+    await dbReady;
     if (items.length === 0) {
       return;
     }
@@ -77,6 +79,7 @@ export class SalesSqliteService implements SalesService {
   }
 
   async getTopSelling(limit = 5): Promise<{ name: string; quantity: number }[]> {
+    await dbReady;
     return db
       .select({ name: products.name, quantity: sql<number>`SUM(${saleItems.quantity})` })
       .from(saleItems)
@@ -88,6 +91,7 @@ export class SalesSqliteService implements SalesService {
   }
 
   async getSaleItems(saleId: number): Promise<SaleItemDetail[]> {
+    await dbReady;
     return db
       .select({
         id: saleItems.id,
@@ -103,6 +107,7 @@ export class SalesSqliteService implements SalesService {
   }
 
   async getRevenueInRange(startUnix: number, endUnix: number): Promise<number> {
+    await dbReady;
     const row = db
       .select({ total: sql<number>`COALESCE(SUM(${sales.total}), 0)` })
       .from(sales)
