@@ -4,9 +4,9 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { dayRangeUnix } from '@/database/db';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
+import { dayRangeUnix } from '@/utils/date';
 
 type Section = 'expenses' | 'employees' | 'payroll' | 'report';
 

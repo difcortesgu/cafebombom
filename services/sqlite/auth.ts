@@ -1,8 +1,9 @@
-import { db, hashPin } from '@/database/db';
+import { db } from '@/database/db';
 import { sessions, users } from '@/database/schema';
 import type { AuthService } from '@/services/interfaces/auth';
 import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
+import { hashPin } from '@/utils/hash';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 export class AuthSqliteService implements AuthService {

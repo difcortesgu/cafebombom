@@ -1,16 +1,8 @@
+import { hashPin } from '@/utils/hash';
 import { count, eq } from 'drizzle-orm';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 import type * as schema from './schema';
 import { categories, products, users } from './schema';
-
-function hashPin(pin: string): string {
-  let hash = 2166136261;
-  for (let i = 0; i < pin.length; i += 1) {
-    hash ^= pin.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(16);
-}
 
 export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   const owner = db.select({ id: users.id })
@@ -29,7 +21,6 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   for (const name of defaultCategories) {
     db.insert(categories).values({ name }).onConflictDoNothing().run();
   }
-
   const [{ total }] = db.select({ total: count() }).from(products).all();
   if (total === 0) {
     const coffeeCategory = db.select({ id: categories.id })

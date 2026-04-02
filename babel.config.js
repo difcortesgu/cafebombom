@@ -10,7 +10,6 @@ module.exports = function (api) {
           extensions: ['.sql'],
         },
       ],
-      'expo-router/babel',
       'react-native-reanimated/plugin',
     ],
   };
