@@ -2,22 +2,27 @@ import type { InventoryService } from '@/services/interfaces/inventory';
 import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, UpdateIngredientPayload } from '@/types/inventory';
 import type { Unit } from '@/types/types';
 
-import { nextId, readWebData, updateWebData } from './storage';
+import { getDb, generateId } from './storage';
 
 export class InventoryWebService implements InventoryService {
   async getHydrationData() {
-    const data = readWebData();
+    const db = await getDb();
+    const [ingredients, suppliers, restockLogs] = await Promise.all([
+      db.ingredients.toArray(),
+      db.suppliers.toArray(),
+      db.restockLogs.toArray(),
+    ]);
 
     return {
-      ingredients: data.ingredients.slice().sort((left, right) => left.name.localeCompare(right.name)),
-      suppliers: data.suppliers.slice().sort((left, right) => left.name.localeCompare(right.name)),
-      restocks: data.restockLogs
+      ingredients: ingredients.slice().sort((left, right) => left.name.localeCompare(right.name)),
+      suppliers: suppliers.slice().sort((left, right) => left.name.localeCompare(right.name)),
+      restocks: restockLogs
         .slice()
         .sort((left, right) => right.date - left.date)
         .slice(0, 20)
         .map((entry) => ({
           id: entry.id,
-          ingredient_name: data.ingredients.find((ingredient) => ingredient.id === entry.ingredientId)?.name ?? 'Unknown',
+          ingredient_name: ingredients.find((ingredient) => ingredient.id === entry.ingredientId)?.name ?? 'Unknown',
           quantity_added: entry.quantityAdded,
           cost: entry.cost,
           date: entry.date,
@@ -26,64 +31,69 @@ export class InventoryWebService implements InventoryService {
   }
 
   async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<void> {
-    updateWebData((data) => {
-      data.ingredients.push({
-        id: nextId(data, 'ingredients'),
-        name,
-        unit: unit as Unit,
-        quantity,
-        low_stock_threshold: lowStockThreshold,
-        supplier_id: supplierId ?? null,
-      });
+    const db = await getDb();
+    await db.ingredients.add({
+      id: generateId(),
+      name,
+      unit: unit as Unit,
+      quantity,
+      low_stock_threshold: lowStockThreshold,
+      supplier_id: supplierId ?? null,
     });
   }
 
   async updateIngredient({ id, ...payload }: UpdateIngredientPayload): Promise<void> {
-    updateWebData((data) => {
-      const ingredient = data.ingredients.find((entry) => entry.id === id);
-      if (!ingredient) {
-        return;
-      }
+    const db = await getDb();
+    const ingredient = await db.ingredients.get(id);
+    if (!ingredient) {
+      return;
+    }
 
-      ingredient.name = payload.name ?? ingredient.name;
-      ingredient.unit = (payload.unit as Unit | undefined) ?? ingredient.unit;
-      ingredient.quantity = payload.quantity ?? ingredient.quantity;
-      ingredient.low_stock_threshold = payload.low_stock_threshold ?? ingredient.low_stock_threshold;
-      ingredient.supplier_id = payload.supplier_id ?? ingredient.supplier_id;
-    });
+    ingredient.name = payload.name ?? ingredient.name;
+    ingredient.unit = (payload.unit as Unit | undefined) ?? ingredient.unit;
+    ingredient.quantity = payload.quantity ?? ingredient.quantity;
+    ingredient.low_stock_threshold = payload.low_stock_threshold ?? ingredient.low_stock_threshold;
+    ingredient.supplier_id = payload.supplier_id ?? ingredient.supplier_id;
+
+    await db.ingredients.update(id, ingredient);
   }
 
   async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<void> {
-    updateWebData((data) => {
-      if (data.suppliers.some((supplier) => supplier.name === name)) {
-        return;
-      }
+    const db = await getDb();
+    const existing = await db.suppliers
+      .where('name')
+      .equals(name)
+      .count();
 
-      data.suppliers.push({
-        id: nextId(data, 'suppliers'),
-        name,
-        phone: phone ?? null,
-        notes: notes ?? null,
-      });
+    if (existing > 0) {
+      return;
+    }
+
+    await db.suppliers.add({
+      id: generateId(),
+      name,
+      phone: phone ?? null,
+      notes: notes ?? null,
     });
   }
 
   async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<void> {
-    updateWebData((data) => {
-      const ingredient = data.ingredients.find((entry) => entry.id === ingredientId);
-      if (!ingredient) {
-        return;
-      }
+    const db = await getDb();
+    const ingredient = await db.ingredients.get(ingredientId);
+    if (!ingredient) {
+      return;
+    }
 
-      ingredient.quantity += quantityAdded;
-      data.restockLogs.push({
-        id: nextId(data, 'restockLogs'),
-        ingredientId,
-        quantityAdded,
-        cost,
-        supplierId: supplierId ?? null,
-        date: Math.floor(Date.now() / 1000),
-      });
+    ingredient.quantity += quantityAdded;
+    await db.ingredients.update(ingredientId, ingredient);
+
+    await db.restockLogs.add({
+      id: generateId(),
+      ingredientId,
+      quantityAdded,
+      cost,
+      supplierId: supplierId ?? null,
+      date: Math.floor(Date.now() / 1000),
     });
   }
 }

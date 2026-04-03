@@ -3,47 +3,51 @@ import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
 import { verifyPin } from '@/utils/hash';
 
-import { nextId, readWebData, updateWebData } from './storage';
+import { getDb, generateId } from './storage';
 
 export class AuthWebService implements AuthService {
   async getActiveUsers(): Promise<User[]> {
-    return readWebData()
-      .users
+    const db = await getDb();
+    return (await db.users.toArray())
       .filter((user) => user.isActive)
-      .sort((left, right) => left.id - right.id)
+      .sort((left, right) => left.id.localeCompare(right.id))
       .map(({ id, name, role }) => ({ id, name, role }));
   }
 
   async authenticate({ userId, pin }: LoginPayload): Promise<User | null> {
-    const user = readWebData().users.find((entry) => entry.id === userId && entry.isActive);
+    const db = await getDb();
+    const user = await db.users.get(userId);
 
-    if (!user || !verifyPin(pin, user.pinHash)) {
+    if (!user || !user.isActive || !verifyPin(pin, user.pinHash)) {
       return null;
     }
 
     return { id: user.id, name: user.name, role: user.role };
   }
 
-  async startSession(userId: number): Promise<void> {
-    updateWebData((data) => {
-      data.sessions.push({
-        id: nextId(data, 'sessions'),
-        userId,
-        loggedInAt: Math.floor(Date.now() / 1000),
-        loggedOutAt: null,
-      });
+  async startSession(userId: string): Promise<void> {
+    const db = await getDb();
+    await db.sessions.add({
+      id: generateId(),
+      userId,
+      loggedInAt: Math.floor(Date.now() / 1000),
+      loggedOutAt: null,
     });
   }
 
-  async endOpenSession(userId: number): Promise<void> {
+  async endOpenSession(userId: string): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
+    const db = await getDb();
 
-    updateWebData((data) => {
-      for (const session of data.sessions) {
-        if (session.userId === userId && session.loggedOutAt === null) {
-          session.loggedOutAt = now;
-        }
+    const sessions = await db.sessions
+      .where('userId')
+      .equals(userId)
+      .toArray();
+
+    for (const session of sessions) {
+      if (session.loggedOutAt === null) {
+        await db.sessions.update(session.id, { loggedOutAt: now });
       }
-    });
+    }
   }
 }

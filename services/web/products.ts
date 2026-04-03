@@ -1,53 +1,60 @@
 import type { ProductsService } from '@/services/interfaces/products';
 import type {
-    CategoryOption,
-    CreateProductPayload,
-    IngredientCompositionLink,
-    ProductDetail,
-    ProductIngredientLink,
-    RemoveCompositionPayload,
-    RemoveProductIngredientPayload,
-    SetCompositionPayload,
-    SetProductIngredientPayload,
-    UpdateProductPayload,
+  CategoryOption,
+  CreateProductPayload,
+  IngredientCompositionLink,
+  ProductDetail,
+  ProductIngredientLink,
+  RemoveCompositionPayload,
+  RemoveProductIngredientPayload,
+  SetCompositionPayload,
+  SetProductIngredientPayload,
+  UpdateProductPayload,
 } from '@/types/products';
 
-import { nextId, readWebData, updateWebData } from './storage';
+import { getDb, generateId } from './storage';
 
 export class ProductsWebService implements ProductsService {
   async getHydrationData() {
-    const data = readWebData();
+    const db = await getDb();
+    const [categoriesData, productsData, ingredients, productIngredientsData, compositionsData] = await Promise.all([
+      db.categories.toArray(),
+      db.products.toArray(),
+      db.ingredients.toArray(),
+      db.productIngredients.toArray(),
+      db.ingredientCompositions.toArray(),
+    ]);
 
-    const categories: CategoryOption[] = data.categories
+    const categories: CategoryOption[] = categoriesData
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const productsList: ProductDetail[] = data.products
+    const productsList: ProductDetail[] = productsData
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((product) => ({
         id: product.id,
         name: product.name,
         categoryId: product.categoryId,
-        category: data.categories.find((c) => c.id === product.categoryId)?.name ?? '',
+        category: categoriesData.find((c) => c.id === product.categoryId)?.name ?? '',
         price: product.price,
         isActive: product.isActive,
       }));
 
-    const ingredientLinks: ProductIngredientLink[] = data.productIngredients.map((pi) => ({
+    const ingredientLinks: ProductIngredientLink[] = productIngredientsData.map((pi) => ({
       id: pi.id,
       productId: pi.productId,
       ingredientId: pi.ingredientId,
-      ingredientName: data.ingredients.find((ing) => ing.id === pi.ingredientId)?.name ?? 'Unknown',
+      ingredientName: ingredients.find((ing) => ing.id === pi.ingredientId)?.name ?? 'Unknown',
       quantityUsed: pi.quantityUsed,
     }));
 
-    const compositionLinks: IngredientCompositionLink[] = data.ingredientCompositions.map((comp) => ({
+    const compositionLinks: IngredientCompositionLink[] = compositionsData.map((comp) => ({
       id: comp.id,
       parentIngredientId: comp.parentIngredientId,
-      parentIngredientName: data.ingredients.find((ing) => ing.id === comp.parentIngredientId)?.name ?? 'Unknown',
+      parentIngredientName: ingredients.find((ing) => ing.id === comp.parentIngredientId)?.name ?? 'Unknown',
       childIngredientId: comp.childIngredientId,
-      childIngredientName: data.ingredients.find((ing) => ing.id === comp.childIngredientId)?.name ?? 'Unknown',
+      childIngredientName: ingredients.find((ing) => ing.id === comp.childIngredientId)?.name ?? 'Unknown',
       quantityNeeded: comp.quantityNeeded,
     }));
 
@@ -55,60 +62,71 @@ export class ProductsWebService implements ProductsService {
   }
 
   async createProduct({ name, categoryId, price }: CreateProductPayload): Promise<void> {
-    updateWebData((data) => {
-      if (data.products.some((p) => p.name === name)) {
-        return;
-      }
-      data.products.push({
-        id: nextId(data, 'products'),
-        name,
-        categoryId: categoryId ?? null,
-        price,
-        isActive: true,
-      });
+    const db = await getDb();
+    const existing = await db.products
+      .where('name')
+      .equals(name)
+      .count();
+
+    if (existing > 0) {
+      return;
+    }
+
+    await db.products.add({
+      id: generateId(),
+      name,
+      categoryId: categoryId ?? null,
+      price,
+      isActive: true,
     });
   }
 
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {
-    updateWebData((data) => {
-      const product = data.products.find((p) => p.id === id);
-      if (!product) {
-        return;
-      }
-      product.name = payload.name ?? product.name;
-      product.categoryId = payload.categoryId !== undefined ? payload.categoryId : product.categoryId;
-      product.price = payload.price ?? product.price;
-      product.isActive = payload.isActive !== undefined ? payload.isActive : product.isActive;
-    });
+    const db = await getDb();
+    const product = await db.products.get(id);
+    if (!product) {
+      return;
+    }
+    product.name = payload.name ?? product.name;
+    product.categoryId = payload.categoryId !== undefined ? payload.categoryId : product.categoryId;
+    product.price = payload.price ?? product.price;
+    product.isActive = payload.isActive !== undefined ? payload.isActive : product.isActive;
+
+    await db.products.update(id, product);
   }
 
   async setProductIngredient({ productId, ingredientId, quantityUsed }: SetProductIngredientPayload): Promise<void> {
     if (quantityUsed <= 0) {
       return;
     }
-    updateWebData((data) => {
-      const existing = data.productIngredients.find(
-        (pi) => pi.productId === productId && pi.ingredientId === ingredientId,
-      );
-      if (existing) {
-        existing.quantityUsed = quantityUsed;
-      } else {
-        data.productIngredients.push({
-          id: nextId(data, 'productIngredients'),
-          productId,
-          ingredientId,
-          quantityUsed,
-        });
-      }
-    });
+    const db = await getDb();
+    const existing = await db.productIngredients
+      .where('[productId+ingredientId]')
+      .equals([productId, ingredientId])
+      .first();
+
+    if (existing) {
+      await db.productIngredients.update(existing.id, { quantityUsed });
+    } else {
+      await db.productIngredients.add({
+        id: generateId(),
+        productId,
+        ingredientId,
+        quantityUsed,
+      });
+    }
   }
 
   async removeProductIngredient({ productId, ingredientId }: RemoveProductIngredientPayload): Promise<void> {
-    updateWebData((data) => {
-      data.productIngredients = data.productIngredients.filter(
-        (pi) => !(pi.productId === productId && pi.ingredientId === ingredientId),
-      );
-    });
+    const db = await getDb();
+    const existing = await db.productIngredients
+      .where('[productId+ingredientId]')
+      .equals([productId, ingredientId])
+      .first();
+
+    if (existing) {
+      await db.productIngredients.delete(existing.id);
+    }
   }
 
   async setComposition({ parentIngredientId, childIngredientId, quantityNeeded }: SetCompositionPayload): Promise<void> {
@@ -119,28 +137,33 @@ export class ProductsWebService implements ProductsService {
     if (quantityNeeded <= 0) {
       return;
     }
-    updateWebData((data) => {
-      const existing = data.ingredientCompositions.find(
-        (c) => c.parentIngredientId === parentIngredientId && c.childIngredientId === childIngredientId,
-      );
-      if (existing) {
-        existing.quantityNeeded = quantityNeeded;
-      } else {
-        data.ingredientCompositions.push({
-          id: nextId(data, 'ingredientCompositions'),
-          parentIngredientId,
-          childIngredientId,
-          quantityNeeded,
-        });
-      }
-    });
+    const db = await getDb();
+    const existing = await db.ingredientCompositions
+      .where('[parentIngredientId+childIngredientId]')
+      .equals([parentIngredientId, childIngredientId])
+      .first();
+
+    if (existing) {
+      await db.ingredientCompositions.update(existing.id, { quantityNeeded });
+    } else {
+      await db.ingredientCompositions.add({
+        id: generateId(),
+        parentIngredientId,
+        childIngredientId,
+        quantityNeeded,
+      });
+    }
   }
 
   async removeComposition({ parentIngredientId, childIngredientId }: RemoveCompositionPayload): Promise<void> {
-    updateWebData((data) => {
-      data.ingredientCompositions = data.ingredientCompositions.filter(
-        (c) => !(c.parentIngredientId === parentIngredientId && c.childIngredientId === childIngredientId),
-      );
-    });
+    const db = await getDb();
+    const existing = await db.ingredientCompositions
+      .where('[parentIngredientId+childIngredientId]')
+      .equals([parentIngredientId, childIngredientId])
+      .first();
+
+    if (existing) {
+      await db.ingredientCompositions.delete(existing.id);
+    }
   }
 }

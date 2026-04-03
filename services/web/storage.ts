@@ -1,286 +1,181 @@
 import type { Expense, Ingredient, Supplier, User } from '@/types/types';
 import { hashPin } from '@/utils/hash';
+import Dexie, { type Table } from 'dexie';
+import { v4 as uuidv4 } from 'uuid';
 
-type WebUserRecord = User & {
+export type WebUserRecord = User & {
   pinHash: string;
   isActive: boolean;
 };
 
-type WebSessionRecord = {
-  id: number;
-  userId: number;
+export type WebSessionRecord = {
+  id: string;
+  userId: string;
   loggedInAt: number;
   loggedOutAt: number | null;
 };
 
-type WebCategoryRecord = {
-  id: number;
+export type WebCategoryRecord = {
+  id: string;
   name: string;
 };
 
-type WebProductRecord = {
-  id: number;
+export type WebProductRecord = {
+  id: string;
   name: string;
-  categoryId: number | null;
+  categoryId: string | null;
   price: number;
   isActive: boolean;
 };
 
-type WebSupplierRecord = Supplier;
+export type WebSupplierRecord = Supplier;
 
-type WebIngredientRecord = Ingredient;
+export type WebIngredientRecord = Ingredient;
 
-type WebRestockLogRecord = {
-  id: number;
-  ingredientId: number;
+export type WebRestockLogRecord = {
+  id: string;
+  ingredientId: string;
   quantityAdded: number;
   cost: number;
-  supplierId: number | null;
+  supplierId: string | null;
   date: number;
 };
 
-type WebExpenseRecord = Expense & {
-  supplierId: number | null;
+export type WebExpenseRecord = Expense & {
+  supplierId: string | null;
 };
 
-type WebEmployeeRecord = {
-  id: number;
+export type WebEmployeeRecord = {
+  id: string;
   name: string;
   salaryType: 'hourly' | 'monthly';
   rate: number;
 };
 
-type WebPayrollEntryRecord = {
-  id: number;
-  employeeId: number;
+export type WebPayrollEntryRecord = {
+  id: string;
+  employeeId: string;
   periodStart: number;
   periodEnd: number;
   amount: number;
 };
 
-type WebSaleRecord = {
-  id: number;
+export type WebSaleRecord = {
+  id: string;
   createdAt: number;
-  staffId: number;
+  staffId: string;
   total: number;
 };
 
-type WebSaleItemRecord = {
-  id: number;
-  saleId: number;
-  productId: number;
+export type WebSaleItemRecord = {
+  id: string;
+  saleId: string;
+  productId: string;
   quantity: number;
   unitPrice: number;
 };
 
 export type WebProductIngredientRecord = {
-  id: number;
-  productId: number;
-  ingredientId: number;
+  id: string;
+  productId: string;
+  ingredientId: string;
   quantityUsed: number;
 };
 
 export type WebIngredientCompositionRecord = {
-  id: number;
-  parentIngredientId: number;
-  childIngredientId: number;
+  id: string;
+  parentIngredientId: string;
+  childIngredientId: string;
   quantityNeeded: number;
 };
 
-type WebIds = {
-  users: number;
-  sessions: number;
-  categories: number;
-  products: number;
-  suppliers: number;
-  ingredients: number;
-  restockLogs: number;
-  expenses: number;
-  employees: number;
-  payrollEntries: number;
-  sales: number;
-  saleItems: number;
-  productIngredients: number;
-  ingredientCompositions: number;
-};
+export class CafeBomBomDB extends Dexie {
+  users!: Table<WebUserRecord>;
+  sessions!: Table<WebSessionRecord>;
+  categories!: Table<WebCategoryRecord>;
+  products!: Table<WebProductRecord>;
+  suppliers!: Table<WebSupplierRecord>;
+  ingredients!: Table<WebIngredientRecord>;
+  restockLogs!: Table<WebRestockLogRecord>;
+  expenses!: Table<WebExpenseRecord>;
+  employees!: Table<WebEmployeeRecord>;
+  payrollEntries!: Table<WebPayrollEntryRecord>;
+  sales!: Table<WebSaleRecord>;
+  saleItems!: Table<WebSaleItemRecord>;
+  productIngredients!: Table<WebProductIngredientRecord>;
+  ingredientCompositions!: Table<WebIngredientCompositionRecord>;
 
-export type WebData = {
-  ids: WebIds;
-  users: WebUserRecord[];
-  sessions: WebSessionRecord[];
-  categories: WebCategoryRecord[];
-  products: WebProductRecord[];
-  suppliers: WebSupplierRecord[];
-  ingredients: WebIngredientRecord[];
-  restockLogs: WebRestockLogRecord[];
-  expenses: WebExpenseRecord[];
-  employees: WebEmployeeRecord[];
-  payrollEntries: WebPayrollEntryRecord[];
-  sales: WebSaleRecord[];
-  saleItems: WebSaleItemRecord[];
-  productIngredients: WebProductIngredientRecord[];
-  ingredientCompositions: WebIngredientCompositionRecord[];
-};
+  constructor() {
+    super('cafebombom.web');
 
-const STORAGE_KEY = 'cafebombom.web.v1';
-
-let memoryFallback: WebData | null = null;
-
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function getStorage(): Storage | null {
-  if (typeof globalThis === 'undefined' || !('localStorage' in globalThis)) {
-    return null;
+    this.version(1).stores({
+      users: 'id',
+      sessions: 'id, userId',
+      categories: 'id',
+      products: 'id, categoryId',
+      suppliers: 'id',
+      ingredients: 'id',
+      restockLogs: 'id, ingredientId, date',
+      expenses: 'id, date',
+      employees: 'id',
+      payrollEntries: 'id, employeeId',
+      sales: 'id, createdAt, staffId',
+      saleItems: 'id, saleId, productId',
+      productIngredients: 'id, productId, [productId+ingredientId]',
+      ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+    });
   }
 
-  try {
-    return globalThis.localStorage;
-  } catch {
-    return null;
-  }
-}
+  async seed(): Promise<void> {
+    const hasData = await this.users.count();
+    if (hasData > 0) return;
 
-function createSeedData(): WebData {
-  return {
-    ids: {
-      users: 3,
-      sessions: 1,
-      categories: 5,
-      products: 5,
-      suppliers: 1,
-      ingredients: 1,
-      restockLogs: 1,
-      expenses: 1,
-      employees: 1,
-      payrollEntries: 1,
-      sales: 1,
-      saleItems: 1,
-      productIngredients: 1,
-      ingredientCompositions: 1,
-    },
-    users: [
-      { id: 1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
-      { id: 2, name: 'Staff', role: 'staff', pinHash: hashPin('2222'), isActive: true },
-      // Hashes PINs using bcryptjs with 10 salt rounds
-    ],
-    sessions: [],
-    categories: [
-      { id: 1, name: 'Coffee' },
-      { id: 2, name: 'Tea' },
-      { id: 3, name: 'Pastry' },
-      { id: 4, name: 'Snacks' },
-    ],
-    products: [
-      { id: 1, name: 'Cappuccino', categoryId: 1, price: 4.5, isActive: true },
-      { id: 2, name: 'Latte', categoryId: 1, price: 4.25, isActive: true },
-      { id: 3, name: 'Thai Milk Tea', categoryId: 2, price: 3.9, isActive: true },
-      { id: 4, name: 'Butter Croissant', categoryId: 3, price: 2.8, isActive: true },
-    ],
-    suppliers: [],
-    ingredients: [],
-    restockLogs: [],
-    expenses: [],
-    employees: [],
-    payrollEntries: [],
-    sales: [],
-    saleItems: [],
-    productIngredients: [],
-    ingredientCompositions: [],
-  };
-}
+    try {
+      const userId1 = uuidv4();
+      const userId2 = uuidv4();
+      const categoryId1 = uuidv4();
+      const categoryId2 = uuidv4();
+      const categoryId3 = uuidv4();
+      const categoryId4 = uuidv4();
+      const productId1 = uuidv4();
+      const productId2 = uuidv4();
+      const productId3 = uuidv4();
+      const productId4 = uuidv4();
 
-function normalizeData(data: WebData): WebData {
-  if (!data.ids) {
-    return createSeedData();
-  }
-
-  return {
-    ids: {
-      ...data.ids,
-      productIngredients: data.ids.productIngredients ?? 1,
-      ingredientCompositions: data.ids.ingredientCompositions ?? 1,
-    },
-    users: data.users ?? [],
-    sessions: data.sessions ?? [],
-    categories: data.categories ?? [],
-    products: data.products ?? [],
-    suppliers: data.suppliers ?? [],
-    ingredients: data.ingredients ?? [],
-    restockLogs: data.restockLogs ?? [],
-    expenses: data.expenses ?? [],
-    employees: data.employees ?? [],
-    payrollEntries: data.payrollEntries ?? [],
-    sales: data.sales ?? [],
-    saleItems: data.saleItems ?? [],
-    productIngredients: data.productIngredients ?? [],
-    ingredientCompositions: data.ingredientCompositions ?? [],
-  };
-}
-
-export function readWebData(): WebData {
-  const storage = getStorage();
-
-  if (!storage) {
-    if (!memoryFallback) {
-      memoryFallback = createSeedData();
+      await this.transaction('rw', [this.users, this.categories, this.products], async () => {
+        await this.users.bulkAdd([
+          { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
+          { id: userId2, name: 'Staff', role: 'staff', pinHash: hashPin('2222'), isActive: true },
+        ]);
+        await this.categories.bulkAdd([
+          { id: categoryId1, name: 'Coffee' },
+          { id: categoryId2, name: 'Tea' },
+          { id: categoryId3, name: 'Pastry' },
+          { id: categoryId4, name: 'Snacks' },
+        ]);
+        await this.products.bulkAdd([
+          { id: productId1, name: 'Cappuccino', categoryId: categoryId1, price: 4.5, isActive: true },
+          { id: productId2, name: 'Latte', categoryId: categoryId1, price: 4.25, isActive: true },
+          { id: productId3, name: 'Thai Milk Tea', categoryId: categoryId2, price: 3.9, isActive: true },
+          { id: productId4, name: 'Butter Croissant', categoryId: categoryId3, price: 2.8, isActive: true },
+        ]);
+      });
+    } catch (err) {
+      console.error('Failed to seed database:', err);
     }
-    return clone(memoryFallback);
-  }
-
-  const raw = storage.getItem(STORAGE_KEY);
-  if (!raw) {
-    const seed = createSeedData();
-    storage.setItem(STORAGE_KEY, JSON.stringify(seed));
-    return clone(seed);
-  }
-
-  try {
-    return clone(normalizeData(JSON.parse(raw) as WebData));
-  } catch {
-    const seed = createSeedData();
-    storage.setItem(STORAGE_KEY, JSON.stringify(seed));
-    return clone(seed);
   }
 }
 
-export function writeWebData(data: WebData): void {
-  const next = clone(data);
-  const storage = getStorage();
+let db: CafeBomBomDB | null = null;
 
-  if (storage) {
-    storage.setItem(STORAGE_KEY, JSON.stringify(next));
-    return;
+export function generateId(): string {
+  return uuidv4();
+}
+
+export async function getDb(): Promise<CafeBomBomDB> {
+  if (!db) {
+    db = new CafeBomBomDB();
+    await db.seed();
   }
-
-  memoryFallback = next;
+  return db;
 }
-
-export function updateWebData<T>(updater: (data: WebData) => T): T {
-  const data = readWebData();
-  const result = updater(data);
-  writeWebData(data);
-  return result;
-}
-
-export function nextId(data: WebData, key: keyof WebIds): number {
-  const value = data.ids[key];
-  data.ids[key] += 1;
-  return value;
-}
-
-export type {
-    WebCategoryRecord,
-    WebEmployeeRecord,
-    WebExpenseRecord,
-    WebIngredientRecord,
-    WebPayrollEntryRecord,
-    WebProductRecord,
-    WebRestockLogRecord,
-    WebSaleItemRecord,
-    WebSaleRecord,
-    WebSessionRecord,
-    WebSupplierRecord,
-    WebUserRecord
-};
