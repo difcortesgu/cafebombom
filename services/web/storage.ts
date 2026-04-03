@@ -119,18 +119,18 @@ export class CafeBomBomDB extends Dexie {
   constructor() {
     super('cafebombom.web');
 
-    this.version(2).stores({
-      users: 'id',
+    this.version(3).stores({
+      users: 'id, name',
       sessions: 'id, userId',
-      categories: 'id',
-      products: 'id, categoryId',
-      suppliers: 'id',
-      ingredients: 'id',
+      categories: 'id, &name',
+      products: 'id, &name, categoryId',
+      suppliers: 'id, &name',
+      ingredients: 'id, &name',
       restockLogs: 'id, ingredientId, date',
       expenses: 'id, date',
-      employees: 'id',
+      employees: 'id, &name',
       payrollEntries: 'id, employeeId',
-      restaurantTables: 'id, name, createdAt',
+      restaurantTables: 'id, &name, createdAt',
       sales: 'id, createdAt, staffId, tableId',
       saleItems: 'id, saleId, productId',
       productIngredients: 'id, productId, [productId+ingredientId]',
