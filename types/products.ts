@@ -33,6 +33,12 @@ export type CreateProductPayload = {
   name: string;
   categoryId?: string;
   price: number;
+  recipe: [ProductRecipeInput, ...ProductRecipeInput[]];
+};
+
+export type ProductRecipeInput = {
+  ingredientId: string;
+  quantityUsed: number;
 };
 
 export type UpdateProductPayload = {

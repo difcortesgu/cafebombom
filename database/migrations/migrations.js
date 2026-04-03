@@ -9,8 +9,8 @@ import journal from './meta/_journal.json';
     journal,
     migrations: {
       m0000,
-m0001,
-m0002
+      m0001,
+      m0002
     }
   }
   

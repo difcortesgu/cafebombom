@@ -5,6 +5,7 @@ import type {
   IngredientCompositionLink,
   ProductDetail,
   ProductIngredientLink,
+  ProductRecipeInput,
   RemoveCompositionPayload,
   RemoveProductIngredientPayload,
   SetCompositionPayload,
@@ -15,6 +16,18 @@ import type {
 import { getDb } from './storage';
 
 export class ProductsWebService implements ProductsService {
+  private normalizeRecipe(recipe: ProductRecipeInput[]): ProductRecipeInput[] {
+    const deduped = new Map<string, number>();
+    for (const entry of recipe) {
+      if (!entry.ingredientId || entry.quantityUsed <= 0) {
+        continue;
+      }
+      deduped.set(entry.ingredientId, entry.quantityUsed);
+    }
+
+    return Array.from(deduped.entries()).map(([ingredientId, quantityUsed]) => ({ ingredientId, quantityUsed }));
+  }
+
   async getHydrationData() {
     const db = await getDb();
     const [categoriesData, productsData, ingredients, productIngredientsData, compositionsData] = await Promise.all([
@@ -61,8 +74,13 @@ export class ProductsWebService implements ProductsService {
     return { categories, products: productsList, productIngredients: ingredientLinks, compositions: compositionLinks };
   }
 
-  async createProduct({ name, categoryId, price }: CreateProductPayload): Promise<void> {
+  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<void> {
     const db = await getDb();
+    const normalizedRecipe = this.normalizeRecipe(recipe);
+    if (normalizedRecipe.length === 0) {
+      return;
+    }
+
     const existing = await db.products
       .where('name')
       .equals(name)
@@ -72,11 +90,21 @@ export class ProductsWebService implements ProductsService {
       return;
     }
 
-    await db.products.add({
-      name,
-      categoryId: categoryId ?? null,
-      price,
-      isActive: true,
+    await db.transaction('rw', [db.products, db.productIngredients], async () => {
+      const productId = await db.products.add({
+        name,
+        categoryId: categoryId ?? null,
+        price,
+        isActive: true,
+      });
+
+      await db.productIngredients.bulkAdd(
+        normalizedRecipe.map((entry) => ({
+          productId,
+          ingredientId: entry.ingredientId,
+          quantityUsed: entry.quantityUsed,
+        })),
+      );
     });
   }
 
@@ -117,6 +145,15 @@ export class ProductsWebService implements ProductsService {
 
   async removeProductIngredient({ productId, ingredientId }: RemoveProductIngredientPayload): Promise<void> {
     const db = await getDb();
+    const totalLinks = await db.productIngredients
+      .where('productId')
+      .equals(productId)
+      .count();
+
+    if (totalLinks <= 1) {
+      return;
+    }
+
     const existing = await db.productIngredients
       .where('[productId+ingredientId]')
       .equals([productId, ingredientId])

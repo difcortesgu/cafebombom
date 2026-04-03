@@ -181,9 +181,13 @@ export class CafeBomBomDB extends Dexie {
       const productId2 = generateId();
       const productId3 = generateId();
       const productId4 = generateId();
+      const ingredientId1 = generateId();
+      const ingredientId2 = generateId();
+      const ingredientId3 = generateId();
+      const ingredientId4 = generateId();
       const now = Math.floor(Date.now() / 1000);
 
-      await this.transaction('rw', [this.users, this.categories, this.products, this.restaurantTables], async () => {
+      await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables], async () => {
         if ((await this.users.count()) === 0) {
           await this.users.bulkAdd([
             { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
@@ -198,6 +202,14 @@ export class CafeBomBomDB extends Dexie {
             { id: categoryId4, name: 'Snacks' },
           ]);
         }
+        if ((await this.ingredients.count()) === 0) {
+          await this.ingredients.bulkAdd([
+            { id: ingredientId1, name: 'Espresso Beans', unit: 'grams', quantity: 0, low_stock_threshold: 500, supplier_id: null },
+            { id: ingredientId2, name: 'Milk', unit: 'liters', quantity: 0, low_stock_threshold: 2, supplier_id: null },
+            { id: ingredientId3, name: 'Tea Blend', unit: 'grams', quantity: 0, low_stock_threshold: 400, supplier_id: null },
+            { id: ingredientId4, name: 'Pastry Dough', unit: 'grams', quantity: 0, low_stock_threshold: 1000, supplier_id: null },
+          ]);
+        }
         if ((await this.products.count()) === 0) {
           const coffee = await this.categories.where('name').equals('Coffee').first();
           const tea = await this.categories.where('name').equals('Tea').first();
@@ -208,6 +220,28 @@ export class CafeBomBomDB extends Dexie {
               { id: productId2, name: 'Latte', categoryId: coffee.id, price: 4.25, isActive: true },
               { id: productId3, name: 'Thai Milk Tea', categoryId: tea.id, price: 3.9, isActive: true },
               { id: productId4, name: 'Butter Croissant', categoryId: pastry.id, price: 2.8, isActive: true },
+            ]);
+          }
+        }
+        if ((await this.productIngredients.count()) === 0) {
+          const cappuccino = await this.products.where('name').equals('Cappuccino').first();
+          const latte = await this.products.where('name').equals('Latte').first();
+          const thaiMilkTea = await this.products.where('name').equals('Thai Milk Tea').first();
+          const butterCroissant = await this.products.where('name').equals('Butter Croissant').first();
+          const espresso = await this.ingredients.where('name').equals('Espresso Beans').first();
+          const milk = await this.ingredients.where('name').equals('Milk').first();
+          const teaBlend = await this.ingredients.where('name').equals('Tea Blend').first();
+          const pastryDough = await this.ingredients.where('name').equals('Pastry Dough').first();
+
+          if (cappuccino && latte && thaiMilkTea && butterCroissant && espresso && milk && teaBlend && pastryDough) {
+            await this.productIngredients.bulkAdd([
+              { productId: cappuccino.id, ingredientId: espresso.id, quantityUsed: 18 },
+              { productId: latte.id, ingredientId: espresso.id, quantityUsed: 18 },
+              { productId: thaiMilkTea.id, ingredientId: teaBlend.id, quantityUsed: 10 },
+              { productId: butterCroissant.id, ingredientId: pastryDough.id, quantityUsed: 80 },
+              { productId: cappuccino.id, ingredientId: milk.id, quantityUsed: 150 },
+              { productId: latte.id, ingredientId: milk.id, quantityUsed: 180 },
+              { productId: thaiMilkTea.id, ingredientId: milk.id, quantityUsed: 120 },
             ]);
           }
         }

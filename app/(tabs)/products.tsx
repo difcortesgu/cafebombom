@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 
-type Section = 'products' | 'recipes' | 'compositions';
+type Section = 'products' | 'ingredients' | 'recipes' | 'compositions';
 
 export default function ProductsScreen() {
   const palette = useAppColors();
@@ -31,15 +31,28 @@ export default function ProductsScreen() {
     setComposition,
     removeComposition,
   } = useProductsStore();
-  const { ingredients, hydrate: hydrateInventory } = useInventoryStore();
+  const {
+    ingredients,
+    hydrate: hydrateInventory,
+    addIngredient,
+    updateIngredient,
+  } = useInventoryStore();
 
   const [section, setSection] = useState<Section>('products');
   const [message, setMessage] = useState<string>('');
+  const [ingredientForm, setIngredientForm] = useState({
+    name: '',
+    unit: 'pcs',
+    quantity: '0',
+    lowStockThreshold: '5',
+  });
   const [productForm, setProductForm] = useState({
     id: null as string | null,
     name: '',
     categoryId: null as string | null,
     price: '',
+    recipeIngredientId: '',
+    recipeQuantity: '1',
   });
   const [recipeForm, setRecipeForm] = useState({
     productId: '',
@@ -78,6 +91,17 @@ export default function ProductsScreen() {
     }
   }, [compositionForm.childIngredientId, ingredients]);
 
+  useEffect(() => {
+    if (!productForm.recipeIngredientId && ingredients.length > 0) {
+      setProductForm((current) => ({ ...current, recipeIngredientId: String(ingredients[0].id) }));
+    }
+  }, [ingredients, productForm.recipeIngredientId]);
+
+  const lowStock = useMemo(
+    () => ingredients.filter((item) => Number(item.quantity) <= Number(item.low_stock_threshold)),
+    [ingredients],
+  );
+
   if (currentUser?.role !== 'owner') {
     return (
       <ThemedView style={styles.lockedContainer}>
@@ -94,6 +118,7 @@ export default function ProductsScreen() {
   const submitProduct = async () => {
     const trimmedName = productForm.name.trim();
     const price = Number(productForm.price || '0');
+    const recipeQuantity = Number(productForm.recipeQuantity || '0');
 
     if (!trimmedName) {
       setMessage('Product name is required.');
@@ -102,6 +127,11 @@ export default function ProductsScreen() {
 
     if (price <= 0) {
       setMessage('Product price must be greater than 0.');
+      return;
+    }
+
+    if (!productForm.id && (!productForm.recipeIngredientId || recipeQuantity <= 0)) {
+      setMessage('New products must include at least one recipe ingredient with quantity greater than 0.');
       return;
     }
 
@@ -118,11 +148,19 @@ export default function ProductsScreen() {
         name: trimmedName,
         categoryId: productForm.categoryId ?? undefined,
         price,
+        recipe: [{ ingredientId: productForm.recipeIngredientId, quantityUsed: recipeQuantity }],
       });
       setMessage('Product created.');
     }
 
-    setProductForm({ id: null, name: '', categoryId: null, price: '' });
+    setProductForm({
+      id: null,
+      name: '',
+      categoryId: null,
+      price: '',
+      recipeIngredientId: ingredients[0]?.id ?? '',
+      recipeQuantity: '1',
+    });
   };
 
   const submitRecipe = async () => {
@@ -173,7 +211,7 @@ export default function ProductsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Products</ThemedText>
-      <ThemedText>Maintain sellable products, direct recipe links, and processed ingredient trees.</ThemedText>
+      <ThemedText>Maintain products, ingredients, direct recipe links, and processed ingredient trees.</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.messageCard}>
@@ -182,7 +220,7 @@ export default function ProductsScreen() {
       ) : null}
 
       <View style={styles.tabRow}>
-        {(['products', 'recipes', 'compositions'] as Section[]).map((item) => (
+        {(['products', 'ingredients', 'recipes', 'compositions'] as Section[]).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
@@ -237,10 +275,44 @@ export default function ProductsScreen() {
                   variant="secondary"
                   style={styles.secondaryButton}
                   label="Cancel"
-                  onPress={() => setProductForm({ id: null, name: '', categoryId: null, price: '' })}
+                  onPress={() =>
+                    setProductForm({
+                      id: null,
+                      name: '',
+                      categoryId: null,
+                      price: '',
+                      recipeIngredientId: ingredients[0]?.id ?? '',
+                      recipeQuantity: '1',
+                    })
+                  }
                 />
               ) : null}
             </View>
+
+            {!productForm.id ? (
+              <>
+                <ThemedText style={styles.label}>Required recipe ingredient</ThemedText>
+                <View style={styles.chipRow}>
+                  {ingredients.map((ingredient) => (
+                    <ThemedChip
+                      key={`product-recipe-${ingredient.id}`}
+                      style={styles.chip}
+                      label={ingredient.name}
+                      tone="accent"
+                      active={productForm.recipeIngredientId === ingredient.id}
+                      onPress={() => setProductForm((current) => ({ ...current, recipeIngredientId: ingredient.id }))}
+                    />
+                  ))}
+                </View>
+                <ThemedInput
+                  placeholder="Recipe quantity used per product"
+                  keyboardType="decimal-pad"
+                  value={productForm.recipeQuantity}
+                  onChangeText={(value) => setProductForm((current) => ({ ...current, recipeQuantity: value }))}
+                  style={styles.input}
+                />
+              </>
+            ) : null}
           </ThemedCard>
 
           <ThemedCard style={styles.card}>
@@ -265,6 +337,8 @@ export default function ProductsScreen() {
                           name: product.name,
                           categoryId: product.categoryId,
                           price: String(product.price),
+                          recipeIngredientId: ingredients[0]?.id ?? '',
+                          recipeQuantity: '1',
                         })
                       }
                     />
@@ -281,6 +355,94 @@ export default function ProductsScreen() {
                 </View>
               </View>
             ))}
+          </ThemedCard>
+        </>
+      ) : null}
+
+      {section === 'ingredients' ? (
+        <>
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">Add ingredient</ThemedText>
+            <ThemedInput
+              placeholder="Name"
+              value={ingredientForm.name}
+              onChangeText={(value) => setIngredientForm((current) => ({ ...current, name: value }))}
+              style={styles.input}
+            />
+            <View style={styles.actionsRow}>
+              <ThemedInput
+                placeholder="Unit"
+                value={ingredientForm.unit}
+                onChangeText={(value) => setIngredientForm((current) => ({ ...current, unit: value }))}
+                style={[styles.input, styles.halfWidth]}
+              />
+              <ThemedInput
+                placeholder="Qty"
+                keyboardType="decimal-pad"
+                value={ingredientForm.quantity}
+                onChangeText={(value) => setIngredientForm((current) => ({ ...current, quantity: value }))}
+                style={[styles.input, styles.halfWidth]}
+              />
+            </View>
+            <ThemedInput
+              placeholder="Low stock threshold"
+              keyboardType="decimal-pad"
+              value={ingredientForm.lowStockThreshold}
+              onChangeText={(value) => setIngredientForm((current) => ({ ...current, lowStockThreshold: value }))}
+              style={styles.input}
+            />
+            <ThemedButton
+              style={styles.primaryButton}
+              label="Save ingredient"
+              onPress={async () => {
+                if (!ingredientForm.name.trim()) {
+                  setMessage('Ingredient name is required.');
+                  return;
+                }
+
+                await addIngredient({
+                  name: ingredientForm.name.trim(),
+                  unit: ingredientForm.unit.trim() || 'pcs',
+                  quantity: Number(ingredientForm.quantity || '0'),
+                  lowStockThreshold: Number(ingredientForm.lowStockThreshold || '0'),
+                });
+
+                setIngredientForm({ name: '', unit: 'pcs', quantity: '0', lowStockThreshold: '5' });
+                setMessage('Ingredient saved.');
+              }}
+            />
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">Ingredient list</ThemedText>
+            {ingredients.map((item) => {
+              const isLow = Number(item.quantity) <= Number(item.low_stock_threshold);
+              return (
+                <View key={item.id} style={[styles.listItem, { borderColor: palette.border }]}>
+                  <View style={styles.listTextWrap}>
+                    <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
+                    <ThemedText style={styles.smallText}>
+                      {Number(item.quantity).toFixed(2)} {item.unit} · threshold {item.low_stock_threshold}
+                    </ThemedText>
+                    {isLow ? <ThemedText style={[styles.lowText, { color: palette.warning }]}>Low stock</ThemedText> : null}
+                  </View>
+                  <ThemedButton
+                    variant="secondary"
+                    style={styles.secondaryButton}
+                    label="+1"
+                    onPress={async () => {
+                      await updateIngredient({ id: item.id, quantity: Number(item.quantity) + 1 });
+                      setMessage('Ingredient quantity updated.');
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">Low-stock alert</ThemedText>
+            <ThemedText>{lowStock.length} ingredient(s) below threshold.</ThemedText>
           </ThemedCard>
         </>
       ) : null}
@@ -342,6 +504,10 @@ export default function ProductsScreen() {
                     style={styles.secondaryButton}
                     label="Remove"
                     onPress={async () => {
+                      if (selectedProductRecipes.length <= 1) {
+                        setMessage('Each product must keep at least one recipe ingredient.');
+                        return;
+                      }
                       await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
                       setMessage('Recipe link removed.');
                     }}
@@ -472,6 +638,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  halfWidth: {
+    flex: 1,
+  },
   inlineActions: {
     flexDirection: 'row',
     gap: 8,
@@ -518,5 +687,8 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     fontSize: 13,
     lineHeight: 18,
+  },
+  lowText: {
+    fontWeight: '600',
   },
 });

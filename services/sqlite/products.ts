@@ -2,20 +2,34 @@ import { db, dbReady } from '@/database/db';
 import { categories, ingredientCompositions, ingredients, productIngredients, products } from '@/database/schema';
 import type { ProductsService } from '@/services/interfaces/products';
 import type {
-    CategoryOption,
-    CreateProductPayload,
-    IngredientCompositionLink,
-    ProductDetail,
-    ProductIngredientLink,
-    RemoveCompositionPayload,
-    RemoveProductIngredientPayload,
-    SetCompositionPayload,
-    SetProductIngredientPayload,
-    UpdateProductPayload,
+  CategoryOption,
+  CreateProductPayload,
+  IngredientCompositionLink,
+  ProductDetail,
+  ProductIngredientLink,
+  ProductRecipeInput,
+  RemoveCompositionPayload,
+  RemoveProductIngredientPayload,
+  SetCompositionPayload,
+  SetProductIngredientPayload,
+  UpdateProductPayload,
 } from '@/types/products';
+import { generateId } from '@/utils/id';
 import { and, eq, sql } from 'drizzle-orm';
 
 export class ProductsSqliteService implements ProductsService {
+  private normalizeRecipe(recipe: ProductRecipeInput[]): ProductRecipeInput[] {
+    const deduped = new Map<string, number>();
+    for (const entry of recipe) {
+      if (!entry.ingredientId || entry.quantityUsed <= 0) {
+        continue;
+      }
+      deduped.set(entry.ingredientId, entry.quantityUsed);
+    }
+
+    return Array.from(deduped.entries()).map(([ingredientId, quantityUsed]) => ({ ingredientId, quantityUsed }));
+  }
+
   async getHydrationData() {
     await dbReady;
 
@@ -88,11 +102,29 @@ export class ProductsSqliteService implements ProductsService {
     };
   }
 
-  async createProduct({ name, categoryId, price }: CreateProductPayload): Promise<void> {
+  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<void> {
     await dbReady;
-    db.insert(products)
-      .values({ name, categoryId: categoryId ?? null, price, isActive: true })
-      .run();
+    const normalizedRecipe = this.normalizeRecipe(recipe);
+    if (normalizedRecipe.length === 0) {
+      return;
+    }
+
+    const productId = generateId();
+    db.transaction((tx) => {
+      tx.insert(products)
+        .values({ id: productId, name, categoryId: categoryId ?? null, price, isActive: true })
+        .run();
+
+      tx.insert(productIngredients)
+        .values(
+          normalizedRecipe.map((entry) => ({
+            productId,
+            ingredientId: entry.ingredientId,
+            quantityUsed: entry.quantityUsed,
+          })),
+        )
+        .run();
+    });
   }
 
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {
@@ -146,6 +178,15 @@ export class ProductsSqliteService implements ProductsService {
 
   async removeProductIngredient({ productId, ingredientId }: RemoveProductIngredientPayload): Promise<void> {
     await dbReady;
+    const [{ total }] = db.select({ total: sql<number>`cast(count(*) as int)` })
+      .from(productIngredients)
+      .where(eq(productIngredients.productId, productId))
+      .all();
+
+    if (total <= 1) {
+      return;
+    }
+
     db.delete(productIngredients)
       .where(and(eq(productIngredients.productId, productId), eq(productIngredients.ingredientId, ingredientId)))
       .run();

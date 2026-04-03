@@ -2,7 +2,7 @@ import { hashPin } from '@/utils/hash';
 import { count, eq } from 'drizzle-orm';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 import type * as schema from './schema';
-import { categories, products, restaurantTables, users } from './schema';
+import { categories, ingredients, productIngredients, products, restaurantTables, users } from './schema';
 
 export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   const owner = db.select({ id: users.id })
@@ -24,6 +24,53 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   }
   const [{ total }] = db.select({ total: count() }).from(products).all();
   if (total === 0) {
+    const espresso = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Espresso Beans'))
+      .get();
+    const milk = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Milk'))
+      .get();
+    const teaBlend = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Tea Blend'))
+      .get();
+    const pastryDough = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Pastry Dough'))
+      .get();
+
+    if (!espresso) {
+      db.insert(ingredients).values({ name: 'Espresso Beans', unit: 'grams', quantity: 0, lowStockThreshold: 500 }).run();
+    }
+    if (!milk) {
+      db.insert(ingredients).values({ name: 'Milk', unit: 'liters', quantity: 0, lowStockThreshold: 2 }).run();
+    }
+    if (!teaBlend) {
+      db.insert(ingredients).values({ name: 'Tea Blend', unit: 'grams', quantity: 0, lowStockThreshold: 400 }).run();
+    }
+    if (!pastryDough) {
+      db.insert(ingredients).values({ name: 'Pastry Dough', unit: 'grams', quantity: 0, lowStockThreshold: 1000 }).run();
+    }
+
+    const espressoSeed = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Espresso Beans'))
+      .get();
+    const milkSeed = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Milk'))
+      .get();
+    const teaBlendSeed = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Tea Blend'))
+      .get();
+    const pastryDoughSeed = db.select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.name, 'Pastry Dough'))
+      .get();
+
     const coffeeCategory = db.select({ id: categories.id })
       .from(categories)
       .where(eq(categories.name, 'Coffee'))
@@ -37,13 +84,39 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
       .where(eq(categories.name, 'Pastry'))
       .get();
 
-    if (coffeeCategory && teaCategory && pastryCategory) {
+    if (coffeeCategory && teaCategory && pastryCategory && espressoSeed && milkSeed && teaBlendSeed && pastryDoughSeed) {
       db.insert(products).values([
         { name: 'Cappuccino', categoryId: coffeeCategory.id, price: 4.5 },
         { name: 'Latte', categoryId: coffeeCategory.id, price: 4.25 },
         { name: 'Thai Milk Tea', categoryId: teaCategory.id, price: 3.9 },
         { name: 'Butter Croissant', categoryId: pastryCategory.id, price: 2.8 },
       ]).run();
+
+      const cappuccino = db.select({ id: products.id }).from(products).where(eq(products.name, 'Cappuccino')).get();
+      const latte = db.select({ id: products.id }).from(products).where(eq(products.name, 'Latte')).get();
+      const thaiMilkTea = db.select({ id: products.id }).from(products).where(eq(products.name, 'Thai Milk Tea')).get();
+      const butterCroissant = db.select({ id: products.id }).from(products).where(eq(products.name, 'Butter Croissant')).get();
+
+      if (cappuccino && latte && thaiMilkTea && butterCroissant) {
+        db.insert(productIngredients)
+          .values([
+            { productId: cappuccino.id, ingredientId: espressoSeed.id, quantityUsed: 18 },
+            { productId: latte.id, ingredientId: espressoSeed.id, quantityUsed: 18 },
+            { productId: thaiMilkTea.id, ingredientId: teaBlendSeed.id, quantityUsed: 10 },
+            { productId: butterCroissant.id, ingredientId: pastryDoughSeed.id, quantityUsed: 80 },
+          ])
+          .onConflictDoNothing()
+          .run();
+
+        db.insert(productIngredients)
+          .values([
+            { productId: cappuccino.id, ingredientId: milkSeed.id, quantityUsed: 150 },
+            { productId: latte.id, ingredientId: milkSeed.id, quantityUsed: 180 },
+            { productId: thaiMilkTea.id, ingredientId: milkSeed.id, quantityUsed: 120 },
+          ])
+          .onConflictDoNothing()
+          .run();
+      }
     }
   }
 

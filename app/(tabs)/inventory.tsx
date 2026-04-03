@@ -10,29 +10,20 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { useInventoryStore } from '@/stores/inventory';
 
-type Section = 'ingredients' | 'suppliers' | 'restock';
+type Section = 'suppliers' | 'restock';
 
 export default function InventoryScreen() {
   const palette = useAppColors();
-  const [section, setSection] = useState<Section>('ingredients');
+  const [section, setSection] = useState<Section>('suppliers');
 
   const {
-    ingredients,
     suppliers,
     restocks,
     hydrate,
-    addIngredient,
     addSupplier,
     addRestock,
-    updateIngredient,
+    ingredients,
   } = useInventoryStore();
-
-  const [ingredientForm, setIngredientForm] = useState({
-    name: '',
-    unit: 'pcs',
-    quantity: '0',
-    lowStockThreshold: '5',
-  });
 
   const [supplierForm, setSupplierForm] = useState({
     name: '',
@@ -53,11 +44,6 @@ export default function InventoryScreen() {
     }, [hydrate])
   );
 
-  const lowStock = useMemo(
-    () => ingredients.filter((item) => Number(item.quantity) <= Number(item.low_stock_threshold)),
-    [ingredients]
-  );
-
   const selectedIngredient = useMemo(
     () => ingredients.find((ingredient) => ingredient.id === restockForm.ingredientId) ?? null,
     [ingredients, restockForm.ingredientId]
@@ -71,10 +57,10 @@ export default function InventoryScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Inventory</ThemedText>
-      <ThemedText>Manage ingredients, suppliers, and stock-ins.</ThemedText>
+      <ThemedText>Manage suppliers and stock-ins.</ThemedText>
 
       <View style={styles.tabRow}>
-        {(['ingredients', 'suppliers', 'restock'] as Section[]).map((item) => (
+        {(['suppliers', 'restock'] as Section[]).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
@@ -84,92 +70,6 @@ export default function InventoryScreen() {
           />
         ))}
       </View>
-
-      {section === 'ingredients' ? (
-        <>
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Add ingredient</ThemedText>
-            <ThemedInput
-              placeholder="Name"
-              value={ingredientForm.name}
-              onChangeText={(value) => setIngredientForm((f) => ({ ...f, name: value }))}
-              style={styles.input}
-            />
-            <View style={styles.row}>
-              <ThemedInput
-                placeholder="Unit"
-                value={ingredientForm.unit}
-                onChangeText={(value) => setIngredientForm((f) => ({ ...f, unit: value }))}
-                style={[styles.input, styles.half]}
-              />
-              <ThemedInput
-                placeholder="Qty"
-                keyboardType="decimal-pad"
-                value={ingredientForm.quantity}
-                onChangeText={(value) => setIngredientForm((f) => ({ ...f, quantity: value }))}
-                style={[styles.input, styles.half]}
-              />
-            </View>
-            <ThemedInput
-              placeholder="Low stock threshold"
-              keyboardType="decimal-pad"
-              value={ingredientForm.lowStockThreshold}
-              onChangeText={(value) => setIngredientForm((f) => ({ ...f, lowStockThreshold: value }))}
-              style={styles.input}
-            />
-            <ThemedButton
-              style={styles.primaryButton}
-              label="Save ingredient"
-              onPress={async () => {
-                if (!ingredientForm.name.trim()) {
-                  return;
-                }
-                await addIngredient({
-                  name: ingredientForm.name.trim(),
-                  unit: ingredientForm.unit.trim() || 'pcs',
-                  quantity: Number(ingredientForm.quantity || '0'),
-                  lowStockThreshold: Number(ingredientForm.lowStockThreshold || '0'),
-                });
-                setIngredientForm({ name: '', unit: 'pcs', quantity: '0', lowStockThreshold: '5' });
-              }}>
-            </ThemedButton>
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Ingredient list</ThemedText>
-            {ingredients.map((item) => {
-              const isLow = Number(item.quantity) <= Number(item.low_stock_threshold);
-              return (
-                <View key={item.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                  <View>
-                    <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
-                    <ThemedText style={styles.smallText}>
-                      {Number(item.quantity).toFixed(2)} {item.unit} · threshold {item.low_stock_threshold}
-                    </ThemedText>
-                    {isLow ? <ThemedText style={[styles.lowText, { color: palette.warning }]}>Low stock</ThemedText> : null}
-                  </View>
-                  <ThemedButton
-                    variant="secondary"
-                    style={styles.secondaryButton}
-                    label="+1"
-                    onPress={() =>
-                      updateIngredient({
-                        id: item.id,
-                        quantity: Number(item.quantity) + 1,
-                      })
-                    }
-                  />
-                </View>
-              );
-            })}
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Low-stock alert</ThemedText>
-            <ThemedText>{lowStock.length} ingredient(s) below threshold.</ThemedText>
-          </ThemedCard>
-        </>
-      ) : null}
 
       {section === 'suppliers' ? (
         <>
@@ -340,24 +240,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  half: {
-    flex: 1,
-  },
   primaryButton: {
     paddingVertical: 10,
-  },
-  secondaryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#C5AA90',
-    borderRadius: 10,
-    padding: 10,
   },
   listItemColumn: {
     borderWidth: 1,
@@ -369,9 +253,5 @@ const styles = StyleSheet.create({
   smallText: {
     opacity: 0.9,
     fontSize: 13,
-  },
-  lowText: {
-    color: '#B25A12',
-    fontWeight: '600',
   },
 });
