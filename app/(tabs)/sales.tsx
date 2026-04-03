@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     padding: 12,
     gap: 10,
   },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   productTile: {
     borderWidth: 1,
-    borderColor: '#DFC8B0',
+    borderColor: '#BFA792',
     borderRadius: 10,
     padding: 10,
     minWidth: '47%',
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   smallText: {
-    opacity: 0.7,
+    opacity: 0.9,
     fontSize: 13,
   },
   cartRow: {
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   qtyButton: {
     borderWidth: 1,
-    borderColor: '#C5B39F',
+    borderColor: '#A98F79',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -233,14 +233,14 @@ const styles = StyleSheet.create({
   secondaryButton: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#C6B29B',
+    borderColor: '#A98F79',
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignItems: 'center',
   },
   historyItem: {
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     borderRadius: 10,
     padding: 10,
     gap: 4,
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#C8B7A4',
+    borderColor: '#A98F79',
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,

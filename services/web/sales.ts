@@ -1,6 +1,7 @@
 import type { SalesService } from '@/services/interfaces/sales';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
 
+import { resolveRecipe } from '@/services/recipe-resolver';
 import { nextId, readWebData, updateWebData } from './storage';
 
 export class SalesWebService implements SalesService {
@@ -39,6 +40,7 @@ export class SalesWebService implements SalesService {
     updateWebData((data) => {
       const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       const saleId = nextId(data, 'sales');
+      const recipeByProductId = new Map<number, Array<{ ingredientId: number; quantityUsed: number }>>();
 
       data.sales.push({
         id: saleId,
@@ -55,6 +57,23 @@ export class SalesWebService implements SalesService {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
         });
+      }
+
+      for (const item of items) {
+        const recipeEdges = recipeByProductId.get(item.productId) ?? data.productIngredients
+          .filter((pi) => pi.productId === item.productId)
+          .map((pi) => ({ ingredientId: pi.ingredientId, quantityUsed: pi.quantityUsed }));
+
+        recipeByProductId.set(item.productId, recipeEdges);
+
+        const leafConsumptions = resolveRecipe(recipeEdges, item.quantity, data.ingredientCompositions);
+
+        for (const leaf of leafConsumptions) {
+          const ingredient = data.ingredients.find((ing) => ing.id === leaf.ingredientId);
+          if (ingredient) {
+            ingredient.quantity = Math.max(0, ingredient.quantity - leaf.quantity);
+          }
+        }
       }
     });
   }

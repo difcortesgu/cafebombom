@@ -78,8 +78,8 @@ export default function DashboardScreen() {
           noOfSections={4}
           yAxisThickness={0}
           xAxisThickness={1}
-          xAxisColor="#BFA48A"
-          yAxisTextStyle={{ color: '#8B8179' }}
+          xAxisColor="#8F745D"
+          yAxisTextStyle={{ color: '#5C4A3C' }}
         />
       </ThemedView>
 
@@ -127,13 +127,13 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     padding: 12,
     gap: 8,
     minWidth: '48%',
   },
   muted: {
-    opacity: 0.7,
+    opacity: 0.9,
   },
   actions: {
     gap: 8,

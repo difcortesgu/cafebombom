@@ -10,19 +10,23 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
+import { useProductsStore } from '@/stores/products';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme ?? 'light'];
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [pin, setPin] = useState('');
 
   const { users, currentUser, hydrate: hydrateAuth, login, loading, error } = useAuthStore();
   const { hydrate: hydrateInventory, lowStockCount } = useInventoryStore();
+  const { hydrate: hydrateProducts } = useProductsStore();
 
   useEffect(() => {
     hydrateAuth();
     hydrateInventory();
-  }, [hydrateAuth, hydrateInventory]);
+    hydrateProducts();
+  }, [hydrateAuth, hydrateInventory, hydrateProducts]);
 
   useEffect(() => {
     if (users.length > 0 && selectedUserId === null) {
@@ -35,7 +39,7 @@ export default function TabLayout() {
 
   const visibleTabs = useMemo(() => {
     if (isOwner) {
-      return ['index', 'sales', 'inventory', 'accounts', 'settings'];
+      return ['index', 'sales', 'inventory', 'products', 'accounts', 'settings'];
     }
     return ['sales', 'inventory'];
   }, [isOwner]);
@@ -50,12 +54,16 @@ export default function TabLayout() {
           {users.map((user) => (
             <Pressable
               key={user.id}
-              style={[styles.userButton, selectedUserId === user.id && styles.userButtonActive]}
+              style={[
+                styles.userButton,
+                { borderColor: palette.border },
+                selectedUserId === user.id && styles.userButtonActive,
+              ]}
               onPress={() => setSelectedUserId(user.id)}>
               <IconSymbol
                 name="person.fill"
                 size={18}
-                color={selectedUserId === user.id ? '#FFFFFF' : Colors[colorScheme ?? 'light'].icon}
+                color={selectedUserId === user.id ? '#FFFFFF' : palette.icon}
               />
               <ThemedText
                 style={selectedUserId === user.id ? styles.activeUserText : styles.userText}>
@@ -71,12 +79,12 @@ export default function TabLayout() {
           keyboardType="number-pad"
           maxLength={6}
           placeholder="Enter PIN"
-          placeholderTextColor="#8E8E8E"
-          style={styles.pinInput}
+          placeholderTextColor={palette.placeholder}
+          style={[styles.pinInput, { borderColor: palette.border, color: palette.text, backgroundColor: palette.inputBackground }]}
           onChangeText={setPin}
         />
 
-        {error ? <ThemedText style={styles.errorText}>{error}</ThemedText> : null}
+        {error ? <ThemedText style={[styles.errorText, { color: palette.danger }]}>{error}</ThemedText> : null}
 
         <Pressable
           style={styles.loginButton}
@@ -94,7 +102,7 @@ export default function TabLayout() {
           <ThemedText style={styles.loginButtonText}>{loading ? 'Signing in...' : 'Unlock Session'}</ThemedText>
         </Pressable>
 
-        <ThemedText style={styles.hint}>Default PINs: Owner 1234, Staff 2222</ThemedText>
+        <ThemedText style={[styles.hint, { color: palette.mutedText }]}>Default PINs: Owner 1234, Staff 2222</ThemedText>
       </ThemedView>
     );
   }
@@ -102,7 +110,12 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: palette.tint,
+        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: palette.card,
+          borderTopColor: palette.border,
+        },
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
@@ -129,6 +142,14 @@ export default function TabLayout() {
           title: 'Inventory',
           tabBarBadge: alertCount > 0 ? alertCount : undefined,
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="shippingbox.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="products"
+        options={{
+          href: visibleTabs.includes('products') ? undefined : null,
+          title: 'Products',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="takeoutbag.and.cup.and.straw.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -167,7 +188,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   helperText: {
-    opacity: 0.75,
+    opacity: 0.92,
     marginBottom: 8,
   },
   userRow: {
@@ -219,11 +240,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   errorText: {
-    color: '#B93A2E',
     fontWeight: '600',
   },
   hint: {
-    opacity: 0.6,
+    opacity: 0.9,
     fontSize: 13,
   },
 });

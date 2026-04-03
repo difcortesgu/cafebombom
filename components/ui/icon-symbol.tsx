@@ -19,6 +19,7 @@ const MAPPING = {
   'chart.bar.fill': 'bar-chart',
   'cart.fill': 'shopping-cart',
   'shippingbox.fill': 'inventory-2',
+  'takeoutbag.and.cup.and.straw.fill': 'local-cafe',
   'dollarsign.circle.fill': 'attach-money',
   'gearshape.fill': 'settings',
   'person.fill': 'person',

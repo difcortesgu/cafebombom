@@ -73,6 +73,20 @@ type WebSaleItemRecord = {
   unitPrice: number;
 };
 
+export type WebProductIngredientRecord = {
+  id: number;
+  productId: number;
+  ingredientId: number;
+  quantityUsed: number;
+};
+
+export type WebIngredientCompositionRecord = {
+  id: number;
+  parentIngredientId: number;
+  childIngredientId: number;
+  quantityNeeded: number;
+};
+
 type WebIds = {
   users: number;
   sessions: number;
@@ -86,6 +100,8 @@ type WebIds = {
   payrollEntries: number;
   sales: number;
   saleItems: number;
+  productIngredients: number;
+  ingredientCompositions: number;
 };
 
 export type WebData = {
@@ -102,6 +118,8 @@ export type WebData = {
   payrollEntries: WebPayrollEntryRecord[];
   sales: WebSaleRecord[];
   saleItems: WebSaleItemRecord[];
+  productIngredients: WebProductIngredientRecord[];
+  ingredientCompositions: WebIngredientCompositionRecord[];
 };
 
 const STORAGE_KEY = 'cafebombom.web.v1';
@@ -139,6 +157,8 @@ function createSeedData(): WebData {
       payrollEntries: 1,
       sales: 1,
       saleItems: 1,
+      productIngredients: 1,
+      ingredientCompositions: 1,
     },
     users: [
       { id: 1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
@@ -166,6 +186,8 @@ function createSeedData(): WebData {
     payrollEntries: [],
     sales: [],
     saleItems: [],
+    productIngredients: [],
+    ingredientCompositions: [],
   };
 }
 
@@ -175,7 +197,11 @@ function normalizeData(data: WebData): WebData {
   }
 
   return {
-    ids: data.ids,
+    ids: {
+      ...data.ids,
+      productIngredients: data.ids.productIngredients ?? 1,
+      ingredientCompositions: data.ids.ingredientCompositions ?? 1,
+    },
     users: data.users ?? [],
     sessions: data.sessions ?? [],
     categories: data.categories ?? [],
@@ -188,6 +214,8 @@ function normalizeData(data: WebData): WebData {
     payrollEntries: data.payrollEntries ?? [],
     sales: data.sales ?? [],
     saleItems: data.saleItems ?? [],
+    productIngredients: data.productIngredients ?? [],
+    ingredientCompositions: data.ingredientCompositions ?? [],
   };
 }
 

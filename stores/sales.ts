@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { salesService } from '@/services';
+import { useInventoryStore } from '@/stores/inventory';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
 import type { Product, Sale } from '@/types/types';
 
@@ -29,7 +30,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
 
   createSale: async ({ staffId, items }: CreateSalePayload) => {
     await salesService.createSale({ staffId, items });
-    await get().hydrate();
+    await Promise.all([get().hydrate(), useInventoryStore.getState().hydrate()]);
   },
 
   getTodayRevenue: () => {

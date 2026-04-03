@@ -1,6 +1,7 @@
 import { db, dbReady } from '@/database/db';
-import { categories, ingredients, productIngredients, products, saleItems, sales, users } from '@/database/schema';
+import { categories, ingredientCompositions, ingredients, productIngredients, products, saleItems, sales, users } from '@/database/schema';
 import type { SalesService } from '@/services/interfaces/sales';
+import { resolveRecipe } from '@/services/recipe-resolver';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
 import type { Product, Sale, SaleItemInput } from '@/types/types';
 import { between, desc, eq, sql } from 'drizzle-orm';
@@ -53,25 +54,36 @@ export class SalesSqliteService implements SalesService {
         .returning({ id: sales.id })
         .all();
 
+      const allCompositions = tx
+        .select({
+          parentIngredientId: ingredientCompositions.parentIngredientId,
+          childIngredientId: ingredientCompositions.childIngredientId,
+          quantityNeeded: ingredientCompositions.quantityNeeded,
+        })
+        .from(ingredientCompositions)
+        .all();
+
       for (const item of items) {
         tx.insert(saleItems)
           .values({ saleId: newSale.id, productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice })
           .run();
 
-        const recipe = tx
+        const recipeEdges = tx
           .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
           .from(productIngredients)
           .where(eq(productIngredients.productId, item.productId))
           .all();
 
-        for (const entry of recipe) {
+        const leafConsumptions = resolveRecipe(recipeEdges, item.quantity, allCompositions);
+
+        for (const leaf of leafConsumptions) {
           tx.update(ingredients)
             .set({
-              quantity: sql`MAX(0, ${ingredients.quantity} - ${entry.quantityUsed * item.quantity})`,
+              quantity: sql`MAX(0, ${ingredients.quantity} - ${leaf.quantity})`,
               updatedAt: sql`cast(strftime('%s', 'now') as int)`,
               syncedAt: null,
             })
-            .where(eq(ingredients.id, entry.ingredientId))
+            .where(eq(ingredients.id, leaf.ingredientId))
             .run();
         }
       }

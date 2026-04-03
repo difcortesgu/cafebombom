@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     padding: 12,
     gap: 10,
   },
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   muted: {
-    opacity: 0.7,
+    opacity: 0.9,
     fontSize: 13,
   },
   primaryButton: {
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: '#C8B7A4',
+    borderColor: '#A98F79',
     borderRadius: 8,
     paddingVertical: 9,
     alignItems: 'center',

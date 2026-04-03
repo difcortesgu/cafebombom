@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   sectionButton: {
     borderWidth: 1,
-    borderColor: '#D7C8B8',
+    borderColor: '#BFA792',
     borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 10,
@@ -303,16 +303,18 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     padding: 12,
     gap: 10,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D8C6B2',
+    borderColor: '#BFA792',
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
+    color: '#1D130D',
+    backgroundColor: '#FFFFFF',
   },
   row: {
     flexDirection: 'row',
@@ -333,7 +335,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: '#C8B7A4',
+    borderColor: '#A98F79',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -343,19 +345,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     borderRadius: 10,
     padding: 10,
   },
   listItemColumn: {
     borderWidth: 1,
-    borderColor: '#E1D4C8',
+    borderColor: '#C5AA90',
     borderRadius: 10,
     padding: 10,
     gap: 2,
   },
   smallText: {
-    opacity: 0.7,
+    opacity: 0.9,
     fontSize: 13,
   },
   lowText: {

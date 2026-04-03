@@ -1,0 +1,198 @@
+import { db, dbReady } from '@/database/db';
+import { categories, ingredientCompositions, ingredients, productIngredients, products } from '@/database/schema';
+import type { ProductsService } from '@/services/interfaces/products';
+import type {
+    CategoryOption,
+    CreateProductPayload,
+    IngredientCompositionLink,
+    ProductDetail,
+    ProductIngredientLink,
+    RemoveCompositionPayload,
+    RemoveProductIngredientPayload,
+    SetCompositionPayload,
+    SetProductIngredientPayload,
+    UpdateProductPayload,
+} from '@/types/products';
+import { and, eq, sql } from 'drizzle-orm';
+
+export class ProductsSqliteService implements ProductsService {
+  async getHydrationData() {
+    await dbReady;
+
+    const categoryOptions = db
+      .select({ id: categories.id, name: categories.name })
+      .from(categories)
+      .orderBy(categories.name)
+      .all() as CategoryOption[];
+
+    const ingredientOptions = db
+      .select({ id: ingredients.id, name: ingredients.name })
+      .from(ingredients)
+      .all();
+
+    const ingredientNameById = new Map(ingredientOptions.map((ingredient) => [ingredient.id, ingredient.name]));
+
+    const productsList = db
+      .select({
+        id: products.id,
+        name: products.name,
+        categoryId: products.categoryId,
+        category: categories.name,
+        price: products.price,
+        isActive: products.isActive,
+      })
+      .from(products)
+      .leftJoin(categories, eq(categories.id, products.categoryId))
+      .orderBy(products.name)
+      .all()
+      .map((row) => ({
+        ...row,
+        category: row.category ?? '',
+      })) as ProductDetail[];
+
+    const ingredientLinks = db
+      .select({
+        id: productIngredients.id,
+        productId: productIngredients.productId,
+        ingredientId: productIngredients.ingredientId,
+        ingredientName: ingredients.name,
+        quantityUsed: productIngredients.quantityUsed,
+      })
+      .from(productIngredients)
+      .innerJoin(ingredients, eq(ingredients.id, productIngredients.ingredientId))
+      .orderBy(productIngredients.productId, ingredients.name)
+      .all() as ProductIngredientLink[];
+
+    const compositionRows = db
+      .select({
+        id: ingredientCompositions.id,
+        parentIngredientId: ingredientCompositions.parentIngredientId,
+        childIngredientId: ingredientCompositions.childIngredientId,
+        quantityNeeded: ingredientCompositions.quantityNeeded,
+      })
+      .from(ingredientCompositions)
+      .orderBy(ingredientCompositions.parentIngredientId, ingredientCompositions.childIngredientId)
+      .all();
+
+    const compositionLinks = compositionRows.map((row) => ({
+      ...row,
+      parentIngredientName: ingredientNameById.get(row.parentIngredientId) ?? 'Unknown',
+      childIngredientName: ingredientNameById.get(row.childIngredientId) ?? 'Unknown',
+    })) as IngredientCompositionLink[];
+
+    return {
+      categories: categoryOptions,
+      products: productsList,
+      productIngredients: ingredientLinks,
+      compositions: compositionLinks,
+    };
+  }
+
+  async createProduct({ name, categoryId, price }: CreateProductPayload): Promise<void> {
+    await dbReady;
+    db.insert(products)
+      .values({ name, categoryId: categoryId ?? null, price, isActive: true })
+      .run();
+  }
+
+  async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {
+    await dbReady;
+    const existing = db
+      .select({ name: products.name, categoryId: products.categoryId, price: products.price, isActive: products.isActive })
+      .from(products)
+      .where(eq(products.id, id))
+      .get();
+
+    if (!existing) {
+      return;
+    }
+
+    db.update(products)
+      .set({
+        name: payload.name ?? existing.name,
+        categoryId: payload.categoryId !== undefined ? payload.categoryId : existing.categoryId,
+        price: payload.price ?? existing.price,
+        isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
+        updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+        syncedAt: null,
+      })
+      .where(eq(products.id, id))
+      .run();
+  }
+
+  async setProductIngredient({ productId, ingredientId, quantityUsed }: SetProductIngredientPayload): Promise<void> {
+    await dbReady;
+    if (quantityUsed <= 0) {
+      return;
+    }
+
+    const existing = db
+      .select({ id: productIngredients.id })
+      .from(productIngredients)
+      .where(and(eq(productIngredients.productId, productId), eq(productIngredients.ingredientId, ingredientId)))
+      .get();
+
+    if (existing) {
+      db.update(productIngredients)
+        .set({ quantityUsed, updatedAt: sql`cast(strftime('%s', 'now') as int)`, syncedAt: null })
+        .where(eq(productIngredients.id, existing.id))
+        .run();
+    } else {
+      db.insert(productIngredients)
+        .values({ productId, ingredientId, quantityUsed })
+        .run();
+    }
+  }
+
+  async removeProductIngredient({ productId, ingredientId }: RemoveProductIngredientPayload): Promise<void> {
+    await dbReady;
+    db.delete(productIngredients)
+      .where(and(eq(productIngredients.productId, productId), eq(productIngredients.ingredientId, ingredientId)))
+      .run();
+  }
+
+  async setComposition({ parentIngredientId, childIngredientId, quantityNeeded }: SetCompositionPayload): Promise<void> {
+    await dbReady;
+    if (parentIngredientId === childIngredientId) {
+      console.warn('[products] Rejecting self-reference composition.');
+      return;
+    }
+    if (quantityNeeded <= 0) {
+      return;
+    }
+
+    const existing = db
+      .select({ id: ingredientCompositions.id })
+      .from(ingredientCompositions)
+      .where(
+        and(
+          eq(ingredientCompositions.parentIngredientId, parentIngredientId),
+          eq(ingredientCompositions.childIngredientId, childIngredientId),
+        ),
+      )
+      .get();
+
+    if (existing) {
+      db.update(ingredientCompositions)
+        .set({ quantityNeeded, updatedAt: sql`cast(strftime('%s', 'now') as int)`, syncedAt: null })
+        .where(eq(ingredientCompositions.id, existing.id))
+        .run();
+    } else {
+      db.insert(ingredientCompositions)
+        .values({ parentIngredientId, childIngredientId, quantityNeeded })
+        .run();
+    }
+  }
+
+  async removeComposition({ parentIngredientId, childIngredientId }: RemoveCompositionPayload): Promise<void> {
+    await dbReady;
+    db.delete(ingredientCompositions)
+      .where(
+        and(
+          eq(ingredientCompositions.parentIngredientId, parentIngredientId),
+          eq(ingredientCompositions.childIngredientId, childIngredientId),
+        ),
+      )
+      .run();
+  }
+}
