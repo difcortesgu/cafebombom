@@ -2,7 +2,7 @@ import type { SalesService } from '@/services/interfaces/sales';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
 
 import { resolveRecipe } from '@/services/recipe-resolver';
-import { getDb, generateId } from './storage';
+import { getDb } from './storage';
 
 export class SalesWebService implements SalesService {
   async getHydrationData() {
@@ -51,11 +51,9 @@ export class SalesWebService implements SalesService {
     ]);
 
     const total = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    const saleId = generateId();
     const recipeByProductId = new Map<string, Array<{ ingredientId: string; quantityUsed: number }>>();
 
-    await db.sales.add({
-      id: saleId,
+    const saleId = await db.sales.add({
       createdAt: Math.floor(Date.now() / 1000),
       staffId,
       total,
@@ -63,7 +61,6 @@ export class SalesWebService implements SalesService {
 
     for (const item of items) {
       await db.saleItems.add({
-        id: generateId(),
         saleId,
         productId: item.productId,
         quantity: item.quantity,

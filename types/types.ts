@@ -3,49 +3,49 @@ export type Unit = 'grams' | 'liters' | 'pieces';
 
 
 export type User = {
-  id: number;
+  id: string;
   name: string;
   role: UserRole;
 };
 
 export type Ingredient = {
-  id: number;
+  id: string;
   name: string;
   unit: Unit;
   quantity: number;
   low_stock_threshold: number;
-  supplier_id: number | null;
+  supplier_id: string | null;
 };
 
 export type Supplier = {
-  id: number;
+  id: string;
   name: string;
   phone: string | null;
   notes: string | null;
 };
 
 export type Product = {
-  id: number;
+  id: string;
   name: string;
   category: string;
   price: number;
 };
 
 export type SaleItemInput = {
-  productId: number;
+  productId: string;
   quantity: number;
   unitPrice: number;
 };
 
 export type Sale = {
-  id: number;
+  id: string;
   created_at: number;
   staff_name: string;
   total: number;
 };
 
 export type Expense = {
-  id: number;
+  id: string;
   date: number;
   category: string;
   amount: number;
@@ -53,15 +53,15 @@ export type Expense = {
 };
 
 export type Employee = {
-  id: number;
+  id: string;
   name: string;
   salary_type: 'hourly' | 'monthly';
   rate: number;
 };
 
 export type PayrollEntry = {
-  id: number;
-  employee_id: number;
+  id: string;
+  employee_id: string;
   period_start: number;
   period_end: number;
   amount: number;

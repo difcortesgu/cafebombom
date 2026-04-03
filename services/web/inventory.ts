@@ -2,7 +2,7 @@ import type { InventoryService } from '@/services/interfaces/inventory';
 import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, UpdateIngredientPayload } from '@/types/inventory';
 import type { Unit } from '@/types/types';
 
-import { getDb, generateId } from './storage';
+import { getDb } from './storage';
 
 export class InventoryWebService implements InventoryService {
   async getHydrationData() {
@@ -33,7 +33,6 @@ export class InventoryWebService implements InventoryService {
   async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<void> {
     const db = await getDb();
     await db.ingredients.add({
-      id: generateId(),
       name,
       unit: unit as Unit,
       quantity,
@@ -70,7 +69,6 @@ export class InventoryWebService implements InventoryService {
     }
 
     await db.suppliers.add({
-      id: generateId(),
       name,
       phone: phone ?? null,
       notes: notes ?? null,
@@ -88,7 +86,6 @@ export class InventoryWebService implements InventoryService {
     await db.ingredients.update(ingredientId, ingredient);
 
     await db.restockLogs.add({
-      id: generateId(),
       ingredientId,
       quantityAdded,
       cost,

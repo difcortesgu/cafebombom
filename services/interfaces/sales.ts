@@ -10,6 +10,6 @@ export interface SalesService {
   getHydrationData(): Promise<SalesHydrationData>;
   createSale(payload: CreateSalePayload): Promise<void>;
   getTopSelling(limit?: number): Promise<Array<{ name: string; quantity: number }>>;
-  getSaleItems(saleId: number): Promise<SaleItemDetail[]>;
+  getSaleItems(saleId: string): Promise<SaleItemDetail[]>;
   getRevenueInRange(startUnix: number, endUnix: number): Promise<number>;
 }

@@ -1,7 +1,7 @@
 import type { AccountsService } from '@/services/interfaces/accounts';
 import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload } from '@/types/accounts';
 
-import { getDb, getNextId } from './storage';
+import { getDb } from './storage';
 
 export class AccountsWebService implements AccountsService {
   async getHydrationData() {
@@ -28,7 +28,7 @@ export class AccountsWebService implements AccountsService {
         })),
       payroll: payrollEntries
         .slice()
-        .sort((left, right) => right.id - left.id)
+        .sort((left, right) => right.periodEnd - left.periodEnd)
         .slice(0, 50)
         .map((entry) => ({
           id: entry.id,
@@ -43,7 +43,6 @@ export class AccountsWebService implements AccountsService {
   async addExpense({ category, amount, description, dateUnix }: AddExpensePayload): Promise<void> {
     const db = await getDb();
     await db.expenses.add({
-      id: await getNextId('expenses'),
       date: dateUnix ?? Math.floor(Date.now() / 1000),
       category,
       amount,
@@ -64,7 +63,6 @@ export class AccountsWebService implements AccountsService {
     }
 
     await db.employees.add({
-      id: await getNextId('employees'),
       name,
       salaryType,
       rate,
@@ -74,7 +72,6 @@ export class AccountsWebService implements AccountsService {
   async addPayroll({ employeeId, periodStart, periodEnd, amount }: AddPayrollPayload): Promise<void> {
     const db = await getDb();
     await db.payrollEntries.add({
-      id: await getNextId('payrollEntries'),
       employeeId,
       periodStart,
       periodEnd,

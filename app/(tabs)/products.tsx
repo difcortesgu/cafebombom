@@ -36,9 +36,9 @@ export default function ProductsScreen() {
   const [section, setSection] = useState<Section>('products');
   const [message, setMessage] = useState<string>('');
   const [productForm, setProductForm] = useState({
-    id: null as number | null,
+    id: null as string | null,
     name: '',
-    categoryId: null as number | null,
+    categoryId: null as string | null,
     price: '',
   });
   const [recipeForm, setRecipeForm] = useState({
@@ -87,7 +87,7 @@ export default function ProductsScreen() {
     );
   }
 
-  const selectedProductId = Number(recipeForm.productId || '0');
+  const selectedProductId = recipeForm.productId;
   const selectedProductRecipes = productIngredients.filter((link) => link.productId === selectedProductId);
   const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null;
 
@@ -126,8 +126,8 @@ export default function ProductsScreen() {
   };
 
   const submitRecipe = async () => {
-    const productId = Number(recipeForm.productId || '0');
-    const ingredientId = Number(recipeForm.ingredientId || '0');
+    const productId = recipeForm.productId;
+    const ingredientId = recipeForm.ingredientId;
     const quantityUsed = Number(recipeForm.quantityUsed || '0');
 
     if (!productId || !ingredientId) {
@@ -146,8 +146,8 @@ export default function ProductsScreen() {
   };
 
   const submitComposition = async () => {
-    const parentIngredientId = Number(compositionForm.parentIngredientId || '0');
-    const childIngredientId = Number(compositionForm.childIngredientId || '0');
+    const parentIngredientId = compositionForm.parentIngredientId;
+    const childIngredientId = compositionForm.childIngredientId;
     const quantityNeeded = Number(compositionForm.quantityNeeded || '0');
 
     if (!parentIngredientId || !childIngredientId) {
@@ -298,8 +298,8 @@ export default function ProductsScreen() {
                   style={styles.chip}
                   label={product.name}
                   tone="accent"
-                  active={Number(recipeForm.productId) === product.id}
-                  onPress={() => setRecipeForm((current) => ({ ...current, productId: String(product.id) }))}
+                  active={recipeForm.productId === product.id}
+                  onPress={() => setRecipeForm((current) => ({ ...current, productId: product.id }))}
                 />
               ))}
             </View>
@@ -311,8 +311,8 @@ export default function ProductsScreen() {
                   style={styles.chip}
                   label={ingredient.name}
                   tone="accent"
-                  active={Number(recipeForm.ingredientId) === ingredient.id}
-                  onPress={() => setRecipeForm((current) => ({ ...current, ingredientId: String(ingredient.id) }))}
+                  active={recipeForm.ingredientId === ingredient.id}
+                  onPress={() => setRecipeForm((current) => ({ ...current, ingredientId: ingredient.id }))}
                 />
               ))}
             </View>
@@ -366,8 +366,8 @@ export default function ProductsScreen() {
                   style={styles.chip}
                   label={ingredient.name}
                   tone="accent"
-                  active={Number(compositionForm.parentIngredientId) === ingredient.id}
-                  onPress={() => setCompositionForm((current) => ({ ...current, parentIngredientId: String(ingredient.id) }))}
+                  active={compositionForm.parentIngredientId === ingredient.id}
+                  onPress={() => setCompositionForm((current) => ({ ...current, parentIngredientId: ingredient.id }))}
                 />
               ))}
             </View>
@@ -379,8 +379,8 @@ export default function ProductsScreen() {
                   style={styles.chip}
                   label={ingredient.name}
                   tone="accent"
-                  active={Number(compositionForm.childIngredientId) === ingredient.id}
-                  onPress={() => setCompositionForm((current) => ({ ...current, childIngredientId: String(ingredient.id) }))}
+                  active={compositionForm.childIngredientId === ingredient.id}
+                  onPress={() => setCompositionForm((current) => ({ ...current, childIngredientId: ingredient.id }))}
                 />
               ))}
             </View>

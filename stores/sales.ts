@@ -8,7 +8,7 @@ import type { Product, Sale } from '@/types/types';
 type SalesState = {
   products: Product[];
   sales: Sale[];
-  saleItemsById: Record<number, SaleItemDetail[]>;
+  saleItemsById: Record<string, SaleItemDetail[]>;
   loading: boolean;
   hydrate: () => Promise<void>;
   createSale: (payload: CreateSalePayload) => Promise<void>;

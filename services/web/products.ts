@@ -12,7 +12,7 @@ import type {
   UpdateProductPayload,
 } from '@/types/products';
 
-import { getDb, generateId } from './storage';
+import { getDb } from './storage';
 
 export class ProductsWebService implements ProductsService {
   async getHydrationData() {
@@ -73,7 +73,6 @@ export class ProductsWebService implements ProductsService {
     }
 
     await db.products.add({
-      id: generateId(),
       name,
       categoryId: categoryId ?? null,
       price,
@@ -109,7 +108,6 @@ export class ProductsWebService implements ProductsService {
       await db.productIngredients.update(existing.id, { quantityUsed });
     } else {
       await db.productIngredients.add({
-        id: generateId(),
         productId,
         ingredientId,
         quantityUsed,
@@ -147,7 +145,6 @@ export class ProductsWebService implements ProductsService {
       await db.ingredientCompositions.update(existing.id, { quantityNeeded });
     } else {
       await db.ingredientCompositions.add({
-        id: generateId(),
         parentIngredientId,
         childIngredientId,
         quantityNeeded,

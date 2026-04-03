@@ -1,6 +1,6 @@
 
 export type RestockLog = {
-  id: number;
+  id: string;
   ingredient_name: string;
   quantity_added: number;
   cost: number;
@@ -12,17 +12,17 @@ export type AddIngredientPayload = {
   unit: string;
   quantity: number;
   lowStockThreshold: number;
-  supplierId?: number;
+  supplierId?: string;
 };
 
 export type UpdateIngredientPayload = {
-  id: number;
+  id: string;
 } & Partial<{
   name: string;
   unit: string;
   quantity: number;
   low_stock_threshold: number;
-  supplier_id: number | null;
+  supplier_id: string | null;
 }>;
 
 export type AddSupplierPayload = {
@@ -32,8 +32,8 @@ export type AddSupplierPayload = {
 };
 
 export type AddRestockPayload = {
-  ingredientId: number;
+  ingredientId: string;
   quantityAdded: number;
   cost: number;
-  supplierId?: number;
+  supplierId?: string;
 };

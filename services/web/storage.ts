@@ -1,7 +1,7 @@
 import type { Expense, Ingredient, Supplier, User } from '@/types/types';
 import { hashPin } from '@/utils/hash';
+import { generateId } from '@/utils/id';
 import Dexie, { type Table } from 'dexie';
-import { v4 as uuidv4 } from 'uuid';
 
 export type WebUserRecord = User & {
   pinHash: string;
@@ -89,21 +89,23 @@ export type WebIngredientCompositionRecord = {
   quantityNeeded: number;
 };
 
+type InsertableRecord<T extends { id: string }> = Omit<T, 'id'> & { id?: string };
+
 export class CafeBomBomDB extends Dexie {
-  users!: Table<WebUserRecord>;
-  sessions!: Table<WebSessionRecord>;
-  categories!: Table<WebCategoryRecord>;
-  products!: Table<WebProductRecord>;
-  suppliers!: Table<WebSupplierRecord>;
-  ingredients!: Table<WebIngredientRecord>;
-  restockLogs!: Table<WebRestockLogRecord>;
-  expenses!: Table<WebExpenseRecord>;
-  employees!: Table<WebEmployeeRecord>;
-  payrollEntries!: Table<WebPayrollEntryRecord>;
-  sales!: Table<WebSaleRecord>;
-  saleItems!: Table<WebSaleItemRecord>;
-  productIngredients!: Table<WebProductIngredientRecord>;
-  ingredientCompositions!: Table<WebIngredientCompositionRecord>;
+  users!: Table<WebUserRecord, string, InsertableRecord<WebUserRecord>>;
+  sessions!: Table<WebSessionRecord, string, InsertableRecord<WebSessionRecord>>;
+  categories!: Table<WebCategoryRecord, string, InsertableRecord<WebCategoryRecord>>;
+  products!: Table<WebProductRecord, string, InsertableRecord<WebProductRecord>>;
+  suppliers!: Table<WebSupplierRecord, string, InsertableRecord<WebSupplierRecord>>;
+  ingredients!: Table<WebIngredientRecord, string, InsertableRecord<WebIngredientRecord>>;
+  restockLogs!: Table<WebRestockLogRecord, string, InsertableRecord<WebRestockLogRecord>>;
+  expenses!: Table<WebExpenseRecord, string, InsertableRecord<WebExpenseRecord>>;
+  employees!: Table<WebEmployeeRecord, string, InsertableRecord<WebEmployeeRecord>>;
+  payrollEntries!: Table<WebPayrollEntryRecord, string, InsertableRecord<WebPayrollEntryRecord>>;
+  sales!: Table<WebSaleRecord, string, InsertableRecord<WebSaleRecord>>;
+  saleItems!: Table<WebSaleItemRecord, string, InsertableRecord<WebSaleItemRecord>>;
+  productIngredients!: Table<WebProductIngredientRecord, string, InsertableRecord<WebProductIngredientRecord>>;
+  ingredientCompositions!: Table<WebIngredientCompositionRecord, string, InsertableRecord<WebIngredientCompositionRecord>>;
 
   constructor() {
     super('cafebombom.web');
@@ -124,6 +126,36 @@ export class CafeBomBomDB extends Dexie {
       productIngredients: 'id, productId, [productId+ingredientId]',
       ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
     });
+
+    this.attachIdHooks();
+  }
+
+  private attachIdHooks(): void {
+    const withId = [
+      this.users,
+      this.sessions,
+      this.categories,
+      this.products,
+      this.suppliers,
+      this.ingredients,
+      this.restockLogs,
+      this.expenses,
+      this.employees,
+      this.payrollEntries,
+      this.sales,
+      this.saleItems,
+      this.productIngredients,
+      this.ingredientCompositions,
+    ];
+
+    for (const table of withId) {
+      table.hook('creating', (_primaryKey, obj: { id?: string }) => {
+        if (!obj.id) {
+          obj.id = generateId();
+        }
+        return obj.id;
+      });
+    }
   }
 
   async seed(): Promise<void> {
@@ -131,16 +163,16 @@ export class CafeBomBomDB extends Dexie {
     if (hasData > 0) return;
 
     try {
-      const userId1 = uuidv4();
-      const userId2 = uuidv4();
-      const categoryId1 = uuidv4();
-      const categoryId2 = uuidv4();
-      const categoryId3 = uuidv4();
-      const categoryId4 = uuidv4();
-      const productId1 = uuidv4();
-      const productId2 = uuidv4();
-      const productId3 = uuidv4();
-      const productId4 = uuidv4();
+      const userId1 = generateId();
+      const userId2 = generateId();
+      const categoryId1 = generateId();
+      const categoryId2 = generateId();
+      const categoryId3 = generateId();
+      const categoryId4 = generateId();
+      const productId1 = generateId();
+      const productId2 = generateId();
+      const productId3 = generateId();
+      const productId4 = generateId();
 
       await this.transaction('rw', [this.users, this.categories, this.products], async () => {
         await this.users.bulkAdd([
@@ -167,10 +199,6 @@ export class CafeBomBomDB extends Dexie {
 }
 
 let db: CafeBomBomDB | null = null;
-
-export function generateId(): string {
-  return uuidv4();
-}
 
 export async function getDb(): Promise<CafeBomBomDB> {
   if (!db) {

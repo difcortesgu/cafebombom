@@ -3,7 +3,7 @@ import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
 import { verifyPin } from '@/utils/hash';
 
-import { getDb, generateId } from './storage';
+import { getDb } from './storage';
 
 export class AuthWebService implements AuthService {
   async getActiveUsers(): Promise<User[]> {
@@ -28,7 +28,6 @@ export class AuthWebService implements AuthService {
   async startSession(userId: string): Promise<void> {
     const db = await getDb();
     await db.sessions.add({
-      id: generateId(),
       userId,
       loggedInAt: Math.floor(Date.now() / 1000),
       loggedOutAt: null,

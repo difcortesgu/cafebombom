@@ -1,5 +1,5 @@
 
 export type LoginPayload = {
-  userId: number;
+  userId: string;
   pin: string;
 };

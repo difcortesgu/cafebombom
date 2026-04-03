@@ -15,7 +15,7 @@ import { useProductsStore } from '@/stores/products';
 
 export default function TabLayout() {
   const palette = useAppColors();
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [pin, setPin] = useState('');
 
   const { users, currentUser, hydrate: hydrateAuth, login, loading, error } = useAuthStore();

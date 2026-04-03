@@ -1,66 +1,66 @@
 export type ProductDetail = {
-  id: number;
+  id: string;
   name: string;
-  categoryId: number | null;
+  categoryId: string | null;
   category: string;
   price: number;
   isActive: boolean;
 };
 
 export type CategoryOption = {
-  id: number;
+  id: string;
   name: string;
 };
 
 export type ProductIngredientLink = {
-  id: number;
-  productId: number;
-  ingredientId: number;
+  id: string;
+  productId: string;
+  ingredientId: string;
   ingredientName: string;
   quantityUsed: number;
 };
 
 export type IngredientCompositionLink = {
-  id: number;
-  parentIngredientId: number;
+  id: string;
+  parentIngredientId: string;
   parentIngredientName: string;
-  childIngredientId: number;
+  childIngredientId: string;
   childIngredientName: string;
   quantityNeeded: number;
 };
 
 export type CreateProductPayload = {
   name: string;
-  categoryId?: number;
+  categoryId?: string;
   price: number;
 };
 
 export type UpdateProductPayload = {
-  id: number;
+  id: string;
   name?: string;
-  categoryId?: number | null;
+  categoryId?: string | null;
   price?: number;
   isActive?: boolean;
 };
 
 export type SetProductIngredientPayload = {
-  productId: number;
-  ingredientId: number;
+  productId: string;
+  ingredientId: string;
   quantityUsed: number;
 };
 
 export type RemoveProductIngredientPayload = {
-  productId: number;
-  ingredientId: number;
+  productId: string;
+  ingredientId: string;
 };
 
 export type SetCompositionPayload = {
-  parentIngredientId: number;
-  childIngredientId: number;
+  parentIngredientId: string;
+  childIngredientId: string;
   quantityNeeded: number;
 };
 
 export type RemoveCompositionPayload = {
-  parentIngredientId: number;
-  childIngredientId: number;
+  parentIngredientId: string;
+  childIngredientId: string;
 };

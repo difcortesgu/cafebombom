@@ -11,7 +11,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 
 type CartItem = {
-  productId: number;
+  productId: string;
   name: string;
   unitPrice: number;
   quantity: number;
@@ -23,7 +23,7 @@ export default function SalesScreen() {
   const logout = useAuthStore((state) => state.logout);
   const { hydrate, products, sales, createSale } = useSalesStore();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null);
+  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
 
   useFocusEffect(
@@ -37,7 +37,7 @@ export default function SalesScreen() {
     [cart]
   );
 
-  const addToCart = (productId: number, name: string, unitPrice: number) => {
+  const addToCart = (productId: string, name: string, unitPrice: number) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === productId);
       if (existing) {
@@ -49,7 +49,7 @@ export default function SalesScreen() {
     });
   };
 
-  const updateQty = (productId: number, delta: number) => {
+  const updateQty = (productId: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) =>
@@ -76,7 +76,7 @@ export default function SalesScreen() {
     setCart([]);
   };
 
-  const showSaleDetail = async (saleId: number) => {
+  const showSaleDetail = async (saleId: string) => {
     if (expandedSaleId === saleId) {
       setExpandedSaleId(null);
       setExpandedSaleItems('');

@@ -13,7 +13,7 @@ export type AddEmployeePayload = {
 };
 
 export type AddPayrollPayload = {
-  employeeId: number;
+  employeeId: string;
   periodStart: number;
   periodEnd: number;
   amount: number;

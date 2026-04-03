@@ -1,13 +1,13 @@
 import type { SaleItemInput } from '@/types/types';
 
 export type SaleItemDetail = {
-  id: number;
+  id: string;
   product_name: string;
   quantity: number;
   unit_price: number;
 };
 
 export type CreateSalePayload = {
-  staffId: number;
+  staffId: string;
   items: SaleItemInput[];
 };

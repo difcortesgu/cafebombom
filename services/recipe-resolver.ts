@@ -13,18 +13,18 @@
  */
 
 export type RecipeEdge = {
-  ingredientId: number;
+  ingredientId: string;
   quantityUsed: number;
 };
 
 export type CompositionEdge = {
-  parentIngredientId: number;
-  childIngredientId: number;
+  parentIngredientId: string;
+  childIngredientId: string;
   quantityNeeded: number;
 };
 
 export type LeafConsumption = {
-  ingredientId: number;
+  ingredientId: string;
   quantity: number;
 };
 
@@ -37,12 +37,12 @@ export type LeafConsumption = {
  * @returns map of leafIngredientId -> total quantity to deduct
  */
 function resolveIngredient(
-  ingredientId: number,
+  ingredientId: string,
   multiplier: number,
-  compositionsByParent: Map<number, CompositionEdge[]>,
-  visited: Set<number>,
-): Map<number, number> {
-  const result = new Map<number, number>();
+  compositionsByParent: Map<string, CompositionEdge[]>,
+  visited: Set<string>,
+): Map<string, number> {
+  const result = new Map<string, number>();
 
   const children = compositionsByParent.get(ingredientId);
 
@@ -91,7 +91,7 @@ export function resolveRecipe(
   compositions: CompositionEdge[],
 ): LeafConsumption[] {
   // Index compositions by parent for O(1) child lookup
-  const compositionsByParent = new Map<number, CompositionEdge[]>();
+  const compositionsByParent = new Map<string, CompositionEdge[]>();
   for (const edge of compositions) {
     const existing = compositionsByParent.get(edge.parentIngredientId);
     if (existing) {
@@ -101,7 +101,7 @@ export function resolveRecipe(
     }
   }
 
-  const totals = new Map<number, number>();
+  const totals = new Map<string, number>();
 
   for (const recipeEdge of recipe) {
     const needed = recipeEdge.quantityUsed * soldQuantity;

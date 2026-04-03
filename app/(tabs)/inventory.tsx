@@ -58,6 +58,16 @@ export default function InventoryScreen() {
     [ingredients]
   );
 
+  const selectedIngredient = useMemo(
+    () => ingredients.find((ingredient) => ingredient.id === restockForm.ingredientId) ?? null,
+    [ingredients, restockForm.ingredientId]
+  );
+
+  const selectedSupplier = useMemo(
+    () => suppliers.find((supplier) => supplier.id === restockForm.supplierId) ?? null,
+    [restockForm.supplierId, suppliers]
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Inventory</ThemedText>
@@ -217,13 +227,25 @@ export default function InventoryScreen() {
         <>
           <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Record stock-in</ThemedText>
-            <ThemedInput
-              placeholder="Ingredient ID"
-              keyboardType="number-pad"
-              value={restockForm.ingredientId}
-              onChangeText={(value) => setRestockForm((f) => ({ ...f, ingredientId: value }))}
-              style={styles.input}
-            />
+            <ThemedText style={styles.smallText}>Ingredient</ThemedText>
+            <View style={styles.tabRow}>
+              {ingredients.map((ingredient) => (
+                <ThemedChip
+                  key={ingredient.id}
+                  style={styles.sectionButton}
+                  label={ingredient.name}
+                  active={restockForm.ingredientId === ingredient.id}
+                  onPress={() => setRestockForm((f) => ({ ...f, ingredientId: ingredient.id }))}
+                />
+              ))}
+            </View>
+            {selectedIngredient ? (
+              <ThemedText style={styles.smallText}>
+                Selected: {selectedIngredient.name}
+              </ThemedText>
+            ) : (
+              <ThemedText style={styles.smallText}>Select an ingredient to continue.</ThemedText>
+            )}
             <ThemedInput
               placeholder="Quantity added"
               keyboardType="decimal-pad"
@@ -238,13 +260,25 @@ export default function InventoryScreen() {
               onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))}
               style={styles.input}
             />
-            <ThemedInput
-              placeholder="Supplier ID (optional)"
-              keyboardType="number-pad"
-              value={restockForm.supplierId}
-              onChangeText={(value) => setRestockForm((f) => ({ ...f, supplierId: value }))}
-              style={styles.input}
-            />
+            <ThemedText style={styles.smallText}>Supplier (optional)</ThemedText>
+            <View style={styles.tabRow}>
+              <ThemedChip
+                style={styles.sectionButton}
+                label="No supplier"
+                active={!restockForm.supplierId}
+                onPress={() => setRestockForm((f) => ({ ...f, supplierId: '' }))}
+              />
+              {suppliers.map((supplier) => (
+                <ThemedChip
+                  key={supplier.id}
+                  style={styles.sectionButton}
+                  label={supplier.name}
+                  active={restockForm.supplierId === supplier.id}
+                  onPress={() => setRestockForm((f) => ({ ...f, supplierId: supplier.id }))}
+                />
+              ))}
+            </View>
+            {selectedSupplier ? <ThemedText style={styles.smallText}>Supplier: {selectedSupplier.name}</ThemedText> : null}
             <ThemedButton
               style={styles.primaryButton}
               label="Save restock"
@@ -254,10 +288,10 @@ export default function InventoryScreen() {
                 }
 
                 await addRestock({
-                  ingredientId: Number(restockForm.ingredientId),
+                  ingredientId: restockForm.ingredientId,
                   quantityAdded: Number(restockForm.quantityAdded || '0'),
                   cost: Number(restockForm.cost || '0'),
-                  supplierId: restockForm.supplierId ? Number(restockForm.supplierId) : undefined,
+                  supplierId: restockForm.supplierId || undefined,
                 });
 
                 setRestockForm({ ingredientId: '', quantityAdded: '1', cost: '0', supplierId: '' });

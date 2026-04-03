@@ -32,12 +32,12 @@ export class AuthSqliteService implements AuthService {
     return { id: row.id, name: row.name, role: row.role as User['role'] };
   }
 
-  async startSession(userId: number): Promise<void> {
+  async startSession(userId: string): Promise<void> {
     await dbReady;
     db.insert(sessions).values({ userId }).run();
   }
 
-  async endOpenSession(userId: number): Promise<void> {
+  async endOpenSession(userId: string): Promise<void> {
     await dbReady;
     db.update(sessions)
       .set({ loggedOutAt: sql`cast(strftime('%s', 'now') as int)` })

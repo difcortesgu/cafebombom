@@ -27,6 +27,11 @@ export default function AccountsScreen() {
   const [payrollForm, setPayrollForm] = useState({ employeeId: '', amount: '0' });
   const [pnl, setPnl] = useState({ income: 0, expenses: 0, net: 0 });
 
+  const selectedPayrollEmployee = useMemo(
+    () => employees.find((employee) => employee.id === payrollForm.employeeId) ?? null,
+    [employees, payrollForm.employeeId]
+  );
+
   useFocusEffect(
     useCallback(() => {
       hydrate();
@@ -183,13 +188,25 @@ export default function AccountsScreen() {
         <>
           <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Add payroll entry</ThemedText>
-            <ThemedInput
-              value={payrollForm.employeeId}
-              onChangeText={(value) => setPayrollForm((f) => ({ ...f, employeeId: value }))}
-              style={styles.input}
-              keyboardType="number-pad"
-              placeholder="Employee ID"
-            />
+            <ThemedText style={styles.smallText}>Employee</ThemedText>
+            <View style={styles.tabRow}>
+              {employees.map((employee) => (
+                <ThemedChip
+                  key={employee.id}
+                  style={styles.switchButton}
+                  label={employee.name}
+                  active={payrollForm.employeeId === employee.id}
+                  onPress={() => setPayrollForm((f) => ({ ...f, employeeId: employee.id }))}
+                />
+              ))}
+            </View>
+            {selectedPayrollEmployee ? (
+              <ThemedText style={styles.smallText}>
+                Selected: {selectedPayrollEmployee.name}
+              </ThemedText>
+            ) : (
+              <ThemedText style={styles.smallText}>Select an employee to continue.</ThemedText>
+            )}
             <ThemedInput
               value={payrollForm.amount}
               onChangeText={(value) => setPayrollForm((f) => ({ ...f, amount: value }))}
@@ -206,7 +223,7 @@ export default function AccountsScreen() {
                 }
                 const now = Math.floor(Date.now() / 1000);
                 await addPayroll({
-                  employeeId: Number(payrollForm.employeeId),
+                  employeeId: payrollForm.employeeId,
                   periodStart: now,
                   periodEnd: now,
                   amount: Number(payrollForm.amount || '0'),
@@ -220,7 +237,9 @@ export default function AccountsScreen() {
             <ThemedText type="subtitle">Recent payroll</ThemedText>
             {payroll.map((entry) => (
               <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                <ThemedText type="defaultSemiBold">Employee #{entry.employee_id}</ThemedText>
+                <ThemedText type="defaultSemiBold">
+                  {employees.find((employee) => employee.id === entry.employee_id)?.name ?? `Employee #${entry.employee_id}`}
+                </ThemedText>
                 <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
               </View>
             ))}

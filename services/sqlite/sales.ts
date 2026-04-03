@@ -102,7 +102,7 @@ export class SalesSqliteService implements SalesService {
       .all();
   }
 
-  async getSaleItems(saleId: number): Promise<SaleItemDetail[]> {
+  async getSaleItems(saleId: string): Promise<SaleItemDetail[]> {
     await dbReady;
     return db
       .select({
