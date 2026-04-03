@@ -1,20 +1,20 @@
 import { Tabs } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { ThemedButton } from '@/components/ui/themed-button';
+import { ThemedInput } from '@/components/ui/themed-input';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const palette = useAppColors();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [pin, setPin] = useState('');
 
@@ -58,35 +58,38 @@ export default function TabLayout() {
                 styles.userButton,
                 { borderColor: palette.border },
                 selectedUserId === user.id && styles.userButtonActive,
+                selectedUserId === user.id && { backgroundColor: palette.tint, borderColor: palette.tint },
               ]}
               onPress={() => setSelectedUserId(user.id)}>
               <IconSymbol
                 name="person.fill"
                 size={18}
-                color={selectedUserId === user.id ? '#FFFFFF' : palette.icon}
+                color={selectedUserId === user.id ? palette.card : palette.icon}
               />
               <ThemedText
-                style={selectedUserId === user.id ? styles.activeUserText : styles.userText}>
+                style={[
+                  selectedUserId === user.id ? styles.activeUserText : styles.userText,
+                  selectedUserId === user.id && { color: palette.card },
+                ]}>
                 {user.name} ({user.role})
               </ThemedText>
             </Pressable>
           ))}
         </View>
 
-        <TextInput
+        <ThemedInput
           value={pin}
           secureTextEntry
           keyboardType="number-pad"
           maxLength={6}
           placeholder="Enter PIN"
-          placeholderTextColor={palette.placeholder}
-          style={[styles.pinInput, { borderColor: palette.border, color: palette.text, backgroundColor: palette.inputBackground }]}
+          style={styles.pinInput}
           onChangeText={setPin}
         />
 
         {error ? <ThemedText style={[styles.errorText, { color: palette.danger }]}>{error}</ThemedText> : null}
 
-        <Pressable
+        <ThemedButton
           style={styles.loginButton}
           disabled={loading || !selectedUserId || pin.length < 4}
           onPress={async () => {
@@ -98,9 +101,11 @@ export default function TabLayout() {
               setPin('');
             }
           }}>
-          <IconSymbol name="lock.fill" size={16} color="#FFFFFF" />
-          <ThemedText style={styles.loginButtonText}>{loading ? 'Signing in...' : 'Unlock Session'}</ThemedText>
-        </Pressable>
+          <View style={styles.loginButtonContent}>
+            <IconSymbol name="lock.fill" size={16} color={palette.card} />
+            <ThemedText style={[styles.loginButtonText, { color: palette.card }]}>{loading ? 'Signing in...' : 'Unlock Session'}</ThemedText>
+          </View>
+        </ThemedButton>
 
         <ThemedText style={[styles.hint, { color: palette.mutedText }]}>Default PINs: Owner 1234, Staff 2222</ThemedText>
       </ThemedView>
@@ -217,9 +222,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   pinInput: {
-    borderWidth: 1,
-    borderColor: '#D2D2D2',
-    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 18,
@@ -227,9 +229,9 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginTop: 6,
-    borderRadius: 10,
-    backgroundColor: '#B64D1A',
     paddingVertical: 12,
+  },
+  loginButtonContent: {
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

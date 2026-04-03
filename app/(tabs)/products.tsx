@@ -1,9 +1,14 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ThemedButton } from '@/components/ui/themed-button';
+import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedChip } from '@/components/ui/themed-chip';
+import { ThemedInput } from '@/components/ui/themed-input';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
@@ -11,6 +16,7 @@ import { useProductsStore } from '@/stores/products';
 type Section = 'products' | 'recipes' | 'compositions';
 
 export default function ProductsScreen() {
+  const palette = useAppColors();
   const currentUser = useAuthStore((state) => state.currentUser);
   const {
     categories,
@@ -170,33 +176,34 @@ export default function ProductsScreen() {
       <ThemedText>Maintain sellable products, direct recipe links, and processed ingredient trees.</ThemedText>
 
       {message ? (
-        <ThemedView style={styles.messageCard}>
+        <ThemedCard style={styles.messageCard}>
           <ThemedText>{message}</ThemedText>
-        </ThemedView>
+        </ThemedCard>
       ) : null}
 
       <View style={styles.tabRow}>
         {(['products', 'recipes', 'compositions'] as Section[]).map((item) => (
-          <Pressable
+          <ThemedChip
             key={item}
-            style={[styles.sectionButton, section === item && styles.sectionButtonActive]}
-            onPress={() => setSection(item)}>
-            <ThemedText style={section === item ? styles.sectionTextActive : undefined}>{item}</ThemedText>
-          </Pressable>
+            style={styles.sectionButton}
+            label={item}
+            active={section === item}
+            onPress={() => setSection(item)}
+          />
         ))}
       </View>
 
       {section === 'products' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">{productForm.id ? 'Edit product' : 'Create product'}</ThemedText>
-            <TextInput
+            <ThemedInput
               placeholder="Product name"
               value={productForm.name}
               onChangeText={(value) => setProductForm((current) => ({ ...current, name: value }))}
               style={styles.input}
             />
-            <TextInput
+            <ThemedInput
               placeholder="Price"
               keyboardType="decimal-pad"
               value={productForm.price}
@@ -205,40 +212,41 @@ export default function ProductsScreen() {
             />
             <ThemedText style={styles.smallText}>Category</ThemedText>
             <View style={styles.chipRow}>
-              <Pressable
-                style={[styles.chip, productForm.categoryId === null && styles.chipActive]}
-                onPress={() => setProductForm((current) => ({ ...current, categoryId: null }))}>
-                <ThemedText style={productForm.categoryId === null ? styles.chipTextActive : undefined}>None</ThemedText>
-              </Pressable>
+              <ThemedChip
+                style={styles.chip}
+                label="None"
+                tone="accent"
+                active={productForm.categoryId === null}
+                onPress={() => setProductForm((current) => ({ ...current, categoryId: null }))}
+              />
               {categories.map((category) => (
-                <Pressable
+                <ThemedChip
                   key={category.id}
-                  style={[styles.chip, productForm.categoryId === category.id && styles.chipActive]}
-                  onPress={() => setProductForm((current) => ({ ...current, categoryId: category.id }))}>
-                  <ThemedText style={productForm.categoryId === category.id ? styles.chipTextActive : undefined}>
-                    {category.name}
-                  </ThemedText>
-                </Pressable>
+                  style={styles.chip}
+                  label={category.name}
+                  tone="accent"
+                  active={productForm.categoryId === category.id}
+                  onPress={() => setProductForm((current) => ({ ...current, categoryId: category.id }))}
+                />
               ))}
             </View>
             <View style={styles.actionsRow}>
-              <Pressable style={styles.primaryButton} onPress={submitProduct}>
-                <ThemedText style={styles.primaryText}>{productForm.id ? 'Save changes' : 'Create product'}</ThemedText>
-              </Pressable>
+              <ThemedButton style={styles.primaryButton} label={productForm.id ? 'Save changes' : 'Create product'} onPress={submitProduct} />
               {productForm.id ? (
-                <Pressable
+                <ThemedButton
+                  variant="secondary"
                   style={styles.secondaryButton}
-                  onPress={() => setProductForm({ id: null, name: '', categoryId: null, price: '' })}>
-                  <ThemedText>Cancel</ThemedText>
-                </Pressable>
+                  label="Cancel"
+                  onPress={() => setProductForm({ id: null, name: '', categoryId: null, price: '' })}
+                />
               ) : null}
             </View>
-          </ThemedView>
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Product list</ThemedText>
             {products.map((product) => (
-              <View key={product.id} style={styles.listItemColumn}>
+              <View key={product.id} style={[styles.listItemColumn, { borderColor: palette.border }]}>
                 <View style={styles.listHeader}>
                   <View style={styles.listTextWrap}>
                     <ThemedText type="defaultSemiBold">{product.name}</ThemedText>
@@ -247,8 +255,10 @@ export default function ProductsScreen() {
                     </ThemedText>
                   </View>
                   <View style={styles.inlineActions}>
-                    <Pressable
+                    <ThemedButton
+                      variant="secondary"
                       style={styles.secondaryButton}
+                      label="Edit"
                       onPress={() =>
                         setProductForm({
                           id: product.id,
@@ -256,167 +266,163 @@ export default function ProductsScreen() {
                           categoryId: product.categoryId,
                           price: String(product.price),
                         })
-                      }>
-                      <ThemedText>Edit</ThemedText>
-                    </Pressable>
-                    <Pressable
+                      }
+                    />
+                    <ThemedButton
+                      variant="secondary"
                       style={styles.secondaryButton}
+                      label={product.isActive ? 'Archive' : 'Restore'}
                       onPress={async () => {
                         await updateProduct({ id: product.id, isActive: !product.isActive });
                         setMessage(product.isActive ? 'Product archived.' : 'Product restored.');
-                      }}>
-                      <ThemedText>{product.isActive ? 'Archive' : 'Restore'}</ThemedText>
-                    </Pressable>
+                      }}
+                    />
                   </View>
                 </View>
               </View>
             ))}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'recipes' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Recipe editor</ThemedText>
             <ThemedText style={styles.smallText}>Select a product, then assign direct ingredient quantities.</ThemedText>
             <ThemedText style={styles.label}>Product</ThemedText>
             <View style={styles.chipRow}>
               {activeProducts.map((product) => (
-                <Pressable
+                <ThemedChip
                   key={product.id}
-                  style={[styles.chip, Number(recipeForm.productId) === product.id && styles.chipActive]}
-                  onPress={() => setRecipeForm((current) => ({ ...current, productId: String(product.id) }))}>
-                  <ThemedText style={Number(recipeForm.productId) === product.id ? styles.chipTextActive : undefined}>
-                    {product.name}
-                  </ThemedText>
-                </Pressable>
+                  style={styles.chip}
+                  label={product.name}
+                  tone="accent"
+                  active={Number(recipeForm.productId) === product.id}
+                  onPress={() => setRecipeForm((current) => ({ ...current, productId: String(product.id) }))}
+                />
               ))}
             </View>
             <ThemedText style={styles.label}>Ingredient</ThemedText>
             <View style={styles.chipRow}>
               {ingredients.map((ingredient) => (
-                <Pressable
+                <ThemedChip
                   key={ingredient.id}
-                  style={[styles.chip, Number(recipeForm.ingredientId) === ingredient.id && styles.chipActive]}
-                  onPress={() => setRecipeForm((current) => ({ ...current, ingredientId: String(ingredient.id) }))}>
-                  <ThemedText style={Number(recipeForm.ingredientId) === ingredient.id ? styles.chipTextActive : undefined}>
-                    {ingredient.name}
-                  </ThemedText>
-                </Pressable>
+                  style={styles.chip}
+                  label={ingredient.name}
+                  tone="accent"
+                  active={Number(recipeForm.ingredientId) === ingredient.id}
+                  onPress={() => setRecipeForm((current) => ({ ...current, ingredientId: String(ingredient.id) }))}
+                />
               ))}
             </View>
-            <TextInput
+            <ThemedInput
               placeholder="Quantity used per product"
               keyboardType="decimal-pad"
               value={recipeForm.quantityUsed}
               onChangeText={(value) => setRecipeForm((current) => ({ ...current, quantityUsed: value }))}
               style={styles.input}
             />
-            <Pressable style={styles.primaryButton} onPress={submitRecipe}>
-              <ThemedText style={styles.primaryText}>Save recipe link</ThemedText>
-            </Pressable>
-          </ThemedView>
+            <ThemedButton style={styles.primaryButton} label="Save recipe link" onPress={submitRecipe} />
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">{selectedProduct?.name ?? 'Selected product'} recipe</ThemedText>
             {selectedProductRecipes.length === 0 ? (
               <ThemedText style={styles.smallText}>No direct ingredients assigned yet.</ThemedText>
             ) : (
               selectedProductRecipes.map((link) => (
-                <View key={link.id} style={styles.listItem}>
+                <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
                   <View style={styles.listTextWrap}>
                     <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
                     <ThemedText style={styles.smallText}>{link.quantityUsed} per unit</ThemedText>
                   </View>
-                  <Pressable
+                  <ThemedButton
+                    variant="secondary"
                     style={styles.secondaryButton}
+                    label="Remove"
                     onPress={async () => {
                       await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
                       setMessage('Recipe link removed.');
-                    }}>
-                    <ThemedText>Remove</ThemedText>
-                  </Pressable>
+                    }}
+                  />
                 </View>
               ))
             )}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'compositions' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Processed ingredient composition</ThemedText>
             <ThemedText style={styles.smallText}>Map a parent ingredient to the child ingredients it consumes.</ThemedText>
             <ThemedText style={styles.label}>Parent ingredient</ThemedText>
             <View style={styles.chipRow}>
               {ingredients.map((ingredient) => (
-                <Pressable
+                <ThemedChip
                   key={`parent-${ingredient.id}`}
-                  style={[styles.chip, Number(compositionForm.parentIngredientId) === ingredient.id && styles.chipActive]}
-                  onPress={() => setCompositionForm((current) => ({ ...current, parentIngredientId: String(ingredient.id) }))}>
-                  <ThemedText
-                    style={Number(compositionForm.parentIngredientId) === ingredient.id ? styles.chipTextActive : undefined}>
-                    {ingredient.name}
-                  </ThemedText>
-                </Pressable>
+                  style={styles.chip}
+                  label={ingredient.name}
+                  tone="accent"
+                  active={Number(compositionForm.parentIngredientId) === ingredient.id}
+                  onPress={() => setCompositionForm((current) => ({ ...current, parentIngredientId: String(ingredient.id) }))}
+                />
               ))}
             </View>
             <ThemedText style={styles.label}>Child ingredient</ThemedText>
             <View style={styles.chipRow}>
               {ingredients.map((ingredient) => (
-                <Pressable
+                <ThemedChip
                   key={`child-${ingredient.id}`}
-                  style={[styles.chip, Number(compositionForm.childIngredientId) === ingredient.id && styles.chipActive]}
-                  onPress={() => setCompositionForm((current) => ({ ...current, childIngredientId: String(ingredient.id) }))}>
-                  <ThemedText
-                    style={Number(compositionForm.childIngredientId) === ingredient.id ? styles.chipTextActive : undefined}>
-                    {ingredient.name}
-                  </ThemedText>
-                </Pressable>
+                  style={styles.chip}
+                  label={ingredient.name}
+                  tone="accent"
+                  active={Number(compositionForm.childIngredientId) === ingredient.id}
+                  onPress={() => setCompositionForm((current) => ({ ...current, childIngredientId: String(ingredient.id) }))}
+                />
               ))}
             </View>
-            <TextInput
+            <ThemedInput
               placeholder="Quantity needed"
               keyboardType="decimal-pad"
               value={compositionForm.quantityNeeded}
               onChangeText={(value) => setCompositionForm((current) => ({ ...current, quantityNeeded: value }))}
               style={styles.input}
             />
-            <Pressable style={styles.primaryButton} onPress={submitComposition}>
-              <ThemedText style={styles.primaryText}>Save composition link</ThemedText>
-            </Pressable>
-          </ThemedView>
+            <ThemedButton style={styles.primaryButton} label="Save composition link" onPress={submitComposition} />
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Composition list</ThemedText>
             {compositions.length === 0 ? (
               <ThemedText style={styles.smallText}>No processed ingredient links yet.</ThemedText>
             ) : (
               compositions.map((composition) => (
-                <View key={composition.id} style={styles.listItem}>
+                <View key={composition.id} style={[styles.listItem, { borderColor: palette.border }]}>
                   <View style={styles.listTextWrap}>
                     <ThemedText type="defaultSemiBold">{composition.parentIngredientName}</ThemedText>
                     <ThemedText style={styles.smallText}>
                       consumes {composition.quantityNeeded} of {composition.childIngredientName}
                     </ThemedText>
                   </View>
-                  <Pressable
+                  <ThemedButton
+                    variant="secondary"
                     style={styles.secondaryButton}
+                    label="Remove"
                     onPress={async () => {
                       await removeComposition({
                         parentIngredientId: composition.parentIngredientId,
                         childIngredientId: composition.childIngredientId,
                       });
                       setMessage('Composition link removed.');
-                    }}>
-                    <ThemedText>Remove</ThemedText>
-                  </Pressable>
+                    }}
+                  />
                 </View>
               ))
             )}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
     </ScrollView>
@@ -435,9 +441,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   messageCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C5AA90',
     padding: 12,
   },
   tabRow: {
@@ -447,34 +450,13 @@ const styles = StyleSheet.create({
   },
   sectionButton: {
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#BFA792',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  sectionButtonActive: {
-    backgroundColor: '#B64D1A',
-    borderColor: '#B64D1A',
-  },
-  sectionTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C5AA90',
-    padding: 12,
     gap: 10,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
-    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#1D130D',
-    backgroundColor: '#FFFFFF',
   },
   chipRow: {
     flexDirection: 'row',
@@ -482,19 +464,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 8,
-  },
-  chipActive: {
-    backgroundColor: '#F4D9C8',
-    borderColor: '#B64D1A',
-  },
-  chipTextActive: {
-    color: '#7D310B',
-    fontWeight: '700',
   },
   actionsRow: {
     flexDirection: 'row',
@@ -505,23 +477,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryButton: {
-    borderRadius: 10,
-    backgroundColor: '#B64D1A',
     paddingVertical: 10,
     paddingHorizontal: 14,
-    alignItems: 'center',
-  },
-  primaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   secondaryButton: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#A98F79',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    alignItems: 'center',
   },
   listItem: {
     flexDirection: 'row',

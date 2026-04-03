@@ -1,9 +1,14 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { ThemedButton } from '@/components/ui/themed-button';
+import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedChip } from '@/components/ui/themed-chip';
+import { ThemedInput } from '@/components/ui/themed-input';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { dayRangeUnix } from '@/utils/date';
@@ -11,6 +16,7 @@ import { dayRangeUnix } from '@/utils/date';
 type Section = 'expenses' | 'employees' | 'payroll' | 'report';
 
 export default function AccountsScreen() {
+  const palette = useAppColors();
   const currentUser = useAuthStore((state) => state.currentUser);
   const { hydrate, expenses, employees, payroll, addExpense, addEmployee, addPayroll, getPnL } =
     useAccountsStore();
@@ -50,40 +56,42 @@ export default function AccountsScreen() {
 
       <View style={styles.tabRow}>
         {(['expenses', 'employees', 'payroll', 'report'] as Section[]).map((item) => (
-          <Pressable
+          <ThemedChip
             key={item}
-            style={[styles.sectionButton, section === item && styles.sectionButtonActive]}
-            onPress={() => setSection(item)}>
-            <ThemedText style={section === item ? styles.sectionTextActive : undefined}>{item}</ThemedText>
-          </Pressable>
+            style={styles.sectionButton}
+            label={item}
+            active={section === item}
+            onPress={() => setSection(item)}
+          />
         ))}
       </View>
 
       {section === 'expenses' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Log expense</ThemedText>
-            <TextInput
+            <ThemedInput
               value={expenseForm.category}
               onChangeText={(value) => setExpenseForm((f) => ({ ...f, category: value }))}
               style={styles.input}
               placeholder="Category"
             />
-            <TextInput
+            <ThemedInput
               value={expenseForm.amount}
               onChangeText={(value) => setExpenseForm((f) => ({ ...f, amount: value }))}
               style={styles.input}
               keyboardType="decimal-pad"
               placeholder="Amount"
             />
-            <TextInput
+            <ThemedInput
               value={expenseForm.description}
               onChangeText={(value) => setExpenseForm((f) => ({ ...f, description: value }))}
               style={styles.input}
               placeholder="Description"
             />
-            <Pressable
+            <ThemedButton
               style={styles.primaryButton}
+              label="Save expense"
               onPress={async () => {
                 await addExpense({
                   category: expenseForm.category,
@@ -91,56 +99,58 @@ export default function AccountsScreen() {
                   description: expenseForm.description,
                 });
                 setExpenseForm({ category: 'Supplies', amount: '0', description: '' });
-              }}>
-              <ThemedText style={styles.primaryText}>Save expense</ThemedText>
-            </Pressable>
+              }}
+            />
             <ThemedText type="defaultSemiBold">Today expenses: ${todayExpenses.toFixed(2)}</ThemedText>
-          </ThemedView>
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Recent expenses</ThemedText>
             {expenses.map((expense) => (
-              <View key={expense.id} style={styles.listItem}>
+              <View key={expense.id} style={[styles.listItem, { borderColor: palette.border }]}>
                 <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
                 <ThemedText>${Number(expense.amount).toFixed(2)}</ThemedText>
                 <ThemedText style={styles.smallText}>{expense.description || 'No description'}</ThemedText>
               </View>
             ))}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'employees' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Add employee</ThemedText>
-            <TextInput
+            <ThemedInput
               value={employeeForm.name}
               onChangeText={(value) => setEmployeeForm((f) => ({ ...f, name: value }))}
               style={styles.input}
               placeholder="Name"
             />
             <View style={styles.row}>
-              <Pressable
-                style={[styles.switchButton, employeeForm.salaryType === 'hourly' && styles.switchActive]}
-                onPress={() => setEmployeeForm((f) => ({ ...f, salaryType: 'hourly' }))}>
-                <ThemedText style={employeeForm.salaryType === 'hourly' ? styles.switchActiveText : undefined}>Hourly</ThemedText>
-              </Pressable>
-              <Pressable
-                style={[styles.switchButton, employeeForm.salaryType === 'monthly' && styles.switchActive]}
-                onPress={() => setEmployeeForm((f) => ({ ...f, salaryType: 'monthly' }))}>
-                <ThemedText style={employeeForm.salaryType === 'monthly' ? styles.switchActiveText : undefined}>Monthly</ThemedText>
-              </Pressable>
+              <ThemedChip
+                style={styles.switchButton}
+                label="Hourly"
+                active={employeeForm.salaryType === 'hourly'}
+                onPress={() => setEmployeeForm((f) => ({ ...f, salaryType: 'hourly' }))}
+              />
+              <ThemedChip
+                style={styles.switchButton}
+                label="Monthly"
+                active={employeeForm.salaryType === 'monthly'}
+                onPress={() => setEmployeeForm((f) => ({ ...f, salaryType: 'monthly' }))}
+              />
             </View>
-            <TextInput
+            <ThemedInput
               value={employeeForm.rate}
               onChangeText={(value) => setEmployeeForm((f) => ({ ...f, rate: value }))}
               style={styles.input}
               keyboardType="decimal-pad"
               placeholder="Rate"
             />
-            <Pressable
+            <ThemedButton
               style={styles.primaryButton}
+              label="Save employee"
               onPress={async () => {
                 if (!employeeForm.name.trim()) {
                   return;
@@ -151,45 +161,45 @@ export default function AccountsScreen() {
                   rate: Number(employeeForm.rate || '0'),
                 });
                 setEmployeeForm({ name: '', salaryType: 'monthly', rate: '0' });
-              }}>
-              <ThemedText style={styles.primaryText}>Save employee</ThemedText>
-            </Pressable>
-          </ThemedView>
+              }}
+            />
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Employee roster</ThemedText>
             {employees.map((employee) => (
-              <View key={employee.id} style={styles.listItem}>
+              <View key={employee.id} style={[styles.listItem, { borderColor: palette.border }]}>
                 <ThemedText type="defaultSemiBold">{employee.name}</ThemedText>
                 <ThemedText style={styles.smallText}>
                   {employee.salary_type} · ${Number(employee.rate).toFixed(2)}
                 </ThemedText>
               </View>
             ))}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'payroll' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Add payroll entry</ThemedText>
-            <TextInput
+            <ThemedInput
               value={payrollForm.employeeId}
               onChangeText={(value) => setPayrollForm((f) => ({ ...f, employeeId: value }))}
               style={styles.input}
               keyboardType="number-pad"
               placeholder="Employee ID"
             />
-            <TextInput
+            <ThemedInput
               value={payrollForm.amount}
               onChangeText={(value) => setPayrollForm((f) => ({ ...f, amount: value }))}
               style={styles.input}
               keyboardType="decimal-pad"
               placeholder="Amount"
             />
-            <Pressable
+            <ThemedButton
               style={styles.primaryButton}
+              label="Save payroll"
               onPress={async () => {
                 if (!payrollForm.employeeId) {
                   return;
@@ -202,40 +212,39 @@ export default function AccountsScreen() {
                   amount: Number(payrollForm.amount || '0'),
                 });
                 setPayrollForm({ employeeId: '', amount: '0' });
-              }}>
-              <ThemedText style={styles.primaryText}>Save payroll</ThemedText>
-            </Pressable>
-          </ThemedView>
+              }}
+            />
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Recent payroll</ThemedText>
             {payroll.map((entry) => (
-              <View key={entry.id} style={styles.listItem}>
+              <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
                 <ThemedText type="defaultSemiBold">Employee #{entry.employee_id}</ThemedText>
                 <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
               </View>
             ))}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'report' ? (
-        <ThemedView style={styles.card}>
+        <ThemedCard style={styles.card}>
           <ThemedText type="subtitle">P&amp;L report</ThemedText>
           <ThemedText style={styles.smallText}>Using today&apos;s range for now.</ThemedText>
-          <Pressable
+          <ThemedButton
             style={styles.primaryButton}
+            label="Calculate P&amp;L"
             onPress={async () => {
               const { start, end } = dayRangeUnix();
               const value = await getPnL({ startUnix: start, endUnix: end });
               setPnl(value);
-            }}>
-            <ThemedText style={styles.primaryText}>Calculate P&amp;L</ThemedText>
-          </Pressable>
+            }}
+          />
           <ThemedText>Income: ${pnl.income.toFixed(2)}</ThemedText>
           <ThemedText>Expenses: ${pnl.expenses.toFixed(2)}</ThemedText>
           <ThemedText type="defaultSemiBold">Net: ${pnl.net.toFixed(2)}</ThemedText>
-        </ThemedView>
+        </ThemedCard>
       ) : null}
     </ScrollView>
   );
@@ -258,45 +267,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionButton: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  sectionButtonActive: {
-    backgroundColor: '#B64D1A',
-    borderColor: '#B64D1A',
-  },
-  sectionTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C5AA90',
-    padding: 12,
     gap: 10,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
-    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    color: '#1D130D',
-    backgroundColor: '#FFFFFF',
   },
   primaryButton: {
-    borderRadius: 10,
-    backgroundColor: '#B64D1A',
     paddingVertical: 10,
-    alignItems: 'center',
-  },
-  primaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   listItem: {
     borderWidth: 1,
@@ -310,19 +291,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   switchButton: {
-    borderWidth: 1,
-    borderColor: '#A98F79',
     borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  switchActive: {
-    backgroundColor: '#B64D1A',
-    borderColor: '#B64D1A',
-  },
-  switchActiveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    minWidth: 96,
   },
   smallText: {
     opacity: 0.9,

@@ -3,7 +3,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { ThemedButton } from '@/components/ui/themed-button';
+import { ThemedCard } from '@/components/ui/themed-card';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
@@ -16,6 +18,7 @@ type CartItem = {
 };
 
 export default function SalesScreen() {
+  const palette = useAppColors();
   const user = useAuthStore((state) => state.currentUser);
   const logout = useAuthStore((state) => state.logout);
   const { hydrate, products, sales, createSale } = useSalesStore();
@@ -92,17 +95,15 @@ export default function SalesScreen() {
       <ThemedText type="title">Sales</ThemedText>
       <ThemedText>Tap products to build a sale.</ThemedText>
 
-      <Pressable style={styles.logoutButton} onPress={logout}>
-        <ThemedText style={styles.logoutText}>Logout</ThemedText>
-      </Pressable>
+      <ThemedButton variant="secondary" style={styles.logoutButton} label="Logout" onPress={logout} />
 
-      <ThemedView style={styles.card}>
+      <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Product catalog</ThemedText>
         <View style={styles.grid}>
           {products.map((product) => (
             <Pressable
               key={product.id}
-              style={styles.productTile}
+              style={[styles.productTile, { borderColor: palette.border }]}
               onPress={() => addToCart(product.id, product.name, Number(product.price))}>
               <ThemedText style={styles.productName}>{product.name}</ThemedText>
               <ThemedText>${Number(product.price).toFixed(2)}</ThemedText>
@@ -110,9 +111,9 @@ export default function SalesScreen() {
             </Pressable>
           ))}
         </View>
-      </ThemedView>
+      </ThemedCard>
 
-      <ThemedView style={styles.card}>
+      <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Cart</ThemedText>
         {cart.length === 0 ? (
           <ThemedText style={styles.smallText}>No items selected.</ThemedText>
@@ -121,11 +122,11 @@ export default function SalesScreen() {
             <View key={item.productId} style={styles.cartRow}>
               <ThemedText style={styles.productName}>{item.name}</ThemedText>
               <View style={styles.qtyControl}>
-                <Pressable style={styles.qtyButton} onPress={() => updateQty(item.productId, -1)}>
+                <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, -1)}>
                   <ThemedText>-</ThemedText>
                 </Pressable>
                 <ThemedText>{item.quantity}</ThemedText>
-                <Pressable style={styles.qtyButton} onPress={() => updateQty(item.productId, 1)}>
+                <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, 1)}>
                   <ThemedText>+</ThemedText>
                 </Pressable>
               </View>
@@ -135,22 +136,18 @@ export default function SalesScreen() {
 
         <ThemedText type="defaultSemiBold">Total: ${total.toFixed(2)}</ThemedText>
         <View style={styles.actionsRow}>
-          <Pressable style={styles.primaryButton} onPress={submitSale}>
-            <ThemedText style={styles.primaryButtonText}>Confirm sale</ThemedText>
-          </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => setCart([])}>
-            <ThemedText>Discard</ThemedText>
-          </Pressable>
+          <ThemedButton style={styles.primaryButton} label="Confirm sale" onPress={submitSale} />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Discard" onPress={() => setCart([])} />
         </View>
-      </ThemedView>
+      </ThemedCard>
 
-      <ThemedView style={styles.card}>
+      <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Daily sales history</ThemedText>
         {sales.length === 0 ? (
           <ThemedText style={styles.smallText}>No sales yet.</ThemedText>
         ) : (
           sales.map((sale) => (
-            <Pressable key={sale.id} style={styles.historyItem} onPress={() => showSaleDetail(sale.id)}>
+            <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
               <ThemedText type="defaultSemiBold">#{sale.id} - ${Number(sale.total).toFixed(2)}</ThemedText>
               <ThemedText style={styles.smallText}>
                 {new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}
@@ -161,7 +158,7 @@ export default function SalesScreen() {
             </Pressable>
           ))
         )}
-      </ThemedView>
+      </ThemedCard>
     </ScrollView>
   );
 }
@@ -172,10 +169,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C5AA90',
-    padding: 12,
     gap: 10,
   },
   grid: {
@@ -221,22 +214,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#B64D1A',
     paddingVertical: 10,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   secondaryButton: {
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#A98F79',
     paddingVertical: 10,
     paddingHorizontal: 14,
-    alignItems: 'center',
   },
   historyItem: {
     borderWidth: 1,
@@ -252,13 +234,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#A98F79',
-    borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
-  },
-  logoutText: {
-    fontWeight: '600',
   },
 });

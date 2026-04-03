@@ -1,14 +1,19 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { ThemedButton } from '@/components/ui/themed-button';
+import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedChip } from '@/components/ui/themed-chip';
+import { ThemedInput } from '@/components/ui/themed-input';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { useInventoryStore } from '@/stores/inventory';
 
 type Section = 'ingredients' | 'suppliers' | 'restock';
 
 export default function InventoryScreen() {
+  const palette = useAppColors();
   const [section, setSection] = useState<Section>('ingredients');
 
   const {
@@ -60,33 +65,34 @@ export default function InventoryScreen() {
 
       <View style={styles.tabRow}>
         {(['ingredients', 'suppliers', 'restock'] as Section[]).map((item) => (
-          <Pressable
+          <ThemedChip
             key={item}
-            style={[styles.sectionButton, section === item && styles.sectionButtonActive]}
-            onPress={() => setSection(item)}>
-            <ThemedText style={section === item ? styles.sectionTextActive : undefined}>{item}</ThemedText>
-          </Pressable>
+            style={styles.sectionButton}
+            label={item}
+            active={section === item}
+            onPress={() => setSection(item)}
+          />
         ))}
       </View>
 
       {section === 'ingredients' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Add ingredient</ThemedText>
-            <TextInput
+            <ThemedInput
               placeholder="Name"
               value={ingredientForm.name}
               onChangeText={(value) => setIngredientForm((f) => ({ ...f, name: value }))}
               style={styles.input}
             />
             <View style={styles.row}>
-              <TextInput
+              <ThemedInput
                 placeholder="Unit"
                 value={ingredientForm.unit}
                 onChangeText={(value) => setIngredientForm((f) => ({ ...f, unit: value }))}
                 style={[styles.input, styles.half]}
               />
-              <TextInput
+              <ThemedInput
                 placeholder="Qty"
                 keyboardType="decimal-pad"
                 value={ingredientForm.quantity}
@@ -94,15 +100,16 @@ export default function InventoryScreen() {
                 style={[styles.input, styles.half]}
               />
             </View>
-            <TextInput
+            <ThemedInput
               placeholder="Low stock threshold"
               keyboardType="decimal-pad"
               value={ingredientForm.lowStockThreshold}
               onChangeText={(value) => setIngredientForm((f) => ({ ...f, lowStockThreshold: value }))}
               style={styles.input}
             />
-            <Pressable
+            <ThemedButton
               style={styles.primaryButton}
+              label="Save ingredient"
               onPress={async () => {
                 if (!ingredientForm.name.trim()) {
                   return;
@@ -115,69 +122,70 @@ export default function InventoryScreen() {
                 });
                 setIngredientForm({ name: '', unit: 'pcs', quantity: '0', lowStockThreshold: '5' });
               }}>
-              <ThemedText style={styles.primaryText}>Save ingredient</ThemedText>
-            </Pressable>
-          </ThemedView>
+            </ThemedButton>
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Ingredient list</ThemedText>
             {ingredients.map((item) => {
               const isLow = Number(item.quantity) <= Number(item.low_stock_threshold);
               return (
-                <View key={item.id} style={styles.listItem}>
+                <View key={item.id} style={[styles.listItem, { borderColor: palette.border }]}>
                   <View>
                     <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
                     <ThemedText style={styles.smallText}>
                       {Number(item.quantity).toFixed(2)} {item.unit} · threshold {item.low_stock_threshold}
                     </ThemedText>
-                    {isLow ? <ThemedText style={styles.lowText}>Low stock</ThemedText> : null}
+                    {isLow ? <ThemedText style={[styles.lowText, { color: palette.warning }]}>Low stock</ThemedText> : null}
                   </View>
-                  <Pressable
+                  <ThemedButton
+                    variant="secondary"
                     style={styles.secondaryButton}
+                    label="+1"
                     onPress={() =>
                       updateIngredient({
                         id: item.id,
                         quantity: Number(item.quantity) + 1,
                       })
-                    }>
-                    <ThemedText>+1</ThemedText>
-                  </Pressable>
+                    }
+                  />
                 </View>
               );
             })}
-          </ThemedView>
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Low-stock alert</ThemedText>
             <ThemedText>{lowStock.length} ingredient(s) below threshold.</ThemedText>
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'suppliers' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Add supplier</ThemedText>
-            <TextInput
+            <ThemedInput
               placeholder="Supplier name"
               value={supplierForm.name}
               onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))}
               style={styles.input}
             />
-            <TextInput
+            <ThemedInput
               placeholder="Phone"
               value={supplierForm.phone}
               onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))}
               style={styles.input}
             />
-            <TextInput
+            <ThemedInput
               placeholder="Notes"
               value={supplierForm.notes}
               onChangeText={(value) => setSupplierForm((f) => ({ ...f, notes: value }))}
               style={styles.input}
             />
-            <Pressable
+            <ThemedButton
               style={styles.primaryButton}
+              label="Save supplier"
               onPress={async () => {
                 if (!supplierForm.name.trim()) {
                   return;
@@ -189,57 +197,57 @@ export default function InventoryScreen() {
                 });
                 setSupplierForm({ name: '', phone: '', notes: '' });
               }}>
-              <ThemedText style={styles.primaryText}>Save supplier</ThemedText>
-            </Pressable>
-          </ThemedView>
+            </ThemedButton>
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Supplier list</ThemedText>
             {suppliers.map((item) => (
-              <View key={item.id} style={styles.listItemColumn}>
+              <View key={item.id} style={[styles.listItemColumn, { borderColor: palette.border }]}>
                 <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
                 <ThemedText style={styles.smallText}>{item.phone || 'No phone'}</ThemedText>
                 <ThemedText style={styles.smallText}>{item.notes || 'No notes'}</ThemedText>
               </View>
             ))}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
 
       {section === 'restock' ? (
         <>
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Record stock-in</ThemedText>
-            <TextInput
+            <ThemedInput
               placeholder="Ingredient ID"
               keyboardType="number-pad"
               value={restockForm.ingredientId}
               onChangeText={(value) => setRestockForm((f) => ({ ...f, ingredientId: value }))}
               style={styles.input}
             />
-            <TextInput
+            <ThemedInput
               placeholder="Quantity added"
               keyboardType="decimal-pad"
               value={restockForm.quantityAdded}
               onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))}
               style={styles.input}
             />
-            <TextInput
+            <ThemedInput
               placeholder="Cost"
               keyboardType="decimal-pad"
               value={restockForm.cost}
               onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))}
               style={styles.input}
             />
-            <TextInput
+            <ThemedInput
               placeholder="Supplier ID (optional)"
               keyboardType="number-pad"
               value={restockForm.supplierId}
               onChangeText={(value) => setRestockForm((f) => ({ ...f, supplierId: value }))}
               style={styles.input}
             />
-            <Pressable
+            <ThemedButton
               style={styles.primaryButton}
+              label="Save restock"
               onPress={async () => {
                 if (!restockForm.ingredientId) {
                   return;
@@ -254,14 +262,13 @@ export default function InventoryScreen() {
 
                 setRestockForm({ ingredientId: '', quantityAdded: '1', cost: '0', supplierId: '' });
               }}>
-              <ThemedText style={styles.primaryText}>Save restock</ThemedText>
-            </Pressable>
-          </ThemedView>
+            </ThemedButton>
+          </ThemedCard>
 
-          <ThemedView style={styles.card}>
+          <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Recent stock-in logs</ThemedText>
             {restocks.map((log) => (
-              <View key={log.id} style={styles.listItemColumn}>
+              <View key={log.id} style={[styles.listItemColumn, { borderColor: palette.border }]}>
                 <ThemedText type="defaultSemiBold">{log.ingredient_name}</ThemedText>
                 <ThemedText style={styles.smallText}>
                   +{Number(log.quantity_added).toFixed(2)} · ${Number(log.cost).toFixed(2)} ·{' '}
@@ -269,7 +276,7 @@ export default function InventoryScreen() {
                 </ThemedText>
               </View>
             ))}
-          </ThemedView>
+          </ThemedCard>
         </>
       ) : null}
     </ScrollView>
@@ -286,35 +293,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sectionButton: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  sectionButtonActive: {
-    backgroundColor: '#B64D1A',
-    borderColor: '#B64D1A',
-  },
-  sectionTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#C5AA90',
-    padding: 12,
     gap: 10,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
-    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    color: '#1D130D',
-    backgroundColor: '#FFFFFF',
   },
   row: {
     flexDirection: 'row',
@@ -324,19 +310,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryButton: {
-    borderRadius: 10,
-    backgroundColor: '#B64D1A',
     paddingVertical: 10,
-    alignItems: 'center',
-  },
-  primaryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#A98F79',
-    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
