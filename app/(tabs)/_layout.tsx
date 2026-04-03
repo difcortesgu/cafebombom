@@ -39,7 +39,7 @@ export default function TabLayout() {
 
   const visibleTabs = useMemo(() => {
     if (isOwner) {
-      return ['index', 'sales', 'inventory', 'products', 'accounts', 'settings'];
+      return ['index', 'sales', 'tables', 'inventory', 'products', 'accounts', 'settings'];
     }
     return ['sales', 'inventory'];
   }, [isOwner]);
@@ -138,6 +138,14 @@ export default function TabLayout() {
           href: visibleTabs.includes('sales') ? undefined : null,
           title: 'Sales',
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tables"
+        options={{
+          href: visibleTabs.includes('tables') ? undefined : null,
+          title: 'Tables',
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="table.furniture.fill" color={color} />,
         }}
       />
       <Tabs.Screen

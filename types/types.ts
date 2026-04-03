@@ -42,6 +42,13 @@ export type Sale = {
   created_at: number;
   staff_name: string;
   total: number;
+  table_name: string;
+};
+
+export type RestaurantTable = {
+  id: string;
+  name: string;
+  created_at: number;
 };
 
 export type Expense = {

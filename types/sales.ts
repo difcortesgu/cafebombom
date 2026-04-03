@@ -10,4 +10,14 @@ export type SaleItemDetail = {
 export type CreateSalePayload = {
   staffId: string;
   items: SaleItemInput[];
+  tableId: string;
+};
+
+export type CreateTablePayload = {
+  name: string;
+};
+
+export type UpdateTablePayload = {
+  id: string;
+  name: string;
 };

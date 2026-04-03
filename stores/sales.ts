@@ -3,15 +3,19 @@ import { create } from 'zustand';
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
-import type { Product, Sale } from '@/types/types';
+import type { Product, RestaurantTable, Sale } from '@/types/types';
 
 type SalesState = {
   products: Product[];
   sales: Sale[];
+  tables: RestaurantTable[];
   saleItemsById: Record<string, SaleItemDetail[]>;
   loading: boolean;
   hydrate: () => Promise<void>;
   createSale: (payload: CreateSalePayload) => Promise<void>;
+  createTable: (name: string) => Promise<void>;
+  updateTable: (id: string, name: string) => Promise<void>;
+  deleteTable: (id: string) => Promise<void>;
   getTodayRevenue: () => number;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
 };
@@ -19,18 +23,34 @@ type SalesState = {
 export const useSalesStore = create<SalesState>((set, get) => ({
   products: [],
   sales: [],
+  tables: [],
   saleItemsById: {},
   loading: false,
 
   hydrate: async () => {
     set({ loading: true });
-    const { products, sales } = await salesService.getHydrationData();
-    set({ products, sales, loading: false });
+    const { products, sales, tables } = await salesService.getHydrationData();
+    set({ products, sales, tables, loading: false });
   },
 
-  createSale: async ({ staffId, items }: CreateSalePayload) => {
-    await salesService.createSale({ staffId, items });
+  createSale: async ({ staffId, items, tableId }: CreateSalePayload) => {
+    await salesService.createSale({ staffId, items, tableId });
     await Promise.all([get().hydrate(), useInventoryStore.getState().hydrate()]);
+  },
+
+  createTable: async (name: string) => {
+    await salesService.createTable({ name });
+    await get().hydrate();
+  },
+
+  updateTable: async (id: string, name: string) => {
+    await salesService.updateTable({ id, name });
+    await get().hydrate();
+  },
+
+  deleteTable: async (id: string) => {
+    await salesService.deleteTable(id);
+    await get().hydrate();
   },
 
   getTodayRevenue: () => {

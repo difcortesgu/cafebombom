@@ -22,6 +22,7 @@ const MAPPING = {
   'takeoutbag.and.cup.and.straw.fill': 'local-cafe',
   'dollarsign.circle.fill': 'attach-money',
   'gearshape.fill': 'settings',
+  'table.furniture.fill': 'table-restaurant',
   'person.fill': 'person',
   'lock.fill': 'lock',
   'exclamationmark.triangle.fill': 'warning',

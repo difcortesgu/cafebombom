@@ -64,7 +64,15 @@ export type WebSaleRecord = {
   id: string;
   createdAt: number;
   staffId: string;
+  tableId: string;
   total: number;
+};
+
+export type WebRestaurantTableRecord = {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type WebSaleItemRecord = {
@@ -102,6 +110,7 @@ export class CafeBomBomDB extends Dexie {
   expenses!: Table<WebExpenseRecord, string, InsertableRecord<WebExpenseRecord>>;
   employees!: Table<WebEmployeeRecord, string, InsertableRecord<WebEmployeeRecord>>;
   payrollEntries!: Table<WebPayrollEntryRecord, string, InsertableRecord<WebPayrollEntryRecord>>;
+  restaurantTables!: Table<WebRestaurantTableRecord, string, InsertableRecord<WebRestaurantTableRecord>>;
   sales!: Table<WebSaleRecord, string, InsertableRecord<WebSaleRecord>>;
   saleItems!: Table<WebSaleItemRecord, string, InsertableRecord<WebSaleItemRecord>>;
   productIngredients!: Table<WebProductIngredientRecord, string, InsertableRecord<WebProductIngredientRecord>>;
@@ -110,7 +119,7 @@ export class CafeBomBomDB extends Dexie {
   constructor() {
     super('cafebombom.web');
 
-    this.version(1).stores({
+    this.version(2).stores({
       users: 'id',
       sessions: 'id, userId',
       categories: 'id',
@@ -121,7 +130,8 @@ export class CafeBomBomDB extends Dexie {
       expenses: 'id, date',
       employees: 'id',
       payrollEntries: 'id, employeeId',
-      sales: 'id, createdAt, staffId',
+      restaurantTables: 'id, name, createdAt',
+      sales: 'id, createdAt, staffId, tableId',
       saleItems: 'id, saleId, productId',
       productIngredients: 'id, productId, [productId+ingredientId]',
       ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
@@ -142,6 +152,7 @@ export class CafeBomBomDB extends Dexie {
       this.expenses,
       this.employees,
       this.payrollEntries,
+      this.restaurantTables,
       this.sales,
       this.saleItems,
       this.productIngredients,
@@ -159,9 +170,6 @@ export class CafeBomBomDB extends Dexie {
   }
 
   async seed(): Promise<void> {
-    const hasData = await this.users.count();
-    if (hasData > 0) return;
-
     try {
       const userId1 = generateId();
       const userId2 = generateId();
@@ -173,24 +181,46 @@ export class CafeBomBomDB extends Dexie {
       const productId2 = generateId();
       const productId3 = generateId();
       const productId4 = generateId();
+      const now = Math.floor(Date.now() / 1000);
 
-      await this.transaction('rw', [this.users, this.categories, this.products], async () => {
-        await this.users.bulkAdd([
-          { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
-          { id: userId2, name: 'Staff', role: 'staff', pinHash: hashPin('2222'), isActive: true },
-        ]);
-        await this.categories.bulkAdd([
-          { id: categoryId1, name: 'Coffee' },
-          { id: categoryId2, name: 'Tea' },
-          { id: categoryId3, name: 'Pastry' },
-          { id: categoryId4, name: 'Snacks' },
-        ]);
-        await this.products.bulkAdd([
-          { id: productId1, name: 'Cappuccino', categoryId: categoryId1, price: 4.5, isActive: true },
-          { id: productId2, name: 'Latte', categoryId: categoryId1, price: 4.25, isActive: true },
-          { id: productId3, name: 'Thai Milk Tea', categoryId: categoryId2, price: 3.9, isActive: true },
-          { id: productId4, name: 'Butter Croissant', categoryId: categoryId3, price: 2.8, isActive: true },
-        ]);
+      await this.transaction('rw', [this.users, this.categories, this.products, this.restaurantTables], async () => {
+        if ((await this.users.count()) === 0) {
+          await this.users.bulkAdd([
+            { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
+            { id: userId2, name: 'Staff', role: 'staff', pinHash: hashPin('2222'), isActive: true },
+          ]);
+        }
+        if ((await this.categories.count()) === 0) {
+          await this.categories.bulkAdd([
+            { id: categoryId1, name: 'Coffee' },
+            { id: categoryId2, name: 'Tea' },
+            { id: categoryId3, name: 'Pastry' },
+            { id: categoryId4, name: 'Snacks' },
+          ]);
+        }
+        if ((await this.products.count()) === 0) {
+          const coffee = await this.categories.where('name').equals('Coffee').first();
+          const tea = await this.categories.where('name').equals('Tea').first();
+          const pastry = await this.categories.where('name').equals('Pastry').first();
+          if (coffee && tea && pastry) {
+            await this.products.bulkAdd([
+              { id: productId1, name: 'Cappuccino', categoryId: coffee.id, price: 4.5, isActive: true },
+              { id: productId2, name: 'Latte', categoryId: coffee.id, price: 4.25, isActive: true },
+              { id: productId3, name: 'Thai Milk Tea', categoryId: tea.id, price: 3.9, isActive: true },
+              { id: productId4, name: 'Butter Croissant', categoryId: pastry.id, price: 2.8, isActive: true },
+            ]);
+          }
+        }
+        if ((await this.restaurantTables.count()) === 0) {
+          await this.restaurantTables.bulkAdd([
+            { name: 'Para llevar', createdAt: now, updatedAt: now },
+            { name: 'Domicilio', createdAt: now, updatedAt: now },
+            { name: 'Mesa 1', createdAt: now, updatedAt: now },
+            { name: 'Mesa 2', createdAt: now, updatedAt: now },
+            { name: 'Mesa 3', createdAt: now, updatedAt: now },
+            { name: 'Mesa 4', createdAt: now, updatedAt: now },
+          ]);
+        }
       });
     } catch (err) {
       console.error('Failed to seed database:', err);

@@ -1,5 +1,6 @@
 import type { SalesService } from '@/services/interfaces/sales';
-import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
+import type { CreateSalePayload, CreateTablePayload, SaleItemDetail, UpdateTablePayload } from '@/types/sales';
+import type { RestaurantTable } from '@/types/types';
 
 import { resolveRecipe } from '@/services/recipe-resolver';
 import { getDb } from './storage';
@@ -7,11 +8,12 @@ import { getDb } from './storage';
 export class SalesWebService implements SalesService {
   async getHydrationData() {
     const db = await getDb();
-    const [products, categories, sales, users] = await Promise.all([
+    const [products, categories, sales, users, tables] = await Promise.all([
       db.products.toArray(),
       db.categories.toArray(),
       db.sales.toArray(),
       db.users.toArray(),
+      db.restaurantTables.toArray(),
     ]);
 
     return {
@@ -33,13 +35,73 @@ export class SalesWebService implements SalesService {
           id: sale.id,
           created_at: sale.createdAt,
           staff_name: users.find((user) => user.id === sale.staffId)?.name ?? 'Unknown',
+          table_name: tables.find((table) => table.id === sale.tableId)?.name ?? 'Unknown table',
           total: sale.total,
+        })),
+      tables: tables
+        .slice()
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((table) => ({
+          id: table.id,
+          name: table.name,
+          created_at: table.createdAt,
         })),
     };
   }
 
-  async createSale({ staffId, items }: CreateSalePayload): Promise<void> {
-    if (items.length === 0) {
+  async getTables(): Promise<RestaurantTable[]> {
+    const db = await getDb();
+    return (await db.restaurantTables.toArray())
+      .slice()
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((table) => ({
+        id: table.id,
+        name: table.name,
+        created_at: table.createdAt,
+      }));
+  }
+
+  async createTable({ name }: CreateTablePayload): Promise<void> {
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      return;
+    }
+    const db = await getDb();
+    const existing = await db.restaurantTables.where('name').equals(normalizedName).first();
+    if (existing) {
+      return;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    await db.restaurantTables.add({
+      name: normalizedName,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  async updateTable({ id, name }: UpdateTablePayload): Promise<void> {
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      return;
+    }
+    const db = await getDb();
+    await db.restaurantTables.update(id, {
+      name: normalizedName,
+      updatedAt: Math.floor(Date.now() / 1000),
+    });
+  }
+
+  async deleteTable(id: string): Promise<void> {
+    const db = await getDb();
+    const linkedSales = await db.sales.where('tableId').equals(id).count();
+    if (linkedSales > 0) {
+      throw new Error('Cannot delete a table that has linked sales.');
+    }
+    await db.restaurantTables.delete(id);
+  }
+
+  async createSale({ staffId, items, tableId }: CreateSalePayload): Promise<void> {
+    if (items.length === 0 || !tableId) {
       return;
     }
 
@@ -56,6 +118,7 @@ export class SalesWebService implements SalesService {
     const saleId = await db.sales.add({
       createdAt: Math.floor(Date.now() / 1000),
       staffId,
+      tableId,
       total,
     });
 

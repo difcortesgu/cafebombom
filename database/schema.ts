@@ -75,14 +75,26 @@ export const productIngredients = sqliteTable('product_ingredients', {
   uniqueIndex('product_ingredients_unique').on(t.productId, t.ingredientId),
 ]);
 
+export const restaurantTables = sqliteTable('restaurant_tables', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  name: text('name').notNull().unique(),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  index('idx_restaurant_tables_name').on(t.name),
+]);
+
 export const sales = sqliteTable('sales', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   staffId: text('staff_id').notNull().references(() => users.id),
+  tableId: text('table_id').notNull().references(() => restaurantTables.id),
   total: real('total').notNull(),
   syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_sales_created_at').on(t.createdAt),
+  index('idx_sales_table_id').on(t.tableId),
 ]);
 
 export const saleItems = sqliteTable('sale_items', {

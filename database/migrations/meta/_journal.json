@@ -8,6 +8,20 @@
       "when": 1775223590673,
       "tag": "0000_rich_pretty_boy",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1775226985737,
+      "tag": "0001_fuzzy_anthem",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775238000000,
+      "tag": "0002_true_table_required",
+      "breakpoints": true
     }
   ]
 }

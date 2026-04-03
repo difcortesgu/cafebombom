@@ -1,9 +1,9 @@
 import { db, dbReady } from '@/database/db';
-import { categories, ingredientCompositions, ingredients, productIngredients, products, saleItems, sales, users } from '@/database/schema';
+import { categories, ingredientCompositions, ingredients, productIngredients, products, restaurantTables, saleItems, sales, users } from '@/database/schema';
 import type { SalesService } from '@/services/interfaces/sales';
 import { resolveRecipe } from '@/services/recipe-resolver';
-import type { CreateSalePayload, SaleItemDetail } from '@/types/sales';
-import type { Product, Sale, SaleItemInput } from '@/types/types';
+import type { CreateSalePayload, CreateTablePayload, SaleItemDetail, UpdateTablePayload } from '@/types/sales';
+import type { Product, RestaurantTable, Sale, SaleItemInput } from '@/types/types';
 import { between, desc, eq, sql } from 'drizzle-orm';
 
 export class SalesSqliteService implements SalesService {
@@ -27,18 +27,84 @@ export class SalesSqliteService implements SalesService {
         id: sales.id,
         created_at: sales.createdAt,
         staff_name: users.name,
+        table_name: restaurantTables.name,
         total: sales.total,
       })
       .from(sales)
       .innerJoin(users, eq(users.id, sales.staffId))
+      .leftJoin(restaurantTables, eq(restaurantTables.id, sales.tableId))
       .orderBy(desc(sales.createdAt))
       .limit(50)
       .all() as Sale[];
 
-    return { products: productsList, sales: salesList };
+    const tablesList = db
+      .select({
+        id: restaurantTables.id,
+        name: restaurantTables.name,
+        created_at: restaurantTables.createdAt,
+      })
+      .from(restaurantTables)
+      .orderBy(restaurantTables.name)
+      .all() as RestaurantTable[];
+
+    return { products: productsList, sales: salesList, tables: tablesList };
   }
 
-  async createSale({ staffId, items }: CreateSalePayload): Promise<void> {
+  async getTables(): Promise<RestaurantTable[]> {
+    await dbReady;
+    return db
+      .select({
+        id: restaurantTables.id,
+        name: restaurantTables.name,
+        created_at: restaurantTables.createdAt,
+      })
+      .from(restaurantTables)
+      .orderBy(restaurantTables.name)
+      .all() as RestaurantTable[];
+  }
+
+  async createTable({ name }: CreateTablePayload): Promise<void> {
+    await dbReady;
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      return;
+    }
+    db.insert(restaurantTables)
+      .values({ name: normalizedName })
+      .onConflictDoNothing()
+      .run();
+  }
+
+  async updateTable({ id, name }: UpdateTablePayload): Promise<void> {
+    await dbReady;
+    const normalizedName = name.trim();
+    if (!normalizedName) {
+      return;
+    }
+    db.update(restaurantTables)
+      .set({
+        name: normalizedName,
+        updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+        syncedAt: null,
+      })
+      .where(eq(restaurantTables.id, id))
+      .run();
+  }
+
+  async deleteTable(id: string): Promise<void> {
+    await dbReady;
+    db.transaction((tx) => {
+      tx.update(sales)
+        .set({ tableId: null, syncedAt: null })
+        .where(eq(sales.tableId, id))
+        .run();
+      tx.delete(restaurantTables)
+        .where(eq(restaurantTables.id, id))
+        .run();
+    });
+  }
+
+  async createSale({ staffId, items, tableId }: CreateSalePayload): Promise<void> {
     await dbReady;
     if (items.length === 0) {
       return;
@@ -50,7 +116,7 @@ export class SalesSqliteService implements SalesService {
     db.transaction((tx) => {
       const [newSale] = tx
         .insert(sales)
-        .values({ createdAt, staffId, total })
+        .values({ createdAt, staffId, tableId: tableId ?? null, total })
         .returning({ id: sales.id })
         .all();
 
