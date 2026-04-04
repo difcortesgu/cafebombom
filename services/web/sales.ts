@@ -2,7 +2,6 @@ import type { SalesService } from '@/services/interfaces/sales';
 import type { CreateSalePayload, CreateTablePayload, SaleItemDetail, UpdateTablePayload } from '@/types/sales';
 import type { RestaurantTable } from '@/types/types';
 
-import { resolveRecipe } from '@/services/recipe-resolver';
 import { getDb } from './storage';
 
 export class SalesWebService implements SalesService {
@@ -106,9 +105,8 @@ export class SalesWebService implements SalesService {
     }
 
     const db = await getDb();
-    const [productIngredients, ingredientCompositions, ingredients] = await Promise.all([
+    const [productIngredients, ingredients] = await Promise.all([
       db.productIngredients.toArray(),
-      db.ingredientCompositions.toArray(),
       db.ingredients.toArray(),
     ]);
 
@@ -138,7 +136,7 @@ export class SalesWebService implements SalesService {
 
       recipeByProductId.set(item.productId, recipeEdges);
 
-      const leafConsumptions = resolveRecipe(recipeEdges, item.quantity, ingredientCompositions);
+      const leafConsumptions = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
 
       for (const leaf of leafConsumptions) {
         const ingredient = ingredients.find((ing) => ing.id === leaf.ingredientId);

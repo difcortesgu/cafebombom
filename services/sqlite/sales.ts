@@ -1,7 +1,6 @@
 import { db, dbReady } from '@/database/db';
-import { categories, ingredientCompositions, ingredients, productIngredients, products, restaurantTables, saleItems, sales, users } from '@/database/schema';
+import { categories, ingredients, productIngredients, products, restaurantTables, saleItems, sales, users } from '@/database/schema';
 import type { SalesService } from '@/services/interfaces/sales';
-import { resolveRecipe } from '@/services/recipe-resolver';
 import type { CreateSalePayload, CreateTablePayload, SaleItemDetail, UpdateTablePayload } from '@/types/sales';
 import type { Product, RestaurantTable, Sale, SaleItemInput } from '@/types/types';
 import { between, desc, eq, sql } from 'drizzle-orm';
@@ -93,15 +92,15 @@ export class SalesSqliteService implements SalesService {
 
   async deleteTable(id: string): Promise<void> {
     await dbReady;
-    db.transaction((tx) => {
-      tx.update(sales)
-        .set({ tableId: null, syncedAt: null })
-        .where(eq(sales.tableId, id))
-        .run();
-      tx.delete(restaurantTables)
-        .where(eq(restaurantTables.id, id))
-        .run();
-    });
+    try {
+      db.delete(restaurantTables).where(eq(restaurantTables.id, id)).run();
+    } catch (err: any) {
+      const msg = String(err?.message ?? '');
+      if (msg.includes('FOREIGN KEY constraint failed')) {
+        throw new Error('Cannot delete a table that has linked sales.');
+      }
+      throw err;
+    }
   }
 
   async createSale({ staffId, items, tableId }: CreateSalePayload): Promise<void> {
@@ -120,15 +119,6 @@ export class SalesSqliteService implements SalesService {
         .returning({ id: sales.id })
         .all();
 
-      const allCompositions = tx
-        .select({
-          parentIngredientId: ingredientCompositions.parentIngredientId,
-          childIngredientId: ingredientCompositions.childIngredientId,
-          quantityNeeded: ingredientCompositions.quantityNeeded,
-        })
-        .from(ingredientCompositions)
-        .all();
-
       for (const item of items) {
         tx.insert(saleItems)
           .values({ saleId: newSale.id, productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice })
@@ -140,7 +130,7 @@ export class SalesSqliteService implements SalesService {
           .where(eq(productIngredients.productId, item.productId))
           .all();
 
-        const leafConsumptions = resolveRecipe(recipeEdges, item.quantity, allCompositions);
+        const leafConsumptions = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
 
         for (const leaf of leafConsumptions) {
           tx.update(ingredients)

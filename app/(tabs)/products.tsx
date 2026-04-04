@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 
-type Section = 'products' | 'ingredients' | 'recipes' | 'compositions';
+type Section = 'products' | 'ingredients';
 
 export default function ProductsScreen() {
   const palette = useAppColors();
@@ -41,10 +41,13 @@ export default function ProductsScreen() {
   const [section, setSection] = useState<Section>('products');
   const [message, setMessage] = useState<string>('');
   const [ingredientForm, setIngredientForm] = useState({
+    id: null as string | null,
     name: '',
     unit: 'pcs',
     quantity: '0',
     lowStockThreshold: '5',
+    recipeIngredientId: '',
+    recipeQuantity: '1',
   });
   const [productForm, setProductForm] = useState({
     id: null as string | null,
@@ -54,48 +57,26 @@ export default function ProductsScreen() {
     recipeIngredientId: '',
     recipeQuantity: '1',
   });
-  const [recipeForm, setRecipeForm] = useState({
-    productId: '',
-    ingredientId: '',
-    quantityUsed: '1',
-  });
-  const [compositionForm, setCompositionForm] = useState({
-    parentIngredientId: '',
-    childIngredientId: '',
-    quantityNeeded: '1',
-  });
-
   useFocusEffect(
     useCallback(() => {
       void Promise.all([hydrate(), hydrateInventory()]);
     }, [hydrate, hydrateInventory]),
   );
 
-  const activeProducts = useMemo(() => products.filter((product) => product.isActive), [products]);
-
-  useEffect(() => {
-    if (!recipeForm.productId && activeProducts.length > 0) {
-      setRecipeForm((current) => ({ ...current, productId: String(activeProducts[0].id) }));
-    }
-  }, [activeProducts, recipeForm.productId]);
-
-  useEffect(() => {
-    if (!compositionForm.parentIngredientId && ingredients.length > 0) {
-      setCompositionForm((current) => ({ ...current, parentIngredientId: String(ingredients[0].id) }));
-    }
-  }, [compositionForm.parentIngredientId, ingredients]);
-
-  useEffect(() => {
-    if (!compositionForm.childIngredientId && ingredients.length > 1) {
-      setCompositionForm((current) => ({ ...current, childIngredientId: String(ingredients[1].id) }));
-    }
-  }, [compositionForm.childIngredientId, ingredients]);
-
   useEffect(() => {
     if (!productForm.recipeIngredientId && ingredients.length > 0) {
       setProductForm((current) => ({ ...current, recipeIngredientId: String(ingredients[0].id) }));
     }
   }, [ingredients, productForm.recipeIngredientId]);
+
+  useEffect(() => {
+    if (ingredientForm.id) {
+      return;
+    }
+    if (!ingredientForm.recipeIngredientId && ingredients.length > 0) {
+      setIngredientForm((current) => ({ ...current, recipeIngredientId: String(ingredients[0].id) }));
+    }
+  }, [ingredients, ingredientForm.id, ingredientForm.recipeIngredientId]);
 
   const lowStock = useMemo(
     () => ingredients.filter((item) => Number(item.quantity) <= Number(item.low_stock_threshold)),
@@ -106,14 +87,17 @@ export default function ProductsScreen() {
     return (
       <ThemedView style={styles.lockedContainer}>
         <ThemedText type="title">Products</ThemedText>
-        <ThemedText>Owner access is required to manage recipes and product composition.</ThemedText>
+        <ThemedText>Owner access is required to manage products, ingredients, and recipes.</ThemedText>
       </ThemedView>
     );
   }
 
-  const selectedProductId = recipeForm.productId;
-  const selectedProductRecipes = productIngredients.filter((link) => link.productId === selectedProductId);
-  const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null;
+  const editingProductRecipes = productForm.id
+    ? productIngredients.filter((link) => link.productId === productForm.id)
+    : [];
+  const editingIngredientRecipes = ingredientForm.id
+    ? compositions.filter((link) => link.parentIngredientId === ingredientForm.id)
+    : [];
 
   const submitProduct = async () => {
     const trimmedName = productForm.name.trim();
@@ -163,13 +147,13 @@ export default function ProductsScreen() {
     });
   };
 
-  const submitRecipe = async () => {
-    const productId = recipeForm.productId;
-    const ingredientId = recipeForm.ingredientId;
-    const quantityUsed = Number(recipeForm.quantityUsed || '0');
+  const saveProductRecipe = async () => {
+    const productId = productForm.id;
+    const ingredientId = productForm.recipeIngredientId;
+    const quantityUsed = Number(productForm.recipeQuantity || '0');
 
     if (!productId || !ingredientId) {
-      setMessage('Select a product and ingredient for the recipe link.');
+      setMessage('Select an ingredient for this product recipe link.');
       return;
     }
 
@@ -179,22 +163,22 @@ export default function ProductsScreen() {
     }
 
     await setProductIngredient({ productId, ingredientId, quantityUsed });
-    setRecipeForm((current) => ({ ...current, ingredientId: '', quantityUsed: '1' }));
+    setProductForm((current) => ({ ...current, recipeQuantity: '1' }));
     setMessage('Recipe link saved.');
   };
 
-  const submitComposition = async () => {
-    const parentIngredientId = compositionForm.parentIngredientId;
-    const childIngredientId = compositionForm.childIngredientId;
-    const quantityNeeded = Number(compositionForm.quantityNeeded || '0');
+  const saveIngredientRecipe = async () => {
+    const parentIngredientId = ingredientForm.id;
+    const childIngredientId = ingredientForm.recipeIngredientId;
+    const quantityNeeded = Number(ingredientForm.recipeQuantity || '0');
 
     if (!parentIngredientId || !childIngredientId) {
-      setMessage('Select both parent and child ingredients.');
+      setMessage('Select both ingredients for this recipe link.');
       return;
     }
 
     if (parentIngredientId === childIngredientId) {
-      setMessage('Processed ingredient links cannot point to themselves.');
+      setMessage('Ingredient recipes cannot point to themselves.');
       return;
     }
 
@@ -204,14 +188,46 @@ export default function ProductsScreen() {
     }
 
     await setComposition({ parentIngredientId, childIngredientId, quantityNeeded });
-    setCompositionForm((current) => ({ ...current, quantityNeeded: '1' }));
-    setMessage('Composition link saved.');
+    setIngredientForm((current) => ({ ...current, recipeQuantity: '1' }));
+    setMessage('Ingredient recipe link saved.');
+  };
+
+  const submitIngredient = async () => {
+    if (!ingredientForm.name.trim()) {
+      setMessage('Ingredient name is required.');
+      return;
+    }
+
+    const payload = {
+      name: ingredientForm.name.trim(),
+      unit: ingredientForm.unit.trim() || 'pcs',
+      quantity: Number(ingredientForm.quantity || '0'),
+      lowStockThreshold: Number(ingredientForm.lowStockThreshold || '0'),
+    };
+
+    if (ingredientForm.id) {
+      await updateIngredient({ id: ingredientForm.id, ...payload });
+      setMessage('Ingredient updated.');
+    } else {
+      await addIngredient(payload);
+      setMessage('Ingredient saved.');
+    }
+
+    setIngredientForm({
+      id: null,
+      name: '',
+      unit: 'pcs',
+      quantity: '0',
+      lowStockThreshold: '5',
+      recipeIngredientId: ingredients[0]?.id ?? '',
+      recipeQuantity: '1',
+    });
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Products</ThemedText>
-      <ThemedText>Maintain products, ingredients, direct recipe links, and processed ingredient trees.</ThemedText>
+      <ThemedText>Maintain products and ingredients, with recipes edited directly while you edit each item.</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.messageCard}>
@@ -220,7 +236,7 @@ export default function ProductsScreen() {
       ) : null}
 
       <View style={styles.tabRow}>
-        {(['products', 'ingredients', 'recipes', 'compositions'] as Section[]).map((item) => (
+        {(['products', 'ingredients'] as Section[]).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
@@ -313,6 +329,58 @@ export default function ProductsScreen() {
                 />
               </>
             ) : null}
+
+            {productForm.id ? (
+              <>
+                <ThemedText style={styles.label}>Recipe for this product</ThemedText>
+                {editingProductRecipes.length === 0 ? (
+                  <ThemedText style={styles.smallText}>No direct ingredients assigned yet.</ThemedText>
+                ) : (
+                  editingProductRecipes.map((link) => (
+                    <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}> 
+                      <View style={styles.listTextWrap}>
+                        <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
+                        <ThemedText style={styles.smallText}>{link.quantityUsed} per unit</ThemedText>
+                      </View>
+                      <ThemedButton
+                        variant="secondary"
+                        style={styles.secondaryButton}
+                        label="Remove"
+                        onPress={async () => {
+                          if (editingProductRecipes.length <= 1) {
+                            setMessage('Each product must keep at least one recipe ingredient.');
+                            return;
+                          }
+                          await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
+                          setMessage('Recipe link removed.');
+                        }}
+                      />
+                    </View>
+                  ))
+                )}
+                <ThemedText style={styles.smallText}>Add or update a recipe ingredient</ThemedText>
+                <View style={styles.chipRow}>
+                  {ingredients.map((ingredient) => (
+                    <ThemedChip
+                      key={`edit-product-recipe-${ingredient.id}`}
+                      style={styles.chip}
+                      label={ingredient.name}
+                      tone="accent"
+                      active={productForm.recipeIngredientId === ingredient.id}
+                      onPress={() => setProductForm((current) => ({ ...current, recipeIngredientId: ingredient.id }))}
+                    />
+                  ))}
+                </View>
+                <ThemedInput
+                  placeholder="Quantity used per product"
+                  keyboardType="decimal-pad"
+                  value={productForm.recipeQuantity}
+                  onChangeText={(value) => setProductForm((current) => ({ ...current, recipeQuantity: value }))}
+                  style={styles.input}
+                />
+                <ThemedButton style={styles.primaryButton} label="Save recipe link" onPress={saveProductRecipe} />
+              </>
+            ) : null}
           </ThemedCard>
 
           <ThemedCard style={styles.card}>
@@ -362,7 +430,7 @@ export default function ProductsScreen() {
       {section === 'ingredients' ? (
         <>
           <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Add ingredient</ThemedText>
+            <ThemedText type="subtitle">{ingredientForm.id ? 'Edit ingredient' : 'Add ingredient'}</ThemedText>
             <ThemedInput
               placeholder="Name"
               value={ingredientForm.name}
@@ -393,24 +461,84 @@ export default function ProductsScreen() {
             />
             <ThemedButton
               style={styles.primaryButton}
-              label="Save ingredient"
-              onPress={async () => {
-                if (!ingredientForm.name.trim()) {
-                  setMessage('Ingredient name is required.');
-                  return;
-                }
-
-                await addIngredient({
-                  name: ingredientForm.name.trim(),
-                  unit: ingredientForm.unit.trim() || 'pcs',
-                  quantity: Number(ingredientForm.quantity || '0'),
-                  lowStockThreshold: Number(ingredientForm.lowStockThreshold || '0'),
-                });
-
-                setIngredientForm({ name: '', unit: 'pcs', quantity: '0', lowStockThreshold: '5' });
-                setMessage('Ingredient saved.');
-              }}
+              label={ingredientForm.id ? 'Save changes' : 'Save ingredient'}
+              onPress={submitIngredient}
             />
+
+            {ingredientForm.id ? (
+              <ThemedButton
+                variant="secondary"
+                style={styles.secondaryButton}
+                label="Cancel"
+                onPress={() =>
+                  setIngredientForm({
+                    id: null,
+                    name: '',
+                    unit: 'pcs',
+                    quantity: '0',
+                    lowStockThreshold: '5',
+                    recipeIngredientId: ingredients[0]?.id ?? '',
+                    recipeQuantity: '1',
+                  })
+                }
+              />
+            ) : null}
+
+            {ingredientForm.id ? (
+              <>
+                <ThemedText style={styles.label}>Recipe for this ingredient</ThemedText>
+                <ThemedText style={styles.smallText}>
+                  Use this when the ingredient is produced from other ingredients.
+                </ThemedText>
+                {editingIngredientRecipes.length === 0 ? (
+                  <ThemedText style={styles.smallText}>No child ingredients assigned yet.</ThemedText>
+                ) : (
+                  editingIngredientRecipes.map((link) => (
+                    <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}> 
+                      <View style={styles.listTextWrap}>
+                        <ThemedText type="defaultSemiBold">{link.childIngredientName}</ThemedText>
+                        <ThemedText style={styles.smallText}>{link.quantityNeeded} needed</ThemedText>
+                      </View>
+                      <ThemedButton
+                        variant="secondary"
+                        style={styles.secondaryButton}
+                        label="Remove"
+                        onPress={async () => {
+                          await removeComposition({
+                            parentIngredientId: link.parentIngredientId,
+                            childIngredientId: link.childIngredientId,
+                          });
+                          setMessage('Ingredient recipe link removed.');
+                        }}
+                      />
+                    </View>
+                  ))
+                )}
+                <ThemedText style={styles.smallText}>Add or update a child ingredient</ThemedText>
+                <View style={styles.chipRow}>
+                  {ingredients
+                    .filter((ingredient) => ingredient.id !== ingredientForm.id)
+                    .map((ingredient) => (
+                      <ThemedChip
+                        key={`edit-ingredient-recipe-${ingredient.id}`}
+                        style={styles.chip}
+                        label={ingredient.name}
+                        tone="accent"
+                        active={ingredientForm.recipeIngredientId === ingredient.id}
+                        onPress={() => setIngredientForm((current) => ({ ...current, recipeIngredientId: ingredient.id }))}
+                      />
+                    ))}
+                </View>
+                <ThemedInput
+                  placeholder="Quantity needed"
+                  keyboardType="decimal-pad"
+                  value={ingredientForm.recipeQuantity}
+                  onChangeText={(value) => setIngredientForm((current) => ({ ...current, recipeQuantity: value }))}
+                  style={styles.input}
+                />
+                <ThemedButton style={styles.primaryButton} label="Save ingredient recipe link" onPress={saveIngredientRecipe} />
+              </>
+            ) : null}
           </ThemedCard>
 
           <ThemedCard style={styles.card}>
@@ -429,6 +557,22 @@ export default function ProductsScreen() {
                   <ThemedButton
                     variant="secondary"
                     style={styles.secondaryButton}
+                    label="Edit"
+                    onPress={() =>
+                      setIngredientForm({
+                        id: item.id,
+                        name: item.name,
+                        unit: item.unit,
+                        quantity: String(item.quantity),
+                        lowStockThreshold: String(item.low_stock_threshold),
+                        recipeIngredientId: ingredients.find((ingredient) => ingredient.id !== item.id)?.id ?? '',
+                        recipeQuantity: '1',
+                      })
+                    }
+                  />
+                  <ThemedButton
+                    variant="secondary"
+                    style={styles.secondaryButton}
                     label="+1"
                     onPress={async () => {
                       await updateIngredient({ id: item.id, quantity: Number(item.quantity) + 1 });
@@ -443,151 +587,6 @@ export default function ProductsScreen() {
           <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">Low-stock alert</ThemedText>
             <ThemedText>{lowStock.length} ingredient(s) below threshold.</ThemedText>
-          </ThemedCard>
-        </>
-      ) : null}
-
-      {section === 'recipes' ? (
-        <>
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Recipe editor</ThemedText>
-            <ThemedText style={styles.smallText}>Select a product, then assign direct ingredient quantities.</ThemedText>
-            <ThemedText style={styles.label}>Product</ThemedText>
-            <View style={styles.chipRow}>
-              {activeProducts.map((product) => (
-                <ThemedChip
-                  key={product.id}
-                  style={styles.chip}
-                  label={product.name}
-                  tone="accent"
-                  active={recipeForm.productId === product.id}
-                  onPress={() => setRecipeForm((current) => ({ ...current, productId: product.id }))}
-                />
-              ))}
-            </View>
-            <ThemedText style={styles.label}>Ingredient</ThemedText>
-            <View style={styles.chipRow}>
-              {ingredients.map((ingredient) => (
-                <ThemedChip
-                  key={ingredient.id}
-                  style={styles.chip}
-                  label={ingredient.name}
-                  tone="accent"
-                  active={recipeForm.ingredientId === ingredient.id}
-                  onPress={() => setRecipeForm((current) => ({ ...current, ingredientId: ingredient.id }))}
-                />
-              ))}
-            </View>
-            <ThemedInput
-              placeholder="Quantity used per product"
-              keyboardType="decimal-pad"
-              value={recipeForm.quantityUsed}
-              onChangeText={(value) => setRecipeForm((current) => ({ ...current, quantityUsed: value }))}
-              style={styles.input}
-            />
-            <ThemedButton style={styles.primaryButton} label="Save recipe link" onPress={submitRecipe} />
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">{selectedProduct?.name ?? 'Selected product'} recipe</ThemedText>
-            {selectedProductRecipes.length === 0 ? (
-              <ThemedText style={styles.smallText}>No direct ingredients assigned yet.</ThemedText>
-            ) : (
-              selectedProductRecipes.map((link) => (
-                <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                  <View style={styles.listTextWrap}>
-                    <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
-                    <ThemedText style={styles.smallText}>{link.quantityUsed} per unit</ThemedText>
-                  </View>
-                  <ThemedButton
-                    variant="secondary"
-                    style={styles.secondaryButton}
-                    label="Remove"
-                    onPress={async () => {
-                      if (selectedProductRecipes.length <= 1) {
-                        setMessage('Each product must keep at least one recipe ingredient.');
-                        return;
-                      }
-                      await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
-                      setMessage('Recipe link removed.');
-                    }}
-                  />
-                </View>
-              ))
-            )}
-          </ThemedCard>
-        </>
-      ) : null}
-
-      {section === 'compositions' ? (
-        <>
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Processed ingredient composition</ThemedText>
-            <ThemedText style={styles.smallText}>Map a parent ingredient to the child ingredients it consumes.</ThemedText>
-            <ThemedText style={styles.label}>Parent ingredient</ThemedText>
-            <View style={styles.chipRow}>
-              {ingredients.map((ingredient) => (
-                <ThemedChip
-                  key={`parent-${ingredient.id}`}
-                  style={styles.chip}
-                  label={ingredient.name}
-                  tone="accent"
-                  active={compositionForm.parentIngredientId === ingredient.id}
-                  onPress={() => setCompositionForm((current) => ({ ...current, parentIngredientId: ingredient.id }))}
-                />
-              ))}
-            </View>
-            <ThemedText style={styles.label}>Child ingredient</ThemedText>
-            <View style={styles.chipRow}>
-              {ingredients.map((ingredient) => (
-                <ThemedChip
-                  key={`child-${ingredient.id}`}
-                  style={styles.chip}
-                  label={ingredient.name}
-                  tone="accent"
-                  active={compositionForm.childIngredientId === ingredient.id}
-                  onPress={() => setCompositionForm((current) => ({ ...current, childIngredientId: ingredient.id }))}
-                />
-              ))}
-            </View>
-            <ThemedInput
-              placeholder="Quantity needed"
-              keyboardType="decimal-pad"
-              value={compositionForm.quantityNeeded}
-              onChangeText={(value) => setCompositionForm((current) => ({ ...current, quantityNeeded: value }))}
-              style={styles.input}
-            />
-            <ThemedButton style={styles.primaryButton} label="Save composition link" onPress={submitComposition} />
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Composition list</ThemedText>
-            {compositions.length === 0 ? (
-              <ThemedText style={styles.smallText}>No processed ingredient links yet.</ThemedText>
-            ) : (
-              compositions.map((composition) => (
-                <View key={composition.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                  <View style={styles.listTextWrap}>
-                    <ThemedText type="defaultSemiBold">{composition.parentIngredientName}</ThemedText>
-                    <ThemedText style={styles.smallText}>
-                      consumes {composition.quantityNeeded} of {composition.childIngredientName}
-                    </ThemedText>
-                  </View>
-                  <ThemedButton
-                    variant="secondary"
-                    style={styles.secondaryButton}
-                    label="Remove"
-                    onPress={async () => {
-                      await removeComposition({
-                        parentIngredientId: composition.parentIngredientId,
-                        childIngredientId: composition.childIngredientId,
-                      });
-                      setMessage('Composition link removed.');
-                    }}
-                  />
-                </View>
-              ))
-            )}
           </ThemedCard>
         </>
       ) : null}

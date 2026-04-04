@@ -89,7 +89,7 @@ export const sales = sqliteTable('sales', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   staffId: text('staff_id').notNull().references(() => users.id),
-  tableId: text('table_id').notNull().references(() => restaurantTables.id),
+  tableId: text('table_id').notNull().references(() => restaurantTables.id, { onDelete: 'restrict' }),
   total: real('total').notNull(),
   syncedAt: integer('synced_at'),
 }, (t) => [
