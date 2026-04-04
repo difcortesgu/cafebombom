@@ -1,6 +1,6 @@
+import { generateId } from '@/utils/id';
 import { sql } from 'drizzle-orm';
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { generateId } from '../utils/id';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
