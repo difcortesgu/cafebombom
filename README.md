@@ -153,18 +153,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 
 ## Next Features To Implement
 
-### 1. Product Additionals
-
-- [x] Define the `additionals` data model (id, name, price, active flag)
-- [x] Create DB schema table for `additionals` and generate migration
-- [x] Build the additionals management screen (list, create, edit, delete)
-- [x] Link additionals to products via a `productAdditionals` join table
-- [x] Add additional selection UI in the sale item entry flow
-- [x] Store selected additionals per sale item in `saleItemAdditionals` table
-- [x] Include additionals prices in sale item subtotal calculation
-- [x] Display selected additionals on the sale detail view
-
-### 2. Discounts
+### 1. Discounts
 
 - [ ] Define discount types: fixed amount and percentage
 - [ ] Create DB schema for discounts (id, name, type, value, active flag)
@@ -175,7 +164,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Display applied discounts in the sale detail and receipt views
 - [ ] Store discount snapshots on `saleItems` and `sales` tables to preserve historical amounts
 
-### 3. Delivery and To-Go Order Types
+### 2. Delivery and To-Go Order Types
 
 - [ ] Add order type field to `sales` table: dine-in, to-go, delivery
 - [ ] Define additional cost rules per order type (e.g., delivery fee, packaging surcharge)
@@ -183,7 +172,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Auto-apply the corresponding additional cost when an order type is selected in the sale form
 - [ ] Display order type and additional cost line in sale summary and receipt
 
-### 4. Order State Management
+### 3. Order State Management
 
 - [ ] Add `status` field to `sales` table: `created`, `in_progress`, `paid`
 - [ ] Generate migration for the new status field
@@ -194,7 +183,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Show order status badge in sale list and sale detail views
 - [ ] Filter sales history by status
 
-### 5. Payment Methods
+### 4. Payment Methods
 
 - [ ] Create DB schema for `paymentMethods` (id, name, active flag)
 - [ ] Seed default payment methods (cash, card, bank transfer)
@@ -205,7 +194,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Display payment breakdown in sale detail and receipt views
 - [ ] Include payment method totals in the accounts/financial summary
 
-### 6. Receipt Generation and Thermal Printing
+### 5. Receipt Generation and Thermal Printing
 
 - [ ] Design receipt data model (cafe name, date/time, order items, additionals, discounts, totals, payment method)
 - [ ] Build an ESC/POS encoder module that converts receipt data into a raw ESC/POS byte command sequence (text alignment, bold, line feeds, cut command)
@@ -220,7 +209,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Expose a "Share as PDF" option when no printer is paired or printing fails
 - [ ] Handle printer errors gracefully (not connected, paper out) with user-facing messages and automatic PDF fallback
 
-### 7. Dashboard Improvements
+### 6. Dashboard Improvements
 
 - [ ] Add date range filter (today, this week, this month, custom range)
 - [ ] Add filter by product or product category
@@ -234,7 +223,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Implement Excel export for inventory/restock data
 - [ ] Implement Excel export for payroll/expense data
 
-### 8. Biometric Authentication
+### 7. Biometric Authentication
 
 - [ ] Integrate `expo-local-authentication` to check device biometric capability (fingerprint, Face ID)
 - [ ] Add a biometrics toggle in settings, only shown when the device supports and has biometrics enrolled
@@ -244,7 +233,7 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [ ] Require PIN re-entry when enabling biometrics for the first time to confirm identity before activating
 - [ ] Handle the case where biometric enrollment changes on the device (e.g., new fingerprint added) by invalidating the biometric preference and requiring PIN re-confirmation
 
-### 9. UX/UI Improvements and Persistent User Preferences
+### 8. UX/UI Improvements and Persistent User Preferences
 
 - [ ] Persist the last selected tab so the app reopens on the same screen the user was on
 - [ ] Remember the last used filters per screen (date range, category, staff member) and restore them on re-open
