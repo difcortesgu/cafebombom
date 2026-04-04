@@ -30,15 +30,16 @@ export class InventoryWebService implements InventoryService {
     };
   }
 
-  async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<void> {
+  async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<string> {
     const db = await getDb();
-    await db.ingredients.add({
+    const id = await db.ingredients.add({
       name,
       unit: unit as Unit,
       quantity,
       low_stock_threshold: lowStockThreshold,
       supplier_id: supplierId ?? null,
     });
+    return id;
   }
 
   async updateIngredient({ id, ...payload }: UpdateIngredientPayload): Promise<void> {

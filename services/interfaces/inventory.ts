@@ -9,7 +9,7 @@ export type InventoryHydrationData = {
 
 export interface InventoryService {
   getHydrationData(): Promise<InventoryHydrationData>;
-  addIngredient(payload: AddIngredientPayload): Promise<void>;
+  addIngredient(payload: AddIngredientPayload): Promise<string>;
   updateIngredient(payload: UpdateIngredientPayload): Promise<void>;
   addSupplier(payload: AddSupplierPayload): Promise<void>;
   addRestock(payload: AddRestockPayload): Promise<void>;

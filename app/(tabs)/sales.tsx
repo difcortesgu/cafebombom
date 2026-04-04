@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -10,28 +10,20 @@ import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 
-type CartItem = {
-  productId: string;
-  name: string;
-  unitPrice: number;
-  quantity: number;
-};
-
 export default function SalesScreen() {
   const palette = useAppColors();
-  const user = useAuthStore((state) => state.currentUser);
+  const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-  const { hydrate, products, sales, tables, createSale } = useSalesStore();
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const { hydrate, sales } = useSalesStore();
+
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
 
   useFocusEffect(
     useCallback(() => {
-      hydrate();
-    }, [hydrate])
+      void hydrate();
+    }, [hydrate]),
   );
 
   useEffect(() => {
@@ -50,7 +42,7 @@ export default function SalesScreen() {
           const items = await salesService.getSaleItems(sale.id);
           const summary = items.map((item) => `${item.product_name} x${item.quantity}`).join(', ');
           return [sale.id, summary || 'No products'] as const;
-        })
+        }),
       );
 
       if (!isMounted) {
@@ -60,17 +52,12 @@ export default function SalesScreen() {
       setSaleProductsById(Object.fromEntries(summaries));
     };
 
-    loadSaleProducts();
+    void loadSaleProducts();
 
     return () => {
       isMounted = false;
     };
   }, [sales]);
-
-  const total = useMemo(
-    () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-    [cart]
-  );
 
   const salesByTable = useMemo(() => {
     return sales.reduce<Record<string, typeof sales>>((acc, sale) => {
@@ -83,47 +70,6 @@ export default function SalesScreen() {
     }, {});
   }, [sales]);
 
-  const addToCart = (productId: string, name: string, unitPrice: number) => {
-    setCart((prev) => {
-      const existing = prev.find((item) => item.productId === productId);
-      if (existing) {
-        return prev.map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prev, { productId, name, unitPrice, quantity: 1 }];
-    });
-  };
-
-  const updateQty = (productId: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.productId === productId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  const submitSale = async () => {
-    if (!user || cart.length === 0 || !selectedTableId) {
-      return;
-    }
-
-    await createSale({
-      staffId: user.id,
-      items: cart.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      })),
-      tableId: selectedTableId,
-    });
-
-    setCart([]);
-    setSelectedTableId(null);
-  };
-
   const showSaleDetail = async (saleId: string) => {
     if (expandedSaleId === saleId) {
       setExpandedSaleId(null);
@@ -133,81 +79,18 @@ export default function SalesScreen() {
 
     const items = await salesService.getSaleItems(saleId);
     setExpandedSaleId(saleId);
-    setExpandedSaleItems(
-      items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)}`).join('\n')
-    );
+    setExpandedSaleItems(items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)}`).join('\n'));
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Sales</ThemedText>
-      <ThemedText>Tap products to build a sale.</ThemedText>
+      <ThemedText>List view with quick actions.</ThemedText>
 
-      <ThemedButton variant="secondary" style={styles.logoutButton} label="Logout" onPress={logout} />
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Product catalog</ThemedText>
-        <View style={styles.grid}>
-          {products.map((product) => (
-            <Pressable
-              key={product.id}
-              style={[styles.productTile, { borderColor: palette.border }]}
-              onPress={() => addToCart(product.id, product.name, Number(product.price))}>
-              <ThemedText style={styles.productName}>{product.name}</ThemedText>
-              <ThemedText>${Number(product.price).toFixed(2)}</ThemedText>
-              <ThemedText style={styles.smallText}>{product.category || 'Uncategorized'}</ThemedText>
-            </Pressable>
-          ))}
-        </View>
-      </ThemedCard>
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Cart</ThemedText>
-        <ThemedText style={styles.smallText}>Table assignment (required)</ThemedText>
-        {tables.length === 0 ? (
-          <ThemedText style={styles.smallText}>No tables available. Create one in the Tables tab.</ThemedText>
-        ) : null}
-        <View style={styles.tableRow}>
-          {tables
-            .map((table) => (
-            <Pressable
-              key={table.id}
-              style={[
-                styles.tableChip,
-                { borderColor: selectedTableId === table.id ? palette.tint : palette.border },
-                selectedTableId === table.id && { backgroundColor: palette.tint },
-              ]}
-              onPress={() => setSelectedTableId(table.id)}>
-              <ThemedText style={selectedTableId === table.id ? styles.selectedTableText : undefined}>{table.name}</ThemedText>
-            </Pressable>
-          ))}
-        </View>
-        {cart.length === 0 ? (
-          <ThemedText style={styles.smallText}>No items selected.</ThemedText>
-        ) : (
-          cart.map((item) => (
-            <View key={item.productId} style={styles.cartRow}>
-              <ThemedText style={styles.productName}>{item.name}</ThemedText>
-              <View style={styles.qtyControl}>
-                <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, -1)}>
-                  <ThemedText>-</ThemedText>
-                </Pressable>
-                <ThemedText>{item.quantity}</ThemedText>
-                <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, 1)}>
-                  <ThemedText>+</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-          ))
-        )}
-
-        <ThemedText type="defaultSemiBold">Total: ${total.toFixed(2)}</ThemedText>
-        {!selectedTableId ? <ThemedText style={styles.smallText}>Select a table to confirm sale.</ThemedText> : null}
-        <View style={styles.actionsRow}>
-          <ThemedButton style={styles.primaryButton} label="Confirm sale" onPress={submitSale} disabled={!selectedTableId || cart.length === 0} />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Discard" onPress={() => setCart([])} />
-        </View>
-      </ThemedCard>
+      <View style={styles.headerActions}>
+        <ThemedButton label="New sale" onPress={() => router.push('/sale-form')} />
+        <ThemedButton variant="secondary" style={styles.logoutButton} label="Logout" onPress={logout} />
+      </View>
 
       <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Daily sales history</ThemedText>
@@ -223,12 +106,8 @@ export default function SalesScreen() {
                 <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
                   <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
                   <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
-                  <ThemedText style={styles.smallText}>
-                    {new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}
-                  </ThemedText>
-                  {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
-                    <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText>
-                  ) : null}
+                  <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
+                  {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText> : null}
                 </Pressable>
               ))}
             </View>
@@ -247,69 +126,16 @@ const styles = StyleSheet.create({
   card: {
     gap: 10,
   },
-  grid: {
+  headerActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
-  productTile: {
-    borderWidth: 1,
-    borderColor: '#BFA792',
-    borderRadius: 10,
-    padding: 10,
-    minWidth: '47%',
-    gap: 4,
-  },
-  productName: {
-    fontWeight: '700',
+  logoutButton: {
+    paddingVertical: 10,
   },
   smallText: {
     opacity: 0.9,
     fontSize: 13,
-  },
-  cartRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  qtyControl: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  qtyButton: {
-    borderWidth: 1,
-    borderColor: '#A98F79',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tableChip: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  selectedTableText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  primaryButton: {
-    flex: 1,
-    paddingVertical: 10,
-  },
-  secondaryButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
   },
   historyItem: {
     borderWidth: 1,
@@ -322,16 +148,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   historyGroupTitle: {
-    marginTop: 2,
+    opacity: 0.95,
   },
   detailText: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 12,
     lineHeight: 18,
-  },
-  logoutButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    opacity: 0.9,
   },
 });

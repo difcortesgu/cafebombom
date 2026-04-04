@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
@@ -7,7 +7,6 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
-import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
@@ -17,33 +16,22 @@ type Section = 'expenses' | 'employees' | 'payroll' | 'report';
 
 export default function AccountsScreen() {
   const palette = useAppColors();
+  const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
-  const { hydrate, expenses, employees, payroll, addExpense, addEmployee, addPayroll, getPnL } =
-    useAccountsStore();
+  const { hydrate, expenses, employees, payroll, getPnL } = useAccountsStore();
   const [section, setSection] = useState<Section>('expenses');
-
-  const [expenseForm, setExpenseForm] = useState({ category: 'Supplies', amount: '0', description: '' });
-  const [employeeForm, setEmployeeForm] = useState({ name: '', salaryType: 'monthly' as 'hourly' | 'monthly', rate: '0' });
-  const [payrollForm, setPayrollForm] = useState({ employeeId: '', amount: '0' });
   const [pnl, setPnl] = useState({ income: 0, expenses: 0, net: 0 });
-
-  const selectedPayrollEmployee = useMemo(
-    () => employees.find((employee) => employee.id === payrollForm.employeeId) ?? null,
-    [employees, payrollForm.employeeId]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      hydrate();
-    }, [hydrate])
-  );
 
   const todayExpenses = useMemo(() => {
     const { start, end } = dayRangeUnix();
-    return expenses
-      .filter((expense) => expense.date >= start && expense.date < end)
-      .reduce((sum, expense) => sum + Number(expense.amount), 0);
+    return expenses.filter((expense) => expense.date >= start && expense.date < end).reduce((sum, expense) => sum + Number(expense.amount), 0);
   }, [expenses]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void hydrate();
+    }, [hydrate]),
+  );
 
   if (currentUser?.role !== 'owner') {
     return (
@@ -57,194 +45,59 @@ export default function AccountsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Accounts</ThemedText>
-      <ThemedText>Expenses, payroll, and P&amp;L reporting.</ThemedText>
+      <ThemedText>List view with quick actions.</ThemedText>
 
       <View style={styles.tabRow}>
         {(['expenses', 'employees', 'payroll', 'report'] as Section[]).map((item) => (
-          <ThemedChip
-            key={item}
-            style={styles.sectionButton}
-            label={item}
-            active={section === item}
-            onPress={() => setSection(item)}
-          />
+          <ThemedChip key={item} style={styles.sectionButton} label={item} active={section === item} onPress={() => setSection(item)} />
         ))}
       </View>
 
       {section === 'expenses' ? (
-        <>
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Log expense</ThemedText>
-            <ThemedInput
-              value={expenseForm.category}
-              onChangeText={(value) => setExpenseForm((f) => ({ ...f, category: value }))}
-              style={styles.input}
-              placeholder="Category"
-            />
-            <ThemedInput
-              value={expenseForm.amount}
-              onChangeText={(value) => setExpenseForm((f) => ({ ...f, amount: value }))}
-              style={styles.input}
-              keyboardType="decimal-pad"
-              placeholder="Amount"
-            />
-            <ThemedInput
-              value={expenseForm.description}
-              onChangeText={(value) => setExpenseForm((f) => ({ ...f, description: value }))}
-              style={styles.input}
-              placeholder="Description"
-            />
-            <ThemedButton
-              style={styles.primaryButton}
-              label="Save expense"
-              onPress={async () => {
-                await addExpense({
-                  category: expenseForm.category,
-                  amount: Number(expenseForm.amount || '0'),
-                  description: expenseForm.description,
-                });
-                setExpenseForm({ category: 'Supplies', amount: '0', description: '' });
-              }}
-            />
-            <ThemedText type="defaultSemiBold">Today expenses: ${todayExpenses.toFixed(2)}</ThemedText>
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
+        <ThemedCard style={styles.card}>
+          <View style={styles.headerRow}>
             <ThemedText type="subtitle">Recent expenses</ThemedText>
-            {expenses.map((expense) => (
-              <View key={expense.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
-                <ThemedText>${Number(expense.amount).toFixed(2)}</ThemedText>
-                <ThemedText style={styles.smallText}>{expense.description || 'No description'}</ThemedText>
-              </View>
-            ))}
-          </ThemedCard>
-        </>
+            <ThemedButton label="Add expense" onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'expenses' } })} />
+          </View>
+          <ThemedText type="defaultSemiBold">Today expenses: ${todayExpenses.toFixed(2)}</ThemedText>
+          {expenses.map((expense) => (
+            <View key={expense.id} style={[styles.listItem, { borderColor: palette.border }]}>
+              <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
+              <ThemedText>${Number(expense.amount).toFixed(2)}</ThemedText>
+              <ThemedText style={styles.smallText}>{expense.description || 'No description'}</ThemedText>
+            </View>
+          ))}
+        </ThemedCard>
       ) : null}
 
       {section === 'employees' ? (
-        <>
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Add employee</ThemedText>
-            <ThemedInput
-              value={employeeForm.name}
-              onChangeText={(value) => setEmployeeForm((f) => ({ ...f, name: value }))}
-              style={styles.input}
-              placeholder="Name"
-            />
-            <View style={styles.row}>
-              <ThemedChip
-                style={styles.switchButton}
-                label="Hourly"
-                active={employeeForm.salaryType === 'hourly'}
-                onPress={() => setEmployeeForm((f) => ({ ...f, salaryType: 'hourly' }))}
-              />
-              <ThemedChip
-                style={styles.switchButton}
-                label="Monthly"
-                active={employeeForm.salaryType === 'monthly'}
-                onPress={() => setEmployeeForm((f) => ({ ...f, salaryType: 'monthly' }))}
-              />
-            </View>
-            <ThemedInput
-              value={employeeForm.rate}
-              onChangeText={(value) => setEmployeeForm((f) => ({ ...f, rate: value }))}
-              style={styles.input}
-              keyboardType="decimal-pad"
-              placeholder="Rate"
-            />
-            <ThemedButton
-              style={styles.primaryButton}
-              label="Save employee"
-              onPress={async () => {
-                if (!employeeForm.name.trim()) {
-                  return;
-                }
-                await addEmployee({
-                  name: employeeForm.name.trim(),
-                  salaryType: employeeForm.salaryType,
-                  rate: Number(employeeForm.rate || '0'),
-                });
-                setEmployeeForm({ name: '', salaryType: 'monthly', rate: '0' });
-              }}
-            />
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
+        <ThemedCard style={styles.card}>
+          <View style={styles.headerRow}>
             <ThemedText type="subtitle">Employee roster</ThemedText>
-            {employees.map((employee) => (
-              <View key={employee.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                <ThemedText type="defaultSemiBold">{employee.name}</ThemedText>
-                <ThemedText style={styles.smallText}>
-                  {employee.salary_type} · ${Number(employee.rate).toFixed(2)}
-                </ThemedText>
-              </View>
-            ))}
-          </ThemedCard>
-        </>
+            <ThemedButton label="Add employee" onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'employees' } })} />
+          </View>
+          {employees.map((employee) => (
+            <View key={employee.id} style={[styles.listItem, { borderColor: palette.border }]}>
+              <ThemedText type="defaultSemiBold">{employee.name}</ThemedText>
+              <ThemedText style={styles.smallText}>{employee.salary_type} · ${Number(employee.rate).toFixed(2)}</ThemedText>
+            </View>
+          ))}
+        </ThemedCard>
       ) : null}
 
       {section === 'payroll' ? (
-        <>
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Add payroll entry</ThemedText>
-            <ThemedText style={styles.smallText}>Employee</ThemedText>
-            <View style={styles.tabRow}>
-              {employees.map((employee) => (
-                <ThemedChip
-                  key={employee.id}
-                  style={styles.switchButton}
-                  label={employee.name}
-                  active={payrollForm.employeeId === employee.id}
-                  onPress={() => setPayrollForm((f) => ({ ...f, employeeId: employee.id }))}
-                />
-              ))}
-            </View>
-            {selectedPayrollEmployee ? (
-              <ThemedText style={styles.smallText}>
-                Selected: {selectedPayrollEmployee.name}
-              </ThemedText>
-            ) : (
-              <ThemedText style={styles.smallText}>Select an employee to continue.</ThemedText>
-            )}
-            <ThemedInput
-              value={payrollForm.amount}
-              onChangeText={(value) => setPayrollForm((f) => ({ ...f, amount: value }))}
-              style={styles.input}
-              keyboardType="decimal-pad"
-              placeholder="Amount"
-            />
-            <ThemedButton
-              style={styles.primaryButton}
-              label="Save payroll"
-              onPress={async () => {
-                if (!payrollForm.employeeId) {
-                  return;
-                }
-                const now = Math.floor(Date.now() / 1000);
-                await addPayroll({
-                  employeeId: payrollForm.employeeId,
-                  periodStart: now,
-                  periodEnd: now,
-                  amount: Number(payrollForm.amount || '0'),
-                });
-                setPayrollForm({ employeeId: '', amount: '0' });
-              }}
-            />
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
+        <ThemedCard style={styles.card}>
+          <View style={styles.headerRow}>
             <ThemedText type="subtitle">Recent payroll</ThemedText>
-            {payroll.map((entry) => (
-              <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                <ThemedText type="defaultSemiBold">
-                  {employees.find((employee) => employee.id === entry.employee_id)?.name ?? `Employee #${entry.employee_id}`}
-                </ThemedText>
-                <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
-              </View>
-            ))}
-          </ThemedCard>
-        </>
+            <ThemedButton label="Add payroll" onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'payroll' } })} />
+          </View>
+          {payroll.map((entry) => (
+            <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
+              <ThemedText type="defaultSemiBold">{employees.find((employee) => employee.id === entry.employee_id)?.name ?? `Employee #${entry.employee_id}`}</ThemedText>
+              <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
+            </View>
+          ))}
+        </ThemedCard>
       ) : null}
 
       {section === 'report' ? (
@@ -291,9 +144,11 @@ const styles = StyleSheet.create({
   card: {
     gap: 10,
   },
-  input: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
   },
   primaryButton: {
     paddingVertical: 10,
@@ -304,14 +159,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     gap: 2,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  switchButton: {
-    borderRadius: 8,
-    minWidth: 96,
   },
   smallText: {
     opacity: 0.9,

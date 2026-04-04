@@ -29,6 +29,7 @@ const MAPPING = {
   'arrow.clockwise.circle.fill': 'autorenew',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'trash.fill': 'delete',
 } as IconMapping;
 
 /**

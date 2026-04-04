@@ -10,7 +10,7 @@ type InventoryState = {
   restocks: RestockLog[];
   loading: boolean;
   hydrate: () => Promise<void>;
-  addIngredient: (payload: AddIngredientPayload) => Promise<void>;
+  addIngredient: (payload: AddIngredientPayload) => Promise<string>;
   updateIngredient: (payload: UpdateIngredientPayload) => Promise<void>;
   addSupplier: (payload: AddSupplierPayload) => Promise<void>;
   addRestock: (payload: AddRestockPayload) => Promise<void>;
@@ -37,8 +37,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     lowStockThreshold,
     supplierId,
   }: AddIngredientPayload) => {
-    await inventoryService.addIngredient({ name, unit, quantity, lowStockThreshold, supplierId });
+    const ingredientId = await inventoryService.addIngredient({ name, unit, quantity, lowStockThreshold, supplierId });
     await get().hydrate();
+    return ingredientId;
   },
 
   updateIngredient: async ({ id, ...payload }: UpdateIngredientPayload) => {
