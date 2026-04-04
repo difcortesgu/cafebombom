@@ -7,6 +7,25 @@ CREATE TABLE `categories` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `categories_name_unique` ON `categories` (`name`);--> statement-breakpoint
+CREATE TABLE `discounts` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`scope` text DEFAULT 'product' NOT NULL,
+	`product_id` text,
+	`type` text NOT NULL,
+	`value` real NOT NULL,
+	`starts_at` integer NOT NULL,
+	`ends_at` integer,
+	`is_active` integer DEFAULT true NOT NULL,
+	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`synced_at` integer,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `discounts_name_unique` ON `discounts` (`name`);--> statement-breakpoint
+CREATE INDEX `idx_discounts_scope` ON `discounts` (`scope`);--> statement-breakpoint
+CREATE INDEX `idx_discounts_active` ON `discounts` (`is_active`);--> statement-breakpoint
 CREATE TABLE `employees` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -93,6 +112,16 @@ CREATE TABLE `products` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `products_name_unique` ON `products` (`name`);--> statement-breakpoint
+CREATE TABLE `restaurant_tables` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`synced_at` integer
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `restaurant_tables_name_unique` ON `restaurant_tables` (`name`);--> statement-breakpoint
+CREATE INDEX `idx_restaurant_tables_name` ON `restaurant_tables` (`name`);--> statement-breakpoint
 CREATE TABLE `restock_logs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`ingredient_id` text NOT NULL,
@@ -111,6 +140,11 @@ CREATE TABLE `sale_items` (
 	`product_id` text NOT NULL,
 	`quantity` integer NOT NULL,
 	`unit_price` real NOT NULL,
+	`line_subtotal` real DEFAULT 0 NOT NULL,
+	`discount_name` text,
+	`discount_type` text,
+	`discount_value` real,
+	`discount_amount` real DEFAULT 0 NOT NULL,
 	FOREIGN KEY (`sale_id`) REFERENCES `sales`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -119,12 +153,24 @@ CREATE TABLE `sales` (
 	`id` text PRIMARY KEY NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`staff_id` text NOT NULL,
+	`table_id` text NOT NULL,
+	`subtotal` real DEFAULT 0 NOT NULL,
+	`item_discount_total` real DEFAULT 0 NOT NULL,
+	`order_discount_name` text,
+	`order_discount_type` text,
+	`order_discount_value` real,
+	`order_discount_amount` real DEFAULT 0 NOT NULL,
+	`discount_note` text,
+	`discount_applied_by` text,
 	`total` real NOT NULL,
 	`synced_at` integer,
-	FOREIGN KEY (`staff_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`staff_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`table_id`) REFERENCES `restaurant_tables`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`discount_applied_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `idx_sales_created_at` ON `sales` (`created_at`);--> statement-breakpoint
+CREATE INDEX `idx_sales_table_id` ON `sales` (`table_id`);--> statement-breakpoint
 CREATE TABLE `sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,

@@ -85,11 +85,37 @@ export const restaurantTables = sqliteTable('restaurant_tables', {
   index('idx_restaurant_tables_name').on(t.name),
 ]);
 
+export const discounts = sqliteTable('discounts', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  name: text('name').notNull().unique(),
+  scope: text('scope', { enum: ['product', 'global'] }).notNull().default('product'),
+  productId: text('product_id').references(() => products.id),
+  type: text('type', { enum: ['percentage', 'fixed'] }).notNull(),
+  value: real('value').notNull(),
+  startsAt: integer('starts_at').notNull(),
+  endsAt: integer('ends_at'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  index('idx_discounts_scope').on(t.scope),
+  index('idx_discounts_active').on(t.isActive),
+]);
+
 export const sales = sqliteTable('sales', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   staffId: text('staff_id').notNull().references(() => users.id),
   tableId: text('table_id').notNull().references(() => restaurantTables.id, { onDelete: 'restrict' }),
+  subtotal: real('subtotal').notNull().default(0),
+  itemDiscountTotal: real('item_discount_total').notNull().default(0),
+  orderDiscountName: text('order_discount_name'),
+  orderDiscountType: text('order_discount_type', { enum: ['percentage', 'fixed'] }),
+  orderDiscountValue: real('order_discount_value'),
+  orderDiscountAmount: real('order_discount_amount').notNull().default(0),
+  discountNote: text('discount_note'),
+  discountAppliedBy: text('discount_applied_by').references(() => users.id),
   total: real('total').notNull(),
   syncedAt: integer('synced_at'),
 }, (t) => [
@@ -103,6 +129,11 @@ export const saleItems = sqliteTable('sale_items', {
   productId: text('product_id').notNull().references(() => products.id),
   quantity: integer('quantity').notNull(),
   unitPrice: real('unit_price').notNull(),
+  lineSubtotal: real('line_subtotal').notNull().default(0),
+  discountName: text('discount_name'),
+  discountType: text('discount_type', { enum: ['percentage', 'fixed'] }),
+  discountValue: real('discount_value'),
+  discountAmount: real('discount_amount').notNull().default(0),
 });
 
 export const restockLogs = sqliteTable('restock_logs', {

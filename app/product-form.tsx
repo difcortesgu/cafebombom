@@ -6,12 +6,24 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
+import { DateInput } from '@/components/ui/date-input';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
+import { useSalesStore } from '@/stores/sales';
 import type { ProductRecipeInput } from '@/types/products';
+import type { Discount } from '@/types/types';
+
+const formatDateInput = (unix: number | null): string => {
+  if (!unix) return '';
+  const date = new Date(unix * 1000);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 function normalizeParam(value?: string | string[]) {
   if (!value) {
@@ -36,9 +48,15 @@ export default function ProductFormScreen() {
     setProductIngredient,
     removeProductIngredient,
   } = useProductsStore();
+  const { discounts, hydrateDiscounts, createDiscount, updateDiscount, deleteDiscount } = useSalesStore();
   const { ingredients, hydrate: hydrateInventory } = useInventoryStore();
 
   const [message, setMessage] = useState<string>('');
+  const [discountName, setDiscountName] = useState('');
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+  const [discountValue, setDiscountValue] = useState('0');
+  const [startsAt, setStartsAt] = useState<number | null>(() => Math.floor(Date.now() / 1000));
+  const [endsAt, setEndsAt] = useState<number | null>(null);
   const [productForm, setProductForm] = useState({
     id: null as string | null,
     name: '',
@@ -49,8 +67,8 @@ export default function ProductFormScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void Promise.all([hydrate(), hydrateInventory()]);
-    }, [hydrate, hydrateInventory]),
+      void Promise.all([hydrate(), hydrateInventory(), hydrateDiscounts()]);
+    }, [hydrate, hydrateInventory, hydrateDiscounts]),
   );
 
   useEffect(() => {
@@ -77,6 +95,11 @@ export default function ProductFormScreen() {
   const editingProductRecipes = useMemo(
     () => (productForm.id ? productIngredients.filter((link) => link.productId === productForm.id) : []),
     [productForm.id, productIngredients],
+  );
+
+  const productDiscounts = useMemo(
+    () => (productForm.id ? discounts.filter((discount) => discount.scope === 'product' && discount.productId === productForm.id) : []),
+    [discounts, productForm.id],
   );
 
   const addProductRecipeItem = (ingredientId: string = '', quantityUsed: string = '') => {
@@ -288,7 +311,7 @@ export default function ProductFormScreen() {
 
           <ThemedText style={styles.label}>Add recipe ingredients</ThemedText>
           {productRecipeItems.length === 0 ? (
-            <ThemedText style={styles.smallText}>Click "Add ingredient" to add a new recipe item.</ThemedText>
+            <ThemedText style={styles.smallText}>Use Add ingredient to create a new recipe item.</ThemedText>
           ) : (
             productRecipeItems.map((item, index) => {
               const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
@@ -322,6 +345,90 @@ export default function ProductFormScreen() {
           <ThemedButton style={styles.primaryButton} label="Save recipe items" onPress={saveProductRecipe} />
         </ThemedCard>
       )}
+
+      {productForm.id ? (
+        <ThemedCard style={styles.card}>
+          <ThemedText style={styles.label}>Product discounts</ThemedText>
+          <ThemedText style={styles.smallText}>Automatic discounts for this product within a date range.</ThemedText>
+          <ThemedInput placeholder="Discount name" value={discountName} onChangeText={setDiscountName} />
+          <ThemedSelect
+            value={discountType}
+            onValueChange={(value) => setDiscountType(value as 'percentage' | 'fixed')}
+            items={[{ label: 'Percentage (%)', value: 'percentage' }, { label: 'Fixed amount ($)', value: 'fixed' }]}
+          />
+          <View style={styles.recipeControlsRow}>
+            <View style={styles.recipeInputWrapper}>
+              <ThemedInput placeholder="Value" keyboardType="decimal-pad" value={discountValue} onChangeText={setDiscountValue} />
+            </View>
+            <View style={styles.recipeSelectWrapper}>
+              <DateInput value={startsAt} onChangeValue={setStartsAt} placeholder="Select start date" />
+            </View>
+            <View style={styles.recipeSelectWrapper}>
+              <DateInput value={endsAt} onChangeValue={setEndsAt} endOfDay placeholder="Select end date" />
+            </View>
+          </View>
+          <ThemedButton
+            style={styles.primaryButton}
+            label="Add product discount"
+            onPress={async () => {
+              if (!productForm.id) return;
+              const value = Number(discountValue);
+              if (!discountName.trim() || !startsAt || !Number.isFinite(value) || value <= 0) {
+                setMessage('Enter a valid discount name, value, and start date.');
+                return;
+              }
+              await createDiscount({
+                name: discountName.trim(),
+                scope: 'product',
+                productId: productForm.id,
+                type: discountType,
+                value,
+                startsAt,
+                endsAt,
+                isActive: true,
+              });
+              setDiscountName('');
+              setDiscountType('percentage');
+              setDiscountValue('0');
+              setStartsAt(Math.floor(Date.now() / 1000));
+              setEndsAt(null);
+              setMessage('Product discount created.');
+            }}
+          />
+
+          {productDiscounts.map((discount: Discount) => (
+            <View key={discount.id} style={[styles.listItem, { borderColor: palette.border }]}>
+              <View style={styles.listTextWrap}>
+                <ThemedText type="defaultSemiBold">{discount.name}</ThemedText>
+                <ThemedText style={styles.smallText}>
+                  {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {formatDateInput(discount.startsAt)} to {discount.endsAt ? formatDateInput(discount.endsAt) : 'Open'} · {discount.isActive ? 'Active' : 'Inactive'}
+                </ThemedText>
+              </View>
+              <View style={styles.actionsRow}>
+                <ThemedButton
+                  variant="secondary"
+                  style={styles.secondaryButton}
+                  label={discount.isActive ? 'Disable' : 'Enable'}
+                  onPress={() => {
+                    void updateDiscount({
+                      id: discount.id,
+                      name: discount.name,
+                      scope: 'product',
+                      productId: discount.productId,
+                      type: discount.type,
+                      value: discount.value,
+                      startsAt: discount.startsAt,
+                      endsAt: discount.endsAt,
+                      isActive: !discount.isActive,
+                    });
+                  }}
+                />
+                <ThemedButton variant="secondary" style={styles.secondaryButton} label="Delete" onPress={() => void deleteDiscount(discount.id)} />
+              </View>
+            </View>
+          ))}
+        </ThemedCard>
+      ) : null}
     </ScrollView>
   );
 }

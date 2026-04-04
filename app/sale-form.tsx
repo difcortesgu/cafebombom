@@ -5,9 +5,11 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
+import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 type CartItem = {
   productId: string;
@@ -20,10 +22,11 @@ export default function SaleFormScreen() {
   const palette = useAppColors();
   const router = useRouter();
   const user = useAuthStore((state) => state.currentUser);
-  const { hydrate, products, tables, createSale } = useSalesStore();
+  const { hydrate, products, tables, discounts, createSale } = useSalesStore();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [selectedGlobalDiscountId, setSelectedGlobalDiscountId] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -31,7 +34,34 @@ export default function SaleFormScreen() {
     }, [hydrate]),
   );
 
-  const total = useMemo(() => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0), [cart]);
+  const nowUnix = Math.floor(Date.now() / 1000);
+
+  const globalDiscountOptions = useMemo(
+    () => discounts
+      .filter((discount) =>
+        discount.scope === 'global'
+        && discount.isActive,
+      )
+      .map((discount) => ({
+        label: `${discount.name} (${discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`})`,
+        value: discount.id,
+      })),
+    [discounts],
+  );
+
+  const pricing = useMemo(
+    () => calculateSaleDiscountBreakdown(
+      cart.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+      discounts,
+      nowUnix,
+      selectedGlobalDiscountId || null,
+    ),
+    [cart, discounts, nowUnix, selectedGlobalDiscountId],
+  );
 
   const addToCart = (productId: string, name: string, unitPrice: number) => {
     setCart((prev) => {
@@ -58,8 +88,13 @@ export default function SaleFormScreen() {
 
     await createSale({
       staffId: user.id,
-      items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice })),
+      items: cart.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
       tableId: selectedTableId,
+      globalDiscountId: selectedGlobalDiscountId || null,
     });
 
     router.back();
@@ -107,7 +142,10 @@ export default function SaleFormScreen() {
         ) : (
           cart.map((item) => (
             <View key={item.productId} style={styles.cartRow}>
-              <ThemedText style={styles.productName}>{item.name}</ThemedText>
+              <View style={styles.cartDetails}>
+                <ThemedText style={styles.productName}>{item.name}</ThemedText>
+                <ThemedText style={styles.smallText}>${item.unitPrice.toFixed(2)} each</ThemedText>
+              </View>
               <View style={styles.qtyControl}>
                 <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, -1)}>
                   <ThemedText>-</ThemedText>
@@ -121,7 +159,22 @@ export default function SaleFormScreen() {
           ))
         )}
 
-        <ThemedText type="defaultSemiBold">Total: ${total.toFixed(2)}</ThemedText>
+        <ThemedSelect
+          label="Global discount (optional)"
+          value={selectedGlobalDiscountId}
+          onValueChange={setSelectedGlobalDiscountId}
+          items={globalDiscountOptions}
+          placeholder="Select global discount"
+        />
+
+        <View style={styles.summaryBlock}>
+          <ThemedText style={styles.smallText}>Subtotal: ${pricing.subtotal.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.smallText}>Item discounts: -${pricing.itemDiscountTotal.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.smallText}>
+            Global discount: -${pricing.globalDiscountAmount.toFixed(2)}{pricing.globalDiscountSnapshot.discountName ? ` (${pricing.globalDiscountSnapshot.discountName})` : ''}
+          </ThemedText>
+          <ThemedText type="defaultSemiBold">Total: ${pricing.total.toFixed(2)}</ThemedText>
+        </View>
         {!selectedTableId ? <ThemedText style={styles.smallText}>Select a table to confirm sale.</ThemedText> : null}
         <View style={styles.actionsRow}>
           <ThemedButton style={styles.primaryButton} label="Confirm sale" onPress={submitSale} disabled={!selectedTableId || cart.length === 0} />
@@ -164,7 +217,12 @@ const styles = StyleSheet.create({
   cartRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  cartDetails: {
+    flex: 1,
+    gap: 6,
   },
   qtyControl: {
     flexDirection: 'row',
@@ -197,6 +255,10 @@ const styles = StyleSheet.create({
   selectedTableText: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  summaryBlock: {
+    gap: 4,
+    paddingTop: 4,
   },
   primaryButton: {
     flex: 1,

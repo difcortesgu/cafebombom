@@ -1,8 +1,8 @@
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
-  schema: './database/schema.ts',
-  out: './database/migrations',
+  schema: './services/sqlite/database/schema.ts',
+  out: './services/sqlite/database/migrations',
   dialect: 'sqlite',
   driver: 'expo',
 });

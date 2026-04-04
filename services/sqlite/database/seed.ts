@@ -2,7 +2,7 @@ import { hashPin } from '@/utils/hash';
 import { count, eq } from 'drizzle-orm';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 import type * as schema from './schema';
-import { categories, ingredients, productIngredients, products, restaurantTables, users } from './schema';
+import { categories, discounts, ingredients, productIngredients, products, restaurantTables, users } from './schema';
 
 export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   const owner = db.select({ id: users.id })
@@ -130,6 +130,18 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
         { name: 'Mesa 2' },
         { name: 'Mesa 3' },
         { name: 'Mesa 4' },
+      ])
+      .onConflictDoNothing()
+      .run();
+  }
+
+  const [{ total: discountsTotal }] = db.select({ total: count() }).from(discounts).all();
+  if (discountsTotal === 0) {
+    const now = Math.floor(Date.now() / 1000);
+    db.insert(discounts)
+      .values([
+        { name: 'Grand Opening 5%', scope: 'global', productId: null, type: 'percentage', value: 5, startsAt: now, endsAt: null, isActive: true },
+        { name: 'Happy Hour $1', scope: 'global', productId: null, type: 'fixed', value: 1, startsAt: now, endsAt: null, isActive: true },
       ])
       .onConflictDoNothing()
       .run();

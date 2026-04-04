@@ -1,5 +1,7 @@
 export type UserRole = 'owner' | 'staff';
 export type Unit = 'grams' | 'liters' | 'pieces';
+export type DiscountType = 'percentage' | 'fixed';
+export type DiscountScope = 'product' | 'global';
 
 
 export type User = {
@@ -29,6 +31,18 @@ export type Product = {
   name: string;
   category: string;
   price: number;
+};
+
+export type Discount = {
+  id: string;
+  name: string;
+  scope: DiscountScope;
+  productId: string | null;
+  type: DiscountType;
+  value: number;
+  startsAt: number;
+  endsAt: number | null;
+  isActive: boolean;
 };
 
 export type SaleItemInput = {

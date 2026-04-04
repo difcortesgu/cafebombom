@@ -65,6 +65,13 @@ export type WebSaleRecord = {
   createdAt: number;
   staffId: string;
   tableId: string;
+  subtotal: number;
+  itemDiscountTotal: number;
+  orderDiscountName: string | null;
+  orderDiscountType: 'percentage' | 'fixed' | null;
+  orderDiscountValue: number | null;
+  orderDiscountAmount: number;
+  discountAppliedBy: string | null;
   total: number;
 };
 
@@ -81,6 +88,25 @@ export type WebSaleItemRecord = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  lineSubtotal: number;
+  discountName: string | null;
+  discountType: 'percentage' | 'fixed' | null;
+  discountValue: number | null;
+  discountAmount: number;
+};
+
+export type WebDiscountRecord = {
+  id: string;
+  name: string;
+  scope: 'product' | 'global';
+  productId: string | null;
+  type: 'percentage' | 'fixed';
+  value: number;
+  startsAt: number;
+  endsAt: number | null;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type WebProductIngredientRecord = {
@@ -113,13 +139,14 @@ export class CafeBomBomDB extends Dexie {
   restaurantTables!: Table<WebRestaurantTableRecord, string, InsertableRecord<WebRestaurantTableRecord>>;
   sales!: Table<WebSaleRecord, string, InsertableRecord<WebSaleRecord>>;
   saleItems!: Table<WebSaleItemRecord, string, InsertableRecord<WebSaleItemRecord>>;
+  discounts!: Table<WebDiscountRecord, string, InsertableRecord<WebDiscountRecord>>;
   productIngredients!: Table<WebProductIngredientRecord, string, InsertableRecord<WebProductIngredientRecord>>;
   ingredientCompositions!: Table<WebIngredientCompositionRecord, string, InsertableRecord<WebIngredientCompositionRecord>>;
 
   constructor() {
     super('cafebombom.web');
 
-    this.version(3).stores({
+    this.version(6).stores({
       users: 'id, name',
       sessions: 'id, userId',
       categories: 'id, &name',
@@ -133,6 +160,7 @@ export class CafeBomBomDB extends Dexie {
       restaurantTables: 'id, &name, createdAt',
       sales: 'id, createdAt, staffId, tableId',
       saleItems: 'id, saleId, productId',
+      discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
       productIngredients: 'id, productId, [productId+ingredientId]',
       ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
     });
@@ -155,6 +183,7 @@ export class CafeBomBomDB extends Dexie {
       this.restaurantTables,
       this.sales,
       this.saleItems,
+      this.discounts,
       this.productIngredients,
       this.ingredientCompositions,
     ];
@@ -187,7 +216,7 @@ export class CafeBomBomDB extends Dexie {
       const ingredientId4 = generateId();
       const now = Math.floor(Date.now() / 1000);
 
-      await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables], async () => {
+      await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables, this.discounts], async () => {
         if ((await this.users.count()) === 0) {
           await this.users.bulkAdd([
             { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
@@ -253,6 +282,12 @@ export class CafeBomBomDB extends Dexie {
             { name: 'Mesa 2', createdAt: now, updatedAt: now },
             { name: 'Mesa 3', createdAt: now, updatedAt: now },
             { name: 'Mesa 4', createdAt: now, updatedAt: now },
+          ]);
+        }
+        if ((await this.discounts.count()) === 0) {
+          await this.discounts.bulkAdd([
+            { name: 'Grand Opening 5%', scope: 'global', productId: null, type: 'percentage', value: 5, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
+            { name: 'Happy Hour $1', scope: 'global', productId: null, type: 'fixed', value: 1, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
           ]);
         }
       });

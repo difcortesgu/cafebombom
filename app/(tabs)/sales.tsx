@@ -18,6 +18,7 @@ export default function SalesScreen() {
 
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
+  const [expandedSalePricing, setExpandedSalePricing] = useState<string>('');
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
 
   useFocusEffect(
@@ -74,12 +75,29 @@ export default function SalesScreen() {
     if (expandedSaleId === saleId) {
       setExpandedSaleId(null);
       setExpandedSaleItems('');
+      setExpandedSalePricing('');
       return;
     }
 
-    const items = await salesService.getSaleItems(saleId);
+    const [items, pricing] = await Promise.all([
+      salesService.getSaleItems(saleId),
+      salesService.getSalePricingSummary(saleId),
+    ]);
     setExpandedSaleId(saleId);
-    setExpandedSaleItems(items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)}`).join('\n'));
+    setExpandedSaleItems(items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)} | -$${Number(item.discount_amount).toFixed(2)} = $${Number(item.final_line_total).toFixed(2)}`).join('\n'));
+    setExpandedSalePricing(
+      pricing
+        ? [
+            `Subtotal: $${Number(pricing.subtotal).toFixed(2)}`,
+            `Item discounts: -$${Number(pricing.item_discount_total).toFixed(2)}`,
+            `${pricing.global_discount_name ?? 'Global discount'}: -$${Number(pricing.global_discount_amount).toFixed(2)}`,
+            `Final total: $${Number(pricing.total).toFixed(2)}`,
+            pricing.discount_applied_by ? `Applied by: ${pricing.discount_applied_by}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n')
+        : '',
+    );
   };
 
   return (
@@ -107,7 +125,12 @@ export default function SalesScreen() {
                   <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
                   <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
                   <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
-                  {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText> : null}
+                  {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
+                    <>
+                      <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText>
+                      {expandedSalePricing ? <ThemedText style={styles.detailText}>{expandedSalePricing}</ThemedText> : null}
+                    </>
+                  ) : null}
                 </Pressable>
               ))}
             </View>

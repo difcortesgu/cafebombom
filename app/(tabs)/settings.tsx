@@ -20,6 +20,7 @@ export default function SettingsScreen() {
     { label: 'Dark', value: 'dark' },
   ];
 
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Settings</ThemedText>
