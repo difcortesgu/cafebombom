@@ -1,6 +1,6 @@
-import { db, dbReady } from '@/database/db';
-import { categories, ingredientCompositions, ingredients, productIngredients, products } from '@/database/schema';
 import type { ProductsService } from '@/services/interfaces/products';
+import { db, dbReady } from '@/services/sqlite/database/db';
+import { categories, ingredientCompositions, ingredients, productIngredients, products } from '@/services/sqlite/database/schema';
 import type {
   CategoryOption,
   CreateProductPayload,

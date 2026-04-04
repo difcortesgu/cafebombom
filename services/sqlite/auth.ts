@@ -1,6 +1,6 @@
-import { db, dbReady } from '@/database/db';
-import { sessions, users } from '@/database/schema';
 import type { AuthService } from '@/services/interfaces/auth';
+import { db, dbReady } from '@/services/sqlite/database/db';
+import { sessions, users } from '@/services/sqlite/database/schema';
 import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
 import { verifyPin } from '@/utils/hash';

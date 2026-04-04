@@ -1,6 +1,6 @@
-import { db, dbReady } from '@/database/db';
-import { categories, ingredients, productIngredients, products, restaurantTables, saleItems, sales, users } from '@/database/schema';
 import type { SalesService } from '@/services/interfaces/sales';
+import { db, dbReady } from '@/services/sqlite/database/db';
+import { categories, ingredients, productIngredients, products, restaurantTables, saleItems, sales, users } from '@/services/sqlite/database/schema';
 import type { CreateSalePayload, CreateTablePayload, SaleItemDetail, UpdateTablePayload } from '@/types/sales';
 import type { Product, RestaurantTable, Sale, SaleItemInput } from '@/types/types';
 import { between, desc, eq, sql } from 'drizzle-orm';
