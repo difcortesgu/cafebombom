@@ -35,7 +35,7 @@ export default function IngredientFormScreen() {
     quantity: '0',
     lowStockThreshold: '5',
   });
-  const [ingredientRecipeItems, setIngredientRecipeItems] = useState<Array<{ childIngredientId: string; quantityNeeded: string }>>([]);
+  const [ingredientRecipeItems, setIngredientRecipeItems] = useState<{ childIngredientId: string; quantityNeeded: string }[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -218,7 +218,7 @@ export default function IngredientFormScreen() {
 
           <ThemedText style={styles.label}>Recipe</ThemedText>
           {ingredientRecipeItems.length === 0 ? (
-            <ThemedText style={styles.smallText}>Click "Add ingredient" to add a new recipe item.</ThemedText>
+            <ThemedText style={styles.smallText}>Click &quot;Add ingredient&quot; to add a new recipe item.</ThemedText>
           ) : (
             ingredientRecipeItems.map((item, index) => {
               const addedIngredientIds = ingredientRecipeItems.map((i) => i.childIngredientId).filter((id) => id);

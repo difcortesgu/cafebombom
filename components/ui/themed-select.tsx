@@ -10,7 +10,7 @@ type ThemedSelectProps = {
   label?: string;
   value: string;
   onValueChange: (value: string) => void;
-  items: Array<{ label: string; value: string }>;
+  items: { label: string; value: string }[];
   placeholder?: string;
 };
 

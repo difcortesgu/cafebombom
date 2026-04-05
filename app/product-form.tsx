@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { DateInput } from '@/components/ui/date-input';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
-import { DateInput } from '@/components/ui/date-input';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -63,7 +63,7 @@ export default function ProductFormScreen() {
     categoryId: null as string | null,
     price: '',
   });
-  const [productRecipeItems, setProductRecipeItems] = useState<Array<{ ingredientId: string; quantityUsed: string }>>([]);
+  const [productRecipeItems, setProductRecipeItems] = useState<{ ingredientId: string; quantityUsed: string }[]>([]);
 
   useFocusEffect(
     useCallback(() => {
