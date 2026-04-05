@@ -9,7 +9,6 @@ const catalogs: Record<Locale, Record<string, string>> = {
     Inventory: 'Inventario',
     Accounts: 'Cuentas',
     Sale: 'Venta',
-    Modal: 'Modal',
     Dashboard: 'Panel',
     Sales: 'Ventas',
     Tables: 'Mesas',
@@ -242,30 +241,6 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'tables.edit': 'Editar',
     'tables.deleted': 'Mesa eliminada.',
 
-    // Explore tab
-    'explore.title': 'Explorar',
-    'explore.subtitle': 'Esta app incluye codigo de ejemplo para ayudarte a empezar.',
-    'explore.learnMore': 'Saber mas',
-    'explore.section.fileRouting': 'Ruteo basado en archivos',
-    'explore.section.platform': 'Soporte para Android, iOS y web',
-    'explore.section.images': 'Imagenes',
-    'explore.section.lightDark': 'Componentes de modo claro y oscuro',
-    'explore.section.animations': 'Animaciones',
-    'explore.fileRouting.screenInfo': 'Esta app tiene dos pantallas:',
-    'explore.fileRouting.layoutInfo': 'El archivo de layout en',
-    'explore.fileRouting.layoutInfoSuffix': 'configura el navegador de pestañas.',
-    'explore.platformInfoPrefix': 'Puedes abrir este proyecto en Android, iOS y web. Para abrir la version web, presiona',
-    'explore.platformInfoSuffix': 'en la terminal que ejecuta este proyecto.',
-    'explore.imagesInfoPrefix': 'Para imagenes estaticas, puedes usar los sufijos',
-    'explore.imagesInfoMiddle': 'y',
-    'explore.imagesInfoSuffix': 'para ofrecer archivos para diferentes densidades de pantalla',
-    'explore.lightDarkInfoPrefix': 'Esta plantilla tiene soporte para modo claro y oscuro. El hook',
-    'explore.lightDarkInfoSuffix': 'te permite inspeccionar cual es el esquema de color actual del usuario y ajustar la UI en consecuencia.',
-    'explore.animationsInfoPrefix': 'Esta plantilla incluye un ejemplo de componente animado. El componente',
-    'explore.animationsInfoMiddle': 'usa la potente biblioteca',
-    'explore.animationsInfoSuffix': 'para crear una animacion de saludo con la mano.',
-    'explore.iosParallaxPrefix': 'El componente',
-    'explore.iosParallaxSuffix': 'proporciona un efecto parallax para la imagen de cabecera.',
 
     // Accounts form
     'accountsForm.title.expense': 'Registrar gasto',
@@ -410,10 +385,6 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'tableForm.nameRequired': 'El nombre de la mesa es obligatorio.',
     'tableForm.example': 'Ejemplo: Terraza 2',
     'tableForm.type': 'Tipo de mesa',
-
-    // Modal screen
-    'modal.title': 'Este es un modal',
-    'modal.goHome': 'Ir a la pantalla principal',
   },
 };
 

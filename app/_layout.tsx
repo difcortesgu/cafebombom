@@ -42,7 +42,6 @@ export default function RootLayout() {
         <Stack.Screen name="inventory-form" options={{ title: t('Inventory') }} />
         <Stack.Screen name="accounts-form" options={{ title: t('Accounts') }} />
         <Stack.Screen name="sale-form" options={{ title: t('Sale') }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: t('Modal') }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

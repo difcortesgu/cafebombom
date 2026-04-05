@@ -85,10 +85,11 @@ export default function TabTwoScreen() {
       <Collapsible title={t('explore.section.animations')}>
         <ThemedText>
           {t('explore.animationsInfoPrefix')}{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> {t('explore.animationsInfoMiddle')}{' '}
           <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
             react-native-reanimated
           </ThemedText>{' '}
+          {t('explore.animationsInfoMiddle')}{' '}
+          <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>
           {t('explore.animationsInfoSuffix')}
         </ThemedText>
         {Platform.select({
