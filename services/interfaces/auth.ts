@@ -7,6 +7,6 @@ export interface AuthService {
   createUser(payload: CreateUserPayload): Promise<User | null>;
   deactivateUser(actorUserId: string, targetUserId: string): Promise<void>;
   updateOwnProfile(userId: string, payload: UpdateOwnProfilePayload): Promise<User | null>;
-  startSession(userId: string): Promise<void>;
+  startSession(userId: string): Promise<string>;
   endOpenSession(userId: string): Promise<void>;
 }

@@ -44,11 +44,18 @@ export class InventorySqliteService implements InventoryService {
     return { ingredients: ingredientsList, suppliers: suppliersList, restocks: restocksList };
   }
 
-  async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<void> {
+  async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<string> {
     await dbReady;
-    db.insert(ingredients)
+    const [inserted] = db.insert(ingredients)
       .values({ name, unit, quantity, lowStockThreshold, supplierId: supplierId ?? null })
-      .run();
+      .returning({ id: ingredients.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create ingredient.');
+    }
+
+    return inserted.id;
   }
 
   async updateIngredient({ id, ...payload }: UpdateIngredientPayload): Promise<void> {
@@ -83,21 +90,29 @@ export class InventorySqliteService implements InventoryService {
       .run();
   }
 
-  async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<void> {
+  async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<string | null> {
     await dbReady;
-    db.insert(suppliers)
+    const [inserted] = db.insert(suppliers)
       .values({ name, phone: phone ?? null, notes: notes ?? null })
       .onConflictDoNothing()
-      .run();
+      .returning({ id: suppliers.id })
+      .all();
+
+    return inserted?.id ?? null;
   }
 
-  async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<void> {
+  async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<string> {
     await dbReady;
     const now = Math.floor(Date.now() / 1000);
 
-    db.insert(restockLogs)
+    const [inserted] = db.insert(restockLogs)
       .values({ ingredientId, quantityAdded, cost, supplierId: supplierId ?? null, date: now })
-      .run();
+      .returning({ id: restockLogs.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create restock log.');
+    }
 
     db.update(ingredients)
       .set({
@@ -107,5 +122,7 @@ export class InventorySqliteService implements InventoryService {
       })
       .where(eq(ingredients.id, ingredientId))
       .run();
+
+    return inserted.id;
   }
 }

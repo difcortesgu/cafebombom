@@ -184,9 +184,18 @@ export class AuthSqliteService implements AuthService {
     };
   }
 
-  async startSession(userId: string): Promise<void> {
+  async startSession(userId: string): Promise<string> {
     await dbReady;
-    db.insert(sessions).values({ userId }).run();
+    const [inserted] = db.insert(sessions)
+      .values({ userId })
+      .returning({ id: sessions.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create session.');
+    }
+
+    return inserted.id;
   }
 
   async endOpenSession(userId: string): Promise<void> {

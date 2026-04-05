@@ -74,11 +74,11 @@ export class ProductsWebService implements ProductsService {
     return { categories, products: productsList, productIngredients: ingredientLinks, compositions: compositionLinks };
   }
 
-  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<void> {
+  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<string | null> {
     const db = await getDb();
     const normalizedRecipe = this.normalizeRecipe(recipe);
     if (normalizedRecipe.length === 0) {
-      return;
+      return null;
     }
 
     const existing = await db.products
@@ -87,9 +87,10 @@ export class ProductsWebService implements ProductsService {
       .count();
 
     if (existing > 0) {
-      return;
+      return null;
     }
 
+    let createdProductId: string | null = null;
     await db.transaction('rw', [db.products, db.productIngredients], async () => {
       const productId = await db.products.add({
         name,
@@ -97,6 +98,8 @@ export class ProductsWebService implements ProductsService {
         price,
         isActive: true,
       });
+
+      createdProductId = productId;
 
       await db.productIngredients.bulkAdd(
         normalizedRecipe.map((entry) => ({
@@ -106,6 +109,8 @@ export class ProductsWebService implements ProductsService {
         })),
       );
     });
+
+    return createdProductId;
   }
 
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {

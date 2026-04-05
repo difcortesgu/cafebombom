@@ -52,20 +52,44 @@ export class AccountsSqliteService implements AccountsService {
     };
   }
 
-  async addExpense({ category, amount, description, dateUnix }: AddExpensePayload): Promise<void> {
+  async addExpense({ category, amount, description, dateUnix }: AddExpensePayload): Promise<string> {
     await dbReady;
     const date = dateUnix ?? Math.floor(Date.now() / 1000);
-    db.insert(expenses).values({ date, category, amount, description: description ?? null }).run();
+    const [inserted] = db.insert(expenses)
+      .values({ date, category, amount, description: description ?? null })
+      .returning({ id: expenses.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create expense.');
+    }
+
+    return inserted.id;
   }
 
-  async addEmployee({ name, salaryType, rate }: AddEmployeePayload): Promise<void> {
+  async addEmployee({ name, salaryType, rate }: AddEmployeePayload): Promise<string | null> {
     await dbReady;
-    db.insert(employees).values({ name, salaryType, rate }).onConflictDoNothing().run();
+    const [inserted] = db.insert(employees)
+      .values({ name, salaryType, rate })
+      .onConflictDoNothing()
+      .returning({ id: employees.id })
+      .all();
+
+    return inserted?.id ?? null;
   }
 
-  async addPayroll({ employeeId, periodStart, periodEnd, amount }: AddPayrollPayload): Promise<void> {
+  async addPayroll({ employeeId, periodStart, periodEnd, amount }: AddPayrollPayload): Promise<string> {
     await dbReady;
-    db.insert(payrollEntries).values({ employeeId, periodStart, periodEnd, amount }).run();
+    const [inserted] = db.insert(payrollEntries)
+      .values({ employeeId, periodStart, periodEnd, amount })
+      .returning({ id: payrollEntries.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create payroll entry.');
+    }
+
+    return inserted.id;
   }
 
   async getExpensesTotalInRange(startUnix: number, endUnix: number): Promise<number> {

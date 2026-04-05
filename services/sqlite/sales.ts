@@ -103,11 +103,11 @@ export class SalesSqliteService implements SalesService {
       .all() as Discount[];
   }
 
-  async createDiscount(payload: CreateDiscountPayload): Promise<void> {
+  async createDiscount(payload: CreateDiscountPayload): Promise<string> {
     await dbReady;
     const startsAt = payload.scope === 'global' ? 0 : payload.startsAt;
     const endsAt = payload.scope === 'global' ? null : payload.endsAt;
-    db.insert(discounts)
+    const [inserted] = db.insert(discounts)
       .values({
         name: payload.name.trim(),
         scope: payload.scope,
@@ -118,7 +118,14 @@ export class SalesSqliteService implements SalesService {
         endsAt,
         isActive: payload.isActive,
       })
-      .run();
+      .returning({ id: discounts.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create discount.');
+    }
+
+    return inserted.id;
   }
 
   async updateDiscount(payload: UpdateDiscountPayload): Promise<void> {
@@ -161,19 +168,22 @@ export class SalesSqliteService implements SalesService {
       .all() as RestaurantTable[];
   }
 
-  async createTable({ name, tableType }: CreateTablePayload): Promise<void> {
+  async createTable({ name, tableType }: CreateTablePayload): Promise<string | null> {
     await dbReady;
     const normalizedName = name.trim();
     if (!normalizedName) {
-      return;
+      return null;
     }
-    db.insert(restaurantTables)
+    const [inserted] = db.insert(restaurantTables)
       .values({
         name: normalizedName,
         tableType,
       })
       .onConflictDoNothing()
-      .run();
+      .returning({ id: restaurantTables.id })
+      .all();
+
+    return inserted?.id ?? null;
   }
 
   async updateTable({ id, name, tableType }: UpdateTablePayload): Promise<void> {
@@ -206,10 +216,10 @@ export class SalesSqliteService implements SalesService {
     }
   }
 
-  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
+  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
     await dbReady;
     if (items.length === 0) {
-      return;
+      return null;
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
@@ -233,7 +243,7 @@ export class SalesSqliteService implements SalesService {
     const createdAt = Math.floor(Date.now() / 1000);
     const breakdown = calculateSaleDiscountBreakdown(items, activeDiscounts, createdAt, globalDiscountId ?? null);
 
-    db.transaction((tx) => {
+    const saleId = db.transaction((tx) => {
       const [newSale] = tx
         .insert(sales)
         .values({
@@ -269,7 +279,11 @@ export class SalesSqliteService implements SalesService {
           })
           .run();
       }
+
+      return newSale.id;
     });
+
+    return saleId;
   }
 
   async updateDraftOrder({ orderId, staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
@@ -637,7 +651,7 @@ export class SalesSqliteService implements SalesService {
     }
   }
 
-  async addItemToOrder(payload: AddItemToOrderPayload): Promise<void> {
+  async addItemToOrder(payload: AddItemToOrderPayload): Promise<string> {
     await dbReady;
     const { orderId, item } = payload;
 
@@ -663,7 +677,7 @@ export class SalesSqliteService implements SalesService {
 
     const lineSubtotal = item.unitPrice * item.quantity;
 
-    db.insert(saleItems)
+    const [inserted] = db.insert(saleItems)
       .values({
         saleId: orderId,
         productId: item.productId,
@@ -671,7 +685,12 @@ export class SalesSqliteService implements SalesService {
         unitPrice: item.unitPrice,
         lineSubtotal,
       })
-      .run();
+      .returning({ id: saleItems.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to add item to order.');
+    }
 
     // Update order totals
     const orderItems = db
@@ -690,6 +709,8 @@ export class SalesSqliteService implements SalesService {
       })
       .where(eq(sales.id, orderId))
       .run();
+
+    return inserted.id;
   }
 
   async removeItemFromOrder(payload: RemoveItemFromOrderPayload): Promise<void> {

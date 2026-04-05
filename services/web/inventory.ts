@@ -58,7 +58,7 @@ export class InventoryWebService implements InventoryService {
     await db.ingredients.update(id, ingredient);
   }
 
-  async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<void> {
+  async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<string | null> {
     const db = await getDb();
     const existing = await db.suppliers
       .where('name')
@@ -66,32 +66,36 @@ export class InventoryWebService implements InventoryService {
       .count();
 
     if (existing > 0) {
-      return;
+      return null;
     }
 
-    await db.suppliers.add({
+    const supplierId = await db.suppliers.add({
       name,
       phone: phone ?? null,
       notes: notes ?? null,
     });
+
+    return supplierId;
   }
 
-  async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<void> {
+  async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<string> {
     const db = await getDb();
     const ingredient = await db.ingredients.get(ingredientId);
     if (!ingredient) {
-      return;
+      throw new Error(`Ingredient ${ingredientId} not found`);
     }
 
     ingredient.quantity += quantityAdded;
     await db.ingredients.update(ingredientId, ingredient);
 
-    await db.restockLogs.add({
+    const restockId = await db.restockLogs.add({
       ingredientId,
       quantityAdded,
       cost,
       supplierId: supplierId ?? null,
       date: Math.floor(Date.now() / 1000),
     });
+
+    return restockId;
   }
 }

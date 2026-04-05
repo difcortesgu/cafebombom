@@ -9,8 +9,8 @@ export type AccountsHydrationData = {
 
 export interface AccountsService {
   getHydrationData(): Promise<AccountsHydrationData>;
-  addExpense(payload: AddExpensePayload): Promise<void>;
-  addEmployee(payload: AddEmployeePayload): Promise<void>;
-  addPayroll(payload: AddPayrollPayload): Promise<void>;
+  addExpense(payload: AddExpensePayload): Promise<string>;
+  addEmployee(payload: AddEmployeePayload): Promise<string | null>;
+  addPayroll(payload: AddPayrollPayload): Promise<string>;
   getExpensesTotalInRange(startUnix: number, endUnix: number): Promise<number>;
 }

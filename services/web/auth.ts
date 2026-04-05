@@ -123,9 +123,9 @@ export class AuthWebService implements AuthService {
     };
   }
 
-  async startSession(userId: string): Promise<void> {
+  async startSession(userId: string): Promise<string> {
     const db = await getDb();
-    await db.sessions.add({
+    return db.sessions.add({
       userId,
       loggedInAt: Math.floor(Date.now() / 1000),
       loggedOutAt: null,

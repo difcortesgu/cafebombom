@@ -27,14 +27,14 @@ export type OrderTypeSurchargeConfig = {
 export interface SalesService {
   getHydrationData(): Promise<SalesHydrationData>;
   getDiscounts(): Promise<Discount[]>;
-  createDiscount(payload: CreateDiscountPayload): Promise<void>;
+  createDiscount(payload: CreateDiscountPayload): Promise<string>;
   updateDiscount(payload: UpdateDiscountPayload): Promise<void>;
   deleteDiscount(id: string): Promise<void>;
   getTables(): Promise<RestaurantTable[]>;
-  createTable(payload: CreateTablePayload): Promise<void>;
+  createTable(payload: CreateTablePayload): Promise<string | null>;
   updateTable(payload: UpdateTablePayload): Promise<void>;
   deleteTable(id: string): Promise<void>;
-  createSale(payload: CreateSalePayload): Promise<void>;
+  createSale(payload: CreateSalePayload): Promise<string | null>;
   updateDraftOrder(payload: UpdateDraftOrderPayload): Promise<void>;
   getTopSelling(limit?: number): Promise<Array<{ name: string; quantity: number }>>;
   getSaleItems(saleId: string): Promise<SaleItemDetail[]>;
@@ -45,7 +45,7 @@ export interface SalesService {
   sendToKitchen(orderId: string): Promise<void>;
   markOrderReady(orderId: string): Promise<void>;
   markOrderPaid(orderId: string, paymentMethod?: PaymentMethod): Promise<void>;
-  addItemToOrder(payload: AddItemToOrderPayload): Promise<void>;
+  addItemToOrder(payload: AddItemToOrderPayload): Promise<string>;
   removeItemFromOrder(payload: RemoveItemFromOrderPayload): Promise<void>;
   cancelOrder(orderId: string): Promise<void>;
 }

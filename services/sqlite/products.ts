@@ -2,17 +2,17 @@ import type { ProductsService } from '@/services/interfaces/products';
 import { db, dbReady } from '@/services/sqlite/database/db';
 import { categories, ingredientCompositions, ingredients, productIngredients, products } from '@/services/sqlite/database/schema';
 import type {
-  CategoryOption,
-  CreateProductPayload,
-  IngredientCompositionLink,
-  ProductDetail,
-  ProductIngredientLink,
-  ProductRecipeInput,
-  RemoveCompositionPayload,
-  RemoveProductIngredientPayload,
-  SetCompositionPayload,
-  SetProductIngredientPayload,
-  UpdateProductPayload,
+    CategoryOption,
+    CreateProductPayload,
+    IngredientCompositionLink,
+    ProductDetail,
+    ProductIngredientLink,
+    ProductRecipeInput,
+    RemoveCompositionPayload,
+    RemoveProductIngredientPayload,
+    SetCompositionPayload,
+    SetProductIngredientPayload,
+    UpdateProductPayload,
 } from '@/types/products';
 import { generateId } from '@/utils/id';
 import { and, eq, sql } from 'drizzle-orm';
@@ -102,11 +102,11 @@ export class ProductsSqliteService implements ProductsService {
     };
   }
 
-  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<void> {
+  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<string | null> {
     await dbReady;
     const normalizedRecipe = this.normalizeRecipe(recipe);
     if (normalizedRecipe.length === 0) {
-      return;
+      return null;
     }
 
     const productId = generateId();
@@ -125,6 +125,8 @@ export class ProductsSqliteService implements ProductsService {
         )
         .run();
     });
+
+      return productId;
   }
 
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {

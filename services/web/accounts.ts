@@ -40,9 +40,9 @@ export class AccountsWebService implements AccountsService {
     };
   }
 
-  async addExpense({ category, amount, description, dateUnix }: AddExpensePayload): Promise<void> {
+  async addExpense({ category, amount, description, dateUnix }: AddExpensePayload): Promise<string> {
     const db = await getDb();
-    await db.expenses.add({
+    return db.expenses.add({
       date: dateUnix ?? Math.floor(Date.now() / 1000),
       category,
       amount,
@@ -51,7 +51,7 @@ export class AccountsWebService implements AccountsService {
     });
   }
 
-  async addEmployee({ name, salaryType, rate }: AddEmployeePayload): Promise<void> {
+  async addEmployee({ name, salaryType, rate }: AddEmployeePayload): Promise<string | null> {
     const db = await getDb();
     const existing = await db.employees
       .where('name')
@@ -59,19 +59,19 @@ export class AccountsWebService implements AccountsService {
       .count();
 
     if (existing > 0) {
-      return;
+      return null;
     }
 
-    await db.employees.add({
+    return db.employees.add({
       name,
       salaryType,
       rate,
     });
   }
 
-  async addPayroll({ employeeId, periodStart, periodEnd, amount }: AddPayrollPayload): Promise<void> {
+  async addPayroll({ employeeId, periodStart, periodEnd, amount }: AddPayrollPayload): Promise<string> {
     const db = await getDb();
-    await db.payrollEntries.add({
+    return db.payrollEntries.add({
       employeeId,
       periodStart,
       periodEnd,

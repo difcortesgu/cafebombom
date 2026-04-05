@@ -100,12 +100,12 @@ export class SalesWebService implements SalesService {
       }));
   }
 
-  async createDiscount(payload: CreateDiscountPayload): Promise<void> {
+  async createDiscount(payload: CreateDiscountPayload): Promise<string> {
     const db = await getDb();
     const now = Math.floor(Date.now() / 1000);
     const startsAt = payload.scope === 'global' ? 0 : payload.startsAt;
     const endsAt = payload.scope === 'global' ? null : payload.endsAt;
-    await db.discounts.add({
+    return db.discounts.add({
       name: payload.name.trim(),
       scope: payload.scope,
       productId: payload.scope === 'product' ? (payload.productId ?? null) : null,
@@ -154,18 +154,18 @@ export class SalesWebService implements SalesService {
       }));
   }
 
-  async createTable({ name, tableType }: CreateTablePayload): Promise<void> {
+  async createTable({ name, tableType }: CreateTablePayload): Promise<string | null> {
     const normalizedName = name.trim();
     if (!normalizedName) {
-      return;
+      return null;
     }
     const db = await getDb();
     const existing = await db.restaurantTables.where('name').equals(normalizedName).first();
     if (existing) {
-      return;
+      return null;
     }
     const now = Math.floor(Date.now() / 1000);
-    await db.restaurantTables.add({
+    return db.restaurantTables.add({
       name: normalizedName,
       tableType,
       createdAt: now,
@@ -195,9 +195,9 @@ export class SalesWebService implements SalesService {
     await db.restaurantTables.delete(id);
   }
 
-  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
+  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
     if (items.length === 0 || !tableId) {
-      return;
+      return null;
     }
 
     const db = await getDb();
@@ -237,6 +237,8 @@ export class SalesWebService implements SalesService {
         discountAmount: item.discountSnapshot.discountAmount,
       });
     }
+
+    return saleId;
   }
 
   async updateDraftOrder({ orderId, staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
@@ -513,7 +515,7 @@ export class SalesWebService implements SalesService {
     }
   }
 
-  async addItemToOrder(payload: AddItemToOrderPayload): Promise<void> {
+  async addItemToOrder(payload: AddItemToOrderPayload): Promise<string> {
     const db = await getDb();
     const { orderId, item } = payload;
 
@@ -535,7 +537,7 @@ export class SalesWebService implements SalesService {
 
     const lineSubtotal = item.unitPrice * item.quantity;
 
-    await db.saleItems.add({
+    const saleItemId = await db.saleItems.add({
       saleId: orderId,
       productId: item.productId,
       quantity: item.quantity,
@@ -557,6 +559,8 @@ export class SalesWebService implements SalesService {
       total: subtotal,
       updatedAt: Math.floor(Date.now() / 1000),
     });
+
+    return saleItemId;
   }
 
   async removeItemFromOrder(payload: RemoveItemFromOrderPayload): Promise<void> {

@@ -20,7 +20,7 @@ export type ProductsHydrationData = {
 
 export interface ProductsService {
   getHydrationData(): Promise<ProductsHydrationData>;
-  createProduct(payload: CreateProductPayload): Promise<void>;
+  createProduct(payload: CreateProductPayload): Promise<string | null>;
   updateProduct(payload: UpdateProductPayload): Promise<void>;
   setProductIngredient(payload: SetProductIngredientPayload): Promise<void>;
   removeProductIngredient(payload: RemoveProductIngredientPayload): Promise<void>;
