@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -7,6 +7,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
@@ -41,14 +42,24 @@ function getTableSurcharge(tableType: TableType, toGoSurcharge: number, delivery
 export default function SaleFormScreen() {
   const palette = useAppColors();
   const router = useRouter();
+  const { orderId } = useLocalSearchParams<{ orderId?: string }>();
   const user = useAuthStore((state) => state.currentUser);
-  const { hydrate, products, tables, discounts, createSale } = useSalesStore();
+  const { hydrate, products, tables, discounts, sales, createSale, updateDraftOrder } = useSalesStore();
   const { deliverySurcharge, toGoSurcharge, hydrateFromDb } = useSettingsStore();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('cash');
   const [selectedGlobalDiscountId, setSelectedGlobalDiscountId] = useState('');
+  const [loadingDraft, setLoadingDraft] = useState(false);
+  const [isDraftInitialized, setIsDraftInitialized] = useState(false);
+
+  const editingOrderId = typeof orderId === 'string' && orderId.length > 0 ? orderId : null;
+  const selectedDraftSale = useMemo(
+    () => (editingOrderId ? sales.find((sale) => sale.id === editingOrderId) ?? null : null),
+    [editingOrderId, sales],
+  );
+  const canEditDraft = selectedDraftSale?.status === 'draft';
 
   useFocusEffect(
     useCallback(() => {
@@ -56,6 +67,76 @@ export default function SaleFormScreen() {
       void hydrateFromDb();
     }, [hydrate, hydrateFromDb]),
   );
+
+  useEffect(() => {
+    setIsDraftInitialized(false);
+    if (!editingOrderId) {
+      setCart([]);
+      setSelectedTableId(null);
+      setSelectedPaymentMethod('cash');
+      setSelectedGlobalDiscountId('');
+    }
+  }, [editingOrderId]);
+
+  useEffect(() => {
+    if (!editingOrderId || isDraftInitialized || !selectedDraftSale) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const preloadDraft = async () => {
+      setLoadingDraft(true);
+      try {
+        const [items, pricingSummary] = await Promise.all([
+          salesService.getSaleItems(editingOrderId),
+          salesService.getSalePricingSummary(editingOrderId),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        const itemMap = new Map<string, CartItem>();
+        for (const item of items) {
+          const existing = itemMap.get(item.product_id);
+          if (existing) {
+            existing.quantity += item.quantity;
+          } else {
+            itemMap.set(item.product_id, {
+              productId: item.product_id,
+              name: item.product_name,
+              unitPrice: Number(item.unit_price),
+              quantity: item.quantity,
+            });
+          }
+        }
+
+        setCart([...itemMap.values()]);
+
+        const matchedTable = tables.find((table) => table.name === selectedDraftSale.table_name) ?? null;
+        setSelectedTableId(matchedTable?.id ?? null);
+        setSelectedPaymentMethod(selectedDraftSale.payment_method ?? 'cash');
+
+        const discountName = pricingSummary?.global_discount_name ?? null;
+        const matchedGlobalDiscount = discountName
+          ? discounts.find((discount) => discount.scope === 'global' && discount.name === discountName)
+          : null;
+        setSelectedGlobalDiscountId(matchedGlobalDiscount?.id ?? '');
+        setIsDraftInitialized(true);
+      } finally {
+        if (isMounted) {
+          setLoadingDraft(false);
+        }
+      }
+    };
+
+    void preloadDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editingOrderId, isDraftInitialized, selectedDraftSale, tables, discounts]);
 
   const nowUnix = Math.floor(Date.now() / 1000);
 
@@ -124,7 +205,7 @@ export default function SaleFormScreen() {
       return;
     }
 
-    await createSale({
+    const payload = {
       staffId: user.id,
       items: cart.map((item) => ({
         productId: item.productId,
@@ -135,31 +216,54 @@ export default function SaleFormScreen() {
       paymentMethod: selectedPaymentMethod,
       globalDiscountId: selectedGlobalDiscountId || null,
       orderTypeSurcharge: surchargeBreakdown.total,
-    });
+    };
+
+    if (editingOrderId) {
+      await updateDraftOrder({
+        orderId: editingOrderId,
+        ...payload,
+      });
+    } else {
+      await createSale(payload);
+    }
 
     router.back();
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">New Sale</ThemedText>
-      <ThemedText>Tap products to build a sale.</ThemedText>
+      <ThemedText type="title">{editingOrderId ? 'Edit Tab' : 'New Sale'}</ThemedText>
+      <ThemedText>
+        {editingOrderId
+          ? 'Use the same order form to edit draft items, table, payment method, and discount.'
+          : 'Create a draft tab. You can pay now or after kitchen processing.'}
+      </ThemedText>
+      {editingOrderId && loadingDraft ? <ThemedText style={styles.smallText}>Loading draft order...</ThemedText> : null}
 
       <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Product catalog</ThemedText>
         <View style={styles.grid}>
           {products.map((product) => (
-            <Pressable key={product.id} style={[styles.productTile, { borderColor: palette.border }]} onPress={() => addToCart(product.id, product.name, Number(product.price))}>
+            <Pressable
+              key={product.id}
+              style={[styles.productTile, { borderColor: palette.border }, editingOrderId && !canEditDraft ? styles.disabledTile : null]}
+              onPress={() => addToCart(product.id, product.name, Number(product.price))}
+              disabled={Boolean(editingOrderId && !canEditDraft)}>
               <ThemedText style={styles.productName}>{product.name}</ThemedText>
               <ThemedText>${Number(product.price).toFixed(2)}</ThemedText>
               <ThemedText style={styles.smallText}>{product.category || 'Uncategorized'}</ThemedText>
             </Pressable>
           ))}
         </View>
+        {editingOrderId && !canEditDraft ? (
+          <ThemedText style={styles.smallText}>This tab is no longer editable because it is already paid or closed.</ThemedText>
+        ) : null}
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Cart</ThemedText>
+        {editingOrderId ? <ThemedText style={styles.smallText}>Status: {selectedDraftSale?.status ?? 'draft'}</ThemedText> : null}
+
         <ThemedText style={styles.smallText}>Table assignment (required)</ThemedText>
         {tables.length === 0 ? <ThemedText style={styles.smallText}>No tables available. Create one in the Tables tab.</ThemedText> : null}
         <View style={styles.tableRow}>
@@ -173,7 +277,8 @@ export default function SaleFormScreen() {
                   { borderColor: selectedTableId === table.id ? palette.tint : palette.border },
                   selectedTableId === table.id && { backgroundColor: palette.tint },
                 ]}
-                onPress={() => setSelectedTableId(table.id)}>
+                onPress={() => setSelectedTableId(table.id)}
+                disabled={Boolean(editingOrderId && !canEditDraft)}>
                 <ThemedText style={selectedTableId === table.id ? styles.selectedTableText : undefined}>
                   {table.name}{tableSurcharge.total > 0 ? ` (+$${tableSurcharge.total.toFixed(2)})` : ''}
                 </ThemedText>
@@ -197,11 +302,17 @@ export default function SaleFormScreen() {
                 <ThemedText style={styles.smallText}>${item.unitPrice.toFixed(2)} each</ThemedText>
               </View>
               <View style={styles.qtyControl}>
-                <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, -1)}>
+                <Pressable
+                  style={[styles.qtyButton, { borderColor: palette.border }]}
+                  onPress={() => updateQty(item.productId, -1)}
+                  disabled={Boolean(editingOrderId && !canEditDraft)}>
                   <ThemedText>-</ThemedText>
                 </Pressable>
                 <ThemedText>{item.quantity}</ThemedText>
-                <Pressable style={[styles.qtyButton, { borderColor: palette.border }]} onPress={() => updateQty(item.productId, 1)}>
+                <Pressable
+                  style={[styles.qtyButton, { borderColor: palette.border }]}
+                  onPress={() => updateQty(item.productId, 1)}
+                  disabled={Boolean(editingOrderId && !canEditDraft)}>
                   <ThemedText>+</ThemedText>
                 </Pressable>
               </View>
@@ -212,7 +323,11 @@ export default function SaleFormScreen() {
         <ThemedSelect
           label="Payment method"
           value={selectedPaymentMethod}
-          onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+          onValueChange={(value) => {
+            if (!editingOrderId || canEditDraft) {
+              setSelectedPaymentMethod(value as PaymentMethod);
+            }
+          }}
           items={paymentMethodOptions}
           placeholder="Select payment method"
         />
@@ -220,7 +335,11 @@ export default function SaleFormScreen() {
         <ThemedSelect
           label="Global discount (optional)"
           value={selectedGlobalDiscountId}
-          onValueChange={setSelectedGlobalDiscountId}
+          onValueChange={(value) => {
+            if (!editingOrderId || canEditDraft) {
+              setSelectedGlobalDiscountId(value);
+            }
+          }}
           items={globalDiscountOptions}
           placeholder="Select global discount"
         />
@@ -235,10 +354,17 @@ export default function SaleFormScreen() {
           {surchargeBreakdown.delivery > 0 ? <ThemedText style={styles.smallText}>Delivery surcharge: +${surchargeBreakdown.delivery.toFixed(2)}</ThemedText> : null}
           <ThemedText type="defaultSemiBold">Total: ${finalTotal.toFixed(2)}</ThemedText>
         </View>
-        {!selectedTableId ? <ThemedText style={styles.smallText}>Select a table to confirm sale.</ThemedText> : null}
+
+        {!selectedTableId ? <ThemedText style={styles.smallText}>Select a table to continue.</ThemedText> : null}
+        {editingOrderId && !canEditDraft ? <ThemedText style={styles.smallText}>This order is no longer editable.</ThemedText> : null}
         <View style={styles.actionsRow}>
-          <ThemedButton style={styles.primaryButton} label="Confirm sale" onPress={submitSale} disabled={!selectedTableId || cart.length === 0} />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Discard" onPress={() => setCart([])} />
+          <ThemedButton
+            style={styles.primaryButton}
+            label={editingOrderId ? 'Save changes' : 'Open draft tab'}
+            onPress={submitSale}
+            disabled={!selectedTableId || cart.length === 0 || Boolean(editingOrderId && !canEditDraft)}
+          />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Discard" onPress={() => setCart([])} disabled={Boolean(editingOrderId && !canEditDraft)} />
           <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
         </View>
       </ThemedCard>
@@ -266,6 +392,9 @@ const styles = StyleSheet.create({
     padding: 10,
     minWidth: '47%',
     gap: 4,
+  },
+  disabledTile: {
+    opacity: 0.55,
   },
   productName: {
     fontWeight: '700',

@@ -74,6 +74,11 @@ export type WebSaleRecord = {
   orderDiscountAmount: number;
   discountAppliedBy: string | null;
   total: number;
+  status: 'draft' | 'in-progress' | 'ready' | 'paid' | 'completed' | 'cancelled';
+  readyAt?: number | null;
+  paidAt?: number | null;
+  cancelledAt?: number | null;
+  updatedAt?: number;
 };
 
 export type WebRestaurantTableRecord = {
@@ -316,6 +321,34 @@ export class CafeBomBomDB extends Dexie {
         await tx.table('sales').toCollection().modify((sale: any) => {
           if (!sale.paymentMethod) {
             sale.paymentMethod = 'cash';
+          }
+        });
+      });
+
+    this.version(12)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        surcharges: '&name, updatedAt',
+        sales: 'id, createdAt, staffId, tableId, paymentMethod, status',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('sales').toCollection().modify((sale: any) => {
+          if (!sale.status) {
+            sale.status = 'draft';
           }
         });
       });

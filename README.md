@@ -158,12 +158,11 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [X] Discounts
 - [X] Delivery and To-Go Order Types
 - [X] Payment Methods
-- [ ] Order State Management
+- [X] Order State Management
 - [ ] Receipt Generation and Thermal Printing
 - [ ] Dashboard Improvements
 - [ ] Biometric Authentication
 - [ ] UX/UI Improvements and Persistent User Preferences
 - [ ] Ability to load in seed data from an excel spreadsheet
 - [ ] Backups
-- [ ] 
-
+- [ ] Sync multiple devices

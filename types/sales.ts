@@ -9,6 +9,7 @@ export type DiscountSnapshot = {
 
 export type SaleItemDetail = {
   id: string;
+  product_id: string;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -38,6 +39,10 @@ export type CreateSalePayload = {
   orderTypeSurcharge?: number;
 };
 
+export type UpdateDraftOrderPayload = CreateSalePayload & {
+  orderId: string;
+};
+
 export type CreateDiscountPayload = {
   name: string;
   scope: 'product' | 'global';
@@ -62,4 +67,14 @@ export type UpdateTablePayload = {
   id: string;
   name: string;
   tableType: TableType;
+};
+
+export type AddItemToOrderPayload = {
+  orderId: string;
+  item: SaleItemInput;
+};
+
+export type RemoveItemFromOrderPayload = {
+  orderId: string;
+  saleItemId: string;
 };

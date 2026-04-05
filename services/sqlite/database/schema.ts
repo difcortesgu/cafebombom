@@ -125,10 +125,15 @@ export const sales = sqliteTable('sales', {
   discountNote: text('discount_note'),
   discountAppliedBy: text('discount_applied_by').references(() => users.id),
   total: real('total').notNull(),
+  status: text('status', { enum: ['draft', 'in-progress', 'ready', 'paid', 'completed', 'cancelled'] }).notNull().default('draft'),
+  readyAt: integer('ready_at'),
+  paidAt: integer('paid_at'),
+  cancelledAt: integer('cancelled_at'),
   syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_sales_created_at').on(t.createdAt),
   index('idx_sales_table_id').on(t.tableId),
+  index('idx_sales_status').on(t.status),
 ]);
 
 export const saleItems = sqliteTable('sale_items', {

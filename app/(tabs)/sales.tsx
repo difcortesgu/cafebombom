@@ -5,13 +5,14 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedChip } from '@/components/ui/themed-chip';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { SalePricingSummary } from '@/types/sales';
-import type { RestaurantTable } from '@/types/types';
+import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
 
 function getSaleSurchargeLines(pricing: SalePricingSummary, tableName: string, tables: RestaurantTable[], configuredToGoSurcharge: number) {
   const totalSurcharge = Math.max(0, Number(pricing.order_type_surcharge));
@@ -47,17 +48,55 @@ function formatPaymentMethod(method: string) {
   return 'Cash';
 }
 
+function formatStatusLabel(status: OrderStatus) {
+  if (status === 'in-progress') {
+    return 'In progress';
+  }
+  return status;
+}
+
+function getStatusTone(status: OrderStatus, palette: ReturnType<typeof useAppColors>) {
+  if (status === 'completed') {
+    return { backgroundColor: palette.tint, color: palette.card, borderColor: palette.tint };
+  }
+  if (status === 'ready') {
+    return { backgroundColor: palette.accent, color: palette.background, borderColor: palette.accent };
+  }
+  if (status === 'paid') {
+    return { backgroundColor: '#2E7D32', color: '#FFFFFF', borderColor: '#2E7D32' };
+  }
+  if (status === 'cancelled') {
+    return { backgroundColor: '#B71C1C', color: '#FFFFFF', borderColor: '#B71C1C' };
+  }
+  if (status === 'in-progress') {
+    return { backgroundColor: '#1565C0', color: '#FFFFFF', borderColor: '#1565C0' };
+  }
+  return { backgroundColor: palette.border, color: palette.text, borderColor: palette.border };
+}
+
+type SaleFilter = 'all' | 'active' | OrderStatus;
+
 export default function SalesScreen() {
   const palette = useAppColors();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-  const { hydrate, sales, tables } = useSalesStore();
+  const {
+    hydrate,
+    sales,
+    tables,
+    sendToKitchen,
+    markOrderReady,
+    markOrderPaid,
+    cancelOrder,
+  } = useSalesStore();
   const { toGoSurcharge, hydrateFromDb } = useSettingsStore();
 
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
   const [expandedSalePricing, setExpandedSalePricing] = useState<string>('');
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<SaleFilter>('active');
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,8 +138,20 @@ export default function SalesScreen() {
     };
   }, [sales]);
 
+  const filteredSales = useMemo(() => {
+    if (filter === 'all') {
+      return sales;
+    }
+
+    if (filter === 'active') {
+      return sales.filter((sale) => !['completed', 'cancelled'].includes(sale.status));
+    }
+
+    return sales.filter((sale) => sale.status === filter);
+  }, [filter, sales]);
+
   const salesByTable = useMemo(() => {
-    return sales.reduce<Record<string, typeof sales>>((acc, sale) => {
+    return filteredSales.reduce<Record<string, Sale[]>>((acc, sale) => {
       const tableName = sale.table_name;
       if (!acc[tableName]) {
         acc[tableName] = [];
@@ -108,7 +159,60 @@ export default function SalesScreen() {
       acc[tableName].push(sale);
       return acc;
     }, {});
-  }, [sales]);
+  }, [filteredSales]);
+
+  const runOrderAction = async (saleId: string, action: () => Promise<void>) => {
+    setBusyOrderId(saleId);
+    try {
+      await action();
+    } finally {
+      setBusyOrderId(null);
+    }
+  };
+
+  const renderOrderActions = (sale: Sale) => {
+    const isBusy = busyOrderId === sale.id;
+
+    if (sale.status === 'draft') {
+      return (
+        <View style={styles.orderActions}>
+          <ThemedButton variant="secondary" style={styles.actionButton} label="Open tab" onPress={() => router.push(`/sale-form?orderId=${sale.id}`)} disabled={isBusy} />
+          <ThemedButton style={styles.actionButton} label="Send to kitchen" onPress={() => void runOrderAction(sale.id, () => sendToKitchen(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label="Pay now" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
+        </View>
+      );
+    }
+
+    if (sale.status === 'in-progress') {
+      return (
+        <View style={styles.orderActions}>
+          <ThemedButton style={styles.actionButton} label="Mark ready" onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label="Pay now" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
+        </View>
+      );
+    }
+
+    if (sale.status === 'ready') {
+      return (
+        <View style={styles.orderActions}>
+          <ThemedButton style={styles.actionButton} label="Receive payment" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
+        </View>
+      );
+    }
+
+    if (sale.status === 'paid' && !sale.ready_at) {
+      return (
+        <View style={styles.orderActions}>
+          <ThemedButton style={styles.actionButton} label="Kitchen ready" onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
+        </View>
+      );
+    }
+
+    return null;
+  };
 
   const showSaleDetail = async (saleId: string) => {
     if (expandedSaleId === saleId) {
@@ -149,7 +253,7 @@ export default function SalesScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">Sales</ThemedText>
-      <ThemedText>List view with quick actions.</ThemedText>
+      <ThemedText>Track draft tabs, kitchen progress, and payment flow.</ThemedText>
 
       <View style={styles.headerActions}>
         <ThemedButton label="New sale" onPress={() => router.push('/sale-form')} />
@@ -157,8 +261,17 @@ export default function SalesScreen() {
       </View>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Daily sales history</ThemedText>
-        {sales.length === 0 ? (
+        <ThemedText type="subtitle">Orders</ThemedText>
+        <View style={styles.filterRow}>
+          <ThemedChip label="Active" active={filter === 'active'} onPress={() => setFilter('active')} />
+          <ThemedChip label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
+          <ThemedChip label="Draft" active={filter === 'draft'} onPress={() => setFilter('draft')} />
+          <ThemedChip label="Kitchen" active={filter === 'in-progress'} onPress={() => setFilter('in-progress')} />
+          <ThemedChip label="Ready" active={filter === 'ready'} onPress={() => setFilter('ready')} />
+          <ThemedChip label="Paid" active={filter === 'paid'} onPress={() => setFilter('paid')} />
+          <ThemedChip label="Done" active={filter === 'completed'} onPress={() => setFilter('completed')} />
+        </View>
+        {filteredSales.length === 0 ? (
           <ThemedText style={styles.smallText}>No sales yet.</ThemedText>
         ) : (
           Object.entries(salesByTable).map(([tableName, tableSales]) => (
@@ -168,10 +281,17 @@ export default function SalesScreen() {
               </ThemedText>
               {tableSales.map((sale) => (
                 <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
+                  <View style={styles.statusRow}>
+                    <ThemedText style={styles.smallText}>Order #{sale.id.slice(0, 6)}</ThemedText>
+                    <View style={[styles.statusBadge, getStatusTone(sale.status, palette)]}>
+                      <ThemedText style={[styles.statusBadgeText, { color: getStatusTone(sale.status, palette).color }]}>{formatStatusLabel(sale.status)}</ThemedText>
+                    </View>
+                  </View>
                   <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
                   <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
                   <ThemedText style={styles.smallText}>Payment: {formatPaymentMethod(sale.payment_method)}</ThemedText>
                   <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
+                  {renderOrderActions(sale)}
                   {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
                     <>
                       <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText>
@@ -219,6 +339,37 @@ const styles = StyleSheet.create({
   },
   historyGroupTitle: {
     opacity: 0.95,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  orderActions: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  actionButton: {
+    paddingVertical: 8,
   },
   detailText: {
     marginTop: 6,

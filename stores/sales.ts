@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
-import type { CreateDiscountPayload, CreateSalePayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload } from '@/types/sales';
+import type { AddItemToOrderPayload, CreateDiscountPayload, CreateSalePayload, RemoveItemFromOrderPayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
 import type { Discount, Product, RestaurantTable, Sale, TableType } from '@/types/types';
 
 type SalesState = {
@@ -15,6 +15,7 @@ type SalesState = {
   loading: boolean;
   hydrate: () => Promise<void>;
   createSale: (payload: CreateSalePayload) => Promise<void>;
+  updateDraftOrder: (payload: UpdateDraftOrderPayload) => Promise<void>;
   createDiscount: (payload: CreateDiscountPayload) => Promise<void>;
   updateDiscount: (payload: UpdateDiscountPayload) => Promise<void>;
   deleteDiscount: (id: string) => Promise<void>;
@@ -25,6 +26,17 @@ type SalesState = {
   getTodayRevenue: () => number;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
   getSalePricingSummary: (saleId: string) => Promise<SalePricingSummary | null>;
+  sendToKitchen: (orderId: string) => Promise<void>;
+  markOrderReady: (orderId: string) => Promise<void>;
+  markOrderPaid: (orderId: string) => Promise<void>;
+  addItemToOrder: (payload: AddItemToOrderPayload) => Promise<void>;
+  removeItemFromOrder: (payload: RemoveItemFromOrderPayload) => Promise<void>;
+  cancelOrder: (orderId: string) => Promise<void>;
+  getDraftOrders: () => Sale[];
+  getInProgressOrders: () => Sale[];
+  getReadyOrders: () => Sale[];
+  getPendingPaymentOrders: () => Sale[];
+  getCompletedOrders: () => Sale[];
 };
 
 export const useSalesStore = create<SalesState>((set, get) => ({
@@ -45,6 +57,11 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   createSale: async (payload: CreateSalePayload) => {
     await salesService.createSale(payload);
     await Promise.all([get().hydrate(), useInventoryStore.getState().hydrate()]);
+  },
+
+  updateDraftOrder: async (payload: UpdateDraftOrderPayload) => {
+    await salesService.updateDraftOrder(payload);
+    await get().hydrate();
   },
 
   createDiscount: async (payload: CreateDiscountPayload) => {
@@ -114,5 +131,55 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     }
 
     return summary;
+  },
+
+  sendToKitchen: async (orderId: string) => {
+    await salesService.sendToKitchen(orderId);
+    await Promise.all([get().hydrate(), useInventoryStore.getState().hydrate()]);
+  },
+
+  markOrderReady: async (orderId: string) => {
+    await salesService.markOrderReady(orderId);
+    await get().hydrate();
+  },
+
+  markOrderPaid: async (orderId: string) => {
+    await salesService.markOrderPaid(orderId);
+    await get().hydrate();
+  },
+
+  addItemToOrder: async (payload: AddItemToOrderPayload) => {
+    await salesService.addItemToOrder(payload);
+    await get().hydrate();
+  },
+
+  removeItemFromOrder: async (payload: RemoveItemFromOrderPayload) => {
+    await salesService.removeItemFromOrder(payload);
+    await get().hydrate();
+  },
+
+  cancelOrder: async (orderId: string) => {
+    await salesService.cancelOrder(orderId);
+    await Promise.all([get().hydrate(), useInventoryStore.getState().hydrate()]);
+  },
+
+  getDraftOrders: () => {
+    return get().sales.filter((sale: Sale) => sale.status === 'draft');
+  },
+
+  getInProgressOrders: () => {
+    return get().sales.filter((sale: Sale) => sale.status === 'in-progress');
+  },
+
+  getReadyOrders: () => {
+    return get().sales.filter((sale: Sale) => sale.status === 'ready');
+  },
+
+  getPendingPaymentOrders: () => {
+    return get().sales.filter((sale: Sale) => sale.status === 'ready' || sale.status === 'in-progress');
+  },
+
+  getCompletedOrders: () => {
+    return get().sales.filter((sale: Sale) => sale.status === 'completed');
   },
 }));

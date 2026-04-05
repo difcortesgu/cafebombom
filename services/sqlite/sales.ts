@@ -2,13 +2,16 @@ import type { SalesService } from '@/services/interfaces/sales';
 import { db, dbReady } from '@/services/sqlite/database/db';
 import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, surcharges, users } from '@/services/sqlite/database/schema';
 import type {
-    CreateDiscountPayload,
-    CreateSalePayload,
-    CreateTablePayload,
-    SaleItemDetail,
-    SalePricingSummary,
-    UpdateDiscountPayload,
-    UpdateTablePayload,
+  AddItemToOrderPayload,
+  CreateDiscountPayload,
+  CreateSalePayload,
+  CreateTablePayload,
+  RemoveItemFromOrderPayload,
+  SaleItemDetail,
+  SalePricingSummary,
+  UpdateDiscountPayload,
+  UpdateDraftOrderPayload,
+  UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
@@ -38,6 +41,10 @@ export class SalesSqliteService implements SalesService {
         table_name: restaurantTables.name,
         payment_method: sales.paymentMethod,
         total: sales.total,
+        status: sales.status,
+        ready_at: sales.readyAt,
+        paid_at: sales.paidAt,
+        cancelled_at: sales.cancelledAt,
       })
       .from(sales)
       .innerJoin(users, eq(users.id, sales.staffId))
@@ -241,6 +248,7 @@ export class SalesSqliteService implements SalesService {
           orderDiscountAmount: breakdown.globalDiscountAmount,
           discountAppliedBy: staffId,
           total: breakdown.total + normalizedSurcharge,
+          status: 'draft',
         })
         .returning({ id: sales.id })
         .all();
@@ -259,25 +267,86 @@ export class SalesSqliteService implements SalesService {
             discountAmount: item.discountSnapshot.discountAmount,
           })
           .run();
+      }
+    });
+  }
 
-        const recipeEdges = tx
-          .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
-          .from(productIngredients)
-          .where(eq(productIngredients.productId, item.productId))
-          .all();
+  async updateDraftOrder({ orderId, staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
+    await dbReady;
 
-        const leafConsumptions = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+    if (items.length === 0) {
+      return;
+    }
 
-        for (const leaf of leafConsumptions) {
-          tx.update(ingredients)
-            .set({
-              quantity: sql`MAX(0, ${ingredients.quantity} - ${leaf.quantity})`,
-              updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-              syncedAt: null,
-            })
-            .where(eq(ingredients.id, leaf.ingredientId))
-            .run();
-        }
+    const existingOrder = db
+      .select({ status: sales.status })
+      .from(sales)
+      .where(eq(sales.id, orderId))
+      .get();
+
+    if (!existingOrder) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (existingOrder.status !== 'draft') {
+      throw new Error('Only draft orders can be edited.');
+    }
+
+    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
+    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
+
+    const activeDiscounts = db
+      .select({
+        id: discounts.id,
+        name: discounts.name,
+        scope: discounts.scope,
+        productId: discounts.productId,
+        type: discounts.type,
+        value: discounts.value,
+        startsAt: discounts.startsAt,
+        endsAt: discounts.endsAt,
+        isActive: discounts.isActive,
+      })
+      .from(discounts)
+      .all() as Discount[];
+
+    const now = Math.floor(Date.now() / 1000);
+    const breakdown = calculateSaleDiscountBreakdown(items, activeDiscounts, now, globalDiscountId ?? null);
+
+    db.transaction((tx) => {
+      tx.delete(saleItems).where(eq(saleItems.saleId, orderId)).run();
+
+      tx.update(sales)
+        .set({
+          tableId,
+          paymentMethod: normalizedPaymentMethod,
+          subtotal: breakdown.subtotal,
+          itemDiscountTotal: breakdown.itemDiscountTotal,
+          orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
+          orderDiscountType: breakdown.globalDiscountSnapshot.discountType,
+          orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
+          orderDiscountAmount: breakdown.globalDiscountAmount,
+          discountAppliedBy: staffId,
+          total: breakdown.total + normalizedSurcharge,
+          syncedAt: null,
+        })
+        .where(eq(sales.id, orderId))
+        .run();
+
+      for (const item of breakdown.items) {
+        tx.insert(saleItems)
+          .values({
+            saleId: orderId,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            lineSubtotal: item.lineSubtotal,
+            discountName: item.discountSnapshot.discountName,
+            discountType: item.discountSnapshot.discountType,
+            discountValue: item.discountSnapshot.discountValue,
+            discountAmount: item.discountSnapshot.discountAmount,
+          })
+          .run();
       }
     });
   }
@@ -299,6 +368,7 @@ export class SalesSqliteService implements SalesService {
     return db
       .select({
         id: saleItems.id,
+        product_id: saleItems.productId,
         product_name: products.name,
         quantity: saleItems.quantity,
         unit_price: saleItems.unitPrice,
@@ -424,5 +494,297 @@ export class SalesSqliteService implements SalesService {
         },
       })
       .run();
+  }
+
+  private async deductInventoryForOrder(orderId: string): Promise<void> {
+    await dbReady;
+    const orderItems = db
+      .select({
+        productId: saleItems.productId,
+        quantity: saleItems.quantity,
+      })
+      .from(saleItems)
+      .where(eq(saleItems.saleId, orderId))
+      .all();
+
+    db.transaction((tx) => {
+      for (const item of orderItems) {
+        const recipeEdges = tx
+          .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
+          .from(productIngredients)
+          .where(eq(productIngredients.productId, item.productId))
+          .all();
+
+        const leafConsumptions = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+
+        for (const leaf of leafConsumptions) {
+          tx.update(ingredients)
+            .set({
+              quantity: sql`MAX(0, ${ingredients.quantity} - ${leaf.quantity})`,
+              updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+              syncedAt: null,
+            })
+            .where(eq(ingredients.id, leaf.ingredientId))
+            .run();
+        }
+      }
+    });
+  }
+
+  async sendToKitchen(orderId: string): Promise<void> {
+    await dbReady;
+    const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (order.status !== 'draft') {
+      throw new Error(`Cannot send order to kitchen. Order status must be 'draft', but is '${order.status}'`);
+    }
+
+    db.update(sales)
+      .set({
+        status: 'in-progress',
+        syncedAt: null,
+      })
+      .where(eq(sales.id, orderId))
+      .run();
+
+    await this.deductInventoryForOrder(orderId);
+  }
+
+  async markOrderReady(orderId: string): Promise<void> {
+    await dbReady;
+    const order = db
+      .select({ status: sales.status, readyAt: sales.readyAt })
+      .from(sales)
+      .where(eq(sales.id, orderId))
+      .get();
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (!['in-progress', 'paid'].includes(order.status)) {
+      throw new Error(`Cannot mark order as ready. Order status must be 'in-progress' or 'paid', but is '${order.status}'`);
+    }
+
+    // Paid-first flow: inventory was not deducted yet while order was still draft.
+    if (order.status === 'paid' && !order.readyAt) {
+      await this.deductInventoryForOrder(orderId);
+    }
+
+    const readyAt = Math.floor(Date.now() / 1000);
+    db.update(sales)
+      .set({
+        status: 'ready',
+        readyAt,
+        syncedAt: null,
+      })
+      .where(eq(sales.id, orderId))
+      .run();
+
+    // Check if order should auto-complete
+    await this.autoCompleteIfReady(orderId);
+  }
+
+  async markOrderPaid(orderId: string, paymentMethod?: PaymentMethod): Promise<void> {
+    await dbReady;
+    const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
+      throw new Error(`Cannot mark order as paid. Order status must be 'draft', 'in-progress', or 'ready', but is '${order.status}'`);
+    }
+
+    const paidAt = Math.floor(Date.now() / 1000);
+    const nextStatus = order.status === 'draft' ? 'paid' : order.status;
+    db.update(sales)
+      .set({
+        status: nextStatus,
+        paidAt,
+        ...(paymentMethod && { paymentMethod }),
+        syncedAt: null,
+      })
+      .where(eq(sales.id, orderId))
+      .run();
+
+    // Check if order should auto-complete
+    await this.autoCompleteIfReady(orderId);
+  }
+
+  private async autoCompleteIfReady(orderId: string): Promise<void> {
+    await dbReady;
+    const order = db
+      .select({ status: sales.status, readyAt: sales.readyAt, paidAt: sales.paidAt })
+      .from(sales)
+      .where(eq(sales.id, orderId))
+      .get();
+
+    if (order && order.readyAt && order.paidAt) {
+      db.update(sales)
+        .set({
+          status: 'completed',
+          syncedAt: null,
+        })
+        .where(eq(sales.id, orderId))
+        .run();
+    }
+  }
+
+  async addItemToOrder(payload: AddItemToOrderPayload): Promise<void> {
+    await dbReady;
+    const { orderId, item } = payload;
+
+    const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (order.status !== 'draft') {
+      throw new Error(`Can only add items to draft orders. Order status is '${order.status}'`);
+    }
+
+    const product = db
+      .select({ price: products.price })
+      .from(products)
+      .where(eq(products.id, item.productId))
+      .get();
+
+    if (!product) {
+      throw new Error(`Product ${item.productId} not found`);
+    }
+
+    const lineSubtotal = item.unitPrice * item.quantity;
+
+    db.insert(saleItems)
+      .values({
+        saleId: orderId,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        lineSubtotal,
+      })
+      .run();
+
+    // Update order totals
+    const orderItems = db
+      .select({
+        subtotal: sql<number>`COALESCE(SUM(${saleItems.lineSubtotal}), 0)`,
+      })
+      .from(saleItems)
+      .where(eq(saleItems.saleId, orderId))
+      .get();
+
+    db.update(sales)
+      .set({
+        subtotal: orderItems?.subtotal ?? 0,
+        total: orderItems?.subtotal ?? 0,
+        syncedAt: null,
+      })
+      .where(eq(sales.id, orderId))
+      .run();
+  }
+
+  async removeItemFromOrder(payload: RemoveItemFromOrderPayload): Promise<void> {
+    await dbReady;
+    const { orderId, saleItemId } = payload;
+
+    const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (order.status !== 'draft') {
+      throw new Error(`Can only remove items from draft orders. Order status is '${order.status}'`);
+    }
+
+    db.delete(saleItems).where(eq(saleItems.id, saleItemId)).run();
+
+    // Update order totals
+    const orderItems = db
+      .select({
+        subtotal: sql<number>`COALESCE(SUM(${saleItems.lineSubtotal}), 0)`,
+      })
+      .from(saleItems)
+      .where(eq(saleItems.saleId, orderId))
+      .get();
+
+    db.update(sales)
+      .set({
+        subtotal: orderItems?.subtotal ?? 0,
+        total: orderItems?.subtotal ?? 0,
+        syncedAt: null,
+      })
+      .where(eq(sales.id, orderId))
+      .run();
+  }
+
+  async cancelOrder(orderId: string): Promise<void> {
+    await dbReady;
+    const order = db
+      .select({ status: sales.status })
+      .from(sales)
+      .where(eq(sales.id, orderId))
+      .get();
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    if (order.status === 'completed' || order.status === 'cancelled') {
+      throw new Error(`Cannot cancel order with status '${order.status}'`);
+    }
+
+    const cancelledAt = Math.floor(Date.now() / 1000);
+    db.update(sales)
+      .set({
+        status: 'cancelled',
+        cancelledAt,
+        syncedAt: null,
+      })
+      .where(eq(sales.id, orderId))
+      .run();
+
+    // If order was in-progress or ready, restore inventory
+    if (['in-progress', 'ready', 'paid'].includes(order.status)) {
+      const orderItems = db
+        .select({
+          productId: saleItems.productId,
+          quantity: saleItems.quantity,
+        })
+        .from(saleItems)
+        .where(eq(saleItems.saleId, orderId))
+        .all();
+
+      db.transaction((tx) => {
+        for (const item of orderItems) {
+          const recipeEdges = tx
+            .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
+            .from(productIngredients)
+            .where(eq(productIngredients.productId, item.productId))
+            .all();
+
+          const leafRestorations = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+
+          for (const leaf of leafRestorations) {
+            tx.update(ingredients)
+              .set({
+                quantity: sql`${ingredients.quantity} + ${leaf.quantity}`,
+                updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+                syncedAt: null,
+              })
+              .where(eq(ingredients.id, leaf.ingredientId))
+              .run();
+          }
+        }
+      });
+    }
   }
 }
