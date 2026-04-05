@@ -188,7 +188,9 @@ export default function SalesScreen() {
       return (
         <View style={styles.orderActions}>
           <ThemedButton style={styles.actionButton} label="Mark ready" onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label="Pay now" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          {!sale.paid_at ? (
+            <ThemedButton variant="secondary" style={styles.actionButton} label="Pay now" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          ) : null}
           <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
         </View>
       );
@@ -279,27 +281,31 @@ export default function SalesScreen() {
               <ThemedText type="defaultSemiBold" style={styles.historyGroupTitle}>
                 {tableName}
               </ThemedText>
-              {tableSales.map((sale) => (
-                <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
-                  <View style={styles.statusRow}>
-                    <ThemedText style={styles.smallText}>Order #{sale.id.slice(0, 6)}</ThemedText>
-                    <View style={[styles.statusBadge, getStatusTone(sale.status, palette)]}>
-                      <ThemedText style={[styles.statusBadgeText, { color: getStatusTone(sale.status, palette).color }]}>{formatStatusLabel(sale.status)}</ThemedText>
+              {tableSales.map((sale) => {
+                const statusLabel = sale.status === 'in-progress' && sale.paid_at ? 'In progress (paid)' : formatStatusLabel(sale.status);
+
+                return (
+                  <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
+                    <View style={styles.statusRow}>
+                      <ThemedText style={styles.smallText}>Order #{sale.id.slice(0, 6)}</ThemedText>
+                      <View style={[styles.statusBadge, getStatusTone(sale.status, palette)]}>
+                        <ThemedText style={[styles.statusBadgeText, { color: getStatusTone(sale.status, palette).color }]}>{statusLabel}</ThemedText>
+                      </View>
                     </View>
-                  </View>
-                  <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
-                  <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
-                  <ThemedText style={styles.smallText}>Payment: {formatPaymentMethod(sale.payment_method)}</ThemedText>
-                  <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
-                  {renderOrderActions(sale)}
-                  {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
-                    <>
-                      <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText>
-                      {expandedSalePricing ? <ThemedText style={styles.detailText}>{expandedSalePricing}</ThemedText> : null}
-                    </>
-                  ) : null}
-                </Pressable>
-              ))}
+                    <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
+                    <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.smallText}>Payment: {formatPaymentMethod(sale.payment_method)}</ThemedText>
+                    <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
+                    {renderOrderActions(sale)}
+                    {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
+                      <>
+                        <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText>
+                        {expandedSalePricing ? <ThemedText style={styles.detailText}>{expandedSalePricing}</ThemedText> : null}
+                      </>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
             </View>
           ))
         )}
