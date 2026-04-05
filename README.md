@@ -159,11 +159,11 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [X] Delivery and To-Go Order Types
 - [X] Payment Methods
 - [X] Order State Management
+- [X] Translate any user facing text to spanish
 - [ ] Ability to load in seed data from an excel spreadsheet
+- [ ] Backups
 - [ ] Receipt Generation and Thermal Printing
 - [ ] Dashboard Improvements
 - [ ] Biometric Authentication
 - [ ] UX/UI Improvements and Persistent User Preferences
-- [ ] Translate any user facing text to spanish
-- [ ] Backups
 - [ ] Sync multiple devices
