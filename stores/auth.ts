@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { t } from '@/i18n';
 import { authService } from '@/services';
-import type { LoginPayload } from '@/types/auth';
+import type { CreateUserPayload, LoginPayload, UpdateOwnProfilePayload } from '@/types/auth';
 import type { User } from '@/types/types';
 
 type AuthState = {
@@ -11,6 +11,9 @@ type AuthState = {
   loading: boolean;
   error: string | null;
   hydrate: () => Promise<void>;
+  createUser: (payload: CreateUserPayload) => Promise<User | null>;
+  deactivateUser: (targetUserId: string) => Promise<boolean>;
+  updateCurrentUserProfile: (payload: UpdateOwnProfilePayload) => Promise<boolean>;
   login: (payload: LoginPayload) => Promise<boolean>;
   logout: () => Promise<void>;
 };
@@ -39,6 +42,60 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     set({ users, loading: false });
+  },
+
+  createUser: async ({ name, role, pin }: CreateUserPayload) => {
+    set({ loading: true, error: null });
+    const created = await authService.createUser({ name, role, pin });
+    const users = await authService.getActiveUsers();
+
+    if (!created) {
+      set({ users, loading: false, error: t('Could not create user. Verify unique name and PIN length.') });
+      return null;
+    }
+
+    set({ users, loading: false, error: null });
+    return created;
+  },
+
+  deactivateUser: async (targetUserId: string) => {
+    const actor = get().currentUser;
+    if (!actor) {
+      set({ error: 'No active session user.' });
+      return false;
+    }
+
+    set({ loading: true, error: null });
+    try {
+      await authService.deactivateUser(actor.id, targetUserId);
+      const users = await authService.getActiveUsers();
+      const currentUser = users.find((user) => user.id === actor.id) ?? null;
+      set({ users, currentUser, loading: false, error: null });
+      return true;
+    } catch (err) {
+      set({ loading: false, error: String((err as Error)?.message ?? err) });
+      return false;
+    }
+  },
+
+  updateCurrentUserProfile: async (payload: UpdateOwnProfilePayload) => {
+    const actor = get().currentUser;
+    if (!actor) {
+      set({ error: 'No active session user.' });
+      return false;
+    }
+
+    set({ loading: true, error: null });
+    try {
+      const updated = await authService.updateOwnProfile(actor.id, payload);
+      const users = await authService.getActiveUsers();
+      const currentUser = updated ?? users.find((user) => user.id === actor.id) ?? null;
+      set({ users, currentUser, loading: false, error: null });
+      return Boolean(updated);
+    } catch (err) {
+      set({ loading: false, error: String((err as Error)?.message ?? err) });
+      return false;
+    }
   },
 
   login: async ({ userId, pin }: LoginPayload) => {

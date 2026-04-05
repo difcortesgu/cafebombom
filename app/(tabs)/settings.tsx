@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -9,11 +10,27 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { THEME_OPTIONS } from '@/constants/theme';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { setupService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
+import { useInventoryStore } from '@/stores/inventory';
+import { useProductsStore } from '@/stores/products';
+import { useSalesStore } from '@/stores/sales';
 import { type ThemeModePreference, useSettingsStore } from '@/stores/settings';
 
 export default function SettingsScreen() {
-  const { currentUser, logout } = useAuthStore();
+  const {
+    currentUser,
+    users,
+    createUser,
+    deactivateUser,
+    updateCurrentUserProfile,
+    loading: authLoading,
+    error: authError,
+    logout,
+  } = useAuthStore();
+  const hydrateInventory = useInventoryStore((state) => state.hydrate);
+  const hydrateProducts = useProductsStore((state) => state.hydrate);
+  const hydrateSales = useSalesStore((state) => state.hydrate);
   const palette = useAppColors();
   const {
     syncEnabled,
@@ -33,6 +50,16 @@ export default function SettingsScreen() {
 
   const [deliveryInput, setDeliveryInput] = useState(deliverySurcharge.toFixed(2));
   const [toGoInput, setToGoInput] = useState(toGoSurcharge.toFixed(2));
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [importIssues, setImportIssues] = useState<string[]>([]);
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountPin, setNewAccountPin] = useState('');
+  const [newAccountRole, setNewAccountRole] = useState<'owner' | 'staff'>('staff');
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState('');
+  const [profilePin, setProfilePin] = useState('');
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
   const MODE_OPTIONS: { label: string; value: ThemeModePreference }[] = [
     { label: t('settings.mode.system'), value: 'system' },
@@ -52,6 +79,10 @@ export default function SettingsScreen() {
     setToGoInput(toGoSurcharge.toFixed(2));
   }, [toGoSurcharge]);
 
+  useEffect(() => {
+    setProfileName(currentUser?.name ?? '');
+  }, [currentUser?.name]);
+
   const parseFee = (raw: string) => {
     const numeric = Number.parseFloat(raw);
     if (!Number.isFinite(numeric) || numeric < 0) {
@@ -70,6 +101,43 @@ export default function SettingsScreen() {
     const value = parseFee(toGoInput);
     setToGoSurcharge(value);
     setToGoInput(value.toFixed(2));
+  };
+
+  const importSeedData = async () => {
+    try {
+      setImportBusy(true);
+      setImportMessage(null);
+      setImportIssues([]);
+
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+        ],
+        multiple: false,
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const pickedFile = result.assets[0];
+      const response = await fetch(pickedFile.uri);
+      const buffer = await response.arrayBuffer();
+      const importResult = await setupService.importSeedFromExcel(new Uint8Array(buffer));
+
+      setImportMessage(
+        `Imported ${importResult.inserted.categories} categories, ${importResult.inserted.ingredients} ingredients, ${importResult.inserted.products} products, and ${importResult.inserted.restaurantTables} tables.`,
+      );
+      setImportIssues(importResult.issues.slice(0, 4));
+
+      await Promise.all([hydrateInventory(), hydrateProducts(), hydrateSales()]);
+    } catch (importError) {
+      setImportMessage(`Import failed: ${String((importError as Error)?.message ?? importError)}`);
+    } finally {
+      setImportBusy(false);
+    }
   };
 
 
@@ -201,6 +269,156 @@ export default function SettingsScreen() {
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
+        <ThemedText type="subtitle">Account Management</ThemedText>
+        <ThemedText style={styles.muted}>Create employee accounts after setup. Only owners can add accounts.</ThemedText>
+
+        <ThemedText type="defaultSemiBold">My Account Details</ThemedText>
+        <ThemedInput
+          value={profileName}
+          placeholder="Your display name"
+          onChangeText={setProfileName}
+        />
+        <ThemedInput
+          value={profilePin}
+          secureTextEntry
+          keyboardType="number-pad"
+          maxLength={6}
+          placeholder="New PIN (optional)"
+          onChangeText={setProfilePin}
+        />
+        <ThemedButton
+          disabled={authLoading || profileName.trim().length === 0}
+          label={authLoading ? 'Saving profile...' : 'Save My Details'}
+          onPress={async () => {
+            setProfileMessage(null);
+            const ok = await updateCurrentUserProfile({
+              name: profileName,
+              pin: profilePin.trim().length > 0 ? profilePin : undefined,
+            });
+            if (ok) {
+              setProfilePin('');
+              setProfileMessage('Your account details were updated.');
+            }
+          }}
+        />
+        {profileMessage ? <ThemedText style={styles.muted}>{profileMessage}</ThemedText> : null}
+
+        {currentUser?.role !== 'owner' ? (
+          <ThemedText style={[styles.muted, { color: palette.danger }]}>Only owner accounts can create new users.</ThemedText>
+        ) : (
+          <>
+            <ThemedInput
+              value={newAccountName}
+              placeholder="Employee name"
+              onChangeText={setNewAccountName}
+            />
+
+            <View style={styles.modeRow}>
+              {(['staff', 'owner'] as const).map((role) => {
+                const isActive = newAccountRole === role;
+                return (
+                  <Pressable
+                    key={role}
+                    style={[
+                      styles.modeChip,
+                      {
+                        backgroundColor: isActive ? palette.tint : palette.inputBackground,
+                        borderColor: isActive ? palette.tint : palette.border,
+                      },
+                    ]}
+                    onPress={() => setNewAccountRole(role)}>
+                    <ThemedText
+                      style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
+                      {role === 'owner' ? t('owner') : t('staff')}
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <ThemedInput
+              value={newAccountPin}
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="PIN (min 4 digits)"
+              onChangeText={setNewAccountPin}
+            />
+
+            <ThemedButton
+              disabled={authLoading || newAccountName.trim().length === 0 || newAccountPin.trim().length < 4}
+              label={authLoading ? 'Creating account...' : 'Add Account'}
+              onPress={async () => {
+                const created = await createUser({
+                  name: newAccountName,
+                  role: newAccountRole,
+                  pin: newAccountPin,
+                });
+
+                if (created) {
+                  setNewAccountName('');
+                  setNewAccountPin('');
+                  setNewAccountRole('staff');
+                  setAccountMessage(`Account created for ${created.name} (${t(created.role)}).`);
+                } else {
+                  setAccountMessage(null);
+                }
+              }}
+            />
+          </>
+        )}
+
+        {accountMessage ? <ThemedText style={styles.muted}>{accountMessage}</ThemedText> : null}
+        {authError ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{authError}</ThemedText> : null}
+
+        <View style={styles.accountListWrap}>
+          <ThemedText type="defaultSemiBold">Current accounts</ThemedText>
+          {users.length === 0 ? (
+            <ThemedText style={styles.muted}>No accounts available.</ThemedText>
+          ) : (
+            users.map((user) => {
+              const canRemove = currentUser?.role === 'owner' && currentUser.id !== user.id;
+              return (
+                <View key={user.id} style={styles.accountRow}>
+                  <ThemedText style={styles.muted}>
+                    {user.name} ({t(user.role)})
+                  </ThemedText>
+                  {canRemove ? (
+                    <ThemedButton
+                      variant="secondary"
+                      style={styles.removeButton}
+                      label="Remove"
+                      onPress={async () => {
+                        setAccountMessage(null);
+                        const ok = await deactivateUser(user.id);
+                        if (ok) {
+                          setAccountMessage(`Account removed for ${user.name}.`);
+                        }
+                      }}
+                    />
+                  ) : null}
+                </View>
+              );
+            })
+          )}
+        </View>
+      </ThemedCard>
+
+      <ThemedCard style={styles.card}>
+        <ThemedText type="subtitle">Seed Data Import</ThemedText>
+        <ThemedText style={styles.muted}>Upload an Excel file to import categories, inventory, products, recipes, tables, discounts, and surcharges.</ThemedText>
+        <ThemedButton
+          disabled={importBusy}
+          label={importBusy ? 'Importing...' : 'Upload Seed Excel'}
+          onPress={importSeedData}
+        />
+        {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
+        {importIssues.map((issue) => (
+          <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>{issue}</ThemedText>
+        ))}
+      </ThemedCard>
+
+      <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">{t('settings.session.title')}</ThemedText>
         <ThemedButton label={t('settings.session.logout')} onPress={logout} />
       </ThemedCard>
@@ -278,5 +496,19 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     paddingVertical: 9,
+  },
+  accountListWrap: {
+    gap: 4,
+    marginTop: 2,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  removeButton: {
+    minWidth: 96,
+    paddingVertical: 6,
   },
 });

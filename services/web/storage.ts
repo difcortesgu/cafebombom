@@ -1,5 +1,4 @@
 import type { Expense, Ingredient, Supplier, User } from '@/types/types';
-import { hashPin } from '@/utils/hash';
 import { generateId } from '@/utils/id';
 import Dexie, { type Table } from 'dexie';
 
@@ -387,110 +386,6 @@ export class CafeBomBomDB extends Dexie {
     }
   }
 
-  async seed(): Promise<void> {
-    try {
-      const userId1 = generateId();
-      const userId2 = generateId();
-      const categoryId1 = generateId();
-      const categoryId2 = generateId();
-      const categoryId3 = generateId();
-      const categoryId4 = generateId();
-      const productId1 = generateId();
-      const productId2 = generateId();
-      const productId3 = generateId();
-      const productId4 = generateId();
-      const ingredientId1 = generateId();
-      const ingredientId2 = generateId();
-      const ingredientId3 = generateId();
-      const ingredientId4 = generateId();
-      const now = Math.floor(Date.now() / 1000);
-
-      await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables, this.discounts, this.surcharges], async () => {
-        if ((await this.users.count()) === 0) {
-          await this.users.bulkAdd([
-            { id: userId1, name: 'Dueno', role: 'owner', pinHash: hashPin('1234'), isActive: true },
-            { id: userId2, name: 'Personal', role: 'staff', pinHash: hashPin('2222'), isActive: true },
-          ]);
-        }
-        if ((await this.categories.count()) === 0) {
-          await this.categories.bulkAdd([
-            { id: categoryId1, name: 'Cafe' },
-            { id: categoryId2, name: 'Te' },
-            { id: categoryId3, name: 'Pasteleria' },
-            { id: categoryId4, name: 'Snacks' },
-          ]);
-        }
-        if ((await this.ingredients.count()) === 0) {
-          await this.ingredients.bulkAdd([
-            { id: ingredientId1, name: 'Cafe espresso en grano', unit: 'grams', quantity: 0, low_stock_threshold: 500, supplier_id: null },
-            { id: ingredientId2, name: 'Leche', unit: 'liters', quantity: 0, low_stock_threshold: 2, supplier_id: null },
-            { id: ingredientId3, name: 'Mezcla de te', unit: 'grams', quantity: 0, low_stock_threshold: 400, supplier_id: null },
-            { id: ingredientId4, name: 'Masa de pasteleria', unit: 'grams', quantity: 0, low_stock_threshold: 1000, supplier_id: null },
-          ]);
-        }
-        if ((await this.products.count()) === 0) {
-          const coffee = await this.categories.where('name').equals('Cafe').first();
-          const tea = await this.categories.where('name').equals('Te').first();
-          const pastry = await this.categories.where('name').equals('Pasteleria').first();
-          if (coffee && tea && pastry) {
-            await this.products.bulkAdd([
-              { id: productId1, name: 'Capuchino', categoryId: coffee.id, price: 4.5, isActive: true },
-              { id: productId2, name: 'Latte', categoryId: coffee.id, price: 4.25, isActive: true },
-              { id: productId3, name: 'Te tailandes con leche', categoryId: tea.id, price: 3.9, isActive: true },
-              { id: productId4, name: 'Croissant de mantequilla', categoryId: pastry.id, price: 2.8, isActive: true },
-            ]);
-          }
-        }
-        if ((await this.productIngredients.count()) === 0) {
-          const cappuccino = await this.products.where('name').equals('Capuchino').first();
-          const latte = await this.products.where('name').equals('Latte').first();
-          const thaiMilkTea = await this.products.where('name').equals('Te tailandes con leche').first();
-          const butterCroissant = await this.products.where('name').equals('Croissant de mantequilla').first();
-          const espresso = await this.ingredients.where('name').equals('Cafe espresso en grano').first();
-          const milk = await this.ingredients.where('name').equals('Leche').first();
-          const teaBlend = await this.ingredients.where('name').equals('Mezcla de te').first();
-          const pastryDough = await this.ingredients.where('name').equals('Masa de pasteleria').first();
-
-          if (cappuccino && latte && thaiMilkTea && butterCroissant && espresso && milk && teaBlend && pastryDough) {
-            await this.productIngredients.bulkAdd([
-              { productId: cappuccino.id, ingredientId: espresso.id, quantityUsed: 18 },
-              { productId: latte.id, ingredientId: espresso.id, quantityUsed: 18 },
-              { productId: thaiMilkTea.id, ingredientId: teaBlend.id, quantityUsed: 10 },
-              { productId: butterCroissant.id, ingredientId: pastryDough.id, quantityUsed: 80 },
-              { productId: cappuccino.id, ingredientId: milk.id, quantityUsed: 150 },
-              { productId: latte.id, ingredientId: milk.id, quantityUsed: 180 },
-              { productId: thaiMilkTea.id, ingredientId: milk.id, quantityUsed: 120 },
-            ]);
-          }
-        }
-        if ((await this.restaurantTables.count()) === 0) {
-          await this.restaurantTables.bulkAdd([
-            { name: 'Para llevar', tableType: 'to-go', createdAt: now, updatedAt: now },
-            { name: 'Domicilio', tableType: 'delivery', createdAt: now, updatedAt: now },
-            { name: 'Mesa 1', tableType: 'dine-in', createdAt: now, updatedAt: now },
-            { name: 'Mesa 2', tableType: 'dine-in', createdAt: now, updatedAt: now },
-            { name: 'Mesa 3', tableType: 'dine-in', createdAt: now, updatedAt: now },
-            { name: 'Mesa 4', tableType: 'dine-in', createdAt: now, updatedAt: now },
-          ]);
-        }
-        if ((await this.discounts.count()) === 0) {
-          await this.discounts.bulkAdd([
-            { name: 'Gran apertura 5%', scope: 'global', productId: null, type: 'percentage', value: 5, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
-            { name: 'Hora feliz $1', scope: 'global', productId: null, type: 'fixed', value: 1, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
-          ]);
-        }
-
-        if ((await this.surcharges.count()) === 0) {
-          await this.surcharges.bulkAdd([
-            { name: 'to-go', value: 0, updatedAt: now },
-            { name: 'delivery', value: 0, updatedAt: now },
-          ]);
-        }
-      });
-    } catch (err) {
-      console.error('Failed to seed database:', err);
-    }
-  }
 }
 
 let db: CafeBomBomDB | null = null;
@@ -498,7 +393,6 @@ let db: CafeBomBomDB | null = null;
 export async function getDb(): Promise<CafeBomBomDB> {
   if (!db) {
     db = new CafeBomBomDB();
-    await db.seed();
   }
   return db;
 }
