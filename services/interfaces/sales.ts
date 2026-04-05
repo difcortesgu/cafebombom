@@ -16,6 +16,11 @@ export type SalesHydrationData = {
   discounts: Discount[];
 };
 
+export type OrderTypeSurchargeConfig = {
+  toGoSurcharge: number;
+  deliverySurcharge: number;
+};
+
 export interface SalesService {
   getHydrationData(): Promise<SalesHydrationData>;
   getDiscounts(): Promise<Discount[]>;
@@ -31,4 +36,6 @@ export interface SalesService {
   getSaleItems(saleId: string): Promise<SaleItemDetail[]>;
   getSalePricingSummary(saleId: string): Promise<SalePricingSummary | null>;
   getRevenueInRange(startUnix: number, endUnix: number): Promise<number>;
+  getOrderTypeSurchargeConfig(): Promise<OrderTypeSurchargeConfig>;
+  saveOrderTypeSurchargeConfig(payload: OrderTypeSurchargeConfig): Promise<void>;
 }

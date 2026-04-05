@@ -2,6 +2,7 @@ export type UserRole = 'owner' | 'staff';
 export type Unit = 'grams' | 'liters' | 'pieces';
 export type DiscountType = 'percentage' | 'fixed';
 export type DiscountScope = 'product' | 'global';
+export type TableType = 'dine-in' | 'to-go' | 'delivery';
 
 
 export type User = {
@@ -62,6 +63,7 @@ export type Sale = {
 export type RestaurantTable = {
   id: string;
   name: string;
+  table_type: TableType;
   created_at: number;
 };
 

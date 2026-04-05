@@ -9,6 +9,8 @@ import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
+import { useSettingsStore } from '@/stores/settings';
+import type { TableType } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 type CartItem = {
@@ -17,12 +19,24 @@ type CartItem = {
   unitPrice: number;
   quantity: number;
 };
+function getTableSurcharge(tableType: TableType, toGoSurcharge: number, deliverySurcharge: number) {
+  const safeToGo = Math.max(0, toGoSurcharge);
+  const safeDelivery = Math.max(0, deliverySurcharge);
+  const delivery = tableType === 'delivery' ? safeDelivery : 0;
+  const toGo = (tableType === 'to-go' || tableType === 'delivery') ? safeToGo : 0;
+  return {
+    toGo,
+    delivery,
+    total: toGo + delivery,
+  };
+}
 
 export default function SaleFormScreen() {
   const palette = useAppColors();
   const router = useRouter();
   const user = useAuthStore((state) => state.currentUser);
   const { hydrate, products, tables, discounts, createSale } = useSalesStore();
+  const { deliverySurcharge, toGoSurcharge, hydrateFromDb } = useSettingsStore();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -31,7 +45,8 @@ export default function SaleFormScreen() {
   useFocusEffect(
     useCallback(() => {
       void hydrate();
-    }, [hydrate]),
+      void hydrateFromDb();
+    }, [hydrate, hydrateFromDb]),
   );
 
   const nowUnix = Math.floor(Date.now() / 1000);
@@ -62,6 +77,21 @@ export default function SaleFormScreen() {
     ),
     [cart, discounts, nowUnix, selectedGlobalDiscountId],
   );
+
+  const selectedTable = useMemo(
+    () => tables.find((table) => table.id === selectedTableId) ?? null,
+    [selectedTableId, tables],
+  );
+
+  const surchargeBreakdown = useMemo(() => {
+    if (!selectedTable) {
+      return { toGo: 0, delivery: 0, total: 0 };
+    }
+
+    return getTableSurcharge(selectedTable.table_type, toGoSurcharge, deliverySurcharge);
+  }, [deliverySurcharge, selectedTable, toGoSurcharge]);
+
+  const finalTotal = pricing.total + surchargeBreakdown.total;
 
   const addToCart = (productId: string, name: string, unitPrice: number) => {
     setCart((prev) => {
@@ -95,6 +125,7 @@ export default function SaleFormScreen() {
       })),
       tableId: selectedTableId,
       globalDiscountId: selectedGlobalDiscountId || null,
+      orderTypeSurcharge: surchargeBreakdown.total,
     });
 
     router.back();
@@ -123,19 +154,29 @@ export default function SaleFormScreen() {
         <ThemedText style={styles.smallText}>Table assignment (required)</ThemedText>
         {tables.length === 0 ? <ThemedText style={styles.smallText}>No tables available. Create one in the Tables tab.</ThemedText> : null}
         <View style={styles.tableRow}>
-          {tables.map((table) => (
-            <Pressable
-              key={table.id}
-              style={[
-                styles.tableChip,
-                { borderColor: selectedTableId === table.id ? palette.tint : palette.border },
-                selectedTableId === table.id && { backgroundColor: palette.tint },
-              ]}
-              onPress={() => setSelectedTableId(table.id)}>
-              <ThemedText style={selectedTableId === table.id ? styles.selectedTableText : undefined}>{table.name}</ThemedText>
-            </Pressable>
-          ))}
+          {tables.map((table) => {
+            const tableSurcharge = getTableSurcharge(table.table_type, toGoSurcharge, deliverySurcharge);
+            return (
+              <Pressable
+                key={table.id}
+                style={[
+                  styles.tableChip,
+                  { borderColor: selectedTableId === table.id ? palette.tint : palette.border },
+                  selectedTableId === table.id && { backgroundColor: palette.tint },
+                ]}
+                onPress={() => setSelectedTableId(table.id)}>
+                <ThemedText style={selectedTableId === table.id ? styles.selectedTableText : undefined}>
+                  {table.name}{tableSurcharge.total > 0 ? ` (+$${tableSurcharge.total.toFixed(2)})` : ''}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </View>
+        {selectedTableId && surchargeBreakdown.total > 0 ? (
+          <ThemedText style={styles.smallText}>
+            Selected table surcharge: +${surchargeBreakdown.total.toFixed(2)}
+          </ThemedText>
+        ) : null}
 
         {cart.length === 0 ? (
           <ThemedText style={styles.smallText}>No items selected.</ThemedText>
@@ -173,7 +214,9 @@ export default function SaleFormScreen() {
           <ThemedText style={styles.smallText}>
             Global discount: -${pricing.globalDiscountAmount.toFixed(2)}{pricing.globalDiscountSnapshot.discountName ? ` (${pricing.globalDiscountSnapshot.discountName})` : ''}
           </ThemedText>
-          <ThemedText type="defaultSemiBold">Total: ${pricing.total.toFixed(2)}</ThemedText>
+          {surchargeBreakdown.toGo > 0 ? <ThemedText style={styles.smallText}>To-Go surcharge: +${surchargeBreakdown.toGo.toFixed(2)}</ThemedText> : null}
+          {surchargeBreakdown.delivery > 0 ? <ThemedText style={styles.smallText}>Delivery surcharge: +${surchargeBreakdown.delivery.toFixed(2)}</ThemedText> : null}
+          <ThemedText type="defaultSemiBold">Total: ${finalTotal.toFixed(2)}</ThemedText>
         </View>
         {!selectedTableId ? <ThemedText style={styles.smallText}>Select a table to confirm sale.</ThemedText> : null}
         <View style={styles.actionsRow}>

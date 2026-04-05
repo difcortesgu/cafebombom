@@ -9,12 +9,40 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
+import { useSettingsStore } from '@/stores/settings';
+import type { SalePricingSummary } from '@/types/sales';
+import type { RestaurantTable } from '@/types/types';
+
+function getSaleSurchargeLines(pricing: SalePricingSummary, tableName: string, tables: RestaurantTable[], configuredToGoSurcharge: number) {
+  const totalSurcharge = Math.max(0, Number(pricing.order_type_surcharge));
+  if (totalSurcharge <= 0) {
+    return [] as string[];
+  }
+
+  const tableType = tables.find((table) => table.name === tableName)?.table_type;
+  if (tableType === 'delivery') {
+    const toGoSurcharge = Math.min(Math.max(0, configuredToGoSurcharge), totalSurcharge);
+    const deliverySurcharge = Math.max(0, totalSurcharge - toGoSurcharge);
+
+    return [
+      toGoSurcharge > 0 ? `To-Go surcharge: +$${toGoSurcharge.toFixed(2)}` : '',
+      deliverySurcharge > 0 ? `Delivery surcharge: +$${deliverySurcharge.toFixed(2)}` : '',
+    ].filter(Boolean);
+  }
+
+  if (tableType === 'to-go') {
+    return [`To-Go surcharge: +$${totalSurcharge.toFixed(2)}`];
+  }
+
+  return [`Surcharge: +$${totalSurcharge.toFixed(2)}`];
+}
 
 export default function SalesScreen() {
   const palette = useAppColors();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-  const { hydrate, sales } = useSalesStore();
+  const { hydrate, sales, tables } = useSalesStore();
+  const { toGoSurcharge, hydrateFromDb } = useSettingsStore();
 
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
@@ -24,7 +52,8 @@ export default function SalesScreen() {
   useFocusEffect(
     useCallback(() => {
       void hydrate();
-    }, [hydrate]),
+      void hydrateFromDb();
+    }, [hydrate, hydrateFromDb]),
   );
 
   useEffect(() => {
@@ -83,6 +112,12 @@ export default function SalesScreen() {
       salesService.getSaleItems(saleId),
       salesService.getSalePricingSummary(saleId),
     ]);
+
+    const selectedSale = sales.find((sale) => sale.id === saleId);
+    const surchargeLines = pricing && selectedSale
+      ? getSaleSurchargeLines(pricing, selectedSale.table_name, tables, toGoSurcharge)
+      : [];
+
     setExpandedSaleId(saleId);
     setExpandedSaleItems(items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)} | -$${Number(item.discount_amount).toFixed(2)} = $${Number(item.final_line_total).toFixed(2)}`).join('\n'));
     setExpandedSalePricing(
@@ -91,6 +126,7 @@ export default function SalesScreen() {
             `Subtotal: $${Number(pricing.subtotal).toFixed(2)}`,
             `Item discounts: -$${Number(pricing.item_discount_total).toFixed(2)}`,
             `${pricing.global_discount_name ?? 'Global discount'}: -$${Number(pricing.global_discount_amount).toFixed(2)}`,
+            ...surchargeLines,
             `Final total: $${Number(pricing.total).toFixed(2)}`,
             pricing.discount_applied_by ? `Applied by: ${pricing.discount_applied_by}` : '',
           ]

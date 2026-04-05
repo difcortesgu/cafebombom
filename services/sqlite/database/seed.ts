@@ -2,7 +2,7 @@ import { hashPin } from '@/utils/hash';
 import { count, eq } from 'drizzle-orm';
 import type { ExpoSQLiteDatabase } from 'drizzle-orm/expo-sqlite';
 import type * as schema from './schema';
-import { categories, discounts, ingredients, productIngredients, products, restaurantTables, users } from './schema';
+import { categories, discounts, ingredients, productIngredients, products, restaurantTables, surcharges, users } from './schema';
 
 export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   const owner = db.select({ id: users.id })
@@ -124,12 +124,12 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
   if (tablesTotal === 0) {
     db.insert(restaurantTables)
       .values([
-        { name: 'Para llevar' },
-        { name: 'Domicilio' },
-        { name: 'Mesa 1' },
-        { name: 'Mesa 2' },
-        { name: 'Mesa 3' },
-        { name: 'Mesa 4' },
+        { name: 'Para llevar', tableType: 'to-go' },
+        { name: 'Domicilio', tableType: 'delivery' },
+        { name: 'Mesa 1', tableType: 'dine-in' },
+        { name: 'Mesa 2', tableType: 'dine-in' },
+        { name: 'Mesa 3', tableType: 'dine-in' },
+        { name: 'Mesa 4', tableType: 'dine-in' },
       ])
       .onConflictDoNothing()
       .run();
@@ -146,4 +146,12 @@ export function seedDefaults(db: ExpoSQLiteDatabase<typeof schema>) {
       .onConflictDoNothing()
       .run();
   }
+
+  db.insert(surcharges)
+    .values([
+      { name: 'to-go', value: 0 },
+      { name: 'delivery', value: 0 },
+    ])
+    .onConflictDoNothing()
+    .run();
 }

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import type { CreateDiscountPayload, CreateSalePayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload } from '@/types/sales';
-import type { Discount, Product, RestaurantTable, Sale } from '@/types/types';
+import type { Discount, Product, RestaurantTable, Sale, TableType } from '@/types/types';
 
 type SalesState = {
   products: Product[];
@@ -19,8 +19,8 @@ type SalesState = {
   updateDiscount: (payload: UpdateDiscountPayload) => Promise<void>;
   deleteDiscount: (id: string) => Promise<void>;
   hydrateDiscounts: () => Promise<void>;
-  createTable: (name: string) => Promise<void>;
-  updateTable: (id: string, name: string) => Promise<void>;
+  createTable: (payload: { name: string; tableType: TableType }) => Promise<void>;
+  updateTable: (payload: { id: string; name: string; tableType: TableType }) => Promise<void>;
   deleteTable: (id: string) => Promise<void>;
   getTodayRevenue: () => number;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
@@ -67,13 +67,13 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     set({ discounts });
   },
 
-  createTable: async (name: string) => {
-    await salesService.createTable({ name });
+  createTable: async (payload) => {
+    await salesService.createTable(payload);
     await get().hydrate();
   },
 
-  updateTable: async (id: string, name: string) => {
-    await salesService.updateTable({ id, name });
+  updateTable: async (payload) => {
+    await salesService.updateTable(payload);
     await get().hydrate();
   },
 

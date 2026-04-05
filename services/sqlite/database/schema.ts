@@ -20,6 +20,12 @@ export const sessions = sqliteTable('sessions', {
   loggedOutAt: integer('logged_out_at'),
 });
 
+export const surcharges = sqliteTable('surcharges', {
+  name: text('name', { enum: ['to-go', 'delivery'] }).primaryKey(),
+  value: real('value').notNull().default(0),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+});
+
 export const suppliers = sqliteTable('suppliers', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
   name: text('name').notNull().unique(),
@@ -78,6 +84,7 @@ export const productIngredients = sqliteTable('product_ingredients', {
 export const restaurantTables = sqliteTable('restaurant_tables', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
   name: text('name').notNull().unique(),
+  tableType: text('table_type', { enum: ['dine-in', 'to-go', 'delivery'] }).notNull().default('dine-in'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   syncedAt: integer('synced_at'),

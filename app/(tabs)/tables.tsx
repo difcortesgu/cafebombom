@@ -57,6 +57,11 @@ export default function TablesScreen() {
             <View key={table.id} style={[styles.listItem, { borderColor: palette.border }]}>
               <View style={styles.listTextWrap}>
                 <ThemedText type="defaultSemiBold">{table.name}</ThemedText>
+                <View style={styles.flagRow}>
+                  <ThemedText style={styles.smallText}>
+                    {table.table_type === 'to-go' ? 'To-Go' : table.table_type === 'delivery' ? 'Delivery' : 'Dine-in'}
+                  </ThemedText>
+                </View>
                 <ThemedText style={styles.smallText}>Added {new Date(Number(table.created_at) * 1000).toLocaleDateString()}</ThemedText>
               </View>
               <View style={styles.inlineActions}>
@@ -124,6 +129,10 @@ const styles = StyleSheet.create({
   listTextWrap: {
     flex: 1,
     gap: 4,
+  },
+  flagRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
   inlineActions: {
     flexDirection: 'row',

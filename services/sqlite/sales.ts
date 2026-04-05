@@ -1,6 +1,6 @@
 import type { SalesService } from '@/services/interfaces/sales';
 import { db, dbReady } from '@/services/sqlite/database/db';
-import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, users } from '@/services/sqlite/database/schema';
+import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, surcharges, users } from '@/services/sqlite/database/schema';
 import type {
     CreateDiscountPayload,
     CreateSalePayload,
@@ -49,6 +49,7 @@ export class SalesSqliteService implements SalesService {
       .select({
         id: restaurantTables.id,
         name: restaurantTables.name,
+        table_type: restaurantTables.tableType,
         created_at: restaurantTables.createdAt,
       })
       .from(restaurantTables)
@@ -143,6 +144,7 @@ export class SalesSqliteService implements SalesService {
       .select({
         id: restaurantTables.id,
         name: restaurantTables.name,
+        table_type: restaurantTables.tableType,
         created_at: restaurantTables.createdAt,
       })
       .from(restaurantTables)
@@ -150,19 +152,22 @@ export class SalesSqliteService implements SalesService {
       .all() as RestaurantTable[];
   }
 
-  async createTable({ name }: CreateTablePayload): Promise<void> {
+  async createTable({ name, tableType }: CreateTablePayload): Promise<void> {
     await dbReady;
     const normalizedName = name.trim();
     if (!normalizedName) {
       return;
     }
     db.insert(restaurantTables)
-      .values({ name: normalizedName })
+      .values({
+        name: normalizedName,
+        tableType,
+      })
       .onConflictDoNothing()
       .run();
   }
 
-  async updateTable({ id, name }: UpdateTablePayload): Promise<void> {
+  async updateTable({ id, name, tableType }: UpdateTablePayload): Promise<void> {
     await dbReady;
     const normalizedName = name.trim();
     if (!normalizedName) {
@@ -171,6 +176,7 @@ export class SalesSqliteService implements SalesService {
     db.update(restaurantTables)
       .set({
         name: normalizedName,
+        tableType,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
         syncedAt: null,
       })
@@ -191,11 +197,13 @@ export class SalesSqliteService implements SalesService {
     }
   }
 
-  async createSale({ staffId, items, tableId, globalDiscountId }: CreateSalePayload): Promise<void> {
+  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
     await dbReady;
     if (items.length === 0) {
       return;
     }
+
+    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
 
     const activeDiscounts = db
       .select({
@@ -229,7 +237,7 @@ export class SalesSqliteService implements SalesService {
           orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
           orderDiscountAmount: breakdown.globalDiscountAmount,
           discountAppliedBy: staffId,
-          total: breakdown.total,
+          total: breakdown.total + normalizedSurcharge,
         })
         .returning({ id: sales.id })
         .all();
@@ -338,14 +346,22 @@ export class SalesSqliteService implements SalesService {
       return null;
     }
 
+    const subtotal = Number(row.subtotal ?? 0);
+    const itemDiscountTotal = Number(row.item_discount_total ?? 0);
+    const globalDiscountAmount = Number(row.global_discount_amount ?? 0);
+    const total = Number(row.total ?? 0);
+    const discountedSubtotal = Math.max(0, subtotal - itemDiscountTotal - globalDiscountAmount);
+    const orderTypeSurcharge = Math.max(0, total - discountedSubtotal);
+
     return {
-      subtotal: Number(row.subtotal ?? 0),
-      item_discount_total: Number(row.item_discount_total ?? 0),
+      subtotal,
+      item_discount_total: itemDiscountTotal,
       global_discount_name: row.global_discount_name,
       global_discount_type: row.global_discount_type,
       global_discount_value: row.global_discount_value == null ? null : Number(row.global_discount_value),
-      global_discount_amount: Number(row.global_discount_amount ?? 0),
-      total: Number(row.total ?? 0),
+      global_discount_amount: globalDiscountAmount,
+      order_type_surcharge: orderTypeSurcharge,
+      total,
       discount_applied_by: row.discount_applied_by ?? null,
     };
   }
@@ -358,5 +374,52 @@ export class SalesSqliteService implements SalesService {
       .where(between(sales.createdAt, startUnix, endUnix))
       .get();
     return Number(row?.total ?? 0);
+  }
+
+  async getOrderTypeSurchargeConfig(): Promise<{ toGoSurcharge: number; deliverySurcharge: number }> {
+    await dbReady;
+
+    const rows = db
+      .select({ name: surcharges.name, value: surcharges.value })
+      .from(surcharges)
+      .where(sql`${surcharges.name} IN ('to-go', 'delivery')`)
+      .all();
+
+    const toGoSurcharge = Number(rows.find((row) => row.name === 'to-go')?.value ?? 0);
+    const deliverySurcharge = Number(rows.find((row) => row.name === 'delivery')?.value ?? 0);
+
+    return {
+      toGoSurcharge: Number.isFinite(toGoSurcharge) ? Math.max(0, toGoSurcharge) : 0,
+      deliverySurcharge: Number.isFinite(deliverySurcharge) ? Math.max(0, deliverySurcharge) : 0,
+    };
+  }
+
+  async saveOrderTypeSurchargeConfig(payload: { toGoSurcharge: number; deliverySurcharge: number }): Promise<void> {
+    await dbReady;
+
+    const safeToGo = Number.isFinite(payload.toGoSurcharge) ? Math.max(0, payload.toGoSurcharge) : 0;
+    const safeDelivery = Number.isFinite(payload.deliverySurcharge) ? Math.max(0, payload.deliverySurcharge) : 0;
+
+    db.insert(surcharges)
+      .values({ name: 'to-go', value: safeToGo })
+      .onConflictDoUpdate({
+        target: surcharges.name,
+        set: {
+          value: safeToGo,
+          updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+        },
+      })
+      .run();
+
+    db.insert(surcharges)
+      .values({ name: 'delivery', value: safeDelivery })
+      .onConflictDoUpdate({
+        target: surcharges.name,
+        set: {
+          value: safeDelivery,
+          updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+        },
+      })
+      .run();
   }
 }

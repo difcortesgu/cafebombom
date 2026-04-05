@@ -1,9 +1,11 @@
 import Constants from 'expo-constants';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedInput } from '@/components/ui/themed-input';
 import { THEME_OPTIONS } from '@/constants/theme';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { useAuthStore } from '@/stores/auth';
@@ -12,13 +14,62 @@ import { type ThemeModePreference, useSettingsStore } from '@/stores/settings';
 export default function SettingsScreen() {
   const { currentUser, logout } = useAuthStore();
   const palette = useAppColors();
-  const { syncEnabled, lastSyncAt, selectedThemeId, themeModePreference, toggleSync, markSynced, setTheme, setThemeModePreference } = useSettingsStore();
+  const {
+    syncEnabled,
+    lastSyncAt,
+    selectedThemeId,
+    themeModePreference,
+    deliverySurcharge,
+    toGoSurcharge,
+    hydrateFromDb,
+    toggleSync,
+    markSynced,
+    setTheme,
+    setThemeModePreference,
+    setDeliverySurcharge,
+    setToGoSurcharge,
+  } = useSettingsStore();
+
+  const [deliveryInput, setDeliveryInput] = useState(deliverySurcharge.toFixed(2));
+  const [toGoInput, setToGoInput] = useState(toGoSurcharge.toFixed(2));
 
   const MODE_OPTIONS: { label: string; value: ThemeModePreference }[] = [
     { label: 'System', value: 'system' },
     { label: 'Light', value: 'light' },
     { label: 'Dark', value: 'dark' },
   ];
+
+  useEffect(() => {
+    void hydrateFromDb();
+  }, [hydrateFromDb]);
+
+  useEffect(() => {
+    setDeliveryInput(deliverySurcharge.toFixed(2));
+  }, [deliverySurcharge]);
+
+  useEffect(() => {
+    setToGoInput(toGoSurcharge.toFixed(2));
+  }, [toGoSurcharge]);
+
+  const parseFee = (raw: string) => {
+    const numeric = Number.parseFloat(raw);
+    if (!Number.isFinite(numeric) || numeric < 0) {
+      return 0;
+    }
+    return Number(numeric.toFixed(2));
+  };
+
+  const commitDeliveryFee = () => {
+    const value = parseFee(deliveryInput);
+    setDeliverySurcharge(value);
+    setDeliveryInput(value.toFixed(2));
+  };
+
+  const commitToGoFee = () => {
+    const value = parseFee(toGoInput);
+    setToGoSurcharge(value);
+    setToGoInput(value.toFixed(2));
+  };
 
 
   return (
@@ -100,6 +151,35 @@ export default function SettingsScreen() {
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
+        <ThemedText type="subtitle">Order Type Charges</ThemedText>
+        <ThemedText style={styles.muted}>These amounts are added when a sale is assigned to a Delivery or To-Go table.</ThemedText>
+
+        <View style={styles.feeRow}>
+          <ThemedText style={styles.feeLabel}>Delivery surcharge</ThemedText>
+          <ThemedInput
+            style={styles.feeInput}
+            keyboardType="decimal-pad"
+            value={deliveryInput}
+            onChangeText={setDeliveryInput}
+            onBlur={commitDeliveryFee}
+            placeholder="0.00"
+          />
+        </View>
+
+        <View style={styles.feeRow}>
+          <ThemedText style={styles.feeLabel}>To-Go surcharge</ThemedText>
+          <ThemedInput
+            style={styles.feeInput}
+            keyboardType="decimal-pad"
+            value={toGoInput}
+            onChangeText={setToGoInput}
+            onBlur={commitToGoFee}
+            placeholder="0.00"
+          />
+        </View>
+      </ThemedCard>
+
+      <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Sync (optional)</ThemedText>
         <ThemedText style={styles.muted}>Supabase sync can be wired later; this toggle stores local intent.</ThemedText>
 
@@ -136,6 +216,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  feeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  feeLabel: {
+    flex: 1,
+  },
+  feeInput: {
+    width: 120,
+    textAlign: 'right',
   },
   muted: {
     opacity: 0.9,

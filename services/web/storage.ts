@@ -78,7 +78,14 @@ export type WebSaleRecord = {
 export type WebRestaurantTableRecord = {
   id: string;
   name: string;
+  tableType: 'dine-in' | 'to-go' | 'delivery';
   createdAt: number;
+  updatedAt: number;
+};
+
+export type WebSurchargeRecord = {
+  name: 'to-go' | 'delivery';
+  value: number;
   updatedAt: number;
 };
 
@@ -137,6 +144,7 @@ export class CafeBomBomDB extends Dexie {
   employees!: Table<WebEmployeeRecord, string, InsertableRecord<WebEmployeeRecord>>;
   payrollEntries!: Table<WebPayrollEntryRecord, string, InsertableRecord<WebPayrollEntryRecord>>;
   restaurantTables!: Table<WebRestaurantTableRecord, string, InsertableRecord<WebRestaurantTableRecord>>;
+  surcharges!: Table<WebSurchargeRecord, string, WebSurchargeRecord>;
   sales!: Table<WebSaleRecord, string, InsertableRecord<WebSaleRecord>>;
   saleItems!: Table<WebSaleItemRecord, string, InsertableRecord<WebSaleItemRecord>>;
   discounts!: Table<WebDiscountRecord, string, InsertableRecord<WebDiscountRecord>>;
@@ -165,6 +173,124 @@ export class CafeBomBomDB extends Dexie {
       ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
     });
 
+    this.version(7)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, isToGo, isDelivery, createdAt',
+        sales: 'id, createdAt, staffId, tableId',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('restaurantTables').toCollection().modify((table: Partial<WebRestaurantTableRecord>) => {
+          (table as any).isToGo = Boolean((table as any).isToGo);
+          (table as any).isDelivery = Boolean((table as any).isDelivery);
+        });
+      });
+
+    this.version(8)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        sales: 'id, createdAt, staffId, tableId',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('restaurantTables').toCollection().modify((table: any) => {
+          if (table.isDelivery) {
+            table.tableType = 'delivery';
+          } else if (table.isToGo) {
+            table.tableType = 'to-go';
+          } else {
+            table.tableType = 'dine-in';
+          }
+        });
+      });
+
+    this.version(9)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        appSettings: '&key, updatedAt',
+        sales: 'id, createdAt, staffId, tableId',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+      });
+
+    this.version(10)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        surcharges: '&name, updatedAt',
+        sales: 'id, createdAt, staffId, tableId',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+      })
+      .upgrade(async (tx) => {
+        const appSettingsTable = tx.table('appSettings');
+        const toGo = await appSettingsTable.get('to_go_surcharge');
+        const delivery = await appSettingsTable.get('delivery_surcharge');
+        const now = Math.floor(Date.now() / 1000);
+
+        await tx.table('surcharges').bulkPut([
+          {
+            name: 'to-go',
+            value: Number.isFinite(Number.parseFloat(toGo?.value ?? '0')) ? Math.max(0, Number.parseFloat(toGo?.value ?? '0')) : 0,
+            updatedAt: now,
+          },
+          {
+            name: 'delivery',
+            value: Number.isFinite(Number.parseFloat(delivery?.value ?? '0')) ? Math.max(0, Number.parseFloat(delivery?.value ?? '0')) : 0,
+            updatedAt: now,
+          },
+        ]);
+      });
+
     this.attachIdHooks();
   }
 
@@ -181,6 +307,7 @@ export class CafeBomBomDB extends Dexie {
       this.employees,
       this.payrollEntries,
       this.restaurantTables,
+      this.surcharges,
       this.sales,
       this.saleItems,
       this.discounts,
@@ -216,7 +343,7 @@ export class CafeBomBomDB extends Dexie {
       const ingredientId4 = generateId();
       const now = Math.floor(Date.now() / 1000);
 
-      await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables, this.discounts], async () => {
+      await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables, this.discounts, this.surcharges], async () => {
         if ((await this.users.count()) === 0) {
           await this.users.bulkAdd([
             { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
@@ -276,18 +403,25 @@ export class CafeBomBomDB extends Dexie {
         }
         if ((await this.restaurantTables.count()) === 0) {
           await this.restaurantTables.bulkAdd([
-            { name: 'Para llevar', createdAt: now, updatedAt: now },
-            { name: 'Domicilio', createdAt: now, updatedAt: now },
-            { name: 'Mesa 1', createdAt: now, updatedAt: now },
-            { name: 'Mesa 2', createdAt: now, updatedAt: now },
-            { name: 'Mesa 3', createdAt: now, updatedAt: now },
-            { name: 'Mesa 4', createdAt: now, updatedAt: now },
+            { name: 'Para llevar', tableType: 'to-go', createdAt: now, updatedAt: now },
+            { name: 'Domicilio', tableType: 'delivery', createdAt: now, updatedAt: now },
+            { name: 'Mesa 1', tableType: 'dine-in', createdAt: now, updatedAt: now },
+            { name: 'Mesa 2', tableType: 'dine-in', createdAt: now, updatedAt: now },
+            { name: 'Mesa 3', tableType: 'dine-in', createdAt: now, updatedAt: now },
+            { name: 'Mesa 4', tableType: 'dine-in', createdAt: now, updatedAt: now },
           ]);
         }
         if ((await this.discounts.count()) === 0) {
           await this.discounts.bulkAdd([
             { name: 'Grand Opening 5%', scope: 'global', productId: null, type: 'percentage', value: 5, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
             { name: 'Happy Hour $1', scope: 'global', productId: null, type: 'fixed', value: 1, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
+          ]);
+        }
+
+        if ((await this.surcharges.count()) === 0) {
+          await this.surcharges.bulkAdd([
+            { name: 'to-go', value: 0, updatedAt: now },
+            { name: 'delivery', value: 0, updatedAt: now },
           ]);
         }
       });

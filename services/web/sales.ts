@@ -53,6 +53,7 @@ export class SalesWebService implements SalesService {
         .map((table) => ({
           id: table.id,
           name: table.name,
+          table_type: table.tableType,
           created_at: table.createdAt,
         })),
       discounts: discounts
@@ -139,11 +140,12 @@ export class SalesWebService implements SalesService {
       .map((table) => ({
         id: table.id,
         name: table.name,
+        table_type: table.tableType,
         created_at: table.createdAt,
       }));
   }
 
-  async createTable({ name }: CreateTablePayload): Promise<void> {
+  async createTable({ name, tableType }: CreateTablePayload): Promise<void> {
     const normalizedName = name.trim();
     if (!normalizedName) {
       return;
@@ -156,12 +158,13 @@ export class SalesWebService implements SalesService {
     const now = Math.floor(Date.now() / 1000);
     await db.restaurantTables.add({
       name: normalizedName,
+      tableType,
       createdAt: now,
       updatedAt: now,
     });
   }
 
-  async updateTable({ id, name }: UpdateTablePayload): Promise<void> {
+  async updateTable({ id, name, tableType }: UpdateTablePayload): Promise<void> {
     const normalizedName = name.trim();
     if (!normalizedName) {
       return;
@@ -169,6 +172,7 @@ export class SalesWebService implements SalesService {
     const db = await getDb();
     await db.restaurantTables.update(id, {
       name: normalizedName,
+      tableType,
       updatedAt: Math.floor(Date.now() / 1000),
     });
   }
@@ -182,7 +186,7 @@ export class SalesWebService implements SalesService {
     await db.restaurantTables.delete(id);
   }
 
-  async createSale({ staffId, items, tableId, globalDiscountId }: CreateSalePayload): Promise<void> {
+  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
     if (items.length === 0 || !tableId) {
       return;
     }
@@ -196,6 +200,7 @@ export class SalesWebService implements SalesService {
 
     const now = Math.floor(Date.now() / 1000);
     const breakdown = calculateSaleDiscountBreakdown(items, discounts, now, globalDiscountId ?? null);
+    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
     const recipeByProductId = new Map<string, Array<{ ingredientId: string; quantityUsed: number }>>();
 
     const saleId = await db.sales.add({
@@ -209,7 +214,7 @@ export class SalesWebService implements SalesService {
       orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
       orderDiscountAmount: breakdown.globalDiscountAmount,
       discountAppliedBy: staffId,
-      total: breakdown.total,
+      total: breakdown.total + normalizedSurcharge,
     });
 
     for (const item of breakdown.items) {
@@ -298,14 +303,22 @@ export class SalesWebService implements SalesService {
       return null;
     }
 
+    const subtotal = Number(sale.subtotal ?? 0);
+    const itemDiscountTotal = Number(sale.itemDiscountTotal ?? 0);
+    const globalDiscountAmount = Number(sale.orderDiscountAmount ?? 0);
+    const total = Number(sale.total ?? 0);
+    const discountedSubtotal = Math.max(0, subtotal - itemDiscountTotal - globalDiscountAmount);
+    const orderTypeSurcharge = Math.max(0, total - discountedSubtotal);
+
     return {
-      subtotal: Number(sale.subtotal ?? 0),
-      item_discount_total: Number(sale.itemDiscountTotal ?? 0),
+      subtotal,
+      item_discount_total: itemDiscountTotal,
       global_discount_name: sale.orderDiscountName ?? null,
       global_discount_type: sale.orderDiscountType ?? null,
       global_discount_value: sale.orderDiscountValue == null ? null : Number(sale.orderDiscountValue),
-      global_discount_amount: Number(sale.orderDiscountAmount ?? 0),
-      total: Number(sale.total ?? 0),
+      global_discount_amount: globalDiscountAmount,
+      order_type_surcharge: orderTypeSurcharge,
+      total,
       discount_applied_by: sale.discountAppliedBy ? users.find((user) => user.id === sale.discountAppliedBy)?.name ?? null : null,
     };
   }
@@ -317,5 +330,33 @@ export class SalesWebService implements SalesService {
       .between(startUnix, endUnix)
       .toArray())
       .reduce((sum, sale) => sum + Number(sale.total), 0);
+  }
+
+  async getOrderTypeSurchargeConfig(): Promise<{ toGoSurcharge: number; deliverySurcharge: number }> {
+    const db = await getDb();
+    const [toGo, delivery] = await Promise.all([
+      db.surcharges.get('to-go'),
+      db.surcharges.get('delivery'),
+    ]);
+
+    const toGoSurcharge = Number(toGo?.value ?? 0);
+    const deliverySurcharge = Number(delivery?.value ?? 0);
+
+    return {
+      toGoSurcharge: Number.isFinite(toGoSurcharge) ? Math.max(0, toGoSurcharge) : 0,
+      deliverySurcharge: Number.isFinite(deliverySurcharge) ? Math.max(0, deliverySurcharge) : 0,
+    };
+  }
+
+  async saveOrderTypeSurchargeConfig(payload: { toGoSurcharge: number; deliverySurcharge: number }): Promise<void> {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const safeToGo = Number.isFinite(payload.toGoSurcharge) ? Math.max(0, payload.toGoSurcharge) : 0;
+    const safeDelivery = Number.isFinite(payload.deliverySurcharge) ? Math.max(0, payload.deliverySurcharge) : 0;
+
+    await db.surcharges.bulkPut([
+      { name: 'to-go', value: safeToGo, updatedAt: now },
+      { name: 'delivery', value: safeDelivery, updatedAt: now },
+    ]);
   }
 }
