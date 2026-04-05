@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { t } from '@/i18n';
 import { authService } from '@/services';
 import type { LoginPayload } from '@/types/auth';
 import type { User } from '@/types/types';
@@ -46,7 +47,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const user = await authService.authenticate({ userId, pin });
 
     if (!user) {
-      set({ loading: false, error: 'Invalid PIN' });
+      set({ loading: false, error: t('Invalid PIN') });
       return false;
     }
 

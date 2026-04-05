@@ -8,6 +8,7 @@ import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 
@@ -93,7 +94,7 @@ export default function IngredientFormScreen() {
 
   const submitIngredient = async () => {
     if (!ingredientForm.name.trim()) {
-      setMessage('Ingredient name is required.');
+      setMessage(t('ingredientForm.error.nameRequired'));
       return;
     }
 
@@ -102,12 +103,12 @@ export default function IngredientFormScreen() {
       const quantityNeeded = Number(item.quantityNeeded || '0');
 
       if (!childIngredientId) {
-        setMessage('Select a child ingredient for this recipe link.');
+        setMessage(t('ingredientForm.error.selectChild'));
         return;
       }
 
       if (quantityNeeded <= 0) {
-        setMessage('Composition quantity must be greater than 0.');
+        setMessage(t('ingredientForm.error.quantityPositive'));
         return;
       }
     }
@@ -128,13 +129,13 @@ export default function IngredientFormScreen() {
     }
 
     if (!parentIngredientId) {
-      setMessage('Unable to save ingredient recipe right now.');
+      setMessage(t('ingredientForm.error.cannotSaveRecipe'));
       return;
     }
 
     for (const item of ingredientRecipeItems) {
       if (parentIngredientId === item.childIngredientId) {
-        setMessage('Ingredient recipes cannot point to themselves.');
+        setMessage(t('ingredientForm.error.noSelfReference'));
         return;
       }
 
@@ -150,7 +151,7 @@ export default function IngredientFormScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">{ingredientForm.id ? 'Edit ingredient' : 'Add ingredient'}</ThemedText>
+      <ThemedText type="title">{ingredientForm.id ? t('ingredientForm.title.edit') : t('ingredientForm.title.add')}</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.messageCard}>
@@ -160,20 +161,20 @@ export default function IngredientFormScreen() {
 
       <ThemedCard style={styles.card}>
         <ThemedInput
-          placeholder="Name"
+          placeholder={t('ingredientForm.name')}
           value={ingredientForm.name}
           onChangeText={(value) => setIngredientForm((current) => ({ ...current, name: value }))}
           style={styles.input}
         />
         <View style={styles.actionsRow}>
           <ThemedInput
-            placeholder="Unit"
+            placeholder={t('ingredientForm.unit')}
             value={ingredientForm.unit}
             onChangeText={(value) => setIngredientForm((current) => ({ ...current, unit: value }))}
             style={[styles.input, styles.halfWidth]}
           />
           <ThemedInput
-            placeholder="Qty"
+            placeholder={t('common.qtyShort')}
             keyboardType="decimal-pad"
             value={ingredientForm.quantity}
             onChangeText={(value) => setIngredientForm((current) => ({ ...current, quantity: value }))}
@@ -181,15 +182,15 @@ export default function IngredientFormScreen() {
           />
         </View>
         <ThemedInput
-          placeholder="Low stock threshold"
+          placeholder={t('ingredientForm.lowStockThreshold')}
           keyboardType="decimal-pad"
           value={ingredientForm.lowStockThreshold}
           onChangeText={(value) => setIngredientForm((current) => ({ ...current, lowStockThreshold: value }))}
           style={styles.input}
         />
         <View style={styles.actionsRow}>
-          <ThemedButton style={styles.primaryButton} label="Save ingredient + recipe" onPress={submitIngredient} />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
+          <ThemedButton style={styles.primaryButton} label={t('ingredientForm.save')} onPress={submitIngredient} />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
         </View>
       </ThemedCard>
 
@@ -199,7 +200,7 @@ export default function IngredientFormScreen() {
             <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
               <View style={styles.listTextWrap}>
                 <ThemedText type="defaultSemiBold">{link.childIngredientName}</ThemedText>
-                <ThemedText style={styles.smallText}>{link.quantityNeeded} needed</ThemedText>
+                <ThemedText style={styles.smallText}>{link.quantityNeeded} {t('ingredientForm.required')}</ThemedText>
               </View>
               <ThemedButton
                 variant="secondary"
@@ -210,15 +211,15 @@ export default function IngredientFormScreen() {
                     parentIngredientId: link.parentIngredientId,
                     childIngredientId: link.childIngredientId,
                   });
-                  setMessage('Ingredient recipe link removed.');
+                  setMessage(t('ingredientForm.removedLink'));
                 }}
               />
             </View>
           ))}
 
-          <ThemedText style={styles.label}>Recipe</ThemedText>
+          <ThemedText style={styles.label}>{t('ingredientForm.recipe')}</ThemedText>
           {ingredientRecipeItems.length === 0 ? (
-            <ThemedText style={styles.smallText}>Click &quot;Add ingredient&quot; to add a new recipe item.</ThemedText>
+            <ThemedText style={styles.smallText}>{t('ingredientForm.recipeHelp')}</ThemedText>
           ) : (
             ingredientRecipeItems.map((item, index) => {
               const addedIngredientIds = ingredientRecipeItems.map((i) => i.childIngredientId).filter((id) => id);
@@ -229,7 +230,7 @@ export default function IngredientFormScreen() {
                 <View key={index} style={styles.recipeControlsRow}>
                   <View style={styles.recipeSelectWrapper}>
                     <ThemedSelect
-                      placeholder="Select ingredient"
+                      placeholder={t('ingredientForm.selectIngredient')}
                       value={item.childIngredientId}
                       items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
                       onValueChange={(value) => updateIngredientRecipeItem(index, value, undefined)}
@@ -237,7 +238,7 @@ export default function IngredientFormScreen() {
                   </View>
                   <View style={styles.recipeInputWrapper}>
                     <ThemedInput
-                      placeholder="Qty"
+                      placeholder={t('common.qtyShort')}
                       keyboardType="decimal-pad"
                       value={item.quantityNeeded}
                       onChangeText={(value) => updateIngredientRecipeItem(index, undefined, value)}
@@ -249,7 +250,7 @@ export default function IngredientFormScreen() {
               );
             })
           )}
-          <ThemedButton variant="secondary" style={styles.primaryButton} label="+ Add ingredient" onPress={() => addIngredientRecipeItem('', '')} />
+          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('ingredientForm.addIngredient')} onPress={() => addIngredientRecipeItem('', '')} />
         </ThemedCard>
       ) : null}
     </ScrollView>

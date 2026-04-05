@@ -1,15 +1,16 @@
+import { t } from '@/i18n';
 import type { SalesService } from '@/services/interfaces/sales';
 import type {
-  AddItemToOrderPayload,
-  CreateDiscountPayload,
-  CreateSalePayload,
-  CreateTablePayload,
-  RemoveItemFromOrderPayload,
-  SaleItemDetail,
-  SalePricingSummary,
-  UpdateDiscountPayload,
-  UpdateDraftOrderPayload,
-  UpdateTablePayload,
+    AddItemToOrderPayload,
+    CreateDiscountPayload,
+    CreateSalePayload,
+    CreateTablePayload,
+    RemoveItemFromOrderPayload,
+    SaleItemDetail,
+    SalePricingSummary,
+    UpdateDiscountPayload,
+    UpdateDraftOrderPayload,
+    UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, RestaurantTable } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
@@ -46,8 +47,8 @@ export class SalesWebService implements SalesService {
         .map((sale) => ({
           id: sale.id,
           created_at: sale.createdAt,
-          staff_name: users.find((user) => user.id === sale.staffId)?.name ?? 'Unknown',
-          table_name: tables.find((table) => table.id === sale.tableId)?.name ?? 'Unknown table',
+          staff_name: users.find((user) => user.id === sale.staffId)?.name ?? 'Desconocido',
+          table_name: tables.find((table) => table.id === sale.tableId)?.name ?? 'Mesa desconocida',
           payment_method: sale.paymentMethod ?? 'cash',
           total: sale.total,
           status: sale.status ?? 'draft',
@@ -189,7 +190,7 @@ export class SalesWebService implements SalesService {
     const db = await getDb();
     const linkedSales = await db.sales.where('tableId').equals(id).count();
     if (linkedSales > 0) {
-      throw new Error('Cannot delete a table that has linked sales.');
+      throw new Error(t('Cannot delete a table that has linked sales.'));
     }
     await db.restaurantTables.delete(id);
   }
@@ -247,11 +248,11 @@ export class SalesWebService implements SalesService {
     const existingOrder = await db.sales.get(orderId);
 
     if (!existingOrder) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (existingOrder.status !== 'draft') {
-      throw new Error('Only draft orders can be edited.');
+      throw new Error(t('Only draft orders can be edited.'));
     }
 
     const discounts = await db.discounts.toArray();
@@ -302,7 +303,7 @@ export class SalesWebService implements SalesService {
 
     return [...totals.entries()]
       .map(([productId, quantity]) => ({
-        name: products.find((product) => product.id === productId)?.name ?? 'Unknown',
+        name: products.find((product) => product.id === productId)?.name ?? 'Desconocido',
         quantity,
       }))
       .sort((left, right) => right.quantity - left.quantity)
@@ -324,7 +325,7 @@ export class SalesWebService implements SalesService {
         return {
           id: item.id,
           product_id: item.productId,
-          product_name: products.find((product) => product.id === item.productId)?.name ?? 'Unknown',
+          product_name: products.find((product) => product.id === item.productId)?.name ?? 'Desconocido',
           quantity: item.quantity,
           unit_price: item.unitPrice,
           line_subtotal: lineSubtotal,
@@ -434,11 +435,11 @@ export class SalesWebService implements SalesService {
     const order = await db.sales.get(orderId);
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(`Cannot send order to kitchen. Order status must be 'draft', but is '${order.status}'`);
+      throw new Error(t("Cannot send order to kitchen. Order status must be 'draft', but is '{status}'", { status: order.status }));
     }
 
     await db.sales.update(orderId, {
@@ -454,11 +455,11 @@ export class SalesWebService implements SalesService {
     const order = await db.sales.get(orderId);
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (!['in-progress', 'paid'].includes(order.status)) {
-      throw new Error(`Cannot mark order as ready. Order status must be 'in-progress' or 'paid', but is '${order.status}'`);
+      throw new Error(t("Cannot mark order as ready. Order status must be 'in-progress' or 'paid', but is '{status}'", { status: order.status }));
     }
 
     // Paid-first flow: inventory is consumed when kitchen marks order ready.
@@ -481,11 +482,11 @@ export class SalesWebService implements SalesService {
     const order = await db.sales.get(orderId);
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
-      throw new Error(`Cannot mark order as paid. Order status must be 'draft', 'in-progress', or 'ready', but is '${order.status}'`);
+      throw new Error(t("Cannot mark order as paid. Order status must be 'draft', 'in-progress', or 'ready', but is '{status}'", { status: order.status }));
     }
 
     const paidAt = Math.floor(Date.now() / 1000);
@@ -519,17 +520,17 @@ export class SalesWebService implements SalesService {
     const order = await db.sales.get(orderId);
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(`Can only add items to draft orders. Order status is '${order.status}'`);
+      throw new Error(t("Can only add items to draft orders. Order status is '{status}'", { status: order.status }));
     }
 
     const product = await db.products.get(item.productId);
 
     if (!product) {
-      throw new Error(`Product ${item.productId} not found`);
+      throw new Error(t('Product {productId} not found', { productId: item.productId }));
     }
 
     const lineSubtotal = item.unitPrice * item.quantity;
@@ -565,11 +566,11 @@ export class SalesWebService implements SalesService {
     const order = await db.sales.get(orderId);
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(`Can only remove items from draft orders. Order status is '${order.status}'`);
+      throw new Error(t("Can only remove items from draft orders. Order status is '{status}'", { status: order.status }));
     }
 
     await db.saleItems.delete(saleItemId);
@@ -591,11 +592,11 @@ export class SalesWebService implements SalesService {
     const order = await db.sales.get(orderId);
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status === 'completed' || order.status === 'cancelled') {
-      throw new Error(`Cannot cancel order with status '${order.status}'`);
+      throw new Error(t("Cannot cancel order with status '{status}'", { status: order.status }));
     }
 
     const cancelledAt = Math.floor(Date.now() / 1000);

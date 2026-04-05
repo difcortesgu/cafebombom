@@ -9,6 +9,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
@@ -47,8 +48,8 @@ export default function TabLayout() {
   if (!currentUser) {
     return (
       <ThemedView style={styles.loginContainer}>
-        <ThemedText type="title">CafeBomBom</ThemedText>
-        <ThemedText style={styles.helperText}>Sign in with your local PIN</ThemedText>
+        <ThemedText type="title">{t('app.name')}</ThemedText>
+        <ThemedText style={styles.helperText}>{t('Sign in with your local PIN')}</ThemedText>
 
         <View style={styles.userRow}>
           {users.map((user) => (
@@ -71,7 +72,7 @@ export default function TabLayout() {
                   selectedUserId === user.id ? styles.activeUserText : styles.userText,
                   selectedUserId === user.id && { color: palette.card },
                 ]}>
-                {user.name} ({user.role})
+                {user.name} ({t(user.role)})
               </ThemedText>
             </Pressable>
           ))}
@@ -82,7 +83,7 @@ export default function TabLayout() {
           secureTextEntry
           keyboardType="number-pad"
           maxLength={6}
-          placeholder="Enter PIN"
+          placeholder={t('Enter PIN')}
           style={styles.pinInput}
           onChangeText={setPin}
         />
@@ -103,11 +104,11 @@ export default function TabLayout() {
           }}>
           <View style={styles.loginButtonContent}>
             <IconSymbol name="lock.fill" size={16} color={palette.card} />
-            <ThemedText style={[styles.loginButtonText, { color: palette.card }]}>{loading ? 'Signing in...' : 'Unlock Session'}</ThemedText>
+            <ThemedText style={[styles.loginButtonText, { color: palette.card }]}>{loading ? t('Signing in...') : t('Unlock Session')}</ThemedText>
           </View>
         </ThemedButton>
 
-        <ThemedText style={[styles.hint, { color: palette.mutedText }]}>Default PINs: Owner 1234, Staff 2222</ThemedText>
+        <ThemedText style={[styles.hint, { color: palette.mutedText }]}>{t('Default PINs: Owner 1234, Staff 2222')}</ThemedText>
       </ThemedView>
     );
   }
@@ -128,7 +129,7 @@ export default function TabLayout() {
         name="index"
         options={{
           href: visibleTabs.includes('index') ? undefined : null,
-          title: 'Dashboard',
+          title: t('Dashboard'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
         }}
       />
@@ -136,7 +137,7 @@ export default function TabLayout() {
         name="sales"
         options={{
           href: visibleTabs.includes('sales') ? undefined : null,
-          title: 'Sales',
+          title: t('Sales'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
         }}
       />
@@ -144,7 +145,7 @@ export default function TabLayout() {
         name="tables"
         options={{
           href: visibleTabs.includes('tables') ? undefined : null,
-          title: 'Tables',
+          title: t('Tables'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="table.furniture.fill" color={color} />,
         }}
       />
@@ -152,7 +153,7 @@ export default function TabLayout() {
         name="inventory"
         options={{
           href: visibleTabs.includes('inventory') ? undefined : null,
-          title: 'Inventory',
+          title: t('Inventory'),
           tabBarBadge: alertCount > 0 ? alertCount : undefined,
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="shippingbox.fill" color={color} />,
         }}
@@ -161,7 +162,7 @@ export default function TabLayout() {
         name="products"
         options={{
           href: visibleTabs.includes('products') ? undefined : null,
-          title: 'Products',
+          title: t('Products'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="takeoutbag.and.cup.and.straw.fill" color={color} />,
         }}
       />
@@ -169,7 +170,7 @@ export default function TabLayout() {
         name="accounts"
         options={{
           href: visibleTabs.includes('accounts') ? undefined : null,
-          title: 'Accounts',
+          title: t('Accounts'),
           tabBarIcon: ({ color }) => (
             <IconSymbol size={26} name="dollarsign.circle.fill" color={color} />
           ),
@@ -179,7 +180,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           href: visibleTabs.includes('settings') ? undefined : null,
-          title: 'Settings',
+          title: t('Settings'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
         }}
       />

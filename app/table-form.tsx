@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
+import { t } from '@/i18n';
 import { useSalesStore } from '@/stores/sales';
 import type { TableType } from '@/types/types';
 
@@ -28,9 +29,9 @@ export default function TableFormScreen() {
   const [message, setMessage] = useState('');
 
   const tableTypeOptions: { label: string; value: TableType }[] = [
-    { label: 'Dine-in', value: 'dine-in' },
-    { label: 'To-Go', value: 'to-go' },
-    { label: 'Delivery', value: 'delivery' },
+    { label: t('tables.type.dineIn'), value: 'dine-in' },
+    { label: t('tables.type.toGo'), value: 'to-go' },
+    { label: t('tables.type.delivery'), value: 'delivery' },
   ];
 
   useFocusEffect(
@@ -56,7 +57,7 @@ export default function TableFormScreen() {
   const submit = async () => {
     const normalizedName = tableName.trim();
     if (!normalizedName) {
-      setMessage('Table name is required.');
+      setMessage(t('tableForm.nameRequired'));
       return;
     }
 
@@ -78,7 +79,7 @@ export default function TableFormScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">{tableId ? 'Edit table' : 'Create table'}</ThemedText>
+      <ThemedText type="title">{tableId ? t('tableForm.editTitle') : t('tableForm.createTitle')}</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.card}>
@@ -87,9 +88,9 @@ export default function TableFormScreen() {
       ) : null}
 
       <ThemedCard style={styles.card}>
-        <ThemedInput value={tableName} placeholder="Example: Patio 2" onChangeText={setTableName} style={styles.input} />
+        <ThemedInput value={tableName} placeholder={t('tableForm.example')} onChangeText={setTableName} style={styles.input} />
 
-        <ThemedText type="defaultSemiBold">Table type</ThemedText>
+        <ThemedText type="defaultSemiBold">{t('tableForm.type')}</ThemedText>
         <View style={styles.toggleGroup}>
           {tableTypeOptions.map((option) => {
             const selected = tableType === option.value;
@@ -105,8 +106,8 @@ export default function TableFormScreen() {
         </View>
 
         <View style={styles.actionsRow}>
-          <ThemedButton style={styles.primaryButton} label={tableId ? 'Save changes' : 'Create table'} onPress={submit} />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
+          <ThemedButton style={styles.primaryButton} label={tableId ? t('common.saveChanges') : t('tableForm.createTitle')} onPress={submit} />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
         </View>
       </ThemedCard>
     </ScrollView>

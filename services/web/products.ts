@@ -1,16 +1,16 @@
 import type { ProductsService } from '@/services/interfaces/products';
 import type {
-  CategoryOption,
-  CreateProductPayload,
-  IngredientCompositionLink,
-  ProductDetail,
-  ProductIngredientLink,
-  ProductRecipeInput,
-  RemoveCompositionPayload,
-  RemoveProductIngredientPayload,
-  SetCompositionPayload,
-  SetProductIngredientPayload,
-  UpdateProductPayload,
+    CategoryOption,
+    CreateProductPayload,
+    IngredientCompositionLink,
+    ProductDetail,
+    ProductIngredientLink,
+    ProductRecipeInput,
+    RemoveCompositionPayload,
+    RemoveProductIngredientPayload,
+    SetCompositionPayload,
+    SetProductIngredientPayload,
+    UpdateProductPayload,
 } from '@/types/products';
 
 import { getDb } from './storage';
@@ -58,16 +58,16 @@ export class ProductsWebService implements ProductsService {
       id: pi.id,
       productId: pi.productId,
       ingredientId: pi.ingredientId,
-      ingredientName: ingredients.find((ing) => ing.id === pi.ingredientId)?.name ?? 'Unknown',
+      ingredientName: ingredients.find((ing) => ing.id === pi.ingredientId)?.name ?? 'Desconocido',
       quantityUsed: pi.quantityUsed,
     }));
 
     const compositionLinks: IngredientCompositionLink[] = compositionsData.map((comp) => ({
       id: comp.id,
       parentIngredientId: comp.parentIngredientId,
-      parentIngredientName: ingredients.find((ing) => ing.id === comp.parentIngredientId)?.name ?? 'Unknown',
+      parentIngredientName: ingredients.find((ing) => ing.id === comp.parentIngredientId)?.name ?? 'Desconocido',
       childIngredientId: comp.childIngredientId,
-      childIngredientName: ingredients.find((ing) => ing.id === comp.childIngredientId)?.name ?? 'Unknown',
+      childIngredientName: ingredients.find((ing) => ing.id === comp.childIngredientId)?.name ?? 'Desconocido',
       quantityNeeded: comp.quantityNeeded,
     }));
 

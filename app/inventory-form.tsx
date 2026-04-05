@@ -7,6 +7,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
+import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 
 type Section = 'suppliers' | 'restock';
@@ -46,7 +47,7 @@ export default function InventoryFormScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Inventory form</ThemedText>
+      <ThemedText type="title">{t('inventoryForm.title')}</ThemedText>
       {message ? (
         <ThemedCard style={styles.card}>
           <ThemedText>{message}</ThemedText>
@@ -55,38 +56,38 @@ export default function InventoryFormScreen() {
 
       <View style={styles.tabRow}>
         {(['suppliers', 'restock'] as Section[]).map((item) => (
-          <ThemedChip key={item} style={styles.sectionButton} label={item} active={section === item} onPress={() => setSection(item)} />
+          <ThemedChip key={item} style={styles.sectionButton} label={item === 'suppliers' ? t('inventoryForm.tab.suppliers') : t('inventoryForm.tab.restock')} active={section === item} onPress={() => setSection(item)} />
         ))}
       </View>
 
       {section === 'suppliers' ? (
         <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">Add supplier</ThemedText>
-          <ThemedInput placeholder="Supplier name" value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
-          <ThemedInput placeholder="Phone" value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
-          <ThemedInput placeholder="Notes" value={supplierForm.notes} onChangeText={(value) => setSupplierForm((f) => ({ ...f, notes: value }))} style={styles.input} />
+          <ThemedText type="subtitle">{t('inventoryForm.suppliers.title')}</ThemedText>
+          <ThemedInput placeholder={t('inventoryForm.suppliers.name')} value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
+          <ThemedInput placeholder={t('inventoryForm.suppliers.phone')} value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
+          <ThemedInput placeholder={t('inventoryForm.suppliers.notes')} value={supplierForm.notes} onChangeText={(value) => setSupplierForm((f) => ({ ...f, notes: value }))} style={styles.input} />
           <View style={styles.actionsRow}>
             <ThemedButton
               style={styles.primaryButton}
-              label="Save supplier"
+              label={t('inventoryForm.suppliers.save')}
               onPress={async () => {
                 if (!supplierForm.name.trim()) {
-                  setMessage('Supplier name is required.');
+                  setMessage(t('inventoryForm.suppliers.required'));
                   return;
                 }
                 await addSupplier({ name: supplierForm.name.trim(), phone: supplierForm.phone, notes: supplierForm.notes });
                 router.back();
               }}
             />
-            <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
+            <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
           </View>
         </ThemedCard>
       ) : null}
 
       {section === 'restock' ? (
         <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">Record stock-in</ThemedText>
-          <ThemedText style={styles.smallText}>Ingredient</ThemedText>
+          <ThemedText type="subtitle">{t('inventoryForm.restock.title')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('inventoryForm.restock.ingredient')}</ThemedText>
           <View style={styles.tabRow}>
             {ingredients.map((ingredient) => (
               <ThemedChip
@@ -98,14 +99,14 @@ export default function InventoryFormScreen() {
               />
             ))}
           </View>
-          {selectedIngredient ? <ThemedText style={styles.smallText}>Selected: {selectedIngredient.name}</ThemedText> : <ThemedText style={styles.smallText}>Select an ingredient to continue.</ThemedText>}
+          {selectedIngredient ? <ThemedText style={styles.smallText}>{t('inventoryForm.restock.selected')}: {selectedIngredient.name}</ThemedText> : <ThemedText style={styles.smallText}>{t('inventoryForm.restock.selectPrompt')}</ThemedText>}
 
-          <ThemedInput placeholder="Quantity added" keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
-          <ThemedInput placeholder="Cost" keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
+          <ThemedInput placeholder={t('inventoryForm.restock.quantity')} keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
+          <ThemedInput placeholder={t('inventoryForm.restock.cost')} keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
 
-          <ThemedText style={styles.smallText}>Supplier (optional)</ThemedText>
+          <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplierOptional')}</ThemedText>
           <View style={styles.tabRow}>
-            <ThemedChip style={styles.sectionButton} label="No supplier" active={!restockForm.supplierId} onPress={() => setRestockForm((f) => ({ ...f, supplierId: '' }))} />
+            <ThemedChip style={styles.sectionButton} label={t('inventoryForm.restock.noSupplier')} active={!restockForm.supplierId} onPress={() => setRestockForm((f) => ({ ...f, supplierId: '' }))} />
             {suppliers.map((supplier) => (
               <ThemedChip
                 key={supplier.id}
@@ -116,15 +117,15 @@ export default function InventoryFormScreen() {
               />
             ))}
           </View>
-          {selectedSupplier ? <ThemedText style={styles.smallText}>Supplier: {selectedSupplier.name}</ThemedText> : null}
+          {selectedSupplier ? <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplier')}: {selectedSupplier.name}</ThemedText> : null}
 
           <View style={styles.actionsRow}>
             <ThemedButton
               style={styles.primaryButton}
-              label="Save restock"
+              label={t('inventoryForm.restock.save')}
               onPress={async () => {
                 if (!restockForm.ingredientId) {
-                  setMessage('Ingredient is required.');
+                  setMessage(t('inventoryForm.restock.required'));
                   return;
                 }
 
@@ -138,7 +139,7 @@ export default function InventoryFormScreen() {
                 router.back();
               }}
             />
-            <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
+            <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
           </View>
         </ThemedCard>
       ) : null}

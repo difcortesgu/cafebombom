@@ -3,6 +3,7 @@
  * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
  */
 
+import { t } from '@/i18n';
 import { Platform } from 'react-native';
 
 export type ThemeMode = 'light' | 'dark';
@@ -27,8 +28,8 @@ export type ThemeColors = {
 
 export type AppThemeDefinition = {
   id: string;
-  name: string;
-  description: string;
+  nameKey: string;
+  descriptionKey: string;
   preview: [string, string, string, string];
   colors: Record<ThemeMode, ThemeColors>;
 };
@@ -36,8 +37,8 @@ export type AppThemeDefinition = {
 export const APP_THEMES = [
   {
     id: 'cafe-classic',
-    name: 'Cafe Classic',
-    description: 'Warm caramel and espresso tones for a cozy POS look.',
+    nameKey: 'theme.cafe-classic.name',
+    descriptionKey: 'theme.cafe-classic.description',
     preview: ['#B64D1A', '#E87D2F', '#C5AA90', '#2E251F'],
     colors: {
       light: {
@@ -78,8 +79,8 @@ export const APP_THEMES = [
   },
   {
     id: 'quiet-luxury',
-    name: 'Quiet Luxury',
-    description: 'Soft champagne, blush, and taupe tones with calm contrast.',
+    nameKey: 'theme.quiet-luxury.name',
+    descriptionKey: 'theme.quiet-luxury.description',
     preview: ['#F7E6CA', '#E8D59E', '#D9BBB0', '#AD9C8E'],
     colors: {
       light: {
@@ -120,8 +121,8 @@ export const APP_THEMES = [
   },
   {
     id: 'evergreen-ledger',
-    name: 'Evergreen Ledger',
-    description: 'Earthy green and cream palette with crisp readability.',
+    nameKey: 'theme.evergreen-ledger.name',
+    descriptionKey: 'theme.evergreen-ledger.description',
     preview: ['#E7F0E3', '#B8CDA7', '#7D9A73', '#3F5A4B'],
     colors: {
       light: {
@@ -170,8 +171,8 @@ export const DEFAULT_THEME = APP_THEMES.find((theme) => theme.id === DEFAULT_THE
 
 export const THEME_OPTIONS = APP_THEMES.map((theme) => ({
   id: theme.id,
-  name: theme.name,
-  description: theme.description,
+  name: t(theme.nameKey),
+  description: t(theme.descriptionKey),
   preview: theme.preview,
 }));
 

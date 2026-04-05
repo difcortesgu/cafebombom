@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle }
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 
 type DateInputProps = {
   value: number | null;
@@ -22,7 +23,7 @@ const toDisplay = (unix: number | null): string => {
   return `${year}-${month}-${day}`;
 };
 
-export function DateInput({ value, onChangeValue, placeholder = 'Select date', endOfDay = false, style }: DateInputProps) {
+export function DateInput({ value, onChangeValue, placeholder = t('Select date'), endOfDay = false, style }: DateInputProps) {
   const palette = useAppColors();
   const [showPicker, setShowPicker] = useState(false);
 

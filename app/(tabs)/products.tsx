@@ -10,6 +10,7 @@ import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
@@ -47,16 +48,16 @@ export default function ProductsScreen() {
   if (currentUser?.role !== 'owner') {
     return (
       <ThemedView style={styles.lockedContainer}>
-        <ThemedText type="title">Products</ThemedText>
-        <ThemedText>Owner access is required to manage products and ingredients.</ThemedText>
+        <ThemedText type="title">{t('products.title')}</ThemedText>
+        <ThemedText>{t('products.restricted')}</ThemedText>
       </ThemedView>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Products</ThemedText>
-      <ThemedText>List view with quick actions. Use Add/Edit to open full forms in a separate page.</ThemedText>
+      <ThemedText type="title">{t('products.title')}</ThemedText>
+      <ThemedText>{t('products.subtitle')}</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.messageCard}>
@@ -69,7 +70,7 @@ export default function ProductsScreen() {
           <ThemedChip
             key={item}
             style={styles.sectionButton}
-            label={item}
+            label={item === 'products' ? t('products.tab.products') : item === 'discounts' ? t('products.tab.discounts') : t('products.tab.ingredients')}
             active={section === item}
             onPress={() => setSection(item)}
           />
@@ -80,8 +81,8 @@ export default function ProductsScreen() {
         <>
           <ThemedCard style={styles.card}>
             <View style={styles.headerRow}>
-              <ThemedText type="subtitle">Product list</ThemedText>
-              <ThemedButton label="Add product" onPress={() => router.push('/product-form')} />
+              <ThemedText type="subtitle">{t('products.list.title')}</ThemedText>
+              <ThemedButton label={t('products.list.add')} onPress={() => router.push('/product-form')} />
             </View>
 
             {products.map((product) => (
@@ -90,23 +91,23 @@ export default function ProductsScreen() {
                   <View style={styles.listTextWrap}>
                     <ThemedText type="defaultSemiBold">{product.name}</ThemedText>
                     <ThemedText style={styles.smallText}>
-                      ${Number(product.price).toFixed(2)} · {categories.find((c) => c.id === product.categoryId)?.name || 'Uncategorized'} · {product.isActive ? 'Active' : 'Archived'}
+                      ${Number(product.price).toFixed(2)} · {categories.find((c) => c.id === product.categoryId)?.name || t('products.list.noCategory')} · {product.isActive ? t('products.list.active') : t('products.list.archived')}
                     </ThemedText>
                   </View>
                   <View style={styles.inlineActions}>
                     <ThemedButton
                       variant="secondary"
                       style={styles.secondaryButton}
-                      label="Edit"
+                      label={t('products.list.edit')}
                       onPress={() => router.push({ pathname: '/product-form', params: { id: product.id } })}
                     />
                     <ThemedButton
                       variant="secondary"
                       style={styles.secondaryButton}
-                      label={product.isActive ? 'Remove' : 'Restore'}
+                      label={product.isActive ? t('products.list.remove') : t('products.list.restore')}
                       onPress={async () => {
                         await updateProduct({ id: product.id, isActive: !product.isActive });
-                        setMessage(product.isActive ? 'Product removed from active list.' : 'Product restored.');
+                        setMessage(product.isActive ? t('products.list.removedMessage') : t('products.list.restoredMessage'));
                       }}
                     />
                   </View>
@@ -119,22 +120,22 @@ export default function ProductsScreen() {
 
       {section === 'discounts' ? (
         <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">Discounts</ThemedText>
-          <ThemedText style={styles.smallText}>Active global discounts are automatically applied at checkout on every order.</ThemedText>
+          <ThemedText type="subtitle">{t('products.discounts.title')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('products.discounts.subtitle')}</ThemedText>
 
-          <ThemedInput value={globalName} onChangeText={setGlobalName} placeholder="Discount name" />
+          <ThemedInput value={globalName} onChangeText={setGlobalName} placeholder={t('products.discounts.namePlaceholder')} />
           <ThemedSelect
             value={globalType}
             onValueChange={(value) => setGlobalType(value as 'percentage' | 'fixed')}
-            items={[{ label: 'Percentage (%)', value: 'percentage' }, { label: 'Fixed amount ($)', value: 'fixed' }]}
+            items={[{ label: t('products.discounts.typePercentage'), value: 'percentage' }, { label: t('products.discounts.typeFixed'), value: 'fixed' }]}
           />
-          <ThemedInput value={globalValue} onChangeText={setGlobalValue} keyboardType="decimal-pad" placeholder="Value" />
+          <ThemedInput value={globalValue} onChangeText={setGlobalValue} keyboardType="decimal-pad" placeholder={t('products.discounts.valuePlaceholder')} />
           <ThemedButton
-            label="Create global discount"
+            label={t('products.discounts.create')}
             onPress={async () => {
               const value = Number(globalValue);
               if (!globalName.trim() || !Number.isFinite(value) || value <= 0) {
-                setMessage('Complete valid global discount fields.');
+                setMessage(t('products.discounts.invalid'));
                 return;
               }
               await createDiscount({
@@ -150,7 +151,7 @@ export default function ProductsScreen() {
               setGlobalName('');
               setGlobalType('percentage');
               setGlobalValue('0');
-              setMessage('Global discount created.');
+              setMessage(t('products.discounts.created'));
             }}
           />
 
@@ -158,13 +159,13 @@ export default function ProductsScreen() {
             <View key={discount.id} style={[styles.listItemColumn, { borderColor: palette.border }]}> 
               <ThemedText type="defaultSemiBold">{discount.name}</ThemedText>
               <ThemedText style={styles.smallText}>
-                {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {discount.isActive ? 'Active' : 'Inactive'}
+                {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {discount.isActive ? t('products.discounts.active') : t('products.discounts.inactive')}
               </ThemedText>
               <View style={styles.inlineActions}>
                 <ThemedButton
                   variant="secondary"
                   style={styles.secondaryButton}
-                  label={discount.isActive ? 'Deactivate' : 'Activate'}
+                  label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
                   onPress={() => void updateDiscount({
                     id: discount.id,
                     name: discount.name,
@@ -177,7 +178,7 @@ export default function ProductsScreen() {
                     isActive: !discount.isActive,
                   })}
                 />
-                <ThemedButton variant="secondary" style={styles.secondaryButton} label="Delete" onPress={() => void deleteDiscount(discount.id)} />
+                <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('products.discounts.delete')} onPress={() => void deleteDiscount(discount.id)} />
               </View>
             </View>
           ))}
@@ -188,8 +189,8 @@ export default function ProductsScreen() {
         <>
           <ThemedCard style={styles.card}>
             <View style={styles.headerRow}>
-              <ThemedText type="subtitle">Ingredient list</ThemedText>
-              <ThemedButton label="Add ingredient" onPress={() => router.push('/ingredient-form')} />
+              <ThemedText type="subtitle">{t('products.ingredients.title')}</ThemedText>
+              <ThemedButton label={t('products.ingredients.add')} onPress={() => router.push('/ingredient-form')} />
             </View>
 
             {ingredients.map((item) => {
@@ -199,24 +200,24 @@ export default function ProductsScreen() {
                   <View style={styles.listTextWrap}>
                     <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
                     <ThemedText style={styles.smallText}>
-                      {Number(item.quantity).toFixed(2)} {item.unit} · threshold {item.low_stock_threshold}
+                      {Number(item.quantity).toFixed(2)} {item.unit} · {t('products.ingredients.threshold')} {item.low_stock_threshold}
                     </ThemedText>
-                    {isLow ? <ThemedText style={[styles.lowText, { color: palette.warning }]}>Low stock</ThemedText> : null}
+                    {isLow ? <ThemedText style={[styles.lowText, { color: palette.warning }]}>{t('products.ingredients.lowStock')}</ThemedText> : null}
                   </View>
                   <View style={styles.inlineActions}>
                     <ThemedButton
                       variant="secondary"
                       style={styles.secondaryButton}
-                      label="Edit"
+                      label={t('products.ingredients.edit')}
                       onPress={() => router.push({ pathname: '/ingredient-form', params: { id: item.id } })}
                     />
                     <ThemedButton
                       variant="secondary"
                       style={styles.secondaryButton}
-                      label="+1"
+                      label={t('products.ingredients.plusOne')}
                       onPress={async () => {
                         await updateIngredient({ id: item.id, quantity: Number(item.quantity) + 1 });
-                        setMessage('Ingredient quantity updated.');
+                        setMessage(t('products.ingredients.updated'));
                       }}
                     />
                   </View>
@@ -226,8 +227,8 @@ export default function ProductsScreen() {
           </ThemedCard>
 
           <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">Low-stock alert</ThemedText>
-            <ThemedText>{lowStock.length} ingredient(s) below threshold.</ThemedText>
+            <ThemedText type="subtitle">{t('products.ingredients.alertTitle')}</ThemedText>
+            <ThemedText>{lowStock.length} {t('products.ingredients.alertCount')}</ThemedText>
           </ThemedCard>
         </>
       ) : null}

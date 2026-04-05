@@ -408,48 +408,48 @@ export class CafeBomBomDB extends Dexie {
       await this.transaction('rw', [this.users, this.categories, this.products, this.ingredients, this.productIngredients, this.restaurantTables, this.discounts, this.surcharges], async () => {
         if ((await this.users.count()) === 0) {
           await this.users.bulkAdd([
-            { id: userId1, name: 'Owner', role: 'owner', pinHash: hashPin('1234'), isActive: true },
-            { id: userId2, name: 'Staff', role: 'staff', pinHash: hashPin('2222'), isActive: true },
+            { id: userId1, name: 'Dueno', role: 'owner', pinHash: hashPin('1234'), isActive: true },
+            { id: userId2, name: 'Personal', role: 'staff', pinHash: hashPin('2222'), isActive: true },
           ]);
         }
         if ((await this.categories.count()) === 0) {
           await this.categories.bulkAdd([
-            { id: categoryId1, name: 'Coffee' },
-            { id: categoryId2, name: 'Tea' },
-            { id: categoryId3, name: 'Pastry' },
+            { id: categoryId1, name: 'Cafe' },
+            { id: categoryId2, name: 'Te' },
+            { id: categoryId3, name: 'Pasteleria' },
             { id: categoryId4, name: 'Snacks' },
           ]);
         }
         if ((await this.ingredients.count()) === 0) {
           await this.ingredients.bulkAdd([
-            { id: ingredientId1, name: 'Espresso Beans', unit: 'grams', quantity: 0, low_stock_threshold: 500, supplier_id: null },
-            { id: ingredientId2, name: 'Milk', unit: 'liters', quantity: 0, low_stock_threshold: 2, supplier_id: null },
-            { id: ingredientId3, name: 'Tea Blend', unit: 'grams', quantity: 0, low_stock_threshold: 400, supplier_id: null },
-            { id: ingredientId4, name: 'Pastry Dough', unit: 'grams', quantity: 0, low_stock_threshold: 1000, supplier_id: null },
+            { id: ingredientId1, name: 'Cafe espresso en grano', unit: 'grams', quantity: 0, low_stock_threshold: 500, supplier_id: null },
+            { id: ingredientId2, name: 'Leche', unit: 'liters', quantity: 0, low_stock_threshold: 2, supplier_id: null },
+            { id: ingredientId3, name: 'Mezcla de te', unit: 'grams', quantity: 0, low_stock_threshold: 400, supplier_id: null },
+            { id: ingredientId4, name: 'Masa de pasteleria', unit: 'grams', quantity: 0, low_stock_threshold: 1000, supplier_id: null },
           ]);
         }
         if ((await this.products.count()) === 0) {
-          const coffee = await this.categories.where('name').equals('Coffee').first();
-          const tea = await this.categories.where('name').equals('Tea').first();
-          const pastry = await this.categories.where('name').equals('Pastry').first();
+          const coffee = await this.categories.where('name').equals('Cafe').first();
+          const tea = await this.categories.where('name').equals('Te').first();
+          const pastry = await this.categories.where('name').equals('Pasteleria').first();
           if (coffee && tea && pastry) {
             await this.products.bulkAdd([
-              { id: productId1, name: 'Cappuccino', categoryId: coffee.id, price: 4.5, isActive: true },
+              { id: productId1, name: 'Capuchino', categoryId: coffee.id, price: 4.5, isActive: true },
               { id: productId2, name: 'Latte', categoryId: coffee.id, price: 4.25, isActive: true },
-              { id: productId3, name: 'Thai Milk Tea', categoryId: tea.id, price: 3.9, isActive: true },
-              { id: productId4, name: 'Butter Croissant', categoryId: pastry.id, price: 2.8, isActive: true },
+              { id: productId3, name: 'Te tailandes con leche', categoryId: tea.id, price: 3.9, isActive: true },
+              { id: productId4, name: 'Croissant de mantequilla', categoryId: pastry.id, price: 2.8, isActive: true },
             ]);
           }
         }
         if ((await this.productIngredients.count()) === 0) {
-          const cappuccino = await this.products.where('name').equals('Cappuccino').first();
+          const cappuccino = await this.products.where('name').equals('Capuchino').first();
           const latte = await this.products.where('name').equals('Latte').first();
-          const thaiMilkTea = await this.products.where('name').equals('Thai Milk Tea').first();
-          const butterCroissant = await this.products.where('name').equals('Butter Croissant').first();
-          const espresso = await this.ingredients.where('name').equals('Espresso Beans').first();
-          const milk = await this.ingredients.where('name').equals('Milk').first();
-          const teaBlend = await this.ingredients.where('name').equals('Tea Blend').first();
-          const pastryDough = await this.ingredients.where('name').equals('Pastry Dough').first();
+          const thaiMilkTea = await this.products.where('name').equals('Te tailandes con leche').first();
+          const butterCroissant = await this.products.where('name').equals('Croissant de mantequilla').first();
+          const espresso = await this.ingredients.where('name').equals('Cafe espresso en grano').first();
+          const milk = await this.ingredients.where('name').equals('Leche').first();
+          const teaBlend = await this.ingredients.where('name').equals('Mezcla de te').first();
+          const pastryDough = await this.ingredients.where('name').equals('Masa de pasteleria').first();
 
           if (cappuccino && latte && thaiMilkTea && butterCroissant && espresso && milk && teaBlend && pastryDough) {
             await this.productIngredients.bulkAdd([
@@ -475,8 +475,8 @@ export class CafeBomBomDB extends Dexie {
         }
         if ((await this.discounts.count()) === 0) {
           await this.discounts.bulkAdd([
-            { name: 'Grand Opening 5%', scope: 'global', productId: null, type: 'percentage', value: 5, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
-            { name: 'Happy Hour $1', scope: 'global', productId: null, type: 'fixed', value: 1, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
+            { name: 'Gran apertura 5%', scope: 'global', productId: null, type: 'percentage', value: 5, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
+            { name: 'Hora feliz $1', scope: 'global', productId: null, type: 'fixed', value: 1, startsAt: now, endsAt: null, isActive: true, createdAt: now, updatedAt: now },
           ]);
         }
 

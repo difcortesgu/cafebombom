@@ -7,6 +7,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
@@ -22,9 +23,9 @@ type CartItem = {
 };
 
 const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
-  { label: 'Cash', value: 'cash' },
-  { label: 'Card', value: 'card' },
-  { label: 'Transfer', value: 'transfer' },
+  { label: t('saleForm.payment.cash'), value: 'cash' },
+  { label: t('saleForm.payment.card'), value: 'card' },
+  { label: t('saleForm.payment.transfer'), value: 'transfer' },
 ];
 
 function getTableSurcharge(tableType: TableType, toGoSurcharge: number, deliverySurcharge: number) {
@@ -37,6 +38,16 @@ function getTableSurcharge(tableType: TableType, toGoSurcharge: number, delivery
     delivery,
     total: toGo + delivery,
   };
+}
+
+function formatStatusLabel(status: string) {
+  if (status === 'draft') return t('sales.status.draft');
+  if (status === 'in-progress') return t('sales.status.inProgress');
+  if (status === 'ready') return t('sales.status.ready');
+  if (status === 'paid') return t('sales.status.paid');
+  if (status === 'completed') return t('sales.status.completed');
+  if (status === 'cancelled') return t('sales.status.cancelled');
+  return status;
 }
 
 export default function SaleFormScreen() {
@@ -232,16 +243,16 @@ export default function SaleFormScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">{editingOrderId ? 'Edit Tab' : 'New Sale'}</ThemedText>
+      <ThemedText type="title">{editingOrderId ? t('saleForm.title.edit') : t('saleForm.title.new')}</ThemedText>
       <ThemedText>
         {editingOrderId
-          ? 'Use the same order form to edit draft items, table, payment method, and discount.'
-          : 'Create a draft tab. You can pay now or after kitchen processing.'}
+          ? t('saleForm.subtitle.edit')
+          : t('saleForm.subtitle.new')}
       </ThemedText>
-      {editingOrderId && loadingDraft ? <ThemedText style={styles.smallText}>Loading draft order...</ThemedText> : null}
+      {editingOrderId && loadingDraft ? <ThemedText style={styles.smallText}>{t('saleForm.loadingDraft')}</ThemedText> : null}
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Product catalog</ThemedText>
+        <ThemedText type="subtitle">{t('saleForm.catalog')}</ThemedText>
         <View style={styles.grid}>
           {products.map((product) => (
             <Pressable
@@ -251,21 +262,21 @@ export default function SaleFormScreen() {
               disabled={Boolean(editingOrderId && !canEditDraft)}>
               <ThemedText style={styles.productName}>{product.name}</ThemedText>
               <ThemedText>${Number(product.price).toFixed(2)}</ThemedText>
-              <ThemedText style={styles.smallText}>{product.category || 'Uncategorized'}</ThemedText>
+              <ThemedText style={styles.smallText}>{product.category || t('saleForm.noCategory')}</ThemedText>
             </Pressable>
           ))}
         </View>
         {editingOrderId && !canEditDraft ? (
-          <ThemedText style={styles.smallText}>This tab is no longer editable because it is already paid or closed.</ThemedText>
+          <ThemedText style={styles.smallText}>{t('saleForm.notEditable')}</ThemedText>
         ) : null}
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Cart</ThemedText>
-        {editingOrderId ? <ThemedText style={styles.smallText}>Status: {selectedDraftSale?.status ?? 'draft'}</ThemedText> : null}
+        <ThemedText type="subtitle">{t('saleForm.cart')}</ThemedText>
+        {editingOrderId ? <ThemedText style={styles.smallText}>{t('saleForm.status')}: {formatStatusLabel(selectedDraftSale?.status ?? 'draft')}</ThemedText> : null}
 
-        <ThemedText style={styles.smallText}>Table assignment (required)</ThemedText>
-        {tables.length === 0 ? <ThemedText style={styles.smallText}>No tables available. Create one in the Tables tab.</ThemedText> : null}
+        <ThemedText style={styles.smallText}>{t('saleForm.tableAssignment')}</ThemedText>
+        {tables.length === 0 ? <ThemedText style={styles.smallText}>{t('saleForm.noTables')}</ThemedText> : null}
         <View style={styles.tableRow}>
           {tables.map((table) => {
             const tableSurcharge = getTableSurcharge(table.table_type, toGoSurcharge, deliverySurcharge);
@@ -288,18 +299,18 @@ export default function SaleFormScreen() {
         </View>
         {selectedTableId && surchargeBreakdown.total > 0 ? (
           <ThemedText style={styles.smallText}>
-            Selected table surcharge: +${surchargeBreakdown.total.toFixed(2)}
+            {t('saleForm.selectedTableSurcharge')}: +${surchargeBreakdown.total.toFixed(2)}
           </ThemedText>
         ) : null}
 
         {cart.length === 0 ? (
-          <ThemedText style={styles.smallText}>No items selected.</ThemedText>
+          <ThemedText style={styles.smallText}>{t('saleForm.noItems')}</ThemedText>
         ) : (
           cart.map((item) => (
             <View key={item.productId} style={styles.cartRow}>
               <View style={styles.cartDetails}>
                 <ThemedText style={styles.productName}>{item.name}</ThemedText>
-                <ThemedText style={styles.smallText}>${item.unitPrice.toFixed(2)} each</ThemedText>
+                <ThemedText style={styles.smallText}>${item.unitPrice.toFixed(2)} {t('saleForm.each')}</ThemedText>
               </View>
               <View style={styles.qtyControl}>
                 <Pressable
@@ -321,7 +332,7 @@ export default function SaleFormScreen() {
         )}
 
         <ThemedSelect
-          label="Payment method"
+          label={t('saleForm.paymentMethod')}
           value={selectedPaymentMethod}
           onValueChange={(value) => {
             if (!editingOrderId || canEditDraft) {
@@ -329,11 +340,11 @@ export default function SaleFormScreen() {
             }
           }}
           items={paymentMethodOptions}
-          placeholder="Select payment method"
+          placeholder={t('saleForm.selectPayment')}
         />
 
         <ThemedSelect
-          label="Global discount (optional)"
+          label={t('saleForm.globalDiscount')}
           value={selectedGlobalDiscountId}
           onValueChange={(value) => {
             if (!editingOrderId || canEditDraft) {
@@ -341,31 +352,31 @@ export default function SaleFormScreen() {
             }
           }}
           items={globalDiscountOptions}
-          placeholder="Select global discount"
+          placeholder={t('saleForm.selectDiscount')}
         />
 
         <View style={styles.summaryBlock}>
-          <ThemedText style={styles.smallText}>Subtotal: ${pricing.subtotal.toFixed(2)}</ThemedText>
-          <ThemedText style={styles.smallText}>Item discounts: -${pricing.itemDiscountTotal.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('sales.pricing.subtotal')}: ${pricing.subtotal.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('sales.pricing.itemDiscounts')}: -${pricing.itemDiscountTotal.toFixed(2)}</ThemedText>
           <ThemedText style={styles.smallText}>
-            Global discount: -${pricing.globalDiscountAmount.toFixed(2)}{pricing.globalDiscountSnapshot.discountName ? ` (${pricing.globalDiscountSnapshot.discountName})` : ''}
+            {t('sales.pricing.globalDiscount')}: -${pricing.globalDiscountAmount.toFixed(2)}{pricing.globalDiscountSnapshot.discountName ? ` (${pricing.globalDiscountSnapshot.discountName})` : ''}
           </ThemedText>
-          {surchargeBreakdown.toGo > 0 ? <ThemedText style={styles.smallText}>To-Go surcharge: +${surchargeBreakdown.toGo.toFixed(2)}</ThemedText> : null}
-          {surchargeBreakdown.delivery > 0 ? <ThemedText style={styles.smallText}>Delivery surcharge: +${surchargeBreakdown.delivery.toFixed(2)}</ThemedText> : null}
-          <ThemedText type="defaultSemiBold">Total: ${finalTotal.toFixed(2)}</ThemedText>
+          {surchargeBreakdown.toGo > 0 ? <ThemedText style={styles.smallText}>{t('sales.surcharge.toGo')}: +${surchargeBreakdown.toGo.toFixed(2)}</ThemedText> : null}
+          {surchargeBreakdown.delivery > 0 ? <ThemedText style={styles.smallText}>{t('sales.surcharge.delivery')}: +${surchargeBreakdown.delivery.toFixed(2)}</ThemedText> : null}
+          <ThemedText type="defaultSemiBold">{t('sales.total')}: ${finalTotal.toFixed(2)}</ThemedText>
         </View>
 
-        {!selectedTableId ? <ThemedText style={styles.smallText}>Select a table to continue.</ThemedText> : null}
-        {editingOrderId && !canEditDraft ? <ThemedText style={styles.smallText}>This order is no longer editable.</ThemedText> : null}
+        {!selectedTableId ? <ThemedText style={styles.smallText}>{t('saleForm.selectTablePrompt')}</ThemedText> : null}
+        {editingOrderId && !canEditDraft ? <ThemedText style={styles.smallText}>{t('saleForm.orderNotEditable')}</ThemedText> : null}
         <View style={styles.actionsRow}>
           <ThemedButton
             style={styles.primaryButton}
-            label={editingOrderId ? 'Save changes' : 'Open draft tab'}
+            label={editingOrderId ? t('common.saveChanges') : t('saleForm.openDraft')}
             onPress={submitSale}
             disabled={!selectedTableId || cart.length === 0 || Boolean(editingOrderId && !canEditDraft)}
           />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Discard" onPress={() => setCart([])} disabled={Boolean(editingOrderId && !canEditDraft)} />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('saleForm.discard')} onPress={() => setCart([])} disabled={Boolean(editingOrderId && !canEditDraft)} />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
         </View>
       </ThemedCard>
     </ScrollView>

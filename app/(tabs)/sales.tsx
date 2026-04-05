@@ -7,6 +7,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
@@ -26,31 +27,46 @@ function getSaleSurchargeLines(pricing: SalePricingSummary, tableName: string, t
     const deliverySurcharge = Math.max(0, totalSurcharge - toGoSurcharge);
 
     return [
-      toGoSurcharge > 0 ? `To-Go surcharge: +$${toGoSurcharge.toFixed(2)}` : '',
-      deliverySurcharge > 0 ? `Delivery surcharge: +$${deliverySurcharge.toFixed(2)}` : '',
+      toGoSurcharge > 0 ? `${t('sales.surcharge.toGo')}: +$${toGoSurcharge.toFixed(2)}` : '',
+      deliverySurcharge > 0 ? `${t('sales.surcharge.delivery')}: +$${deliverySurcharge.toFixed(2)}` : '',
     ].filter(Boolean);
   }
 
   if (tableType === 'to-go') {
-    return [`To-Go surcharge: +$${totalSurcharge.toFixed(2)}`];
+    return [`${t('sales.surcharge.toGo')}: +$${totalSurcharge.toFixed(2)}`];
   }
 
-  return [`Surcharge: +$${totalSurcharge.toFixed(2)}`];
+  return [`${t('sales.surcharge.generic')}: +$${totalSurcharge.toFixed(2)}`];
 }
 
 function formatPaymentMethod(method: string) {
   if (method === 'card') {
-    return 'Card';
+    return t('sales.payment.card');
   }
   if (method === 'transfer') {
-    return 'Transfer';
+    return t('sales.payment.transfer');
   }
-  return 'Cash';
+  return t('sales.payment.cash');
 }
 
 function formatStatusLabel(status: OrderStatus) {
+  if (status === 'draft') {
+    return t('sales.status.draft');
+  }
   if (status === 'in-progress') {
-    return 'In progress';
+    return t('sales.status.inProgress');
+  }
+  if (status === 'ready') {
+    return t('sales.status.ready');
+  }
+  if (status === 'paid') {
+    return t('sales.status.paid');
+  }
+  if (status === 'completed') {
+    return t('sales.status.completed');
+  }
+  if (status === 'cancelled') {
+    return t('sales.status.cancelled');
   }
   return status;
 }
@@ -120,7 +136,7 @@ export default function SalesScreen() {
         sales.map(async (sale) => {
           const items = await salesService.getSaleItems(sale.id);
           const summary = items.map((item) => `${item.product_name} x${item.quantity}`).join(', ');
-          return [sale.id, summary || 'No products'] as const;
+          return [sale.id, summary || t('sales.noProducts')] as const;
         }),
       );
 
@@ -176,10 +192,10 @@ export default function SalesScreen() {
     if (sale.status === 'draft') {
       return (
         <View style={styles.orderActions}>
-          <ThemedButton variant="secondary" style={styles.actionButton} label="Open tab" onPress={() => router.push(`/sale-form?orderId=${sale.id}`)} disabled={isBusy} />
-          <ThemedButton style={styles.actionButton} label="Send to kitchen" onPress={() => void runOrderAction(sale.id, () => sendToKitchen(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label="Pay now" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.openTab')} onPress={() => router.push(`/sale-form?orderId=${sale.id}`)} disabled={isBusy} />
+          <ThemedButton style={styles.actionButton} label={t('sales.action.sendToKitchen')} onPress={() => void runOrderAction(sale.id, () => sendToKitchen(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.payNow')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
         </View>
       );
     }
@@ -187,11 +203,11 @@ export default function SalesScreen() {
     if (sale.status === 'in-progress') {
       return (
         <View style={styles.orderActions}>
-          <ThemedButton style={styles.actionButton} label="Mark ready" onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
+          <ThemedButton style={styles.actionButton} label={t('sales.action.markReady')} onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
           {!sale.paid_at ? (
-            <ThemedButton variant="secondary" style={styles.actionButton} label="Pay now" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+            <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.payNow')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
           ) : null}
-          <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
         </View>
       );
     }
@@ -199,8 +215,8 @@ export default function SalesScreen() {
     if (sale.status === 'ready') {
       return (
         <View style={styles.orderActions}>
-          <ThemedButton style={styles.actionButton} label="Receive payment" onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label="Cancel" onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
+          <ThemedButton style={styles.actionButton} label={t('sales.action.receivePayment')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
         </View>
       );
     }
@@ -208,7 +224,7 @@ export default function SalesScreen() {
     if (sale.status === 'paid' && !sale.ready_at) {
       return (
         <View style={styles.orderActions}>
-          <ThemedButton style={styles.actionButton} label="Kitchen ready" onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
+          <ThemedButton style={styles.actionButton} label={t('sales.action.kitchenReady')} onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
         </View>
       );
     }
@@ -239,12 +255,12 @@ export default function SalesScreen() {
     setExpandedSalePricing(
       pricing
         ? [
-            `Subtotal: $${Number(pricing.subtotal).toFixed(2)}`,
-            `Item discounts: -$${Number(pricing.item_discount_total).toFixed(2)}`,
-            `${pricing.global_discount_name ?? 'Global discount'}: -$${Number(pricing.global_discount_amount).toFixed(2)}`,
+            `${t('sales.pricing.subtotal')}: $${Number(pricing.subtotal).toFixed(2)}`,
+            `${t('sales.pricing.itemDiscounts')}: -$${Number(pricing.item_discount_total).toFixed(2)}`,
+            `${pricing.global_discount_name ?? t('sales.pricing.globalDiscount')}: -$${Number(pricing.global_discount_amount).toFixed(2)}`,
             ...surchargeLines,
-            `Final total: $${Number(pricing.total).toFixed(2)}`,
-            pricing.discount_applied_by ? `Applied by: ${pricing.discount_applied_by}` : '',
+            `${t('sales.pricing.finalTotal')}: $${Number(pricing.total).toFixed(2)}`,
+            pricing.discount_applied_by ? `${t('sales.pricing.appliedBy')}: ${pricing.discount_applied_by}` : '',
           ]
             .filter(Boolean)
             .join('\n')
@@ -254,27 +270,27 @@ export default function SalesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Sales</ThemedText>
-      <ThemedText>Track draft tabs, kitchen progress, and payment flow.</ThemedText>
+      <ThemedText type="title">{t('sales.title')}</ThemedText>
+      <ThemedText>{t('sales.subtitle')}</ThemedText>
 
       <View style={styles.headerActions}>
-        <ThemedButton label="New sale" onPress={() => router.push('/sale-form')} />
-        <ThemedButton variant="secondary" style={styles.logoutButton} label="Logout" onPress={logout} />
+        <ThemedButton label={t('sales.newSale')} onPress={() => router.push('/sale-form')} />
+        <ThemedButton variant="secondary" style={styles.logoutButton} label={t('sales.logout')} onPress={logout} />
       </View>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Orders</ThemedText>
+        <ThemedText type="subtitle">{t('sales.orders')}</ThemedText>
         <View style={styles.filterRow}>
-          <ThemedChip label="Active" active={filter === 'active'} onPress={() => setFilter('active')} />
-          <ThemedChip label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
-          <ThemedChip label="Draft" active={filter === 'draft'} onPress={() => setFilter('draft')} />
-          <ThemedChip label="Kitchen" active={filter === 'in-progress'} onPress={() => setFilter('in-progress')} />
-          <ThemedChip label="Ready" active={filter === 'ready'} onPress={() => setFilter('ready')} />
-          <ThemedChip label="Paid" active={filter === 'paid'} onPress={() => setFilter('paid')} />
-          <ThemedChip label="Done" active={filter === 'completed'} onPress={() => setFilter('completed')} />
+          <ThemedChip label={t('sales.filter.active')} active={filter === 'active'} onPress={() => setFilter('active')} />
+          <ThemedChip label={t('sales.filter.all')} active={filter === 'all'} onPress={() => setFilter('all')} />
+          <ThemedChip label={t('sales.filter.draft')} active={filter === 'draft'} onPress={() => setFilter('draft')} />
+          <ThemedChip label={t('sales.filter.kitchen')} active={filter === 'in-progress'} onPress={() => setFilter('in-progress')} />
+          <ThemedChip label={t('sales.filter.ready')} active={filter === 'ready'} onPress={() => setFilter('ready')} />
+          <ThemedChip label={t('sales.filter.paid')} active={filter === 'paid'} onPress={() => setFilter('paid')} />
+          <ThemedChip label={t('sales.filter.completed')} active={filter === 'completed'} onPress={() => setFilter('completed')} />
         </View>
         {filteredSales.length === 0 ? (
-          <ThemedText style={styles.smallText}>No sales yet.</ThemedText>
+          <ThemedText style={styles.smallText}>{t('sales.empty')}</ThemedText>
         ) : (
           Object.entries(salesByTable).map(([tableName, tableSales]) => (
             <View key={tableName} style={styles.historyGroup}>
@@ -282,20 +298,20 @@ export default function SalesScreen() {
                 {tableName}
               </ThemedText>
               {tableSales.map((sale) => {
-                const statusLabel = sale.status === 'in-progress' && sale.paid_at ? 'In progress (paid)' : formatStatusLabel(sale.status);
+                const statusLabel = sale.status === 'in-progress' && sale.paid_at ? t('sales.status.inProgressPaid') : formatStatusLabel(sale.status);
 
                 return (
                   <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
                     <View style={styles.statusRow}>
-                      <ThemedText style={styles.smallText}>Order #{sale.id.slice(0, 6)}</ThemedText>
+                      <ThemedText style={styles.smallText}>{t('sales.order')} #{sale.id.slice(0, 6)}</ThemedText>
                       <View style={[styles.statusBadge, getStatusTone(sale.status, palette)]}>
                         <ThemedText style={[styles.statusBadgeText, { color: getStatusTone(sale.status, palette).color }]}>{statusLabel}</ThemedText>
                       </View>
                     </View>
-                    <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
-                    <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
-                    <ThemedText style={styles.smallText}>Payment: {formatPaymentMethod(sale.payment_method)}</ThemedText>
-                    <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
+                    <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || t('sales.loadingProducts')}</ThemedText>
+                    <ThemedText style={styles.smallText}>{t('sales.total')}: ${Number(sale.total).toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.smallText}>{t('sales.payment')}: {formatPaymentMethod(sale.payment_method)}</ThemedText>
+                    <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} {t('sales.by')} {sale.staff_name}</ThemedText>
                     {renderOrderActions(sale)}
                     {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
                       <>

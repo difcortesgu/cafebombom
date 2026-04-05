@@ -8,6 +8,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { dayRangeUnix } from '@/utils/date';
@@ -36,35 +37,41 @@ export default function AccountsScreen() {
   if (currentUser?.role !== 'owner') {
     return (
       <ThemedView style={styles.denied}>
-        <ThemedText type="title">Accounts</ThemedText>
-        <ThemedText>This section is restricted to Owner role.</ThemedText>
+        <ThemedText type="title">{t('accounts.title')}</ThemedText>
+        <ThemedText>{t('accounts.restricted')}</ThemedText>
       </ThemedView>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Accounts</ThemedText>
-      <ThemedText>List view with quick actions.</ThemedText>
+      <ThemedText type="title">{t('accounts.title')}</ThemedText>
+      <ThemedText>{t('accounts.subtitle')}</ThemedText>
 
       <View style={styles.tabRow}>
         {(['expenses', 'employees', 'payroll', 'report'] as Section[]).map((item) => (
-          <ThemedChip key={item} style={styles.sectionButton} label={item} active={section === item} onPress={() => setSection(item)} />
+          <ThemedChip
+            key={item}
+            style={styles.sectionButton}
+            label={item === 'expenses' ? t('accounts.tab.expenses') : item === 'employees' ? t('accounts.tab.employees') : item === 'payroll' ? t('accounts.tab.payroll') : t('accounts.tab.report')}
+            active={section === item}
+            onPress={() => setSection(item)}
+          />
         ))}
       </View>
 
       {section === 'expenses' ? (
         <ThemedCard style={styles.card}>
           <View style={styles.headerRow}>
-            <ThemedText type="subtitle">Recent expenses</ThemedText>
-            <ThemedButton label="Add expense" onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'expenses' } })} />
+            <ThemedText type="subtitle">{t('accounts.expenses.recent')}</ThemedText>
+            <ThemedButton label={t('accounts.expenses.add')} onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'expenses' } })} />
           </View>
-          <ThemedText type="defaultSemiBold">Today expenses: ${todayExpenses.toFixed(2)}</ThemedText>
+          <ThemedText type="defaultSemiBold">{t('accounts.expenses.today')}: ${todayExpenses.toFixed(2)}</ThemedText>
           {expenses.map((expense) => (
             <View key={expense.id} style={[styles.listItem, { borderColor: palette.border }]}>
               <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
               <ThemedText>${Number(expense.amount).toFixed(2)}</ThemedText>
-              <ThemedText style={styles.smallText}>{expense.description || 'No description'}</ThemedText>
+              <ThemedText style={styles.smallText}>{expense.description || t('accounts.expenses.noDescription')}</ThemedText>
             </View>
           ))}
         </ThemedCard>
@@ -73,8 +80,8 @@ export default function AccountsScreen() {
       {section === 'employees' ? (
         <ThemedCard style={styles.card}>
           <View style={styles.headerRow}>
-            <ThemedText type="subtitle">Employee roster</ThemedText>
-            <ThemedButton label="Add employee" onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'employees' } })} />
+            <ThemedText type="subtitle">{t('accounts.employees.roster')}</ThemedText>
+            <ThemedButton label={t('accounts.employees.add')} onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'employees' } })} />
           </View>
           {employees.map((employee) => (
             <View key={employee.id} style={[styles.listItem, { borderColor: palette.border }]}>
@@ -88,12 +95,12 @@ export default function AccountsScreen() {
       {section === 'payroll' ? (
         <ThemedCard style={styles.card}>
           <View style={styles.headerRow}>
-            <ThemedText type="subtitle">Recent payroll</ThemedText>
-            <ThemedButton label="Add payroll" onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'payroll' } })} />
+            <ThemedText type="subtitle">{t('accounts.payroll.recent')}</ThemedText>
+            <ThemedButton label={t('accounts.payroll.add')} onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'payroll' } })} />
           </View>
           {payroll.map((entry) => (
             <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
-              <ThemedText type="defaultSemiBold">{employees.find((employee) => employee.id === entry.employee_id)?.name ?? `Employee #${entry.employee_id}`}</ThemedText>
+              <ThemedText type="defaultSemiBold">{employees.find((employee) => employee.id === entry.employee_id)?.name ?? `${t('accounts.payroll.employeePrefix')} #${entry.employee_id}`}</ThemedText>
               <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
             </View>
           ))}
@@ -102,20 +109,20 @@ export default function AccountsScreen() {
 
       {section === 'report' ? (
         <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">P&amp;L report</ThemedText>
-          <ThemedText style={styles.smallText}>Using today&apos;s range for now.</ThemedText>
+          <ThemedText type="subtitle">{t('accounts.report.title')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('accounts.report.subtitle')}</ThemedText>
           <ThemedButton
             style={styles.primaryButton}
-            label="Calculate P&amp;L"
+            label={t('accounts.report.calculate')}
             onPress={async () => {
               const { start, end } = dayRangeUnix();
               const value = await getPnL({ startUnix: start, endUnix: end });
               setPnl(value);
             }}
           />
-          <ThemedText>Income: ${pnl.income.toFixed(2)}</ThemedText>
-          <ThemedText>Expenses: ${pnl.expenses.toFixed(2)}</ThemedText>
-          <ThemedText type="defaultSemiBold">Net: ${pnl.net.toFixed(2)}</ThemedText>
+          <ThemedText>{t('accounts.report.income')}: ${pnl.income.toFixed(2)}</ThemedText>
+          <ThemedText>{t('accounts.report.expenses')}: ${pnl.expenses.toFixed(2)}</ThemedText>
+          <ThemedText type="defaultSemiBold">{t('accounts.report.net')}: ${pnl.net.toFixed(2)}</ThemedText>
         </ThemedCard>
       ) : null}
     </ScrollView>

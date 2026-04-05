@@ -22,7 +22,7 @@ export class InventoryWebService implements InventoryService {
         .slice(0, 20)
         .map((entry) => ({
           id: entry.id,
-          ingredient_name: ingredients.find((ingredient) => ingredient.id === entry.ingredientId)?.name ?? 'Unknown',
+          ingredient_name: ingredients.find((ingredient) => ingredient.id === entry.ingredientId)?.name ?? 'Desconocido',
           quantity_added: entry.quantityAdded,
           cost: entry.cost,
           date: entry.date,

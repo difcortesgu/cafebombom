@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 
@@ -27,16 +28,16 @@ export default function TablesScreen() {
   if (currentUser?.role !== 'owner') {
     return (
       <ThemedView style={styles.lockedContainer}>
-        <ThemedText type="title">Tables</ThemedText>
-        <ThemedText>Owner access is required to manage restaurant tables.</ThemedText>
+        <ThemedText type="title">{t('tables.title')}</ThemedText>
+        <ThemedText>{t('tables.restricted')}</ThemedText>
       </ThemedView>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Tables</ThemedText>
-      <ThemedText>List view with quick actions.</ThemedText>
+      <ThemedText type="title">{t('tables.title')}</ThemedText>
+      <ThemedText>{t('tables.subtitle')}</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.card}>
@@ -46,12 +47,12 @@ export default function TablesScreen() {
 
       <ThemedCard style={styles.card}>
         <View style={styles.headerRow}>
-          <ThemedText type="subtitle">Table list</ThemedText>
-          <ThemedButton label="Add table" onPress={() => router.push('/table-form')} />
+          <ThemedText type="subtitle">{t('tables.list')}</ThemedText>
+          <ThemedButton label={t('tables.add')} onPress={() => router.push('/table-form')} />
         </View>
 
         {tables.length === 0 ? (
-          <ThemedText style={styles.smallText}>No tables yet.</ThemedText>
+          <ThemedText style={styles.smallText}>{t('tables.empty')}</ThemedText>
         ) : (
           tables.map((table) => (
             <View key={table.id} style={[styles.listItem, { borderColor: palette.border }]}>
@@ -59,16 +60,16 @@ export default function TablesScreen() {
                 <ThemedText type="defaultSemiBold">{table.name}</ThemedText>
                 <View style={styles.flagRow}>
                   <ThemedText style={styles.smallText}>
-                    {table.table_type === 'to-go' ? 'To-Go' : table.table_type === 'delivery' ? 'Delivery' : 'Dine-in'}
+                    {table.table_type === 'to-go' ? t('tables.type.toGo') : table.table_type === 'delivery' ? t('tables.type.delivery') : t('tables.type.dineIn')}
                   </ThemedText>
                 </View>
-                <ThemedText style={styles.smallText}>Added {new Date(Number(table.created_at) * 1000).toLocaleDateString()}</ThemedText>
+                <ThemedText style={styles.smallText}>{t('tables.addedOn')} {new Date(Number(table.created_at) * 1000).toLocaleDateString()}</ThemedText>
               </View>
               <View style={styles.inlineActions}>
                 <ThemedButton
                   variant="secondary"
                   style={styles.secondaryButton}
-                  label="Edit"
+                  label={t('tables.edit')}
                   onPress={() => router.push({ pathname: '/table-form', params: { id: table.id } })}
                 />
                 <ThemedButton
@@ -78,9 +79,9 @@ export default function TablesScreen() {
                   onPress={async () => {
                     try {
                       await deleteTable(table.id);
-                      setMessage('Table deleted.');
+                      setMessage(t('tables.deleted'));
                     } catch {
-                      setMessage('Cannot delete a table that has linked sales.');
+                      setMessage(t('Cannot delete a table that has linked sales.'));
                     }
                   }}
                 />

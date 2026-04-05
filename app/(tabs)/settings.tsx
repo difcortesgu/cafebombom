@@ -8,6 +8,7 @@ import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { THEME_OPTIONS } from '@/constants/theme';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { type ThemeModePreference, useSettingsStore } from '@/stores/settings';
 
@@ -34,9 +35,9 @@ export default function SettingsScreen() {
   const [toGoInput, setToGoInput] = useState(toGoSurcharge.toFixed(2));
 
   const MODE_OPTIONS: { label: string; value: ThemeModePreference }[] = [
-    { label: 'System', value: 'system' },
-    { label: 'Light', value: 'light' },
-    { label: 'Dark', value: 'dark' },
+    { label: t('settings.mode.system'), value: 'system' },
+    { label: t('settings.mode.light'), value: 'light' },
+    { label: t('settings.mode.dark'), value: 'dark' },
   ];
 
   useEffect(() => {
@@ -74,24 +75,26 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Settings</ThemedText>
-      <ThemedText>Session and local sync controls.</ThemedText>
+      <ThemedText type="title">{t('settings.title')}</ThemedText>
+      <ThemedText>{t('settings.subtitle')}</ThemedText>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Current user</ThemedText>
+        <ThemedText type="subtitle">{t('settings.currentUser.title')}</ThemedText>
         <View style={styles.row}>
-          <ThemedText>Name:</ThemedText>
+          <ThemedText>{t('settings.currentUser.name')}</ThemedText>
           <ThemedText type="defaultSemiBold">{currentUser?.name ?? '-'}</ThemedText>
         </View>
         <View style={styles.row}>
-          <ThemedText>Role:</ThemedText>
-          <ThemedText type="defaultSemiBold">{currentUser?.role ?? '-'}</ThemedText>
+          <ThemedText>{t('settings.currentUser.role')}</ThemedText>
+          <ThemedText type="defaultSemiBold">
+            {currentUser?.role === 'owner' ? t('owner') : currentUser?.role === 'staff' ? t('staff') : '-'}
+          </ThemedText>
         </View>
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Theme</ThemedText>
-        <ThemedText style={styles.muted}>Choose one of the predefined palettes for the app.</ThemedText>
+        <ThemedText type="subtitle">{t('settings.theme.title')}</ThemedText>
+        <ThemedText style={styles.muted}>{t('settings.theme.subtitle')}</ThemedText>
 
         <View style={styles.modeRow}>
           {MODE_OPTIONS.map((opt) => {
@@ -133,7 +136,7 @@ export default function SettingsScreen() {
                 <View style={styles.themeHeader}>
                   <ThemedText type="defaultSemiBold">{theme.name}</ThemedText>
                   <ThemedText style={{ color: isActive ? palette.tint : palette.mutedText }}>
-                    {isActive ? 'Active' : 'Select'}
+                      {isActive ? t('settings.theme.active') : t('settings.theme.select')}
                   </ThemedText>
                 </View>
 
@@ -151,55 +154,60 @@ export default function SettingsScreen() {
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Order Type Charges</ThemedText>
-        <ThemedText style={styles.muted}>These amounts are added when a sale is assigned to a Delivery or To-Go table.</ThemedText>
+        <ThemedText type="subtitle">{t('settings.fees.title')}</ThemedText>
+        <ThemedText style={styles.muted}>{t('settings.fees.subtitle')}</ThemedText>
 
         <View style={styles.feeRow}>
-          <ThemedText style={styles.feeLabel}>Delivery surcharge</ThemedText>
+          <ThemedText style={styles.feeLabel}>{t('settings.fees.delivery')}</ThemedText>
           <ThemedInput
             style={styles.feeInput}
             keyboardType="decimal-pad"
             value={deliveryInput}
             onChangeText={setDeliveryInput}
             onBlur={commitDeliveryFee}
-            placeholder="0.00"
+            placeholder={t('settings.fees.placeholder')}
           />
         </View>
 
         <View style={styles.feeRow}>
-          <ThemedText style={styles.feeLabel}>To-Go surcharge</ThemedText>
+          <ThemedText style={styles.feeLabel}>{t('settings.fees.toGo')}</ThemedText>
           <ThemedInput
             style={styles.feeInput}
             keyboardType="decimal-pad"
             value={toGoInput}
             onChangeText={setToGoInput}
             onBlur={commitToGoFee}
-            placeholder="0.00"
+            placeholder={t('settings.fees.placeholder')}
           />
         </View>
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Sync (optional)</ThemedText>
-        <ThemedText style={styles.muted}>Supabase sync can be wired later; this toggle stores local intent.</ThemedText>
+        <ThemedText type="subtitle">{t('settings.sync.title')}</ThemedText>
+        <ThemedText style={styles.muted}>{t('settings.sync.subtitle')}</ThemedText>
 
-        <ThemedButton variant="secondary" style={styles.secondaryButton} label={syncEnabled ? 'Disable sync' : 'Enable sync'} onPress={toggleSync} />
+        <ThemedButton
+          variant="secondary"
+          style={styles.secondaryButton}
+          label={syncEnabled ? t('settings.sync.disable') : t('settings.sync.enable')}
+          onPress={toggleSync}
+        />
 
-        <ThemedButton variant="secondary" style={styles.secondaryButton} label="Sync now (mock)" onPress={markSynced} />
+        <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('settings.sync.now')} onPress={markSynced} />
 
         <ThemedText style={styles.muted}>
-          Last sync: {lastSyncAt ? new Date(lastSyncAt * 1000).toLocaleString() : 'Never'}
+          {t('settings.sync.last')}: {lastSyncAt ? new Date(lastSyncAt * 1000).toLocaleString() : t('settings.sync.never')}
         </ThemedText>
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Session</ThemedText>
-        <ThemedButton label="Logout" onPress={logout} />
+        <ThemedText type="subtitle">{t('settings.session.title')}</ThemedText>
+        <ThemedButton label={t('settings.session.logout')} onPress={logout} />
       </ThemedCard>
 
       <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">App</ThemedText>
-        <ThemedText>Version: {Constants.expoConfig?.version ?? '1.0.0'}</ThemedText>
+        <ThemedText type="subtitle">{t('settings.app.title')}</ThemedText>
+        <ThemedText>{t('settings.app.version')}: {Constants.expoConfig?.version ?? '1.0.0'}</ThemedText>
       </ThemedCard>
     </ScrollView>
   );

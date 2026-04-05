@@ -7,6 +7,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 
 type Section = 'suppliers' | 'restock';
@@ -26,26 +27,32 @@ export default function InventoryScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">Inventory</ThemedText>
-      <ThemedText>List view with quick actions.</ThemedText>
+      <ThemedText type="title">{t('inventory.title')}</ThemedText>
+      <ThemedText>{t('inventory.subtitle')}</ThemedText>
 
       <View style={styles.tabRow}>
         {(['suppliers', 'restock'] as Section[]).map((item) => (
-          <ThemedChip key={item} style={styles.sectionButton} label={item} active={section === item} onPress={() => setSection(item)} />
+          <ThemedChip
+            key={item}
+            style={styles.sectionButton}
+            label={item === 'suppliers' ? t('inventory.tab.suppliers') : t('inventory.tab.restock')}
+            active={section === item}
+            onPress={() => setSection(item)}
+          />
         ))}
       </View>
 
       {section === 'suppliers' ? (
         <ThemedCard style={styles.card}>
           <View style={styles.headerRow}>
-            <ThemedText type="subtitle">Supplier list</ThemedText>
-            <ThemedButton label="Add supplier" onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'suppliers' } })} />
+            <ThemedText type="subtitle">{t('inventory.suppliers.list')}</ThemedText>
+            <ThemedButton label={t('inventory.suppliers.add')} onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'suppliers' } })} />
           </View>
           {suppliers.map((item) => (
             <View key={item.id} style={[styles.listItemColumn, { borderColor: palette.border }]}>
               <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
-              <ThemedText style={styles.smallText}>{item.phone || 'No phone'}</ThemedText>
-              <ThemedText style={styles.smallText}>{item.notes || 'No notes'}</ThemedText>
+              <ThemedText style={styles.smallText}>{item.phone || t('inventory.suppliers.noPhone')}</ThemedText>
+              <ThemedText style={styles.smallText}>{item.notes || t('inventory.suppliers.noNotes')}</ThemedText>
             </View>
           ))}
         </ThemedCard>
@@ -54,8 +61,8 @@ export default function InventoryScreen() {
       {section === 'restock' ? (
         <ThemedCard style={styles.card}>
           <View style={styles.headerRow}>
-            <ThemedText type="subtitle">Recent stock-in logs</ThemedText>
-            <ThemedButton label="Add restock" onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'restock' } })} />
+            <ThemedText type="subtitle">{t('inventory.restock.recent')}</ThemedText>
+            <ThemedButton label={t('inventory.restock.add')} onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'restock' } })} />
           </View>
 
           {restocks.map((log) => (

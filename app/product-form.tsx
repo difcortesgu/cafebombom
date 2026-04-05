@@ -10,6 +10,7 @@ import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
@@ -128,23 +129,23 @@ export default function ProductFormScreen() {
     const price = Number(productForm.price || '0');
 
     if (!trimmedName) {
-      setMessage('Product name is required.');
+      setMessage(t('productForm.error.nameRequired'));
       return;
     }
 
     if (price <= 0) {
-      setMessage('Product price must be greater than 0.');
+      setMessage(t('productForm.error.pricePositive'));
       return;
     }
 
     if (!productForm.id && productRecipeItems.length === 0) {
-      setMessage('New products must include at least one recipe ingredient.');
+      setMessage(t('productForm.error.recipeRequired'));
       return;
     }
 
     const invalidItems = productRecipeItems.filter((item) => !item.ingredientId || Number(item.quantityUsed || '0') <= 0);
     if (!productForm.id && invalidItems.length > 0) {
-      setMessage('All recipe items must have an ingredient and quantity greater than 0.');
+      setMessage(t('productForm.error.recipeItemInvalid'));
       return;
     }
 
@@ -176,13 +177,13 @@ export default function ProductFormScreen() {
     const currentProductId = productForm.id;
 
     if (!currentProductId) {
-      setMessage('Save the product first, then add recipes.');
+      setMessage(t('productForm.error.saveFirst'));
       return;
     }
 
     for (const item of productRecipeItems) {
       if (!item.ingredientId || Number(item.quantityUsed || '0') <= 0) {
-        setMessage('All recipe items must have an ingredient and quantity greater than 0.');
+        setMessage(t('productForm.error.recipeItemInvalid'));
         return;
       }
 
@@ -194,12 +195,12 @@ export default function ProductFormScreen() {
     }
 
     setProductRecipeItems([]);
-    setMessage(`Added ${productRecipeItems.length} recipe link(s).`);
+    setMessage(t('productForm.recipeAdded', { count: productRecipeItems.length }));
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ThemedText type="title">{productForm.id ? 'Edit product' : 'Create product'}</ThemedText>
+      <ThemedText type="title">{productForm.id ? t('productForm.title.edit') : t('productForm.title.create')}</ThemedText>
 
       {message ? (
         <ThemedCard style={styles.messageCard}>
@@ -209,23 +210,23 @@ export default function ProductFormScreen() {
 
       <ThemedCard style={styles.card}>
         <ThemedInput
-          placeholder="Product name"
+          placeholder={t('productForm.name')}
           value={productForm.name}
           onChangeText={(value) => setProductForm((current) => ({ ...current, name: value }))}
           style={styles.input}
         />
         <ThemedInput
-          placeholder="Price"
+          placeholder={t('productForm.price')}
           keyboardType="decimal-pad"
           value={productForm.price}
           onChangeText={(value) => setProductForm((current) => ({ ...current, price: value }))}
           style={styles.input}
         />
-        <ThemedText style={styles.smallText}>Category</ThemedText>
+        <ThemedText style={styles.smallText}>{t('productForm.category')}</ThemedText>
         <View style={styles.chipRow}>
           <ThemedChip
             style={styles.chip}
-            label="None"
+            label={t('productForm.none')}
             tone="accent"
             active={productForm.categoryId === null}
             onPress={() => setProductForm((current) => ({ ...current, categoryId: null }))}
@@ -243,15 +244,15 @@ export default function ProductFormScreen() {
         </View>
 
         <View style={styles.actionsRow}>
-          <ThemedButton style={styles.primaryButton} label={productForm.id ? 'Save changes' : 'Create product'} onPress={submitProduct} />
-          <ThemedButton variant="secondary" style={styles.secondaryButton} label="Back" onPress={() => router.back()} />
+          <ThemedButton style={styles.primaryButton} label={productForm.id ? t('common.saveChanges') : t('productForm.title.create')} onPress={submitProduct} />
+          <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
         </View>
       </ThemedCard>
 
       {!productForm.id ? (
         <ThemedCard style={styles.card}>
-          <ThemedText style={styles.label}>Recipe ingredients (required)</ThemedText>
-          <ThemedText style={styles.smallText}>Add at least one ingredient before creating the product.</ThemedText>
+          <ThemedText style={styles.label}>{t('productForm.recipeRequiredTitle')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('productForm.recipeRequiredHelp')}</ThemedText>
           {productRecipeItems.map((item, index) => {
             const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
             const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
@@ -259,7 +260,7 @@ export default function ProductFormScreen() {
               <View key={index} style={styles.recipeControlsRow}>
                 <View style={styles.recipeSelectWrapper}>
                   <ThemedSelect
-                    placeholder="Select ingredient"
+                    placeholder={t('productForm.selectIngredient')}
                     value={item.ingredientId}
                     items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
                     onValueChange={(value) => updateProductRecipeItem(index, value, undefined)}
@@ -267,7 +268,7 @@ export default function ProductFormScreen() {
                 </View>
                 <View style={styles.recipeInputWrapper}>
                   <ThemedInput
-                    placeholder="Qty"
+                    placeholder={t('common.qtyShort')}
                     keyboardType="decimal-pad"
                     value={item.quantityUsed}
                     onChangeText={(value) => updateProductRecipeItem(index, undefined, value)}
@@ -278,19 +279,19 @@ export default function ProductFormScreen() {
               </View>
             );
           })}
-          <ThemedButton variant="secondary" style={styles.primaryButton} label="+ Add ingredient" onPress={() => addProductRecipeItem('', '')} />
+          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
         </ThemedCard>
       ) : (
         <ThemedCard style={styles.card}>
-          <ThemedText style={styles.label}>Recipe for this product</ThemedText>
+          <ThemedText style={styles.label}>{t('productForm.recipeTitle')}</ThemedText>
           {editingProductRecipes.length === 0 ? (
-            <ThemedText style={styles.smallText}>No direct ingredients assigned yet.</ThemedText>
+            <ThemedText style={styles.smallText}>{t('productForm.noDirectIngredients')}</ThemedText>
           ) : (
             editingProductRecipes.map((link) => (
               <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
                 <View style={styles.listTextWrap}>
                   <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
-                  <ThemedText style={styles.smallText}>{link.quantityUsed} per unit</ThemedText>
+                  <ThemedText style={styles.smallText}>{link.quantityUsed} {t('productForm.perUnit')}</ThemedText>
                 </View>
                 <ThemedButton
                   variant="secondary"
@@ -298,20 +299,20 @@ export default function ProductFormScreen() {
                   icon="trash.fill"
                   onPress={async () => {
                     if (editingProductRecipes.length <= 1) {
-                      setMessage('Each product must keep at least one recipe ingredient.');
+                      setMessage(t('productForm.error.keepOneIngredient'));
                       return;
                     }
                     await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
-                    setMessage('Recipe link removed.');
+                    setMessage(t('productForm.recipeLinkRemoved'));
                   }}
                 />
               </View>
             ))
           )}
 
-          <ThemedText style={styles.label}>Add recipe ingredients</ThemedText>
+          <ThemedText style={styles.label}>{t('productForm.addRecipeIngredients')}</ThemedText>
           {productRecipeItems.length === 0 ? (
-            <ThemedText style={styles.smallText}>Use Add ingredient to create a new recipe item.</ThemedText>
+            <ThemedText style={styles.smallText}>{t('productForm.addRecipeHelp')}</ThemedText>
           ) : (
             productRecipeItems.map((item, index) => {
               const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
@@ -320,7 +321,7 @@ export default function ProductFormScreen() {
                 <View key={index} style={styles.recipeControlsRow}>
                   <View style={styles.recipeSelectWrapper}>
                     <ThemedSelect
-                      placeholder="Select ingredient"
+                      placeholder={t('productForm.selectIngredient')}
                       value={item.ingredientId}
                       items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
                       onValueChange={(value) => updateProductRecipeItem(index, value, undefined)}
@@ -328,7 +329,7 @@ export default function ProductFormScreen() {
                   </View>
                   <View style={styles.recipeInputWrapper}>
                     <ThemedInput
-                      placeholder="Qty"
+                      placeholder={t('common.qtyShort')}
                       keyboardType="decimal-pad"
                       value={item.quantityUsed}
                       onChangeText={(value) => updateProductRecipeItem(index, undefined, value)}
@@ -341,40 +342,40 @@ export default function ProductFormScreen() {
             })
           )}
 
-          <ThemedButton variant="secondary" style={styles.primaryButton} label="+ Add ingredient" onPress={() => addProductRecipeItem('', '')} />
-          <ThemedButton style={styles.primaryButton} label="Save recipe items" onPress={saveProductRecipe} />
+          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+          <ThemedButton style={styles.primaryButton} label={t('productForm.saveRecipeItems')} onPress={saveProductRecipe} />
         </ThemedCard>
       )}
 
       {productForm.id ? (
         <ThemedCard style={styles.card}>
-          <ThemedText style={styles.label}>Product discounts</ThemedText>
-          <ThemedText style={styles.smallText}>Automatic discounts for this product within a date range.</ThemedText>
-          <ThemedInput placeholder="Discount name" value={discountName} onChangeText={setDiscountName} />
+          <ThemedText style={styles.label}>{t('productForm.discounts.title')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('productForm.discounts.subtitle')}</ThemedText>
+          <ThemedInput placeholder={t('productForm.discounts.name')} value={discountName} onChangeText={setDiscountName} />
           <ThemedSelect
             value={discountType}
             onValueChange={(value) => setDiscountType(value as 'percentage' | 'fixed')}
-            items={[{ label: 'Percentage (%)', value: 'percentage' }, { label: 'Fixed amount ($)', value: 'fixed' }]}
+            items={[{ label: t('productForm.discounts.percentage'), value: 'percentage' }, { label: t('productForm.discounts.fixed'), value: 'fixed' }]}
           />
           <View style={styles.recipeControlsRow}>
             <View style={styles.recipeInputWrapper}>
-              <ThemedInput placeholder="Value" keyboardType="decimal-pad" value={discountValue} onChangeText={setDiscountValue} />
+              <ThemedInput placeholder={t('productForm.discounts.value')} keyboardType="decimal-pad" value={discountValue} onChangeText={setDiscountValue} />
             </View>
             <View style={styles.recipeSelectWrapper}>
-              <DateInput value={startsAt} onChangeValue={setStartsAt} placeholder="Select start date" />
+              <DateInput value={startsAt} onChangeValue={setStartsAt} placeholder={t('productForm.discounts.startDate')} />
             </View>
             <View style={styles.recipeSelectWrapper}>
-              <DateInput value={endsAt} onChangeValue={setEndsAt} endOfDay placeholder="Select end date" />
+              <DateInput value={endsAt} onChangeValue={setEndsAt} endOfDay placeholder={t('productForm.discounts.endDate')} />
             </View>
           </View>
           <ThemedButton
             style={styles.primaryButton}
-            label="Add product discount"
+            label={t('productForm.discounts.add')}
             onPress={async () => {
               if (!productForm.id) return;
               const value = Number(discountValue);
               if (!discountName.trim() || !startsAt || !Number.isFinite(value) || value <= 0) {
-                setMessage('Enter a valid discount name, value, and start date.');
+                setMessage(t('productForm.discounts.invalid'));
                 return;
               }
               await createDiscount({
@@ -392,7 +393,7 @@ export default function ProductFormScreen() {
               setDiscountValue('0');
               setStartsAt(Math.floor(Date.now() / 1000));
               setEndsAt(null);
-              setMessage('Product discount created.');
+              setMessage(t('productForm.discounts.created'));
             }}
           />
 
@@ -401,14 +402,14 @@ export default function ProductFormScreen() {
               <View style={styles.listTextWrap}>
                 <ThemedText type="defaultSemiBold">{discount.name}</ThemedText>
                 <ThemedText style={styles.smallText}>
-                  {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {formatDateInput(discount.startsAt)} to {discount.endsAt ? formatDateInput(discount.endsAt) : 'Open'} · {discount.isActive ? 'Active' : 'Inactive'}
+                  {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {formatDateInput(discount.startsAt)} {t('productForm.discounts.to')} {discount.endsAt ? formatDateInput(discount.endsAt) : t('productForm.discounts.open')} · {discount.isActive ? t('productForm.discounts.active') : t('productForm.discounts.inactive')}
                 </ThemedText>
               </View>
               <View style={styles.actionsRow}>
                 <ThemedButton
                   variant="secondary"
                   style={styles.secondaryButton}
-                  label={discount.isActive ? 'Disable' : 'Enable'}
+                  label={discount.isActive ? t('productForm.discounts.deactivate') : t('productForm.discounts.activate')}
                   onPress={() => {
                     void updateDiscount({
                       id: discount.id,
@@ -423,7 +424,7 @@ export default function ProductFormScreen() {
                     });
                   }}
                 />
-                <ThemedButton variant="secondary" style={styles.secondaryButton} label="Delete" onPress={() => void deleteDiscount(discount.id)} />
+                <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('productForm.discounts.delete')} onPress={() => void deleteDiscount(discount.id)} />
               </View>
             </View>
           ))}

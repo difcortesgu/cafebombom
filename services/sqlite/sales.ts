@@ -1,17 +1,18 @@
+import { t } from '@/i18n';
 import type { SalesService } from '@/services/interfaces/sales';
 import { db, dbReady } from '@/services/sqlite/database/db';
 import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, surcharges, users } from '@/services/sqlite/database/schema';
 import type {
-  AddItemToOrderPayload,
-  CreateDiscountPayload,
-  CreateSalePayload,
-  CreateTablePayload,
-  RemoveItemFromOrderPayload,
-  SaleItemDetail,
-  SalePricingSummary,
-  UpdateDiscountPayload,
-  UpdateDraftOrderPayload,
-  UpdateTablePayload,
+    AddItemToOrderPayload,
+    CreateDiscountPayload,
+    CreateSalePayload,
+    CreateTablePayload,
+    RemoveItemFromOrderPayload,
+    SaleItemDetail,
+    SalePricingSummary,
+    UpdateDiscountPayload,
+    UpdateDraftOrderPayload,
+    UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
@@ -199,7 +200,7 @@ export class SalesSqliteService implements SalesService {
     } catch (err: any) {
       const msg = String(err?.message ?? '');
       if (msg.includes('FOREIGN KEY constraint failed')) {
-        throw new Error('Cannot delete a table that has linked sales.');
+        throw new Error(t('Cannot delete a table that has linked sales.'));
       }
       throw err;
     }
@@ -285,11 +286,11 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!existingOrder) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (existingOrder.status !== 'draft') {
-      throw new Error('Only draft orders can be edited.');
+      throw new Error(t('Only draft orders can be edited.'));
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
@@ -536,11 +537,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(`Cannot send order to kitchen. Order status must be 'draft', but is '${order.status}'`);
+      throw new Error(t("Cannot send order to kitchen. Order status must be 'draft', but is '{status}'", { status: order.status }));
     }
 
     db.update(sales)
@@ -563,11 +564,11 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (!['in-progress', 'paid'].includes(order.status)) {
-      throw new Error(`Cannot mark order as ready. Order status must be 'in-progress' or 'paid', but is '${order.status}'`);
+      throw new Error(t("Cannot mark order as ready. Order status must be 'in-progress' or 'paid', but is '{status}'", { status: order.status }));
     }
 
     // Paid-first flow: inventory was not deducted yet while order was still draft.
@@ -594,11 +595,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
-      throw new Error(`Cannot mark order as paid. Order status must be 'draft', 'in-progress', or 'ready', but is '${order.status}'`);
+      throw new Error(t("Cannot mark order as paid. Order status must be 'draft', 'in-progress', or 'ready', but is '{status}'", { status: order.status }));
     }
 
     const paidAt = Math.floor(Date.now() / 1000);
@@ -643,11 +644,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(`Can only add items to draft orders. Order status is '${order.status}'`);
+      throw new Error(t("Can only add items to draft orders. Order status is '{status}'", { status: order.status }));
     }
 
     const product = db
@@ -657,7 +658,7 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!product) {
-      throw new Error(`Product ${item.productId} not found`);
+      throw new Error(t('Product {productId} not found', { productId: item.productId }));
     }
 
     const lineSubtotal = item.unitPrice * item.quantity;
@@ -698,11 +699,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(`Can only remove items from draft orders. Order status is '${order.status}'`);
+      throw new Error(t("Can only remove items from draft orders. Order status is '{status}'", { status: order.status }));
     }
 
     db.delete(saleItems).where(eq(saleItems.id, saleItemId)).run();
@@ -735,11 +736,11 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!order) {
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(t('Order {orderId} not found', { orderId }));
     }
 
     if (order.status === 'completed' || order.status === 'cancelled') {
-      throw new Error(`Cannot cancel order with status '${order.status}'`);
+      throw new Error(t("Cannot cancel order with status '{status}'", { status: order.status }));
     }
 
     const cancelledAt = Math.floor(Date.now() / 1000);

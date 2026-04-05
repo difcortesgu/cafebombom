@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
 
 type ThemedSelectProps = {
   label?: string;
@@ -29,7 +30,7 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
         style={[styles.button, { borderColor: palette.border, backgroundColor: palette.inputBackground }]}
         onPress={() => setIsOpen(true)}>
         <ThemedText style={[styles.buttonText, selectedItem ? {} : { color: palette.placeholder }]}>
-          {selectedItem?.label || placeholder || 'Select...'}
+          {selectedItem?.label || placeholder || t('Select...')}
         </ThemedText>
       </Pressable>
 
@@ -37,11 +38,11 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
         <Pressable style={styles.overlay} onPress={() => setIsOpen(false)}>
           <View style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              Select an ingredient
+              {t('Select an ingredient')}
             </ThemedText>
 
             <ThemedInput
-              placeholder="Search..."
+              placeholder={t('Search...')}
               value={searchText}
               onChangeText={setSearchText}
               style={styles.searchInput}
@@ -70,7 +71,7 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
             </ScrollView>
 
             <ThemedButton
-              label="Close"
+              label={t('Close')}
               style={styles.closeButton}
               onPress={() => {
                 setIsOpen(false);
