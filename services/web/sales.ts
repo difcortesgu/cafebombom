@@ -8,7 +8,7 @@ import type {
     UpdateDiscountPayload,
     UpdateTablePayload,
 } from '@/types/sales';
-import type { Discount, RestaurantTable } from '@/types/types';
+import type { Discount, PaymentMethod, RestaurantTable } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 import { getDb } from './storage';
@@ -45,6 +45,7 @@ export class SalesWebService implements SalesService {
           created_at: sale.createdAt,
           staff_name: users.find((user) => user.id === sale.staffId)?.name ?? 'Unknown',
           table_name: tables.find((table) => table.id === sale.tableId)?.name ?? 'Unknown table',
+          payment_method: sale.paymentMethod ?? 'cash',
           total: sale.total,
         })),
       tables: tables
@@ -186,7 +187,7 @@ export class SalesWebService implements SalesService {
     await db.restaurantTables.delete(id);
   }
 
-  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
+  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
     if (items.length === 0 || !tableId) {
       return;
     }
@@ -199,6 +200,7 @@ export class SalesWebService implements SalesService {
     ]);
 
     const now = Math.floor(Date.now() / 1000);
+    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
     const breakdown = calculateSaleDiscountBreakdown(items, discounts, now, globalDiscountId ?? null);
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
     const recipeByProductId = new Map<string, Array<{ ingredientId: string; quantityUsed: number }>>();
@@ -207,6 +209,7 @@ export class SalesWebService implements SalesService {
       createdAt: now,
       staffId,
       tableId,
+      paymentMethod: normalizedPaymentMethod,
       subtotal: breakdown.subtotal,
       itemDiscountTotal: breakdown.itemDiscountTotal,
       orderDiscountName: breakdown.globalDiscountSnapshot.discountName,

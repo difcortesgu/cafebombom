@@ -10,7 +10,7 @@ import type {
     UpdateDiscountPayload,
     UpdateTablePayload,
 } from '@/types/sales';
-import type { Discount, Product, RestaurantTable, Sale } from '@/types/types';
+import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 import { between, desc, eq, sql } from 'drizzle-orm';
 
@@ -36,6 +36,7 @@ export class SalesSqliteService implements SalesService {
         created_at: sales.createdAt,
         staff_name: users.name,
         table_name: restaurantTables.name,
+        payment_method: sales.paymentMethod,
         total: sales.total,
       })
       .from(sales)
@@ -197,13 +198,14 @@ export class SalesSqliteService implements SalesService {
     }
   }
 
-  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
+  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<void> {
     await dbReady;
     if (items.length === 0) {
       return;
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
+    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
 
     const activeDiscounts = db
       .select({
@@ -230,6 +232,7 @@ export class SalesSqliteService implements SalesService {
           createdAt,
           staffId,
           tableId,
+          paymentMethod: normalizedPaymentMethod,
           subtotal: breakdown.subtotal,
           itemDiscountTotal: breakdown.itemDiscountTotal,
           orderDiscountName: breakdown.globalDiscountSnapshot.discountName,

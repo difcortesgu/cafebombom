@@ -115,6 +115,7 @@ export const sales = sqliteTable('sales', {
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   staffId: text('staff_id').notNull().references(() => users.id),
   tableId: text('table_id').notNull().references(() => restaurantTables.id, { onDelete: 'restrict' }),
+  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull().default('cash'),
   subtotal: real('subtotal').notNull().default(0),
   itemDiscountTotal: real('item_discount_total').notNull().default(0),
   orderDiscountName: text('order_discount_name'),

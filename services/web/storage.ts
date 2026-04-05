@@ -65,6 +65,7 @@ export type WebSaleRecord = {
   createdAt: number;
   staffId: string;
   tableId: string;
+  paymentMethod: 'cash' | 'card' | 'transfer';
   subtotal: number;
   itemDiscountTotal: number;
   orderDiscountName: string | null;
@@ -289,6 +290,34 @@ export class CafeBomBomDB extends Dexie {
             updatedAt: now,
           },
         ]);
+      });
+
+    this.version(11)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        surcharges: '&name, updatedAt',
+        sales: 'id, createdAt, staffId, tableId, paymentMethod',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('sales').toCollection().modify((sale: any) => {
+          if (!sale.paymentMethod) {
+            sale.paymentMethod = 'cash';
+          }
+        });
       });
 
     this.attachIdHooks();

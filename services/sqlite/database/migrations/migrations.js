@@ -5,6 +5,7 @@ import m0001 from './0001_table_order_type_flags.sql';
 import m0002 from './0002_table_type.sql';
 import m0003 from './0003_surcharge_settings.sql';
 import m0004 from './0004_surcharges_table.sql';
+import m0005 from './0005_sales_payment_method.sql';
 import journal from './meta/_journal.json';
 
   export default {
@@ -14,7 +15,8 @@ import journal from './meta/_journal.json';
       m0001,
       m0002,
       m0003,
-      m0004
+      m0004,
+      m0005
     }
   }
   

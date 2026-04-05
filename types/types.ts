@@ -3,6 +3,7 @@ export type Unit = 'grams' | 'liters' | 'pieces';
 export type DiscountType = 'percentage' | 'fixed';
 export type DiscountScope = 'product' | 'global';
 export type TableType = 'dine-in' | 'to-go' | 'delivery';
+export type PaymentMethod = 'cash' | 'card' | 'transfer';
 
 
 export type User = {
@@ -58,6 +59,7 @@ export type Sale = {
   staff_name: string;
   total: number;
   table_name: string;
+  payment_method: PaymentMethod;
 };
 
 export type RestaurantTable = {

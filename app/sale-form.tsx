@@ -10,7 +10,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
-import type { TableType } from '@/types/types';
+import type { PaymentMethod, TableType } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 type CartItem = {
@@ -19,6 +19,13 @@ type CartItem = {
   unitPrice: number;
   quantity: number;
 };
+
+const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
+  { label: 'Cash', value: 'cash' },
+  { label: 'Card', value: 'card' },
+  { label: 'Transfer', value: 'transfer' },
+];
+
 function getTableSurcharge(tableType: TableType, toGoSurcharge: number, deliverySurcharge: number) {
   const safeToGo = Math.max(0, toGoSurcharge);
   const safeDelivery = Math.max(0, deliverySurcharge);
@@ -40,6 +47,7 @@ export default function SaleFormScreen() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('cash');
   const [selectedGlobalDiscountId, setSelectedGlobalDiscountId] = useState('');
 
   useFocusEffect(
@@ -124,6 +132,7 @@ export default function SaleFormScreen() {
         unitPrice: item.unitPrice,
       })),
       tableId: selectedTableId,
+      paymentMethod: selectedPaymentMethod,
       globalDiscountId: selectedGlobalDiscountId || null,
       orderTypeSurcharge: surchargeBreakdown.total,
     });
@@ -199,6 +208,14 @@ export default function SaleFormScreen() {
             </View>
           ))
         )}
+
+        <ThemedSelect
+          label="Payment method"
+          value={selectedPaymentMethod}
+          onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+          items={paymentMethodOptions}
+          placeholder="Select payment method"
+        />
 
         <ThemedSelect
           label="Global discount (optional)"

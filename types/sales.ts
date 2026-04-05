@@ -1,4 +1,4 @@
-import type { DiscountType, SaleItemInput, TableType } from '@/types/types';
+import type { DiscountType, PaymentMethod, SaleItemInput, TableType } from '@/types/types';
 
 export type DiscountSnapshot = {
   discount_name: string | null;
@@ -33,6 +33,7 @@ export type CreateSalePayload = {
   staffId: string;
   items: SaleItemInput[];
   tableId: string;
+  paymentMethod?: PaymentMethod;
   globalDiscountId?: string | null;
   orderTypeSurcharge?: number;
 };

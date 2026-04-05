@@ -37,6 +37,16 @@ function getSaleSurchargeLines(pricing: SalePricingSummary, tableName: string, t
   return [`Surcharge: +$${totalSurcharge.toFixed(2)}`];
 }
 
+function formatPaymentMethod(method: string) {
+  if (method === 'card') {
+    return 'Card';
+  }
+  if (method === 'transfer') {
+    return 'Transfer';
+  }
+  return 'Cash';
+}
+
 export default function SalesScreen() {
   const palette = useAppColors();
   const router = useRouter();
@@ -160,6 +170,7 @@ export default function SalesScreen() {
                 <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
                   <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || 'Loading products...'}</ThemedText>
                   <ThemedText style={styles.smallText}>Total: ${Number(sale.total).toFixed(2)}</ThemedText>
+                  <ThemedText style={styles.smallText}>Payment: {formatPaymentMethod(sale.payment_method)}</ThemedText>
                   <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} by {sale.staff_name}</ThemedText>
                   {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
                     <>

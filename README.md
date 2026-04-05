@@ -156,9 +156,9 @@ If you also plan to publish web, use your preferred static hosting provider for 
 ### 1. Discounts
 
 - [X] Discounts
-- [ ] Delivery and To-Go Order Types
+- [X] Delivery and To-Go Order Types
+- [X] Payment Methods
 - [ ] Order State Management
-- [ ] Payment Methods
 - [ ] Receipt Generation and Thermal Printing
 - [ ] Dashboard Improvements
 - [ ] Biometric Authentication
