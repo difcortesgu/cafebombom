@@ -1,6 +1,6 @@
 import type { SeedImportResult, SetupService } from '@/services/interfaces/setup';
 import { db, dbReady } from '@/services/sqlite/database/db';
-import { categories, discounts, ingredients, productIngredients, products, restaurantTables, surcharges } from '@/services/sqlite/database/schema';
+import { categories, discounts, employees, ingredients, productIngredients, products, restaurantTables, suppliers, surcharges } from '@/services/sqlite/database/schema';
 import { parseSeedWorkbook } from '@/utils/excel-seed';
 import { and, eq } from 'drizzle-orm';
 
@@ -11,6 +11,8 @@ export class SetupSqliteService implements SetupService {
 
     const result: SeedImportResult = {
       inserted: {
+        suppliers: 0,
+        employees: 0,
         categories: 0,
         ingredients: 0,
         products: 0,
@@ -21,6 +23,38 @@ export class SetupSqliteService implements SetupService {
       },
       issues: [],
     };
+
+    for (const row of data.providers) {
+      const existing = db.select({ id: suppliers.id }).from(suppliers).where(eq(suppliers.name, row.name)).get();
+      if (existing) {
+        continue;
+      }
+
+      db.insert(suppliers)
+        .values({
+          name: row.name,
+          phone: row.phone,
+          notes: row.notes,
+        })
+        .run();
+      result.inserted.suppliers += 1;
+    }
+
+    for (const row of data.employees) {
+      const existing = db.select({ id: employees.id }).from(employees).where(eq(employees.name, row.name)).get();
+      if (existing) {
+        continue;
+      }
+
+      db.insert(employees)
+        .values({
+          name: row.name,
+          salaryType: row.salaryType,
+          rate: row.rate,
+        })
+        .run();
+      result.inserted.employees += 1;
+    }
 
     for (const row of data.categories) {
       const existing = db.select({ id: categories.id }).from(categories).where(eq(categories.name, row.name)).get();

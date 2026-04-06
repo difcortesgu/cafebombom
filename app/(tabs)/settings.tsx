@@ -128,7 +128,7 @@ export default function SettingsScreen() {
       const importResult = await setupService.importSeedFromExcel(new Uint8Array(buffer));
 
       setImportMessage(
-        `Imported ${importResult.inserted.categories} categories, ${importResult.inserted.ingredients} ingredients, ${importResult.inserted.products} products, and ${importResult.inserted.restaurantTables} tables.`,
+        `Imported ${importResult.inserted.suppliers} providers, ${importResult.inserted.employees} employees, ${importResult.inserted.categories} categories, ${importResult.inserted.ingredients} ingredients, ${importResult.inserted.products} products, and ${importResult.inserted.restaurantTables} tables.`,
       );
       setImportIssues(importResult.issues.slice(0, 4));
 
@@ -406,7 +406,7 @@ export default function SettingsScreen() {
 
       <ThemedCard style={styles.card}>
         <ThemedText type="subtitle">Seed Data Import</ThemedText>
-        <ThemedText style={styles.muted}>Upload an Excel file to import categories, inventory, products, recipes, tables, discounts, and surcharges.</ThemedText>
+        <ThemedText style={styles.muted}>Upload an Excel file to import providers, employees, categories, inventory, products, recipes, tables, discounts, and surcharges.</ThemedText>
         <ThemedButton
           disabled={importBusy}
           label={importBusy ? 'Importing...' : 'Upload Seed Excel'}

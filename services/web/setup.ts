@@ -10,6 +10,8 @@ export class SetupWebService implements SetupService {
 
     const result: SeedImportResult = {
       inserted: {
+        suppliers: 0,
+        employees: 0,
         categories: 0,
         ingredients: 0,
         products: 0,
@@ -23,8 +25,37 @@ export class SetupWebService implements SetupService {
 
     await db.transaction(
       'rw',
-      [db.categories, db.ingredients, db.products, db.productIngredients, db.restaurantTables, db.discounts, db.surcharges],
+      [db.suppliers, db.employees, db.categories, db.ingredients, db.products, db.productIngredients, db.restaurantTables, db.discounts, db.surcharges],
       async () => {
+        for (const row of data.providers) {
+          const existing = await db.suppliers.where('name').equals(row.name).first();
+          if (existing) {
+            continue;
+          }
+
+          const now = Math.floor(Date.now() / 1000);
+          await db.suppliers.add({
+            name: row.name,
+            phone: row.phone,
+            notes: row.notes,
+          });
+          result.inserted.suppliers += 1;
+        }
+
+        for (const row of data.employees) {
+          const existing = await db.employees.where('name').equals(row.name).first();
+          if (existing) {
+            continue;
+          }
+
+          await db.employees.add({
+            name: row.name,
+            salaryType: row.salaryType,
+            rate: row.rate,
+          });
+          result.inserted.employees += 1;
+        }
+
         for (const row of data.categories) {
           const existing = await db.categories.where('name').equals(row.name).first();
           if (existing) {

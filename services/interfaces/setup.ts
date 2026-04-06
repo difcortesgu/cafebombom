@@ -1,4 +1,6 @@
 export type SeedImportSummary = {
+  suppliers: number;
+  employees: number;
   categories: number;
   ingredients: number;
   products: number;

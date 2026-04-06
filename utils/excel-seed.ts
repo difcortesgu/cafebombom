@@ -4,6 +4,18 @@ export type SeedCategoryRow = {
   name: string;
 };
 
+export type SeedProviderRow = {
+  name: string;
+  phone: string | null;
+  notes: string | null;
+};
+
+export type SeedEmployeeRow = {
+  name: string;
+  salaryType: 'hourly' | 'monthly';
+  rate: number;
+};
+
 export type SeedIngredientRow = {
   name: string;
   unit: 'grams' | 'liters' | 'pieces';
@@ -46,6 +58,8 @@ export type SeedSurchargeRow = {
 };
 
 export type ParsedSeedData = {
+  providers: SeedProviderRow[];
+  employees: SeedEmployeeRow[];
   categories: SeedCategoryRow[];
   ingredients: SeedIngredientRow[];
   products: SeedProductRow[];
@@ -56,6 +70,8 @@ export type ParsedSeedData = {
 };
 
 const SHEET_ALIASES: Record<keyof ParsedSeedData, string[]> = {
+  providers: ['providers', 'provider', 'suppliers', 'supplier'],
+  employees: ['employees', 'employee', 'staff'],
   categories: ['categories', 'category'],
   ingredients: ['ingredients', 'ingredient'],
   products: ['products', 'product'],
@@ -176,6 +192,10 @@ const parseDiscountType = (value: unknown): 'percentage' | 'fixed' => {
   return normalizeText(value).toLowerCase() === 'fixed' ? 'fixed' : 'percentage';
 };
 
+const parseSalaryType = (value: unknown): 'hourly' | 'monthly' => {
+  return normalizeText(value).toLowerCase() === 'monthly' ? 'monthly' : 'hourly';
+};
+
 export function parseSeedWorkbook(content: Uint8Array): ParsedSeedData {
   const workbook = XLSX.read(content, { type: 'array' });
 
@@ -201,6 +221,35 @@ export function parseSeedWorkbook(content: Uint8Array): ParsedSeedData {
       return null;
     }
     return { name };
+  });
+
+  const providers = read('providers', (row) => {
+    const name = normalizeText(row.name);
+    if (!name) {
+      return null;
+    }
+
+    const phone = normalizeText(row.phone);
+    const notes = normalizeText(row.notes);
+
+    return {
+      name,
+      phone: phone || null,
+      notes: notes || null,
+    };
+  });
+
+  const employees = read('employees', (row) => {
+    const name = normalizeText(row.name);
+    if (!name) {
+      return null;
+    }
+
+    return {
+      name,
+      salaryType: parseSalaryType(row.salarytype ?? row.salary),
+      rate: Math.max(0, toNumber(row.rate, 0)),
+    };
   });
 
   const ingredients = read('ingredients', (row) => {
@@ -297,6 +346,8 @@ export function parseSeedWorkbook(content: Uint8Array): ParsedSeedData {
   });
 
   return {
+    providers,
+    employees,
     categories,
     ingredients,
     products,
