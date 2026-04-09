@@ -6,16 +6,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
-import { ThemedInput } from '@/components/ui/themed-input';
-import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
-import { useSalesStore } from '@/stores/sales';
 
-type Section = 'products' | 'ingredients' | 'suppliers' | 'discounts';
+type Section = 'products' | 'ingredients' | 'suppliers';
 
 export default function InventoryScreen() {
   const palette = useAppColors();
@@ -23,15 +20,9 @@ export default function InventoryScreen() {
   const currentUser = useAuthStore((state) => state.currentUser);
   const [section, setSection] = useState<Section>('products');
   const [message, setMessage] = useState('');
-  const [globalName, setGlobalName] = useState('');
-  const [globalType, setGlobalType] = useState<'percentage' | 'fixed'>('percentage');
-  const [globalValue, setGlobalValue] = useState('0');
 
   const { suppliers, ingredients, hydrate: hydrateInventory, updateIngredient } = useInventoryStore();
   const { products, categories, hydrate: hydrateProducts, updateProduct } = useProductsStore();
-  const { discounts, hydrateDiscounts, createDiscount, updateDiscount, deleteDiscount } = useSalesStore();
-
-  const globalDiscounts = useMemo(() => discounts.filter((discount) => discount.scope === 'global'), [discounts]);
 
   const lowStock = useMemo(
     () => ingredients.filter((item) => Number(item.quantity) <= Number(item.low_stock_threshold)),
@@ -42,8 +33,8 @@ export default function InventoryScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void Promise.all([hydrateInventory(), hydrateProducts(), hydrateDiscounts()]);
-    }, [hydrateDiscounts, hydrateInventory, hydrateProducts]),
+      void Promise.all([hydrateInventory(), hydrateProducts()]);
+    }, [hydrateInventory, hydrateProducts]),
   );
 
   return (
@@ -52,7 +43,7 @@ export default function InventoryScreen() {
       <ThemedText>{t('inventory.subtitle')}</ThemedText>
 
       <View style={styles.tabRow}>
-        {(['products', 'ingredients', 'suppliers', 'discounts'] as Section[]).map((item) => (
+        {(['products', 'ingredients', 'suppliers'] as Section[]).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
@@ -61,9 +52,7 @@ export default function InventoryScreen() {
                 ? t('inventory.tab.products')
                 : item === 'ingredients'
                   ? t('inventory.tab.ingredients')
-                  : item === 'suppliers'
-                    ? t('inventory.tab.suppliers')
-                    : t('inventory.tab.discounts')
+                  : t('inventory.tab.suppliers')
             }
             active={section === item}
             onPress={() => setSection(item)}
@@ -186,72 +175,6 @@ export default function InventoryScreen() {
         </ThemedCard>
       ) : null}
 
-      {section === 'discounts' && !isRestrictedSection ? (
-        <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">{t('products.discounts.title')}</ThemedText>
-          <ThemedText style={styles.smallText}>{t('products.discounts.subtitle')}</ThemedText>
-
-          <ThemedInput value={globalName} onChangeText={setGlobalName} placeholder={t('products.discounts.namePlaceholder')} />
-          <ThemedSelect
-            value={globalType}
-            onValueChange={(value) => setGlobalType(value as 'percentage' | 'fixed')}
-            items={[{ label: t('products.discounts.typePercentage'), value: 'percentage' }, { label: t('products.discounts.typeFixed'), value: 'fixed' }]}
-          />
-          <ThemedInput value={globalValue} onChangeText={setGlobalValue} keyboardType="decimal-pad" placeholder={t('products.discounts.valuePlaceholder')} />
-          <ThemedButton
-            label={t('products.discounts.create')}
-            onPress={async () => {
-              const value = Number(globalValue);
-              if (!globalName.trim() || !Number.isFinite(value) || value <= 0) {
-                setMessage(t('products.discounts.invalid'));
-                return;
-              }
-              await createDiscount({
-                name: globalName.trim(),
-                scope: 'global',
-                productId: null,
-                type: globalType,
-                value,
-                startsAt: 0,
-                endsAt: null,
-                isActive: true,
-              });
-              setGlobalName('');
-              setGlobalType('percentage');
-              setGlobalValue('0');
-              setMessage(t('products.discounts.created'));
-            }}
-          />
-
-          {globalDiscounts.map((discount) => (
-            <View key={discount.id} style={[styles.listItemColumn, { borderColor: palette.border }]}> 
-              <ThemedText type="defaultSemiBold">{discount.name}</ThemedText>
-              <ThemedText style={styles.smallText}>
-                {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {discount.isActive ? t('products.discounts.active') : t('products.discounts.inactive')}
-              </ThemedText>
-              <View style={styles.inlineActions}>
-                <ThemedButton
-                  variant="secondary"
-                  style={styles.secondaryButton}
-                  label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
-                  onPress={() => void updateDiscount({
-                    id: discount.id,
-                    name: discount.name,
-                    scope: 'global',
-                    productId: null,
-                    type: discount.type,
-                    value: discount.value,
-                    startsAt: 0,
-                    endsAt: null,
-                    isActive: !discount.isActive,
-                  })}
-                />
-                <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('products.discounts.delete')} onPress={() => void deleteDiscount(discount.id)} />
-              </View>
-            </View>
-          ))}
-        </ThemedCard>
-      ) : null}
     </ScrollView>
   );
 }
