@@ -18,13 +18,6 @@ type AuthState = {
   logout: () => Promise<void>;
 };
 
-const pickDevUser = (users: User[]): User | null => {
-  if (users.length === 0) {
-    return null;
-  }
-  return users.find((user) => user.role === 'owner') ?? users[0];
-};
-
 export const useAuthStore = create<AuthState>((set, get) => ({
   users: [],
   currentUser: null,
@@ -35,13 +28,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     const users = await authService.getActiveUsers();
 
-    if (__DEV__) {
-      const devUser = pickDevUser(users);
-      set({ users, currentUser: devUser, loading: false, error: null });
-      return;
-    }
-
-    set({ users, loading: false });
+    set({ users, currentUser: null, loading: false });
   },
 
   createUser: async ({ name, role, pin }: CreateUserPayload) => {
@@ -119,12 +106,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    if (__DEV__) {
-      const devUser = pickDevUser(get().users);
-      set({ currentUser: devUser, error: null });
-      return;
-    }
-
     const user = get().currentUser;
     if (user) {
       await authService.endOpenSession(user.id);

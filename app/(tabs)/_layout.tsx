@@ -27,15 +27,28 @@ export default function TabLayout() {
   const [importIssues, setImportIssues] = useState<string[]>([]);
   const [setupBusy, setSetupBusy] = useState(false);
   const [setupMode, setSetupMode] = useState(false);
+  const [bootHydrated, setBootHydrated] = useState(false);
 
   const { users, currentUser, hydrate: hydrateAuth, createUser, login, loading, error } = useAuthStore();
   const { hydrate: hydrateInventory, lowStockCount } = useInventoryStore();
   const { hydrate: hydrateProducts } = useProductsStore();
 
   useEffect(() => {
-    hydrateAuth();
-    hydrateInventory();
-    hydrateProducts();
+    let cancelled = false;
+
+    void Promise.all([
+      hydrateAuth(),
+      hydrateInventory(),
+      hydrateProducts(),
+    ]).finally(() => {
+      if (!cancelled) {
+        setBootHydrated(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [hydrateAuth, hydrateInventory, hydrateProducts]);
 
   useEffect(() => {
@@ -57,10 +70,27 @@ export default function TabLayout() {
   }, [isOwner]);
 
   useEffect(() => {
+    if (!bootHydrated) {
+      return;
+    }
+
     if (!loading && !currentUser && !hasAccounts) {
       setSetupMode(true);
     }
-  }, [loading, currentUser, hasAccounts]);
+  }, [bootHydrated, loading, currentUser, hasAccounts]);
+
+  const canUnlockSession = !loading && !!selectedUserId && pin.length >= 4;
+
+  const handleUnlockSession = async () => {
+    if (!selectedUserId || pin.length < 4 || loading) {
+      return;
+    }
+
+    const success = await login({ userId: selectedUserId, pin });
+    if (success) {
+      setPin('');
+    }
+  };
 
   if (!currentUser && setupMode) {
     return (
@@ -246,22 +276,17 @@ export default function TabLayout() {
           placeholder={t('Enter PIN')}
           style={styles.pinInput}
           onChangeText={setPin}
+          onSubmitEditing={() => {
+            void handleUnlockSession();
+          }}
         />
 
         {error ? <ThemedText style={[styles.errorText, { color: palette.danger }]}>{error}</ThemedText> : null}
 
         <ThemedButton
           style={styles.loginButton}
-          disabled={loading || !selectedUserId || pin.length < 4}
-          onPress={async () => {
-            if (!selectedUserId) {
-              return;
-            }
-            const success = await login({ userId: selectedUserId, pin });
-            if (success) {
-              setPin('');
-            }
-          }}>
+          disabled={!canUnlockSession}
+          onPress={handleUnlockSession}>
           <View style={styles.loginButtonContent}>
             <IconSymbol name="lock.fill" size={16} color={palette.card} />
             <ThemedText style={[styles.loginButtonText, { color: palette.card }]}>{loading ? t('Signing in...') : t('Unlock Session')}</ThemedText>
