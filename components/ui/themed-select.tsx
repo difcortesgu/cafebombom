@@ -30,7 +30,7 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
         style={[styles.button, { borderColor: palette.border, backgroundColor: palette.inputBackground }]}
         onPress={() => setIsOpen(true)}>
         <ThemedText style={[styles.buttonText, selectedItem ? {} : { color: palette.placeholder }]}>
-          {selectedItem?.label || placeholder || t('Select...')}
+          {selectedItem?.label || placeholder || t('shared.select.placeholder')}
         </ThemedText>
       </Pressable>
 
@@ -38,11 +38,11 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
         <Pressable style={styles.overlay} onPress={() => setIsOpen(false)}>
           <View style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              {t('Select an ingredient')}
+              {t('shared.select.ingredient')}
             </ThemedText>
 
             <ThemedInput
-              placeholder={t('Search...')}
+              placeholder={t('shared.search.placeholder')}
               value={searchText}
               onChangeText={setSearchText}
               style={styles.searchInput}
@@ -71,7 +71,7 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
             </ScrollView>
 
             <ThemedButton
-              label={t('Close')}
+              label={t('shared.close')}
               style={styles.closeButton}
               onPress={() => {
                 setIsOpen(false);

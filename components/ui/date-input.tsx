@@ -23,7 +23,7 @@ const toDisplay = (unix: number | null): string => {
   return `${year}-${month}-${day}`;
 };
 
-export function DateInput({ value, onChangeValue, placeholder = t('Select date'), endOfDay = false, style }: DateInputProps) {
+export function DateInput({ value, onChangeValue, placeholder = t('shared.date.select'), endOfDay = false, style }: DateInputProps) {
   const palette = useAppColors();
   const [showPicker, setShowPicker] = useState(false);
 

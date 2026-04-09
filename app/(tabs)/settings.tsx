@@ -409,7 +409,7 @@ export default function SettingsScreen() {
             <View style={styles.row}>
               <ThemedText>{t('settings.currentUser.role')}</ThemedText>
               <ThemedText type="defaultSemiBold">
-                {currentUser?.role === 'owner' ? t('owner') : currentUser?.role === 'staff' ? t('staff') : '-'}
+                {currentUser?.role === 'owner' ? t('auth.role.owner') : currentUser?.role === 'staff' ? t('auth.role.staff') : '-'}
               </ThemedText>
             </View>
 
@@ -475,7 +475,7 @@ export default function SettingsScreen() {
                         onPress={() => setNewAccountRole(role)}>
                         <ThemedText
                           style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
-                          {role === 'owner' ? t('owner') : t('staff')}
+                          {role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')}
                         </ThemedText>
                       </Pressable>
                     );
@@ -505,7 +505,7 @@ export default function SettingsScreen() {
                       setNewAccountName('');
                       setNewAccountPin('');
                       setNewAccountRole('staff');
-                      setAccountMessage(`Cuenta creada para ${created.name} (${t(created.role)}).`);
+                      setAccountMessage(`Cuenta creada para ${created.name} (${created.role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')}).`);
                     } else {
                       setAccountMessage(null);
                     }
@@ -527,7 +527,7 @@ export default function SettingsScreen() {
                   return (
                     <View key={user.id} style={styles.accountRow}>
                       <ThemedText style={styles.muted}>
-                        {user.name} ({t(user.role)})
+                        {user.name} ({user.role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')})
                       </ThemedText>
                       {canRemove ? (
                         <ThemedButton
@@ -713,7 +713,7 @@ export default function SettingsScreen() {
                               await deleteTable(table.id);
                               setTablesMessage(t('tables.deleted'));
                             } catch {
-                              setTablesMessage(t('Cannot delete a table that has linked sales.'));
+                              setTablesMessage(t('sales.error.tableHasLinkedSales'));
                             }
                           }}
                         />

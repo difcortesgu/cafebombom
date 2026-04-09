@@ -36,12 +36,12 @@ export default function RootLayout() {
     <ThemeProvider value={navigationTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="product-form" options={{ title: t('Product') }} />
-        <Stack.Screen name="ingredient-form" options={{ title: t('Ingredient') }} />
-        <Stack.Screen name="table-form" options={{ title: t('Table') }} />
-        <Stack.Screen name="inventory-form" options={{ title: t('Inventory') }} />
-        <Stack.Screen name="accounts-form" options={{ title: t('Accounts') }} />
-        <Stack.Screen name="sale-form" options={{ title: t('Sale') }} />
+        <Stack.Screen name="product-form" options={{ title: t('nav.stack.product') }} />
+        <Stack.Screen name="ingredient-form" options={{ title: t('nav.stack.ingredient') }} />
+        <Stack.Screen name="table-form" options={{ title: t('nav.stack.table') }} />
+        <Stack.Screen name="inventory-form" options={{ title: t('nav.stack.inventory') }} />
+        <Stack.Screen name="accounts-form" options={{ title: t('nav.stack.accounts') }} />
+        <Stack.Screen name="sale-form" options={{ title: t('nav.stack.sale') }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

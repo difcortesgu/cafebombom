@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const users = await authService.getActiveUsers();
 
     if (!created) {
-      set({ users, loading: false, error: t('Could not create user. Verify unique name and PIN length.') });
+      set({ users, loading: false, error: t('auth.error.createUserFailed') });
       return null;
     }
 
@@ -91,7 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const user = await authService.authenticate({ userId, pin });
 
     if (!user) {
-      set({ loading: false, error: t('Invalid PIN') });
+      set({ loading: false, error: t('auth.error.invalidPin') });
       return false;
     }
 

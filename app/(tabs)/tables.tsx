@@ -81,7 +81,7 @@ export default function TablesScreen() {
                       await deleteTable(table.id);
                       setMessage(t('tables.deleted'));
                     } catch {
-                      setMessage(t('Cannot delete a table that has linked sales.'));
+                      setMessage(t('sales.error.tableHasLinkedSales'));
                     }
                   }}
                 />

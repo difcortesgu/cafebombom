@@ -213,7 +213,7 @@ export class SalesSqliteService implements SalesService {
     } catch (err: any) {
       const msg = String(err?.message ?? '');
       if (msg.includes('FOREIGN KEY constraint failed')) {
-        throw new Error(t('Cannot delete a table that has linked sales.'));
+        throw new Error(t('sales.error.tableHasLinkedSales'));
       }
       throw err;
     }
@@ -303,11 +303,11 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!existingOrder) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (existingOrder.status !== 'draft') {
-      throw new Error(t('Only draft orders can be edited.'));
+      throw new Error(t('sales.error.onlyDraftEditable'));
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
@@ -606,11 +606,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(t("Cannot send order to kitchen. Order status must be 'draft', but is '{status}'", { status: order.status }));
+      throw new Error(t('sales.error.sendToKitchenInvalidStatus', { status: order.status }));
     }
 
     db.update(sales)
@@ -633,11 +633,11 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!order) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (!['in-progress', 'paid'].includes(order.status)) {
-      throw new Error(t("Cannot mark order as ready. Order status must be 'in-progress' or 'paid', but is '{status}'", { status: order.status }));
+      throw new Error(t('sales.error.markReadyInvalidStatus', { status: order.status }));
     }
 
     // Paid-first flow: inventory was not deducted yet while order was still draft.
@@ -664,11 +664,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
-      throw new Error(t("Cannot mark order as paid. Order status must be 'draft', 'in-progress', or 'ready', but is '{status}'", { status: order.status }));
+      throw new Error(t('sales.error.markPaidInvalidStatus', { status: order.status }));
     }
 
     const paidAt = Math.floor(Date.now() / 1000);
@@ -713,11 +713,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(t("Can only add items to draft orders. Order status is '{status}'", { status: order.status }));
+      throw new Error(t('sales.error.addItemsDraftOnly', { status: order.status }));
     }
 
     const product = db
@@ -727,7 +727,7 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!product) {
-      throw new Error(t('Product {productId} not found', { productId: item.productId }));
+      throw new Error(t('sales.error.productNotFound', { productId: item.productId }));
     }
 
     const lineSubtotal = item.unitPrice * item.quantity;
@@ -775,11 +775,11 @@ export class SalesSqliteService implements SalesService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(t("Can only remove items from draft orders. Order status is '{status}'", { status: order.status }));
+      throw new Error(t('sales.error.removeItemsDraftOnly', { status: order.status }));
     }
 
     db.delete(saleItems).where(eq(saleItems.id, saleItemId)).run();
@@ -812,11 +812,11 @@ export class SalesSqliteService implements SalesService {
       .get();
 
     if (!order) {
-      throw new Error(t('Order {orderId} not found', { orderId }));
+      throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
     if (order.status === 'completed' || order.status === 'cancelled') {
-      throw new Error(t("Cannot cancel order with status '{status}'", { status: order.status }));
+      throw new Error(t('sales.error.cancelInvalidStatus', { status: order.status }));
     }
 
     const cancelledAt = Math.floor(Date.now() / 1000);
