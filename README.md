@@ -161,9 +161,22 @@ If you also plan to publish web, use your preferred static hosting provider for 
 - [X] Order State Management
 - [X] Translate any user facing text to spanish
 - [X] Ability to load in seed data from an excel spreadsheet
-- [ ] Dashboard Improvements
+- [X] Dashboard Improvements
+- [90%] Receipt Generation and Thermal Printing
 - [ ] UX/UI Improvements and Persistent User Preferences
-- [ ] Receipt Generation and Thermal Printing
 - [ ] Biometric Authentication
 - [ ] Backups
 - [ ] Sync multiple devices
+
+
+Ranking de productos por ventas mas popular menos popular
+Promedios Semanales, por dias, por horas, mensuales
+
+Inventario, cuando debo hacer pedido
+Pedido de ingredientes hhecho por los empleados
+
+Que pasa si por algun accidente se pierden productos o ingredientes
+Limite de descuentos diarios
+
+agrupar productos por categorias
+Que se vea mas claro cuando se agrega un producto
