@@ -28,7 +28,7 @@ export type SaleDiscountBreakdown = {
   items: SaleItemDiscountBreakdown[];
 };
 
-const roundMoney = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
+export const roundMoney = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
 
 const toValidNumber = (value: number): number => (Number.isFinite(value) ? value : 0);
 

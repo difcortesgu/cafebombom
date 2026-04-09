@@ -1,9 +1,54 @@
-import type { SeedImportResult, SetupService } from '@/services/interfaces/setup';
+import type { ReceiptPreferences, SeedImportResult, SetupService } from '@/services/interfaces/setup';
 import { parseSeedWorkbook } from '@/utils/excel-seed';
 
 import { getDb } from './storage';
 
+const RECEIPT_PREFERENCES_ID = 'default';
+const DEFAULT_RECEIPT_PREFERENCES: ReceiptPreferences = {
+  businessName: 'CafeBomBom',
+  businessAddress: '',
+  businessPhone: '',
+  businessLogoUri: null,
+  footerMessage: 'Gracias por tu compra',
+  paperWidth: 80,
+  taxRate: 0.08,
+};
+
 export class SetupWebService implements SetupService {
+  async getReceiptPreferences(): Promise<ReceiptPreferences> {
+    const db = await getDb();
+    const record = await db.receiptPreferences.get(RECEIPT_PREFERENCES_ID);
+
+    if (!record) {
+      return DEFAULT_RECEIPT_PREFERENCES;
+    }
+
+    return {
+      businessName: record.businessName,
+      businessAddress: record.businessAddress,
+      businessPhone: record.businessPhone,
+      businessLogoUri: record.businessLogoUri,
+      footerMessage: record.footerMessage,
+      paperWidth: record.paperWidth === 58 ? 58 : 80,
+      taxRate: Number.isFinite(Number(record.taxRate)) ? Number(record.taxRate) : DEFAULT_RECEIPT_PREFERENCES.taxRate,
+    };
+  }
+
+  async saveReceiptPreferences(payload: ReceiptPreferences): Promise<void> {
+    const db = await getDb();
+    await db.receiptPreferences.put({
+      id: RECEIPT_PREFERENCES_ID,
+      businessName: payload.businessName,
+      businessAddress: payload.businessAddress,
+      businessPhone: payload.businessPhone,
+      businessLogoUri: payload.businessLogoUri,
+      footerMessage: payload.footerMessage,
+      paperWidth: payload.paperWidth,
+      taxRate: payload.taxRate,
+      updatedAt: Math.floor(Date.now() / 1000),
+    });
+  }
+
   async importSeedFromExcel(content: Uint8Array): Promise<SeedImportResult> {
     const db = await getDb();
     const data = parseSeedWorkbook(content);

@@ -135,6 +135,18 @@ export type WebIngredientCompositionRecord = {
   quantityNeeded: number;
 };
 
+export type WebReceiptPreferenceRecord = {
+  id: string;
+  businessName: string;
+  businessAddress: string;
+  businessPhone: string;
+  businessLogoUri: string | null;
+  footerMessage: string;
+  paperWidth: 58 | 80;
+  taxRate: number;
+  updatedAt: number;
+};
+
 type InsertableRecord<T extends { id: string }> = Omit<T, 'id'> & { id?: string };
 
 export class CafeBomBomDB extends Dexie {
@@ -155,6 +167,7 @@ export class CafeBomBomDB extends Dexie {
   discounts!: Table<WebDiscountRecord, string, InsertableRecord<WebDiscountRecord>>;
   productIngredients!: Table<WebProductIngredientRecord, string, InsertableRecord<WebProductIngredientRecord>>;
   ingredientCompositions!: Table<WebIngredientCompositionRecord, string, InsertableRecord<WebIngredientCompositionRecord>>;
+  receiptPreferences!: Table<WebReceiptPreferenceRecord, string, InsertableRecord<WebReceiptPreferenceRecord>>;
 
   constructor() {
     super('cafebombom.web');
@@ -352,6 +365,28 @@ export class CafeBomBomDB extends Dexie {
         });
       });
 
+    this.version(13)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        surcharges: '&name, updatedAt',
+        sales: 'id, createdAt, staffId, tableId, paymentMethod, status',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+        receiptPreferences: 'id, updatedAt',
+      });
+
     this.attachIdHooks();
   }
 
@@ -374,6 +409,7 @@ export class CafeBomBomDB extends Dexie {
       this.discounts,
       this.productIngredients,
       this.ingredientCompositions,
+      this.receiptPreferences,
     ];
 
     for (const table of withId) {

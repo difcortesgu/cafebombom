@@ -1,10 +1,86 @@
-import type { SeedImportResult, SetupService } from '@/services/interfaces/setup';
+import type { ReceiptPreferences, SeedImportResult, SetupService } from '@/services/interfaces/setup';
 import { db, dbReady } from '@/services/sqlite/database/db';
-import { categories, discounts, employees, ingredients, productIngredients, products, restaurantTables, suppliers, surcharges } from '@/services/sqlite/database/schema';
+import { categories, discounts, employees, ingredients, productIngredients, products, receiptPreferences, restaurantTables, suppliers, surcharges } from '@/services/sqlite/database/schema';
 import { parseSeedWorkbook } from '@/utils/excel-seed';
 import { and, eq } from 'drizzle-orm';
 
+const RECEIPT_PREFERENCES_ID = 'default';
+const DEFAULT_RECEIPT_PREFERENCES: ReceiptPreferences = {
+  businessName: 'CafeBomBom',
+  businessAddress: '',
+  businessPhone: '',
+  businessLogoUri: null,
+  footerMessage: 'Gracias por tu compra',
+  paperWidth: 80,
+  taxRate: 0.08,
+};
+
 export class SetupSqliteService implements SetupService {
+  async getReceiptPreferences(): Promise<ReceiptPreferences> {
+    await dbReady;
+    const record = db
+      .select({
+        businessName: receiptPreferences.businessName,
+        businessAddress: receiptPreferences.businessAddress,
+        businessPhone: receiptPreferences.businessPhone,
+        businessLogoUri: receiptPreferences.businessLogoUri,
+        footerMessage: receiptPreferences.footerMessage,
+        paperWidth: receiptPreferences.paperWidth,
+        taxRate: receiptPreferences.taxRate,
+      })
+      .from(receiptPreferences)
+      .where(eq(receiptPreferences.id, RECEIPT_PREFERENCES_ID))
+      .get();
+
+    if (!record) {
+      return DEFAULT_RECEIPT_PREFERENCES;
+    }
+
+    const paperWidth = Number(record.paperWidth) === 58 ? 58 : 80;
+    const taxRate = Number.isFinite(Number(record.taxRate)) ? Number(record.taxRate) : DEFAULT_RECEIPT_PREFERENCES.taxRate;
+
+    return {
+      businessName: record.businessName,
+      businessAddress: record.businessAddress,
+      businessPhone: record.businessPhone,
+      businessLogoUri: record.businessLogoUri,
+      footerMessage: record.footerMessage,
+      paperWidth,
+      taxRate,
+    };
+  }
+
+  async saveReceiptPreferences(payload: ReceiptPreferences): Promise<void> {
+    await dbReady;
+    const now = Math.floor(Date.now() / 1000);
+    db.insert(receiptPreferences)
+      .values({
+        id: RECEIPT_PREFERENCES_ID,
+        businessName: payload.businessName,
+        businessAddress: payload.businessAddress,
+        businessPhone: payload.businessPhone,
+        businessLogoUri: payload.businessLogoUri,
+        footerMessage: payload.footerMessage,
+        paperWidth: payload.paperWidth,
+        taxRate: payload.taxRate,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: receiptPreferences.id,
+        set: {
+          businessName: payload.businessName,
+          businessAddress: payload.businessAddress,
+          businessPhone: payload.businessPhone,
+          businessLogoUri: payload.businessLogoUri,
+          footerMessage: payload.footerMessage,
+          paperWidth: payload.paperWidth,
+          taxRate: payload.taxRate,
+          updatedAt: now,
+        },
+      })
+      .run();
+  }
+
   async importSeedFromExcel(content: Uint8Array): Promise<SeedImportResult> {
     await dbReady;
     const data = parseSeedWorkbook(content);

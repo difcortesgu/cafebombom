@@ -1,19 +1,41 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ReceiptPreview } from '@/components/receipt-preview';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { salesService } from '@/services';
+import { printService, salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
-import type { SalePricingSummary } from '@/types/sales';
+import type { ReceiptData } from '@/types/receipt';
+import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
 import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
+import { buildReceiptData } from '@/utils/receipt';
+
+function buildFallbackPricingSummary(sale: Sale, items: SaleItemDetail[]): SalePricingSummary {
+  const subtotal = items.reduce((sum, item) => sum + Number(item.line_subtotal ?? 0), 0);
+  const itemDiscountTotal = items.reduce((sum, item) => sum + Number(item.discount_amount ?? 0), 0);
+  const total = Number(sale.total ?? 0);
+  const orderTypeSurcharge = Math.max(0, total - Math.max(0, subtotal - itemDiscountTotal));
+
+  return {
+    subtotal,
+    item_discount_total: itemDiscountTotal,
+    global_discount_name: null,
+    global_discount_type: null,
+    global_discount_value: null,
+    global_discount_amount: 0,
+    order_type_surcharge: orderTypeSurcharge,
+    total,
+    discount_applied_by: null,
+  };
+}
 
 function getSaleSurchargeLines(pricing: SalePricingSummary, tableName: string, tables: RestaurantTable[], configuredToGoSurcharge: number) {
   const totalSurcharge = Math.max(0, Number(pricing.order_type_surcharge));
@@ -37,6 +59,40 @@ function getSaleSurchargeLines(pricing: SalePricingSummary, tableName: string, t
   }
 
   return [`${t('sales.surcharge.generic')}: +$${totalSurcharge.toFixed(2)}`];
+}
+
+function getReceiptSurchargeBreakdown(
+  pricing: SalePricingSummary,
+  tableName: string,
+  tables: RestaurantTable[],
+  configuredToGoSurcharge: number,
+) {
+  const totalSurcharge = Math.max(0, Number(pricing.order_type_surcharge));
+  if (totalSurcharge <= 0) {
+    return [] as { label: string; description?: string | null; amount: number }[];
+  }
+
+  const tableType = tables.find((table) => table.name === tableName)?.table_type;
+
+  if (tableType === 'delivery') {
+    const toGoAmount = Math.min(Math.max(0, configuredToGoSurcharge), totalSurcharge);
+    const deliveryAmount = Math.max(0, totalSurcharge - toGoAmount);
+
+    return [
+      toGoAmount > 0
+        ? { label: t('sales.surcharge.toGo'), description: t('tables.type.toGo'), amount: toGoAmount }
+        : null,
+      deliveryAmount > 0
+        ? { label: t('sales.surcharge.delivery'), description: t('tables.type.delivery'), amount: deliveryAmount }
+        : null,
+    ].filter(Boolean) as { label: string; description?: string | null; amount: number }[];
+  }
+
+  if (tableType === 'to-go') {
+    return [{ label: t('sales.surcharge.toGo'), description: t('tables.type.toGo'), amount: totalSurcharge }];
+  }
+
+  return [{ label: t('sales.surcharge.generic'), description: t('tables.type.dineIn'), amount: totalSurcharge }];
 }
 
 function formatPaymentMethod(method: string) {
@@ -105,7 +161,17 @@ export default function SalesScreen() {
     markOrderPaid,
     cancelOrder,
   } = useSalesStore();
-  const { toGoSurcharge, hydrateFromDb } = useSettingsStore();
+  const {
+    toGoSurcharge,
+    hydrateFromDb,
+    businessName,
+    businessAddress,
+    businessPhone,
+    businessLogoUri,
+    receiptFooterMessage,
+    printerPaperWidth,
+    taxRate,
+  } = useSettingsStore();
 
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
   const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
@@ -113,6 +179,11 @@ export default function SalesScreen() {
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<SaleFilter>('active');
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [receiptPreviewVisible, setReceiptPreviewVisible] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [printingBusy, setPrintingBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -186,6 +257,81 @@ export default function SalesScreen() {
     }
   };
 
+  const canPrintReceipt = (sale: Sale) => sale.status === 'paid' || sale.status === 'completed' || Boolean(sale.paid_at);
+
+  const openReceiptPreview = async (sale: Sale) => {
+    setReceiptPreviewVisible(true);
+    setReceiptData(null);
+    setReceiptLoading(true);
+    setReceiptMessage(null);
+
+    try {
+      const [items, pricing] = await Promise.all([
+        salesService.getSaleItems(sale.id),
+        salesService.getSalePricingSummary(sale.id),
+      ]);
+
+      const pricingSummary = pricing ?? buildFallbackPricingSummary(sale, items);
+      const surchargeBreakdown = getReceiptSurchargeBreakdown(
+        pricingSummary,
+        sale.table_name,
+        tables,
+        toGoSurcharge,
+      );
+
+      const receipt = buildReceiptData({
+        sale,
+        items,
+        pricing: pricingSummary,
+        business: {
+          name: businessName,
+          address: businessAddress,
+          phone: businessPhone,
+          logoUri: businessLogoUri,
+          footerMessage: receiptFooterMessage,
+        },
+        taxConfig: {
+          label: 'IVA',
+          rate: taxRate,
+          inclusive: true,
+        },
+        paperWidth: printerPaperWidth,
+        surchargeBreakdown,
+      });
+
+      setReceiptData(receipt);
+      if (!pricing) {
+        setReceiptMessage(t('sales.receipt.fallbackPricing'));
+      }
+    } catch (error) {
+      const details = String((error as Error)?.message ?? '').trim();
+      setReceiptMessage(details ? `${t('sales.receipt.error')} (${details})` : t('sales.receipt.error'));
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
+
+  const handlePrintReceipt = async () => {
+    if (!receiptData) {
+      return;
+    }
+
+    setPrintingBusy(true);
+    try {
+      await printService.printReceipt(receiptData);
+      const status = await printService.getStatus();
+      if (status.mode === 'native-pending') {
+        setReceiptMessage(t('sales.receipt.pendingAdapter'));
+      } else {
+        setReceiptMessage(null);
+      }
+    } catch (error) {
+      setReceiptMessage(String((error as Error).message || t('sales.receipt.error')));
+    } finally {
+      setPrintingBusy(false);
+    }
+  };
+
   const renderOrderActions = (sale: Sale) => {
     const isBusy = busyOrderId === sale.id;
 
@@ -207,6 +353,9 @@ export default function SalesScreen() {
           {!sale.paid_at ? (
             <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.payNow')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
           ) : null}
+          {sale.paid_at ? (
+            <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.previewReceipt')} onPress={() => void openReceiptPreview(sale)} disabled={isBusy} />
+          ) : null}
           <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
         </View>
       );
@@ -225,6 +374,15 @@ export default function SalesScreen() {
       return (
         <View style={styles.orderActions}>
           <ThemedButton style={styles.actionButton} label={t('sales.action.kitchenReady')} onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.previewReceipt')} onPress={() => void openReceiptPreview(sale)} disabled={isBusy} />
+        </View>
+      );
+    }
+
+    if (canPrintReceipt(sale)) {
+      return (
+        <View style={styles.orderActions}>
+          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.previewReceipt')} onPress={() => void openReceiptPreview(sale)} disabled={isBusy} />
         </View>
       );
     }
@@ -326,6 +484,32 @@ export default function SalesScreen() {
           ))
         )}
       </ThemedCard>
+
+      <Modal visible={receiptPreviewVisible} transparent animationType="slide" onRequestClose={() => setReceiptPreviewVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <ThemedCard style={styles.modalCard}>
+            <ThemedText type="subtitle">{t('sales.receipt.title')}</ThemedText>
+            {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
+            {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
+            {receiptMessage ? <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText> : null}
+            <View style={styles.modalActions}>
+              <ThemedButton
+                label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
+                disabled={!receiptData || printingBusy || receiptLoading}
+                onPress={() => void handlePrintReceipt()}
+              />
+              <ThemedButton
+                variant="secondary"
+                label={t('sales.receipt.close')}
+                onPress={() => {
+                  setReceiptPreviewVisible(false);
+                  setReceiptMessage(null);
+                }}
+              />
+            </View>
+          </ThemedCard>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -392,6 +576,20 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     paddingVertical: 8,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    padding: 12,
+  },
+  modalCard: {
+    maxHeight: '90%',
+    gap: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   detailText: {
     marginTop: 6,

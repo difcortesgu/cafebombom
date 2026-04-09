@@ -8,6 +8,13 @@
       "when": 1775351483898,
       "tag": "0000_pale_wildside",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775854800000,
+      "tag": "0001_receipt_preferences",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,11 @@
 import Constants from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Image } from 'expo-image';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -39,6 +43,13 @@ export default function SettingsScreen() {
     themeModePreference,
     deliverySurcharge,
     toGoSurcharge,
+    businessName,
+    businessAddress,
+    businessPhone,
+    businessLogoUri,
+    receiptFooterMessage,
+    printerPaperWidth,
+    taxRate,
     hydrateFromDb,
     toggleSync,
     markSynced,
@@ -46,10 +57,21 @@ export default function SettingsScreen() {
     setThemeModePreference,
     setDeliverySurcharge,
     setToGoSurcharge,
+    setBusinessInfo,
+    setPrinterPaperWidth,
+    setTaxRate,
   } = useSettingsStore();
 
   const [deliveryInput, setDeliveryInput] = useState(deliverySurcharge.toFixed(2));
   const [toGoInput, setToGoInput] = useState(toGoSurcharge.toFixed(2));
+  const [businessNameInput, setBusinessNameInput] = useState(businessName);
+  const [businessAddressInput, setBusinessAddressInput] = useState(businessAddress);
+  const [businessPhoneInput, setBusinessPhoneInput] = useState(businessPhone);
+  const [businessLogoUriInput, setBusinessLogoUriInput] = useState(businessLogoUri ?? '');
+  const [receiptFooterInput, setReceiptFooterInput] = useState(receiptFooterMessage);
+  const [taxRateInput, setTaxRateInput] = useState((taxRate * 100).toFixed(2));
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoMessage, setLogoMessage] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [importIssues, setImportIssues] = useState<string[]>([]);
@@ -80,6 +102,30 @@ export default function SettingsScreen() {
   }, [toGoSurcharge]);
 
   useEffect(() => {
+    setBusinessNameInput(businessName);
+  }, [businessName]);
+
+  useEffect(() => {
+    setBusinessAddressInput(businessAddress);
+  }, [businessAddress]);
+
+  useEffect(() => {
+    setBusinessPhoneInput(businessPhone);
+  }, [businessPhone]);
+
+  useEffect(() => {
+    setBusinessLogoUriInput(businessLogoUri ?? '');
+  }, [businessLogoUri]);
+
+  useEffect(() => {
+    setReceiptFooterInput(receiptFooterMessage);
+  }, [receiptFooterMessage]);
+
+  useEffect(() => {
+    setTaxRateInput((taxRate * 100).toFixed(2));
+  }, [taxRate]);
+
+  useEffect(() => {
     setProfileName(currentUser?.name ?? '');
   }, [currentUser?.name]);
 
@@ -101,6 +147,117 @@ export default function SettingsScreen() {
     const value = parseFee(toGoInput);
     setToGoSurcharge(value);
     setToGoInput(value.toFixed(2));
+  };
+
+  const commitBusinessInfo = () => {
+    setBusinessInfo({
+      name: businessNameInput.trim() || 'CafeBomBom',
+      address: businessAddressInput.trim(),
+      phone: businessPhoneInput.trim(),
+      logoUri: businessLogoUriInput.trim() || null,
+      footerMessage: receiptFooterInput.trim(),
+    });
+  };
+
+  const commitTaxRate = () => {
+    const numeric = Number.parseFloat(taxRateInput);
+    const normalized = Number.isFinite(numeric) && numeric >= 0 ? numeric / 100 : taxRate;
+    setTaxRate(normalized);
+    setTaxRateInput((normalized * 100).toFixed(2));
+  };
+
+  const resolveLogoExtension = (uri: string, mimeType?: string) => {
+    const maybeExt = uri.split('.').pop()?.toLowerCase();
+    if (maybeExt && maybeExt.length <= 5) {
+      return maybeExt;
+    }
+
+    if (mimeType?.includes('png')) {
+      return 'png';
+    }
+    if (mimeType?.includes('webp')) {
+      return 'webp';
+    }
+    return 'jpg';
+  };
+
+  const pickBusinessLogo = async () => {
+    try {
+      setLogoBusy(true);
+      setLogoMessage(null);
+
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setLogoMessage(t('settings.receipt.logoPermissionRequired'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const selected = result.assets[0];
+      const targetWidth = printerPaperWidth === 58 ? 256 : 384;
+      const transformed = await manipulateAsync(
+        selected.uri,
+        [{ resize: { width: targetWidth } }],
+        {
+          compress: 0.92,
+          format: SaveFormat.PNG,
+          base64: Platform.OS === 'web',
+        },
+      );
+
+      let persistedUri = transformed.uri;
+
+      if (businessLogoUriInput && Platform.OS !== 'web' && FileSystem.documentDirectory && businessLogoUriInput.startsWith(FileSystem.documentDirectory)) {
+        try {
+          await FileSystem.deleteAsync(businessLogoUriInput, { idempotent: true });
+        } catch {
+          // Ignore cleanup failures; they should not block saving a new logo.
+        }
+      }
+
+      if (Platform.OS === 'web') {
+        if (transformed.base64) {
+          persistedUri = `data:image/png;base64,${transformed.base64}`;
+        }
+      }
+
+      if (Platform.OS !== 'web' && FileSystem.documentDirectory) {
+        const logoDir = `${FileSystem.documentDirectory}receipt-logo/`;
+        await FileSystem.makeDirectoryAsync(logoDir, { intermediates: true });
+
+        const ext = resolveLogoExtension(transformed.uri, selected.mimeType);
+        const destination = `${logoDir}logo-${Date.now()}.${ext}`;
+        await FileSystem.copyAsync({ from: transformed.uri, to: destination });
+        persistedUri = destination;
+      }
+
+      setBusinessLogoUriInput(persistedUri);
+      setBusinessInfo({ logoUri: persistedUri });
+      setLogoMessage(t('settings.receipt.logoOptimized'));
+    } catch (error) {
+      setLogoMessage(String((error as Error).message || t('sales.receipt.error')));
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+
+  const removeBusinessLogo = () => {
+    if (businessLogoUriInput && Platform.OS !== 'web' && FileSystem.documentDirectory && businessLogoUriInput.startsWith(FileSystem.documentDirectory)) {
+      void FileSystem.deleteAsync(businessLogoUriInput, { idempotent: true });
+    }
+    setBusinessLogoUriInput('');
+    setBusinessInfo({ logoUri: null });
+    setLogoMessage(null);
   };
 
   const importSeedData = async () => {
@@ -247,6 +404,96 @@ export default function SettingsScreen() {
             onBlur={commitToGoFee}
             placeholder={t('settings.fees.placeholder')}
           />
+        </View>
+      </ThemedCard>
+
+      <ThemedCard style={styles.card}>
+        <ThemedText type="subtitle">{t('settings.receipt.title')}</ThemedText>
+        <ThemedText style={styles.muted}>{t('settings.receipt.subtitle')}</ThemedText>
+
+        <ThemedInput
+          value={businessNameInput}
+          placeholder={t('settings.receipt.businessName')}
+          onChangeText={setBusinessNameInput}
+          onBlur={commitBusinessInfo}
+        />
+        <ThemedInput
+          value={businessAddressInput}
+          placeholder={t('settings.receipt.businessAddress')}
+          onChangeText={setBusinessAddressInput}
+          onBlur={commitBusinessInfo}
+        />
+        <ThemedInput
+          value={businessPhoneInput}
+          placeholder={t('settings.receipt.businessPhone')}
+          onChangeText={setBusinessPhoneInput}
+          onBlur={commitBusinessInfo}
+        />
+
+        <View style={styles.logoActions}>
+          <ThemedButton
+            variant="secondary"
+            label={logoBusy ? `${t('settings.receipt.pickLogo')}...` : t('settings.receipt.pickLogo')}
+            onPress={() => void pickBusinessLogo()}
+            disabled={logoBusy}
+          />
+          {businessLogoUriInput ? (
+            <ThemedButton
+              variant="secondary"
+              label={t('settings.receipt.removeLogo')}
+              onPress={removeBusinessLogo}
+              disabled={logoBusy}
+            />
+          ) : null}
+        </View>
+        {businessLogoUriInput ? (
+          <Image source={{ uri: businessLogoUriInput }} style={styles.logoPreview} contentFit="contain" />
+        ) : (
+          <ThemedText style={styles.muted}>{t('settings.receipt.noLogo')}</ThemedText>
+        )}
+        {logoMessage ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{logoMessage}</ThemedText> : null}
+
+        <ThemedInput
+          value={receiptFooterInput}
+          placeholder={t('settings.receipt.footerMessage')}
+          onChangeText={setReceiptFooterInput}
+          onBlur={commitBusinessInfo}
+        />
+
+        <View style={styles.feeRow}>
+          <ThemedText style={styles.feeLabel}>{t('settings.receipt.taxRate')}</ThemedText>
+          <ThemedInput
+            style={styles.feeInput}
+            keyboardType="decimal-pad"
+            value={taxRateInput}
+            onChangeText={setTaxRateInput}
+            onBlur={commitTaxRate}
+            placeholder="8.00"
+          />
+        </View>
+
+        <ThemedText style={styles.muted}>{t('settings.receipt.paperWidth')}</ThemedText>
+        <View style={styles.modeRow}>
+          {[58, 80].map((width) => {
+            const isActive = printerPaperWidth === width;
+            return (
+              <Pressable
+                key={width}
+                style={[
+                  styles.modeChip,
+                  {
+                    backgroundColor: isActive ? palette.tint : palette.inputBackground,
+                    borderColor: isActive ? palette.tint : palette.border,
+                  },
+                ]}
+                onPress={() => setPrinterPaperWidth(width as 58 | 80)}>
+                <ThemedText
+                  style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
+                  {width}mm
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </View>
       </ThemedCard>
 
@@ -455,6 +702,15 @@ const styles = StyleSheet.create({
   feeInput: {
     width: 120,
     textAlign: 'right',
+  },
+  logoActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  logoPreview: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
   },
   muted: {
     opacity: 0.9,

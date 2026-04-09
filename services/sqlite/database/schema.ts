@@ -26,6 +26,18 @@ export const surcharges = sqliteTable('surcharges', {
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
 
+export const receiptPreferences = sqliteTable('receipt_preferences', {
+  id: text('id').primaryKey(),
+  businessName: text('business_name').notNull().default('CafeBomBom'),
+  businessAddress: text('business_address').notNull().default(''),
+  businessPhone: text('business_phone').notNull().default(''),
+  businessLogoUri: text('business_logo_uri'),
+  footerMessage: text('footer_message').notNull().default('Gracias por tu compra'),
+  paperWidth: integer('paper_width').notNull().default(80),
+  taxRate: real('tax_rate').notNull().default(0.08),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+});
+
 export const suppliers = sqliteTable('suppliers', {
   id: text('id').primaryKey().$defaultFn(() => generateId()),
   name: text('name').notNull().unique(),
