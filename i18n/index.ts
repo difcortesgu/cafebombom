@@ -54,7 +54,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
 
     // Settings screen
     'settings.title': 'Ajustes',
-    'settings.subtitle': 'Controles de sesion y sincronizacion local.',
+    'settings.subtitle': 'Organiza UI, perfiles y configuraciones de la app.',
     'settings.currentUser.title': 'Usuario actual',
     'settings.currentUser.name': 'Nombre:',
     'settings.currentUser.role': 'Rol:',
@@ -151,7 +151,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'accounts.restricted': 'Esta seccion esta restringida al rol dueno.',
     'accounts.tab.expenses': 'gastos',
     'accounts.tab.employees': 'empleados',
-    'accounts.tab.payroll': 'nomina',
+    'accounts.tab.payroll': 'turnos/pagos/nomina',
     'accounts.tab.report': 'reporte',
     'accounts.expenses.recent': 'Gastos recientes',
     'accounts.expenses.add': 'Agregar gasto',
@@ -161,6 +161,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'accounts.employees.add': 'Agregar empleado',
     'accounts.payroll.recent': 'Nomina reciente',
     'accounts.payroll.add': 'Agregar nomina',
+    'accounts.payroll.subtitle': 'Registra turnos, pagos y nomina del equipo.',
     'accounts.payroll.employeePrefix': 'Empleado',
     'accounts.report.title': 'Reporte de P&G',
     'accounts.report.subtitle': 'Usando por ahora el rango de hoy.',
@@ -171,8 +172,11 @@ const catalogs: Record<Locale, Record<string, string>> = {
 
     // Inventory tab
     'inventory.title': 'Inventario',
-    'inventory.subtitle': 'Vista de lista con acciones rapidas.',
+    'inventory.subtitle': 'Gestiona productos, ingredientes, proveedores y descuentos.',
+    'inventory.tab.products': 'productos',
+    'inventory.tab.ingredients': 'ingredientes',
     'inventory.tab.suppliers': 'proveedores',
+    'inventory.tab.discounts': 'descuentos',
     'inventory.tab.restock': 'reposicion',
     'inventory.suppliers.list': 'Lista de proveedores',
     'inventory.suppliers.add': 'Agregar proveedor',
@@ -434,7 +438,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'saleForm.cart': 'Carrito',
     'saleForm.status': 'Estado',
     'saleForm.tableAssignment': 'Asignacion de mesa (obligatorio)',
-    'saleForm.noTables': 'No hay mesas disponibles. Crea una en la pestaña Mesas.',
+    'saleForm.noTables': 'No hay mesas disponibles. Crea una en Ajustes > App > Mesas.',
     'saleForm.selectedTableSurcharge': 'Recargo de la mesa seleccionada',
     'saleForm.noItems': 'No hay items seleccionados.',
     'saleForm.each': 'c/u',

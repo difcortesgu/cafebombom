@@ -11,22 +11,20 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
-import { dayRangeUnix } from '@/utils/date';
 
-type Section = 'expenses' | 'employees' | 'payroll' | 'report';
+type Section = 'expenses' | 'employees' | 'payroll';
 
 export default function AccountsScreen() {
   const palette = useAppColors();
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
-  const { hydrate, expenses, employees, payroll, getPnL } = useAccountsStore();
+  const { hydrate, expenses, employees, payroll } = useAccountsStore();
   const [section, setSection] = useState<Section>('expenses');
-  const [pnl, setPnl] = useState({ income: 0, expenses: 0, net: 0 });
 
-  const todayExpenses = useMemo(() => {
-    const { start, end } = dayRangeUnix();
-    return expenses.filter((expense) => expense.date >= start && expense.date < end).reduce((sum, expense) => sum + Number(expense.amount), 0);
-  }, [expenses]);
+  const todayExpenses = useMemo(
+    () => expenses.reduce((sum, expense) => sum + Number(expense.amount), 0),
+    [expenses],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -49,11 +47,11 @@ export default function AccountsScreen() {
       <ThemedText>{t('accounts.subtitle')}</ThemedText>
 
       <View style={styles.tabRow}>
-        {(['expenses', 'employees', 'payroll', 'report'] as Section[]).map((item) => (
+        {(['expenses', 'employees', 'payroll'] as Section[]).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
-            label={item === 'expenses' ? t('accounts.tab.expenses') : item === 'employees' ? t('accounts.tab.employees') : item === 'payroll' ? t('accounts.tab.payroll') : t('accounts.tab.report')}
+            label={item === 'expenses' ? t('accounts.tab.expenses') : item === 'employees' ? t('accounts.tab.employees') : t('accounts.tab.payroll')}
             active={section === item}
             onPress={() => setSection(item)}
           />
@@ -98,31 +96,13 @@ export default function AccountsScreen() {
             <ThemedText type="subtitle">{t('accounts.payroll.recent')}</ThemedText>
             <ThemedButton label={t('accounts.payroll.add')} onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'payroll' } })} />
           </View>
+          <ThemedText style={styles.smallText}>{t('accounts.payroll.subtitle')}</ThemedText>
           {payroll.map((entry) => (
             <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
               <ThemedText type="defaultSemiBold">{employees.find((employee) => employee.id === entry.employee_id)?.name ?? `${t('accounts.payroll.employeePrefix')} #${entry.employee_id}`}</ThemedText>
               <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
             </View>
           ))}
-        </ThemedCard>
-      ) : null}
-
-      {section === 'report' ? (
-        <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">{t('accounts.report.title')}</ThemedText>
-          <ThemedText style={styles.smallText}>{t('accounts.report.subtitle')}</ThemedText>
-          <ThemedButton
-            style={styles.primaryButton}
-            label={t('accounts.report.calculate')}
-            onPress={async () => {
-              const { start, end } = dayRangeUnix();
-              const value = await getPnL({ startUnix: start, endUnix: end });
-              setPnl(value);
-            }}
-          />
-          <ThemedText>{t('accounts.report.income')}: ${pnl.income.toFixed(2)}</ThemedText>
-          <ThemedText>{t('accounts.report.expenses')}: ${pnl.expenses.toFixed(2)}</ThemedText>
-          <ThemedText type="defaultSemiBold">{t('accounts.report.net')}: ${pnl.net.toFixed(2)}</ThemedText>
         </ThemedCard>
       ) : null}
     </ScrollView>
@@ -156,9 +136,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
-  },
-  primaryButton: {
-    paddingVertical: 10,
   },
   listItem: {
     borderWidth: 1,

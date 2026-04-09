@@ -1,28 +1,49 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
+import { ThemedInput } from '@/components/ui/themed-input';
+import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
+import { useProductsStore } from '@/stores/products';
+import { useSalesStore } from '@/stores/sales';
 
-type Section = 'suppliers' | 'restock';
+type Section = 'products' | 'ingredients' | 'suppliers' | 'discounts';
 
 export default function InventoryScreen() {
   const palette = useAppColors();
   const router = useRouter();
-  const [section, setSection] = useState<Section>('suppliers');
+  const currentUser = useAuthStore((state) => state.currentUser);
+  const [section, setSection] = useState<Section>('products');
+  const [message, setMessage] = useState('');
+  const [globalName, setGlobalName] = useState('');
+  const [globalType, setGlobalType] = useState<'percentage' | 'fixed'>('percentage');
+  const [globalValue, setGlobalValue] = useState('0');
 
-  const { suppliers, restocks, hydrate } = useInventoryStore();
+  const { suppliers, ingredients, hydrate: hydrateInventory, updateIngredient } = useInventoryStore();
+  const { products, categories, hydrate: hydrateProducts, updateProduct } = useProductsStore();
+  const { discounts, hydrateDiscounts, createDiscount, updateDiscount, deleteDiscount } = useSalesStore();
+
+  const globalDiscounts = useMemo(() => discounts.filter((discount) => discount.scope === 'global'), [discounts]);
+
+  const lowStock = useMemo(
+    () => ingredients.filter((item) => Number(item.quantity) <= Number(item.low_stock_threshold)),
+    [ingredients],
+  );
+
+  const isRestrictedSection = currentUser?.role !== 'owner' && section !== 'suppliers';
 
   useFocusEffect(
     useCallback(() => {
-      void hydrate();
-    }, [hydrate]),
+      void Promise.all([hydrateInventory(), hydrateProducts(), hydrateDiscounts()]);
+    }, [hydrateDiscounts, hydrateInventory, hydrateProducts]),
   );
 
   return (
@@ -31,16 +52,123 @@ export default function InventoryScreen() {
       <ThemedText>{t('inventory.subtitle')}</ThemedText>
 
       <View style={styles.tabRow}>
-        {(['suppliers', 'restock'] as Section[]).map((item) => (
+        {(['products', 'ingredients', 'suppliers', 'discounts'] as Section[]).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
-            label={item === 'suppliers' ? t('inventory.tab.suppliers') : t('inventory.tab.restock')}
+            label={
+              item === 'products'
+                ? t('inventory.tab.products')
+                : item === 'ingredients'
+                  ? t('inventory.tab.ingredients')
+                  : item === 'suppliers'
+                    ? t('inventory.tab.suppliers')
+                    : t('inventory.tab.discounts')
+            }
             active={section === item}
             onPress={() => setSection(item)}
           />
         ))}
       </View>
+
+      {message ? (
+        <ThemedCard style={styles.card}>
+          <ThemedText>{message}</ThemedText>
+        </ThemedCard>
+      ) : null}
+
+      {isRestrictedSection ? (
+        <ThemedCard style={styles.card}>
+          <ThemedText>{t('products.restricted')}</ThemedText>
+        </ThemedCard>
+      ) : null}
+
+      {section === 'products' && !isRestrictedSection ? (
+        <ThemedCard style={styles.card}>
+          <View style={styles.headerRow}>
+            <ThemedText type="subtitle">{t('products.list.title')}</ThemedText>
+            <ThemedButton label={t('products.list.add')} onPress={() => router.push('/product-form')} />
+          </View>
+
+          {products.map((product) => (
+            <View key={product.id} style={[styles.listItemColumn, { borderColor: palette.border }]}> 
+              <View style={styles.listHeader}>
+                <View style={styles.listTextWrap}>
+                  <ThemedText type="defaultSemiBold">{product.name}</ThemedText>
+                  <ThemedText style={styles.smallText}>
+                    ${Number(product.price).toFixed(2)} · {categories.find((c) => c.id === product.categoryId)?.name || t('products.list.noCategory')} · {product.isActive ? t('products.list.active') : t('products.list.archived')}
+                  </ThemedText>
+                </View>
+                <View style={styles.inlineActions}>
+                  <ThemedButton
+                    variant="secondary"
+                    style={styles.secondaryButton}
+                    label={t('products.list.edit')}
+                    onPress={() => router.push({ pathname: '/product-form', params: { id: product.id } })}
+                  />
+                  <ThemedButton
+                    variant="secondary"
+                    style={styles.secondaryButton}
+                    label={product.isActive ? t('products.list.remove') : t('products.list.restore')}
+                    onPress={async () => {
+                      await updateProduct({ id: product.id, isActive: !product.isActive });
+                      setMessage(product.isActive ? t('products.list.removedMessage') : t('products.list.restoredMessage'));
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
+          ))}
+        </ThemedCard>
+      ) : null}
+
+      {section === 'ingredients' && !isRestrictedSection ? (
+        <>
+          <ThemedCard style={styles.card}>
+            <View style={styles.headerRow}>
+              <ThemedText type="subtitle">{t('products.ingredients.title')}</ThemedText>
+              <ThemedButton label={t('products.ingredients.add')} onPress={() => router.push('/ingredient-form')} />
+            </View>
+
+            {ingredients.map((item) => {
+              const isLow = Number(item.quantity) <= Number(item.low_stock_threshold);
+              return (
+                <View key={item.id} style={[styles.listItem, { borderColor: palette.border }]}> 
+                  <View style={styles.listTextWrap}>
+                    <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
+                    <ThemedText style={styles.smallText}>
+                      {Number(item.quantity).toFixed(2)} {item.unit} · {t('products.ingredients.threshold')} {item.low_stock_threshold}
+                    </ThemedText>
+                    {isLow ? <ThemedText style={[styles.lowText, { color: palette.warning }]}>{t('products.ingredients.lowStock')}</ThemedText> : null}
+                  </View>
+                  <View style={styles.inlineActions}>
+                    <ThemedButton
+                      variant="secondary"
+                      style={styles.secondaryButton}
+                      label={t('products.ingredients.edit')}
+                      onPress={() => router.push({ pathname: '/ingredient-form', params: { id: item.id } })}
+                    />
+                    <ThemedButton
+                      variant="secondary"
+                      style={styles.secondaryButton}
+                      label={t('products.ingredients.plusOne')}
+                      onPress={async () => {
+                        await updateIngredient({ id: item.id, quantity: Number(item.quantity) + 1 });
+                        setMessage(t('products.ingredients.updated'));
+                      }}
+                    />
+                  </View>
+                </View>
+              );
+            })}
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('products.ingredients.alertTitle')}</ThemedText>
+            <ThemedText>{lowStock.length} {t('products.ingredients.alertCount')}</ThemedText>
+          </ThemedCard>
+        </>
+      ) : null}
 
       {section === 'suppliers' ? (
         <ThemedCard style={styles.card}>
@@ -58,17 +186,68 @@ export default function InventoryScreen() {
         </ThemedCard>
       ) : null}
 
-      {section === 'restock' ? (
+      {section === 'discounts' && !isRestrictedSection ? (
         <ThemedCard style={styles.card}>
-          <View style={styles.headerRow}>
-            <ThemedText type="subtitle">{t('inventory.restock.recent')}</ThemedText>
-            <ThemedButton label={t('inventory.restock.add')} onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'restock' } })} />
-          </View>
+          <ThemedText type="subtitle">{t('products.discounts.title')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('products.discounts.subtitle')}</ThemedText>
 
-          {restocks.map((log) => (
-            <View key={log.id} style={[styles.listItemColumn, { borderColor: palette.border }]}>
-              <ThemedText type="defaultSemiBold">{log.ingredient_name}</ThemedText>
-              <ThemedText style={styles.smallText}>+{Number(log.quantity_added).toFixed(2)} · ${Number(log.cost).toFixed(2)} · {new Date(Number(log.date) * 1000).toLocaleString()}</ThemedText>
+          <ThemedInput value={globalName} onChangeText={setGlobalName} placeholder={t('products.discounts.namePlaceholder')} />
+          <ThemedSelect
+            value={globalType}
+            onValueChange={(value) => setGlobalType(value as 'percentage' | 'fixed')}
+            items={[{ label: t('products.discounts.typePercentage'), value: 'percentage' }, { label: t('products.discounts.typeFixed'), value: 'fixed' }]}
+          />
+          <ThemedInput value={globalValue} onChangeText={setGlobalValue} keyboardType="decimal-pad" placeholder={t('products.discounts.valuePlaceholder')} />
+          <ThemedButton
+            label={t('products.discounts.create')}
+            onPress={async () => {
+              const value = Number(globalValue);
+              if (!globalName.trim() || !Number.isFinite(value) || value <= 0) {
+                setMessage(t('products.discounts.invalid'));
+                return;
+              }
+              await createDiscount({
+                name: globalName.trim(),
+                scope: 'global',
+                productId: null,
+                type: globalType,
+                value,
+                startsAt: 0,
+                endsAt: null,
+                isActive: true,
+              });
+              setGlobalName('');
+              setGlobalType('percentage');
+              setGlobalValue('0');
+              setMessage(t('products.discounts.created'));
+            }}
+          />
+
+          {globalDiscounts.map((discount) => (
+            <View key={discount.id} style={[styles.listItemColumn, { borderColor: palette.border }]}> 
+              <ThemedText type="defaultSemiBold">{discount.name}</ThemedText>
+              <ThemedText style={styles.smallText}>
+                {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {discount.isActive ? t('products.discounts.active') : t('products.discounts.inactive')}
+              </ThemedText>
+              <View style={styles.inlineActions}>
+                <ThemedButton
+                  variant="secondary"
+                  style={styles.secondaryButton}
+                  label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
+                  onPress={() => void updateDiscount({
+                    id: discount.id,
+                    name: discount.name,
+                    scope: 'global',
+                    productId: null,
+                    type: discount.type,
+                    value: discount.value,
+                    startsAt: 0,
+                    endsAt: null,
+                    isActive: !discount.isActive,
+                  })}
+                />
+                <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('products.discounts.delete')} onPress={() => void deleteDiscount(discount.id)} />
+              </View>
             </View>
           ))}
         </ThemedCard>
@@ -84,6 +263,7 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   sectionButton: {
@@ -92,21 +272,53 @@ const styles = StyleSheet.create({
   card: {
     gap: 10,
   },
+  inlineActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  secondaryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
   },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#C5AA90',
+    borderRadius: 10,
+    padding: 10,
+  },
   listItemColumn: {
     borderWidth: 1,
     borderColor: '#C5AA90',
     borderRadius: 10,
     padding: 10,
-    gap: 2,
+    gap: 8,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  listTextWrap: {
+    flex: 1,
+    gap: 4,
   },
   smallText: {
     opacity: 0.9,
     fontSize: 13,
+    lineHeight: 18,
+  },
+  lowText: {
+    fontWeight: '600',
   },
 });

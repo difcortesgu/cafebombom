@@ -64,7 +64,7 @@ export default function TabLayout() {
 
   const visibleTabs = useMemo(() => {
     if (isOwner) {
-      return ['index', 'sales', 'tables', 'inventory', 'products', 'accounts', 'settings'];
+      return ['index', 'sales', 'inventory', 'accounts', 'settings'];
     }
     return ['sales', 'inventory'];
   }, [isOwner]);
@@ -327,14 +327,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="tables"
-        options={{
-          href: visibleTabs.includes('tables') ? undefined : null,
-          title: t('Tables'),
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="table.furniture.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="inventory"
         options={{
           href: visibleTabs.includes('inventory') ? undefined : null,
@@ -346,9 +338,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="products"
         options={{
-          href: visibleTabs.includes('products') ? undefined : null,
-          title: t('Products'),
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="takeoutbag.and.cup.and.straw.fill" color={color} />,
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="tables"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen

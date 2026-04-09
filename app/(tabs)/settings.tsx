@@ -4,12 +4,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { THEME_OPTIONS } from '@/constants/theme';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -21,7 +23,10 @@ import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { type ThemeModePreference, useSettingsStore } from '@/stores/settings';
 
+type SettingsSection = 'ui' | 'profiles' | 'app';
+
 export default function SettingsScreen() {
+  const router = useRouter();
   const {
     currentUser,
     users,
@@ -34,7 +39,11 @@ export default function SettingsScreen() {
   } = useAuthStore();
   const hydrateInventory = useInventoryStore((state) => state.hydrate);
   const hydrateProducts = useProductsStore((state) => state.hydrate);
-  const hydrateSales = useSalesStore((state) => state.hydrate);
+  const {
+    hydrate: hydrateSales,
+    tables,
+    deleteTable,
+  } = useSalesStore();
   const palette = useAppColors();
   const {
     syncEnabled,
@@ -62,6 +71,7 @@ export default function SettingsScreen() {
     setTaxRate,
   } = useSettingsStore();
 
+  const [section, setSection] = useState<SettingsSection>('ui');
   const [deliveryInput, setDeliveryInput] = useState(deliverySurcharge.toFixed(2));
   const [toGoInput, setToGoInput] = useState(toGoSurcharge.toFixed(2));
   const [businessNameInput, setBusinessNameInput] = useState(businessName);
@@ -82,6 +92,7 @@ export default function SettingsScreen() {
   const [profileName, setProfileName] = useState('');
   const [profilePin, setProfilePin] = useState('');
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [tablesMessage, setTablesMessage] = useState<string | null>(null);
 
   const MODE_OPTIONS: { label: string; value: ThemeModePreference }[] = [
     { label: t('settings.mode.system'), value: 'system' },
@@ -92,6 +103,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     void hydrateFromDb();
   }, [hydrateFromDb]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void hydrateSales();
+    }, [hydrateSales]),
+  );
 
   useEffect(() => {
     setDeliveryInput(deliverySurcharge.toFixed(2));
@@ -297,275 +314,352 @@ export default function SettingsScreen() {
     }
   };
 
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">{t('settings.title')}</ThemedText>
       <ThemedText>{t('settings.subtitle')}</ThemedText>
 
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.currentUser.title')}</ThemedText>
-        <View style={styles.row}>
-          <ThemedText>{t('settings.currentUser.name')}</ThemedText>
-          <ThemedText type="defaultSemiBold">{currentUser?.name ?? '-'}</ThemedText>
-        </View>
-        <View style={styles.row}>
-          <ThemedText>{t('settings.currentUser.role')}</ThemedText>
-          <ThemedText type="defaultSemiBold">
-            {currentUser?.role === 'owner' ? t('owner') : currentUser?.role === 'staff' ? t('staff') : '-'}
-          </ThemedText>
-        </View>
-      </ThemedCard>
+      <View style={styles.sectionRow}>
+        {([
+          { key: 'ui', label: 'UI' },
+          { key: 'profiles', label: 'Perfiles' },
+          { key: 'app', label: 'App' },
+        ] as const).map((item) => (
+          <ThemedChip
+            key={item.key}
+            style={styles.sectionChip}
+            label={item.label}
+            active={section === item.key}
+            onPress={() => setSection(item.key)}
+          />
+        ))}
+      </View>
 
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.theme.title')}</ThemedText>
-        <ThemedText style={styles.muted}>{t('settings.theme.subtitle')}</ThemedText>
+      {section === 'ui' ? (
+        <ThemedCard style={styles.card}>
+          <ThemedText type="subtitle">{t('settings.theme.title')}</ThemedText>
+          <ThemedText style={styles.muted}>{t('settings.theme.subtitle')}</ThemedText>
 
-        <View style={styles.modeRow}>
-          {MODE_OPTIONS.map((opt) => {
-            const isActive = themeModePreference === opt.value;
-            return (
-              <Pressable
-                key={opt.value}
-                style={[
-                  styles.modeChip,
-                  {
-                    backgroundColor: isActive ? palette.tint : palette.inputBackground,
-                    borderColor: isActive ? palette.tint : palette.border,
-                  },
-                ]}
-                onPress={() => setThemeModePreference(opt.value)}>
-                <ThemedText
-                  style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
-                  {opt.label}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <View style={styles.themeList}>
-          {THEME_OPTIONS.map((theme) => {
-            const isActive = selectedThemeId === theme.id;
-            return (
-              <Pressable
-                key={theme.id}
-                style={[
-                  styles.themeOption,
-                  {
-                    borderColor: isActive ? palette.tint : palette.border,
-                    backgroundColor: isActive ? palette.card : 'transparent',
-                  },
-                ]}
-                onPress={() => setTheme(theme.id)}>
-                <View style={styles.themeHeader}>
-                  <ThemedText type="defaultSemiBold">{theme.name}</ThemedText>
-                  <ThemedText style={{ color: isActive ? palette.tint : palette.mutedText }}>
-                      {isActive ? t('settings.theme.active') : t('settings.theme.select')}
+          <View style={styles.modeRow}>
+            {MODE_OPTIONS.map((opt) => {
+              const isActive = themeModePreference === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[
+                    styles.modeChip,
+                    {
+                      backgroundColor: isActive ? palette.tint : palette.inputBackground,
+                      borderColor: isActive ? palette.tint : palette.border,
+                    },
+                  ]}
+                  onPress={() => setThemeModePreference(opt.value)}>
+                  <ThemedText
+                    style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
+                    {opt.label}
                   </ThemedText>
-                </View>
+                </Pressable>
+              );
+            })}
+          </View>
 
-                <View style={styles.swatchRow}>
-                  {theme.preview.map((color) => (
-                    <View key={`${theme.id}-${color}`} style={[styles.swatch, { backgroundColor: color }]} />
-                  ))}
-                </View>
+          <View style={styles.themeList}>
+            {THEME_OPTIONS.map((theme) => {
+              const isActive = selectedThemeId === theme.id;
+              return (
+                <Pressable
+                  key={theme.id}
+                  style={[
+                    styles.themeOption,
+                    {
+                      borderColor: isActive ? palette.tint : palette.border,
+                      backgroundColor: isActive ? palette.card : 'transparent',
+                    },
+                  ]}
+                  onPress={() => setTheme(theme.id)}>
+                  <View style={styles.themeHeader}>
+                    <ThemedText type="defaultSemiBold">{theme.name}</ThemedText>
+                    <ThemedText style={{ color: isActive ? palette.tint : palette.mutedText }}>
+                      {isActive ? t('settings.theme.active') : t('settings.theme.select')}
+                    </ThemedText>
+                  </View>
 
-                <ThemedText style={styles.muted}>{theme.description}</ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </ThemedCard>
+                  <View style={styles.swatchRow}>
+                    {theme.preview.map((color) => (
+                      <View key={`${theme.id}-${color}`} style={[styles.swatch, { backgroundColor: color }]} />
+                    ))}
+                  </View>
 
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.fees.title')}</ThemedText>
-        <ThemedText style={styles.muted}>{t('settings.fees.subtitle')}</ThemedText>
+                  <ThemedText style={styles.muted}>{theme.description}</ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </ThemedCard>
+      ) : null}
 
-        <View style={styles.feeRow}>
-          <ThemedText style={styles.feeLabel}>{t('settings.fees.delivery')}</ThemedText>
-          <ThemedInput
-            style={styles.feeInput}
-            keyboardType="decimal-pad"
-            value={deliveryInput}
-            onChangeText={setDeliveryInput}
-            onBlur={commitDeliveryFee}
-            placeholder={t('settings.fees.placeholder')}
-          />
-        </View>
+      {section === 'profiles' ? (
+        <>
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('settings.currentUser.title')}</ThemedText>
+            <View style={styles.row}>
+              <ThemedText>{t('settings.currentUser.name')}</ThemedText>
+              <ThemedText type="defaultSemiBold">{currentUser?.name ?? '-'}</ThemedText>
+            </View>
+            <View style={styles.row}>
+              <ThemedText>{t('settings.currentUser.role')}</ThemedText>
+              <ThemedText type="defaultSemiBold">
+                {currentUser?.role === 'owner' ? t('owner') : currentUser?.role === 'staff' ? t('staff') : '-'}
+              </ThemedText>
+            </View>
 
-        <View style={styles.feeRow}>
-          <ThemedText style={styles.feeLabel}>{t('settings.fees.toGo')}</ThemedText>
-          <ThemedInput
-            style={styles.feeInput}
-            keyboardType="decimal-pad"
-            value={toGoInput}
-            onChangeText={setToGoInput}
-            onBlur={commitToGoFee}
-            placeholder={t('settings.fees.placeholder')}
-          />
-        </View>
-      </ThemedCard>
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.receipt.title')}</ThemedText>
-        <ThemedText style={styles.muted}>{t('settings.receipt.subtitle')}</ThemedText>
-
-        <ThemedInput
-          value={businessNameInput}
-          placeholder={t('settings.receipt.businessName')}
-          onChangeText={setBusinessNameInput}
-          onBlur={commitBusinessInfo}
-        />
-        <ThemedInput
-          value={businessAddressInput}
-          placeholder={t('settings.receipt.businessAddress')}
-          onChangeText={setBusinessAddressInput}
-          onBlur={commitBusinessInfo}
-        />
-        <ThemedInput
-          value={businessPhoneInput}
-          placeholder={t('settings.receipt.businessPhone')}
-          onChangeText={setBusinessPhoneInput}
-          onBlur={commitBusinessInfo}
-        />
-
-        <View style={styles.logoActions}>
-          <ThemedButton
-            variant="secondary"
-            label={logoBusy ? `${t('settings.receipt.pickLogo')}...` : t('settings.receipt.pickLogo')}
-            onPress={() => void pickBusinessLogo()}
-            disabled={logoBusy}
-          />
-          {businessLogoUriInput ? (
-            <ThemedButton
-              variant="secondary"
-              label={t('settings.receipt.removeLogo')}
-              onPress={removeBusinessLogo}
-              disabled={logoBusy}
-            />
-          ) : null}
-        </View>
-        {businessLogoUriInput ? (
-          <Image source={{ uri: businessLogoUriInput }} style={styles.logoPreview} contentFit="contain" />
-        ) : (
-          <ThemedText style={styles.muted}>{t('settings.receipt.noLogo')}</ThemedText>
-        )}
-        {logoMessage ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{logoMessage}</ThemedText> : null}
-
-        <ThemedInput
-          value={receiptFooterInput}
-          placeholder={t('settings.receipt.footerMessage')}
-          onChangeText={setReceiptFooterInput}
-          onBlur={commitBusinessInfo}
-        />
-
-        <View style={styles.feeRow}>
-          <ThemedText style={styles.feeLabel}>{t('settings.receipt.taxRate')}</ThemedText>
-          <ThemedInput
-            style={styles.feeInput}
-            keyboardType="decimal-pad"
-            value={taxRateInput}
-            onChangeText={setTaxRateInput}
-            onBlur={commitTaxRate}
-            placeholder="8.00"
-          />
-        </View>
-
-        <ThemedText style={styles.muted}>{t('settings.receipt.paperWidth')}</ThemedText>
-        <View style={styles.modeRow}>
-          {[58, 80].map((width) => {
-            const isActive = printerPaperWidth === width;
-            return (
-              <Pressable
-                key={width}
-                style={[
-                  styles.modeChip,
-                  {
-                    backgroundColor: isActive ? palette.tint : palette.inputBackground,
-                    borderColor: isActive ? palette.tint : palette.border,
-                  },
-                ]}
-                onPress={() => setPrinterPaperWidth(width as 58 | 80)}>
-                <ThemedText
-                  style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
-                  {width}mm
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </ThemedCard>
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.sync.title')}</ThemedText>
-        <ThemedText style={styles.muted}>{t('settings.sync.subtitle')}</ThemedText>
-
-        <ThemedButton
-          variant="secondary"
-          style={styles.secondaryButton}
-          label={syncEnabled ? t('settings.sync.disable') : t('settings.sync.enable')}
-          onPress={toggleSync}
-        />
-
-        <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('settings.sync.now')} onPress={markSynced} />
-
-        <ThemedText style={styles.muted}>
-          {t('settings.sync.last')}: {lastSyncAt ? new Date(lastSyncAt * 1000).toLocaleString() : t('settings.sync.never')}
-        </ThemedText>
-      </ThemedCard>
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Account Management</ThemedText>
-        <ThemedText style={styles.muted}>Create employee accounts after setup. Only owners can add accounts.</ThemedText>
-
-        <ThemedText type="defaultSemiBold">My Account Details</ThemedText>
-        <ThemedInput
-          value={profileName}
-          placeholder="Your display name"
-          onChangeText={setProfileName}
-        />
-        <ThemedInput
-          value={profilePin}
-          secureTextEntry
-          keyboardType="number-pad"
-          maxLength={6}
-          placeholder="New PIN (optional)"
-          onChangeText={setProfilePin}
-        />
-        <ThemedButton
-          disabled={authLoading || profileName.trim().length === 0}
-          label={authLoading ? 'Saving profile...' : 'Save My Details'}
-          onPress={async () => {
-            setProfileMessage(null);
-            const ok = await updateCurrentUserProfile({
-              name: profileName,
-              pin: profilePin.trim().length > 0 ? profilePin : undefined,
-            });
-            if (ok) {
-              setProfilePin('');
-              setProfileMessage('Your account details were updated.');
-            }
-          }}
-        />
-        {profileMessage ? <ThemedText style={styles.muted}>{profileMessage}</ThemedText> : null}
-
-        {currentUser?.role !== 'owner' ? (
-          <ThemedText style={[styles.muted, { color: palette.danger }]}>Only owner accounts can create new users.</ThemedText>
-        ) : (
-          <>
+            <ThemedText type="defaultSemiBold">Mi sesion</ThemedText>
             <ThemedInput
-              value={newAccountName}
-              placeholder="Employee name"
-              onChangeText={setNewAccountName}
+              value={profileName}
+              placeholder="Nombre para mostrar"
+              onChangeText={setProfileName}
+            />
+            <ThemedInput
+              value={profilePin}
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="Nuevo PIN (opcional)"
+              onChangeText={setProfilePin}
+            />
+            <ThemedButton
+              disabled={authLoading || profileName.trim().length === 0}
+              label={authLoading ? 'Guardando perfil...' : 'Guardar mi perfil'}
+              onPress={async () => {
+                setProfileMessage(null);
+                const ok = await updateCurrentUserProfile({
+                  name: profileName,
+                  pin: profilePin.trim().length > 0 ? profilePin : undefined,
+                });
+                if (ok) {
+                  setProfilePin('');
+                  setProfileMessage('Tu perfil fue actualizado.');
+                }
+              }}
+            />
+            {profileMessage ? <ThemedText style={styles.muted}>{profileMessage}</ThemedText> : null}
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">Manejo de cuentas</ThemedText>
+            <ThemedText style={styles.muted}>Solo el dueno puede crear o remover cuentas.</ThemedText>
+
+            {currentUser?.role !== 'owner' ? (
+              <ThemedText style={[styles.muted, { color: palette.danger }]}>Solo cuentas de dueno pueden crear usuarios.</ThemedText>
+            ) : (
+              <>
+                <ThemedInput
+                  value={newAccountName}
+                  placeholder="Nombre del empleado"
+                  onChangeText={setNewAccountName}
+                />
+
+                <View style={styles.modeRow}>
+                  {(['staff', 'owner'] as const).map((role) => {
+                    const isActive = newAccountRole === role;
+                    return (
+                      <Pressable
+                        key={role}
+                        style={[
+                          styles.modeChip,
+                          {
+                            backgroundColor: isActive ? palette.tint : palette.inputBackground,
+                            borderColor: isActive ? palette.tint : palette.border,
+                          },
+                        ]}
+                        onPress={() => setNewAccountRole(role)}>
+                        <ThemedText
+                          style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
+                          {role === 'owner' ? t('owner') : t('staff')}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <ThemedInput
+                  value={newAccountPin}
+                  secureTextEntry
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  placeholder="PIN (min 4 digitos)"
+                  onChangeText={setNewAccountPin}
+                />
+
+                <ThemedButton
+                  disabled={authLoading || newAccountName.trim().length === 0 || newAccountPin.trim().length < 4}
+                  label={authLoading ? 'Creando cuenta...' : 'Agregar cuenta'}
+                  onPress={async () => {
+                    const created = await createUser({
+                      name: newAccountName,
+                      role: newAccountRole,
+                      pin: newAccountPin,
+                    });
+
+                    if (created) {
+                      setNewAccountName('');
+                      setNewAccountPin('');
+                      setNewAccountRole('staff');
+                      setAccountMessage(`Cuenta creada para ${created.name} (${t(created.role)}).`);
+                    } else {
+                      setAccountMessage(null);
+                    }
+                  }}
+                />
+              </>
+            )}
+
+            {accountMessage ? <ThemedText style={styles.muted}>{accountMessage}</ThemedText> : null}
+            {authError ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{authError}</ThemedText> : null}
+
+            <View style={styles.accountListWrap}>
+              <ThemedText type="defaultSemiBold">Cuentas actuales</ThemedText>
+              {users.length === 0 ? (
+                <ThemedText style={styles.muted}>No hay cuentas disponibles.</ThemedText>
+              ) : (
+                users.map((user) => {
+                  const canRemove = currentUser?.role === 'owner' && currentUser.id !== user.id;
+                  return (
+                    <View key={user.id} style={styles.accountRow}>
+                      <ThemedText style={styles.muted}>
+                        {user.name} ({t(user.role)})
+                      </ThemedText>
+                      {canRemove ? (
+                        <ThemedButton
+                          variant="secondary"
+                          style={styles.removeButton}
+                          label="Quitar"
+                          onPress={async () => {
+                            setAccountMessage(null);
+                            const ok = await deactivateUser(user.id);
+                            if (ok) {
+                              setAccountMessage(`Cuenta removida para ${user.name}.`);
+                            }
+                          }}
+                        />
+                      ) : null}
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('settings.session.title')}</ThemedText>
+            <ThemedButton label={t('settings.session.logout')} onPress={logout} />
+          </ThemedCard>
+        </>
+      ) : null}
+
+      {section === 'app' ? (
+        <>
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('settings.fees.title')}</ThemedText>
+            <ThemedText style={styles.muted}>{t('settings.fees.subtitle')}</ThemedText>
+
+            <View style={styles.feeRow}>
+              <ThemedText style={styles.feeLabel}>{t('settings.fees.delivery')}</ThemedText>
+              <ThemedInput
+                style={styles.feeInput}
+                keyboardType="decimal-pad"
+                value={deliveryInput}
+                onChangeText={setDeliveryInput}
+                onBlur={commitDeliveryFee}
+                placeholder={t('settings.fees.placeholder')}
+              />
+            </View>
+
+            <View style={styles.feeRow}>
+              <ThemedText style={styles.feeLabel}>{t('settings.fees.toGo')}</ThemedText>
+              <ThemedInput
+                style={styles.feeInput}
+                keyboardType="decimal-pad"
+                value={toGoInput}
+                onChangeText={setToGoInput}
+                onBlur={commitToGoFee}
+                placeholder={t('settings.fees.placeholder')}
+              />
+            </View>
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('settings.receipt.title')}</ThemedText>
+            <ThemedText style={styles.muted}>{t('settings.receipt.subtitle')}</ThemedText>
+
+            <ThemedInput
+              value={businessNameInput}
+              placeholder={t('settings.receipt.businessName')}
+              onChangeText={setBusinessNameInput}
+              onBlur={commitBusinessInfo}
+            />
+            <ThemedInput
+              value={businessAddressInput}
+              placeholder={t('settings.receipt.businessAddress')}
+              onChangeText={setBusinessAddressInput}
+              onBlur={commitBusinessInfo}
+            />
+            <ThemedInput
+              value={businessPhoneInput}
+              placeholder={t('settings.receipt.businessPhone')}
+              onChangeText={setBusinessPhoneInput}
+              onBlur={commitBusinessInfo}
             />
 
+            <View style={styles.logoActions}>
+              <ThemedButton
+                variant="secondary"
+                label={logoBusy ? `${t('settings.receipt.pickLogo')}...` : t('settings.receipt.pickLogo')}
+                onPress={() => void pickBusinessLogo()}
+                disabled={logoBusy}
+              />
+              {businessLogoUriInput ? (
+                <ThemedButton
+                  variant="secondary"
+                  label={t('settings.receipt.removeLogo')}
+                  onPress={removeBusinessLogo}
+                  disabled={logoBusy}
+                />
+              ) : null}
+            </View>
+            {businessLogoUriInput ? (
+              <Image source={{ uri: businessLogoUriInput }} style={styles.logoPreview} contentFit="contain" />
+            ) : (
+              <ThemedText style={styles.muted}>{t('settings.receipt.noLogo')}</ThemedText>
+            )}
+            {logoMessage ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{logoMessage}</ThemedText> : null}
+
+            <ThemedInput
+              value={receiptFooterInput}
+              placeholder={t('settings.receipt.footerMessage')}
+              onChangeText={setReceiptFooterInput}
+              onBlur={commitBusinessInfo}
+            />
+
+            <View style={styles.feeRow}>
+              <ThemedText style={styles.feeLabel}>{t('settings.receipt.taxRate')}</ThemedText>
+              <ThemedInput
+                style={styles.feeInput}
+                keyboardType="decimal-pad"
+                value={taxRateInput}
+                onChangeText={setTaxRateInput}
+                onBlur={commitTaxRate}
+                placeholder="8.00"
+              />
+            </View>
+
+            <ThemedText style={styles.muted}>{t('settings.receipt.paperWidth')}</ThemedText>
             <View style={styles.modeRow}>
-              {(['staff', 'owner'] as const).map((role) => {
-                const isActive = newAccountRole === role;
+              {[58, 80].map((width) => {
+                const isActive = printerPaperWidth === width;
                 return (
                   <Pressable
-                    key={role}
+                    key={width}
                     style={[
                       styles.modeChip,
                       {
@@ -573,107 +667,103 @@ export default function SettingsScreen() {
                         borderColor: isActive ? palette.tint : palette.border,
                       },
                     ]}
-                    onPress={() => setNewAccountRole(role)}>
+                    onPress={() => setPrinterPaperWidth(width as 58 | 80)}>
                     <ThemedText
                       style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
-                      {role === 'owner' ? t('owner') : t('staff')}
+                      {width}mm
                     </ThemedText>
                   </Pressable>
                 );
               })}
             </View>
+          </ThemedCard>
 
-            <ThemedInput
-              value={newAccountPin}
-              secureTextEntry
-              keyboardType="number-pad"
-              maxLength={6}
-              placeholder="PIN (min 4 digits)"
-              onChangeText={setNewAccountPin}
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">Mesas</ThemedText>
+            <ThemedText style={styles.muted}>Configura y edita las mesas desde la seccion App.</ThemedText>
+            {currentUser?.role !== 'owner' ? (
+              <ThemedText style={[styles.muted, { color: palette.danger }]}>{t('tables.restricted')}</ThemedText>
+            ) : (
+              <>
+                <ThemedButton label={t('tables.add')} onPress={() => router.push('/table-form')} />
+                {tables.length === 0 ? (
+                  <ThemedText style={styles.muted}>{t('tables.empty')}</ThemedText>
+                ) : (
+                  tables.map((table) => (
+                    <View key={table.id} style={[styles.tableRow, { borderColor: palette.border }]}> 
+                      <View style={styles.tableTextWrap}>
+                        <ThemedText type="defaultSemiBold">{table.name}</ThemedText>
+                        <ThemedText style={styles.muted}>
+                          {table.table_type === 'to-go' ? t('tables.type.toGo') : table.table_type === 'delivery' ? t('tables.type.delivery') : t('tables.type.dineIn')}
+                        </ThemedText>
+                      </View>
+                      <View style={styles.rowActions}>
+                        <ThemedButton
+                          variant="secondary"
+                          style={styles.smallButton}
+                          label={t('tables.edit')}
+                          onPress={() => router.push({ pathname: '/table-form', params: { id: table.id } })}
+                        />
+                        <ThemedButton
+                          variant="secondary"
+                          style={styles.smallButton}
+                          label="Quitar"
+                          onPress={async () => {
+                            try {
+                              await deleteTable(table.id);
+                              setTablesMessage(t('tables.deleted'));
+                            } catch {
+                              setTablesMessage(t('Cannot delete a table that has linked sales.'));
+                            }
+                          }}
+                        />
+                      </View>
+                    </View>
+                  ))
+                )}
+                {tablesMessage ? <ThemedText style={styles.muted}>{tablesMessage}</ThemedText> : null}
+              </>
+            )}
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">Seed Data Import</ThemedText>
+            <ThemedText style={styles.muted}>Upload an Excel file to import providers, employees, categories, inventory, products, recipes, tables, discounts, and surcharges.</ThemedText>
+            <ThemedButton
+              disabled={importBusy}
+              label={importBusy ? 'Importing...' : 'Upload Seed Excel'}
+              onPress={importSeedData}
             />
+            {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
+            {importIssues.map((issue) => (
+              <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>{issue}</ThemedText>
+            ))}
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('settings.sync.title')}</ThemedText>
+            <ThemedText style={styles.muted}>{t('settings.sync.subtitle')}</ThemedText>
 
             <ThemedButton
-              disabled={authLoading || newAccountName.trim().length === 0 || newAccountPin.trim().length < 4}
-              label={authLoading ? 'Creating account...' : 'Add Account'}
-              onPress={async () => {
-                const created = await createUser({
-                  name: newAccountName,
-                  role: newAccountRole,
-                  pin: newAccountPin,
-                });
-
-                if (created) {
-                  setNewAccountName('');
-                  setNewAccountPin('');
-                  setNewAccountRole('staff');
-                  setAccountMessage(`Account created for ${created.name} (${t(created.role)}).`);
-                } else {
-                  setAccountMessage(null);
-                }
-              }}
+              variant="secondary"
+              style={styles.secondaryButton}
+              label={syncEnabled ? t('settings.sync.disable') : t('settings.sync.enable')}
+              onPress={toggleSync}
             />
-          </>
-        )}
 
-        {accountMessage ? <ThemedText style={styles.muted}>{accountMessage}</ThemedText> : null}
-        {authError ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{authError}</ThemedText> : null}
+            <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('settings.sync.now')} onPress={markSynced} />
 
-        <View style={styles.accountListWrap}>
-          <ThemedText type="defaultSemiBold">Current accounts</ThemedText>
-          {users.length === 0 ? (
-            <ThemedText style={styles.muted}>No accounts available.</ThemedText>
-          ) : (
-            users.map((user) => {
-              const canRemove = currentUser?.role === 'owner' && currentUser.id !== user.id;
-              return (
-                <View key={user.id} style={styles.accountRow}>
-                  <ThemedText style={styles.muted}>
-                    {user.name} ({t(user.role)})
-                  </ThemedText>
-                  {canRemove ? (
-                    <ThemedButton
-                      variant="secondary"
-                      style={styles.removeButton}
-                      label="Remove"
-                      onPress={async () => {
-                        setAccountMessage(null);
-                        const ok = await deactivateUser(user.id);
-                        if (ok) {
-                          setAccountMessage(`Account removed for ${user.name}.`);
-                        }
-                      }}
-                    />
-                  ) : null}
-                </View>
-              );
-            })
-          )}
-        </View>
-      </ThemedCard>
+            <ThemedText style={styles.muted}>
+              {t('settings.sync.last')}: {lastSyncAt ? new Date(lastSyncAt * 1000).toLocaleString() : t('settings.sync.never')}
+            </ThemedText>
+          </ThemedCard>
 
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">Seed Data Import</ThemedText>
-        <ThemedText style={styles.muted}>Upload an Excel file to import providers, employees, categories, inventory, products, recipes, tables, discounts, and surcharges.</ThemedText>
-        <ThemedButton
-          disabled={importBusy}
-          label={importBusy ? 'Importing...' : 'Upload Seed Excel'}
-          onPress={importSeedData}
-        />
-        {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
-        {importIssues.map((issue) => (
-          <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>{issue}</ThemedText>
-        ))}
-      </ThemedCard>
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.session.title')}</ThemedText>
-        <ThemedButton label={t('settings.session.logout')} onPress={logout} />
-      </ThemedCard>
-
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('settings.app.title')}</ThemedText>
-        <ThemedText>{t('settings.app.version')}: {Constants.expoConfig?.version ?? '1.0.0'}</ThemedText>
-      </ThemedCard>
+          <ThemedCard style={styles.card}>
+            <ThemedText type="subtitle">{t('settings.app.title')}</ThemedText>
+            <ThemedText>{t('settings.app.version')}: {Constants.expoConfig?.version ?? '1.0.0'}</ThemedText>
+          </ThemedCard>
+        </>
+      ) : null}
     </ScrollView>
   );
 }
@@ -683,12 +773,24 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
+  sectionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sectionChip: {
+    borderRadius: 10,
+  },
   card: {
     gap: 10,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   feeRow: {
     flexDirection: 'row',
@@ -766,5 +868,22 @@ const styles = StyleSheet.create({
   removeButton: {
     minWidth: 96,
     paddingVertical: 6,
+  },
+  tableRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  tableTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  smallButton: {
+    paddingVertical: 7,
+    paddingHorizontal: 10,
   },
 });
