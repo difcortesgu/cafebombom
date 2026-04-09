@@ -15,6 +15,7 @@ type InventoryState = {
   addSupplier: (payload: AddSupplierPayload) => Promise<void>;
   addRestock: (payload: AddRestockPayload) => Promise<void>;
   lowStockCount: () => number;
+  getLowStockItems: (limit?: number) => Ingredient[];
 };
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
@@ -65,4 +66,16 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   lowStockCount: () =>
     get().ingredients.filter((item: Ingredient) => Number(item.quantity) <= Number(item.low_stock_threshold)).length,
+
+  getLowStockItems: (limit = 5) =>
+    get()
+      .ingredients
+      .filter((item: Ingredient) => Number(item.quantity) <= Number(item.low_stock_threshold))
+      .sort((left, right) => {
+        const leftRatio = Number(left.low_stock_threshold) > 0 ? Number(left.quantity) / Number(left.low_stock_threshold) : Number(left.quantity);
+        const rightRatio = Number(right.low_stock_threshold) > 0 ? Number(right.quantity) / Number(right.low_stock_threshold) : Number(right.quantity);
+
+        return leftRatio - rightRatio || Number(left.quantity) - Number(right.quantity);
+      })
+      .slice(0, limit),
 }));

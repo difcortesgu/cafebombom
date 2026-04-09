@@ -2,8 +2,9 @@ import { create } from 'zustand';
 
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
-import type { AddItemToOrderPayload, CreateDiscountPayload, CreateSalePayload, RemoveItemFromOrderPayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
+import type { AddItemToOrderPayload, CreateDiscountPayload, CreateSalePayload, DashboardSalesSummary, DashboardTrendBucket, RemoveItemFromOrderPayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
 import type { Discount, Product, RestaurantTable, Sale, TableType } from '@/types/types';
+import { RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
 
 type SalesState = {
   products: Product[];
@@ -24,6 +25,7 @@ type SalesState = {
   updateTable: (payload: { id: string; name: string; tableType: TableType }) => Promise<void>;
   deleteTable: (id: string) => Promise<void>;
   getTodayRevenue: () => number;
+  getDashboardSummary: (startUnix: number, endUnix: number, bucket?: DashboardTrendBucket) => Promise<DashboardSalesSummary>;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
   getSalePricingSummary: (saleId: string) => Promise<SalePricingSummary | null>;
   sendToKitchen: (orderId: string) => Promise<void>;
@@ -106,8 +108,12 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     const end = start + 24 * 60 * 60;
 
     return get()
-      .sales.filter((sale: Sale) => sale.created_at >= start && sale.created_at < end)
+      .sales.filter((sale: Sale) => sale.created_at >= start && sale.created_at < end && RECOGNIZED_REVENUE_STATUSES.includes(sale.status))
       .reduce((sum: number, sale: Sale) => sum + Number(sale.total), 0);
+  },
+
+  getDashboardSummary: async (startUnix: number, endUnix: number, bucket: DashboardTrendBucket = 'day') => {
+    return salesService.getDashboardSummary(startUnix, endUnix, bucket);
   },
 
   getTopSelling: async (limit = 5) => {
@@ -176,7 +182,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   },
 
   getPendingPaymentOrders: () => {
-    return get().sales.filter((sale: Sale) => sale.status === 'ready' || sale.status === 'in-progress');
+    return get().sales.filter((sale: Sale) => !sale.paid_at && !['completed', 'cancelled', 'paid'].includes(sale.status));
   },
 
   getCompletedOrders: () => {

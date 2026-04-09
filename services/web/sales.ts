@@ -5,6 +5,8 @@ import type {
     CreateDiscountPayload,
     CreateSalePayload,
     CreateTablePayload,
+    DashboardSalesSummary,
+    DashboardTrendBucket,
     RemoveItemFromOrderPayload,
     SaleItemDetail,
     SalePricingSummary,
@@ -13,6 +15,7 @@ import type {
     UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, RestaurantTable } from '@/types/types';
+import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 import { getDb } from './storage';
@@ -296,10 +299,17 @@ export class SalesWebService implements SalesService {
 
   async getTopSelling(limit = 5): Promise<Array<{ name: string; quantity: number }>> {
     const db = await getDb();
-    const [saleItems, products] = await Promise.all([db.saleItems.toArray(), db.products.toArray()]);
+    const [sales, saleItems, products] = await Promise.all([db.sales.toArray(), db.saleItems.toArray(), db.products.toArray()]);
+    const realizedSaleIds = new Set(
+      sales.filter((sale) => RECOGNIZED_REVENUE_STATUSES.includes(sale.status)).map((sale) => sale.id),
+    );
     const totals = new Map<string, number>();
 
     for (const item of saleItems) {
+      if (!realizedSaleIds.has(item.saleId)) {
+        continue;
+      }
+
       totals.set(item.productId, (totals.get(item.productId) ?? 0) + item.quantity);
     }
 
@@ -372,9 +382,47 @@ export class SalesWebService implements SalesService {
     const db = await getDb();
     return (await db.sales
       .where('createdAt')
-      .between(startUnix, endUnix)
+      .between(startUnix, endUnix, true, false)
       .toArray())
+      .filter((sale) => RECOGNIZED_REVENUE_STATUSES.includes(sale.status))
       .reduce((sum, sale) => sum + Number(sale.total), 0);
+  }
+
+  async getDashboardSummary(startUnix: number, endUnix: number, bucket: DashboardTrendBucket = 'day'): Promise<DashboardSalesSummary> {
+    const db = await getDb();
+    const sales = await db.sales
+      .where('createdAt')
+      .between(startUnix, endUnix, true, false)
+      .toArray();
+
+    const realizedSaleIds = sales
+      .filter((sale) => RECOGNIZED_REVENUE_STATUSES.includes(sale.status))
+      .map((sale) => sale.id);
+
+    const [saleItems, products] = await Promise.all([
+      realizedSaleIds.length > 0 ? db.saleItems.where('saleId').anyOf(realizedSaleIds).toArray() : Promise.resolve([]),
+      db.products.toArray(),
+    ]);
+
+    return buildDashboardSalesSummary({
+      sales: sales.map((sale) => ({
+        id: sale.id,
+        created_at: sale.createdAt,
+        total: sale.total,
+        payment_method: sale.paymentMethod ?? 'cash',
+        status: sale.status ?? 'draft',
+      })),
+      saleItems: saleItems.map((item) => ({
+        sale_id: item.saleId,
+        product_name: products.find((product) => product.id === item.productId)?.name ?? 'Desconocido',
+        quantity: item.quantity,
+        line_subtotal: Number(item.lineSubtotal ?? 0),
+        discount_amount: Number(item.discountAmount ?? 0),
+      })),
+      startUnix,
+      endUnix,
+      bucket,
+    });
   }
 
   async getOrderTypeSurchargeConfig(): Promise<{ toGoSurcharge: number; deliverySurcharge: number }> {

@@ -7,6 +7,8 @@ import type {
     CreateDiscountPayload,
     CreateSalePayload,
     CreateTablePayload,
+    DashboardSalesSummary,
+    DashboardTrendBucket,
     RemoveItemFromOrderPayload,
     SaleItemDetail,
     SalePricingSummary,
@@ -15,8 +17,9 @@ import type {
     UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
+import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
-import { between, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 
 export class SalesSqliteService implements SalesService {
   async getHydrationData() {
@@ -372,6 +375,8 @@ export class SalesSqliteService implements SalesService {
       .select({ name: products.name, quantity: sql<number>`SUM(${saleItems.quantity})` })
       .from(saleItems)
       .innerJoin(products, eq(products.id, saleItems.productId))
+      .innerJoin(sales, eq(sales.id, saleItems.saleId))
+      .where(inArray(sales.status, RECOGNIZED_REVENUE_STATUSES))
       .groupBy(saleItems.productId)
       .orderBy(sql`SUM(${saleItems.quantity}) DESC`)
       .limit(limit)
@@ -459,9 +464,59 @@ export class SalesSqliteService implements SalesService {
     const row = db
       .select({ total: sql<number>`COALESCE(SUM(${sales.total}), 0)` })
       .from(sales)
-      .where(between(sales.createdAt, startUnix, endUnix))
+      .where(
+        and(
+          gte(sales.createdAt, startUnix),
+          lt(sales.createdAt, endUnix),
+          inArray(sales.status, RECOGNIZED_REVENUE_STATUSES),
+        ),
+      )
       .get();
     return Number(row?.total ?? 0);
+  }
+
+  async getDashboardSummary(startUnix: number, endUnix: number, bucket: DashboardTrendBucket = 'day'): Promise<DashboardSalesSummary> {
+    await dbReady;
+
+    const salesList = db
+      .select({
+        id: sales.id,
+        created_at: sales.createdAt,
+        total: sales.total,
+        payment_method: sales.paymentMethod,
+        status: sales.status,
+      })
+      .from(sales)
+      .where(and(gte(sales.createdAt, startUnix), lt(sales.createdAt, endUnix)))
+      .all();
+
+    const saleItemsList = db
+      .select({
+        sale_id: saleItems.saleId,
+        product_name: products.name,
+        quantity: saleItems.quantity,
+        line_subtotal: saleItems.lineSubtotal,
+        discount_amount: saleItems.discountAmount,
+      })
+      .from(saleItems)
+      .innerJoin(products, eq(products.id, saleItems.productId))
+      .innerJoin(sales, eq(sales.id, saleItems.saleId))
+      .where(
+        and(
+          gte(sales.createdAt, startUnix),
+          lt(sales.createdAt, endUnix),
+          inArray(sales.status, RECOGNIZED_REVENUE_STATUSES),
+        ),
+      )
+      .all();
+
+    return buildDashboardSalesSummary({
+      sales: salesList,
+      saleItems: saleItemsList,
+      startUnix,
+      endUnix,
+      bucket,
+    });
   }
 
   async getOrderTypeSurchargeConfig(): Promise<{ toGoSurcharge: number; deliverySurcharge: number }> {

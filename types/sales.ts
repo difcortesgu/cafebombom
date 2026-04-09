@@ -1,4 +1,38 @@
-import type { DiscountType, PaymentMethod, SaleItemInput, TableType } from '@/types/types';
+import type { DiscountType, OrderStatus, PaymentMethod, SaleItemInput, TableType } from '@/types/types';
+
+export type DashboardRangeKey = 'today' | 'week' | 'month';
+
+export type DashboardTrendBucket = 'hour' | 'day';
+
+export type DashboardTrendPoint = {
+  bucket_start: number;
+  total: number;
+  sale_count: number;
+};
+
+export type DashboardPaymentBreakdown = {
+  method: PaymentMethod;
+  total: number;
+  count: number;
+};
+
+export type DashboardTopProduct = {
+  name: string;
+  quantity: number;
+  revenue: number;
+};
+
+export type DashboardStatusCounts = Record<OrderStatus, number>;
+
+export type DashboardSalesSummary = {
+  revenue: number;
+  salesCount: number;
+  averageOrderValue: number;
+  statusCounts: DashboardStatusCounts;
+  paymentBreakdown: DashboardPaymentBreakdown[];
+  topProducts: DashboardTopProduct[];
+  trend: DashboardTrendPoint[];
+};
 
 export type DiscountSnapshot = {
   discount_name: string | null;

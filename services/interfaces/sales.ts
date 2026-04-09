@@ -3,6 +3,8 @@ import type {
     CreateDiscountPayload,
     CreateSalePayload,
     CreateTablePayload,
+    DashboardSalesSummary,
+    DashboardTrendBucket,
     RemoveItemFromOrderPayload,
     SaleItemDetail,
     SalePricingSummary,
@@ -40,6 +42,7 @@ export interface SalesService {
   getSaleItems(saleId: string): Promise<SaleItemDetail[]>;
   getSalePricingSummary(saleId: string): Promise<SalePricingSummary | null>;
   getRevenueInRange(startUnix: number, endUnix: number): Promise<number>;
+  getDashboardSummary(startUnix: number, endUnix: number, bucket?: DashboardTrendBucket): Promise<DashboardSalesSummary>;
   getOrderTypeSurchargeConfig(): Promise<OrderTypeSurchargeConfig>;
   saveOrderTypeSurchargeConfig(payload: OrderTypeSurchargeConfig): Promise<void>;
   sendToKitchen(orderId: string): Promise<void>;
