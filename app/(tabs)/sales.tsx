@@ -1,12 +1,13 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ReceiptPreview } from '@/components/receipt-preview';
+import { SaleCanvasCard, type CanvasCardAction } from '@/components/sale-canvas-card';
+import { SaleStatusLane } from '@/components/sale-status-lane';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedChip } from '@/components/ui/themed-chip';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
@@ -146,7 +147,42 @@ function getStatusTone(status: OrderStatus, palette: ReturnType<typeof useAppCol
   return { backgroundColor: palette.border, color: palette.text, borderColor: palette.border };
 }
 
-type SaleFilter = 'all' | 'active' | OrderStatus;
+const LANE_CONFIG: { status: OrderStatus; defaultExpanded: boolean }[] = [
+  { status: 'draft', defaultExpanded: true },
+  { status: 'in-progress', defaultExpanded: true },
+  { status: 'ready', defaultExpanded: true },
+  { status: 'paid', defaultExpanded: true },
+  { status: 'completed', defaultExpanded: false },
+  { status: 'cancelled', defaultExpanded: false },
+];
+
+function getLaneToneColor(status: OrderStatus, palette: ReturnType<typeof useAppColors>): string {
+  if (status === 'draft') return palette.border;
+  if (status === 'in-progress') return '#1565C0';
+  if (status === 'ready') return palette.accent;
+  if (status === 'paid') return '#2E7D32';
+  if (status === 'completed') return palette.tint;
+  if (status === 'cancelled') return '#B71C1C';
+  return palette.border;
+}
+
+function getValidTargets(sale: Sale): OrderStatus[] {
+  switch (sale.status) {
+    case 'draft': return ['in-progress', 'paid', 'cancelled'];
+    case 'in-progress': return ['ready', 'paid', 'cancelled'];
+    case 'ready': return ['paid', 'cancelled'];
+    case 'paid': return sale.ready_at ? [] : ['ready'];
+    default: return [];
+  }
+}
+
+function getTransitionAction(from: OrderStatus, to: OrderStatus): 'sendToKitchen' | 'markOrderReady' | 'markOrderPaid' | 'cancelOrder' | null {
+  if (to === 'in-progress' && from === 'draft') return 'sendToKitchen';
+  if (to === 'ready') return 'markOrderReady';
+  if (to === 'paid') return 'markOrderPaid';
+  if (to === 'cancelled') return 'cancelOrder';
+  return null;
+}
 
 export default function SalesScreen() {
   const palette = useAppColors();
@@ -173,17 +209,19 @@ export default function SalesScreen() {
     taxRate,
   } = useSettingsStore();
 
-  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
-  const [expandedSaleItems, setExpandedSaleItems] = useState<string>('');
-  const [expandedSalePricing, setExpandedSalePricing] = useState<string>('');
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
-  const [filter, setFilter] = useState<SaleFilter>('active');
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [receiptPreviewVisible, setReceiptPreviewVisible] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [printingBusy, setPrintingBusy] = useState(false);
+  const [detailSale, setDetailSale] = useState<Sale | null>(null);
+  const [detailItems, setDetailItems] = useState<SaleItemDetail[]>([]);
+  const [detailPricing, setDetailPricing] = useState<SalePricingSummary | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [draggingSale, setDraggingSale] = useState<Sale | null>(null);
+  const [moveOrderSale, setMoveOrderSale] = useState<Sale | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -225,28 +263,16 @@ export default function SalesScreen() {
     };
   }, [sales]);
 
-  const filteredSales = useMemo(() => {
-    if (filter === 'all') {
-      return sales;
-    }
-
-    if (filter === 'active') {
-      return sales.filter((sale) => !['completed', 'cancelled'].includes(sale.status));
-    }
-
-    return sales.filter((sale) => sale.status === filter);
-  }, [filter, sales]);
-
-  const salesByTable = useMemo(() => {
-    return filteredSales.reduce<Record<string, Sale[]>>((acc, sale) => {
-      const tableName = sale.table_name;
-      if (!acc[tableName]) {
-        acc[tableName] = [];
+  const salesByStatus = useMemo(() => {
+    const map: Partial<Record<OrderStatus, Sale[]>> = {};
+    for (const sale of sales) {
+      if (!map[sale.status]) {
+        map[sale.status] = [];
       }
-      acc[tableName].push(sale);
-      return acc;
-    }, {});
-  }, [filteredSales]);
+      map[sale.status]!.push(sale);
+    }
+    return map;
+  }, [sales]);
 
   const runOrderAction = async (saleId: string, action: () => Promise<void>) => {
     setBusyOrderId(saleId);
@@ -257,7 +283,74 @@ export default function SalesScreen() {
     }
   };
 
-  const canPrintReceipt = (sale: Sale) => sale.status === 'paid' || sale.status === 'completed' || Boolean(sale.paid_at);
+  const getActions = (sale: Sale): CanvasCardAction[] => {
+    const disabled = busyOrderId === sale.id;
+
+    if (sale.status === 'draft') {
+      return [
+        { label: t('sales.action.sendToKitchen'), onPress: () => void runOrderAction(sale.id, () => sendToKitchen(sale.id)), disabled },
+        { label: t('sales.action.openTab'), variant: 'secondary', onPress: () => router.push(`/sale-form?orderId=${sale.id}`), disabled },
+        { label: t('sales.action.payNow'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => markOrderPaid(sale.id)), disabled },
+        { label: t('sales.action.cancel'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => cancelOrder(sale.id)), disabled },
+      ];
+    }
+
+    if (sale.status === 'in-progress') {
+      const actions: CanvasCardAction[] = [
+        { label: t('sales.action.markReady'), onPress: () => void runOrderAction(sale.id, () => markOrderReady(sale.id)), disabled },
+      ];
+      if (!sale.paid_at) {
+        actions.push({ label: t('sales.action.payNow'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => markOrderPaid(sale.id)), disabled });
+      } else {
+        actions.push({ label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled });
+      }
+      actions.push({ label: t('sales.action.cancel'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => cancelOrder(sale.id)), disabled });
+      return actions;
+    }
+
+    if (sale.status === 'ready') {
+      return [
+        { label: t('sales.action.receivePayment'), onPress: () => void runOrderAction(sale.id, () => markOrderPaid(sale.id)), disabled },
+        { label: t('sales.action.cancel'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => cancelOrder(sale.id)), disabled },
+      ];
+    }
+
+    if (sale.status === 'paid' && !sale.ready_at) {
+      return [
+        { label: t('sales.action.kitchenReady'), onPress: () => void runOrderAction(sale.id, () => markOrderReady(sale.id)), disabled },
+        { label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled },
+      ];
+    }
+
+    if (sale.status === 'paid' || sale.status === 'completed' || Boolean(sale.paid_at)) {
+      return [
+        { label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled },
+      ];
+    }
+
+    return [];
+  };
+
+  const openDetail = async (sale: Sale) => {
+    setDetailSale(sale);
+    setDetailLoading(true);
+    try {
+      const [items, pricing] = await Promise.all([
+        salesService.getSaleItems(sale.id),
+        salesService.getSalePricingSummary(sale.id),
+      ]);
+      setDetailItems(items);
+      setDetailPricing(pricing);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closeDetail = () => {
+    setDetailSale(null);
+    setDetailItems([]);
+    setDetailPricing(null);
+  };
 
   const openReceiptPreview = async (sale: Sale) => {
     setReceiptPreviewVisible(true);
@@ -332,195 +425,313 @@ export default function SalesScreen() {
     }
   };
 
-  const renderOrderActions = (sale: Sale) => {
-    const isBusy = busyOrderId === sale.id;
+  const isWeb = Platform.OS === 'web';
 
-    if (sale.status === 'draft') {
-      return (
-        <View style={styles.orderActions}>
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.openTab')} onPress={() => router.push(`/sale-form?orderId=${sale.id}`)} disabled={isBusy} />
-          <ThemedButton style={styles.actionButton} label={t('sales.action.sendToKitchen')} onPress={() => void runOrderAction(sale.id, () => sendToKitchen(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.payNow')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
-        </View>
-      );
-    }
-
-    if (sale.status === 'in-progress') {
-      return (
-        <View style={styles.orderActions}>
-          <ThemedButton style={styles.actionButton} label={t('sales.action.markReady')} onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
-          {!sale.paid_at ? (
-            <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.payNow')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
-          ) : null}
-          {sale.paid_at ? (
-            <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.previewReceipt')} onPress={() => void openReceiptPreview(sale)} disabled={isBusy} />
-          ) : null}
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
-        </View>
-      );
-    }
-
-    if (sale.status === 'ready') {
-      return (
-        <View style={styles.orderActions}>
-          <ThemedButton style={styles.actionButton} label={t('sales.action.receivePayment')} onPress={() => void runOrderAction(sale.id, () => markOrderPaid(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.cancel')} onPress={() => void runOrderAction(sale.id, () => cancelOrder(sale.id))} disabled={isBusy} />
-        </View>
-      );
-    }
-
-    if (sale.status === 'paid' && !sale.ready_at) {
-      return (
-        <View style={styles.orderActions}>
-          <ThemedButton style={styles.actionButton} label={t('sales.action.kitchenReady')} onPress={() => void runOrderAction(sale.id, () => markOrderReady(sale.id))} disabled={isBusy} />
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.previewReceipt')} onPress={() => void openReceiptPreview(sale)} disabled={isBusy} />
-        </View>
-      );
-    }
-
-    if (canPrintReceipt(sale)) {
-      return (
-        <View style={styles.orderActions}>
-          <ThemedButton variant="secondary" style={styles.actionButton} label={t('sales.action.previewReceipt')} onPress={() => void openReceiptPreview(sale)} disabled={isBusy} />
-        </View>
-      );
-    }
-
-    return null;
+  const handleDropOnLane = async (saleId: string, targetStatus: OrderStatus) => {
+    const sale = sales.find((s) => s.id === saleId);
+    if (!sale) return;
+    const action = getTransitionAction(sale.status, targetStatus);
+    if (!action) return;
+    const actionMap = { sendToKitchen, markOrderReady, markOrderPaid, cancelOrder };
+    await runOrderAction(saleId, () => actionMap[action](saleId));
   };
 
-  const showSaleDetail = async (saleId: string) => {
-    if (expandedSaleId === saleId) {
-      setExpandedSaleId(null);
-      setExpandedSaleItems('');
-      setExpandedSalePricing('');
-      return;
-    }
+  const handleMoveOrder = async (targetStatus: OrderStatus) => {
+    if (!moveOrderSale) return;
+    const action = getTransitionAction(moveOrderSale.status, targetStatus);
+    if (!action) return;
+    const saleId = moveOrderSale.id;
+    setMoveOrderSale(null);
+    const actionMap = { sendToKitchen, markOrderReady, markOrderPaid, cancelOrder };
+    await runOrderAction(saleId, () => actionMap[action](saleId));
+  };
 
-    const [items, pricing] = await Promise.all([
-      salesService.getSaleItems(saleId),
-      salesService.getSalePricingSummary(saleId),
-    ]);
+  const renderCard = (sale: Sale) => {
+    const statusLabel = sale.status === 'in-progress' && sale.paid_at
+      ? t('sales.status.inProgressPaid')
+      : formatStatusLabel(sale.status);
 
-    const selectedSale = sales.find((sale) => sale.id === saleId);
-    const surchargeLines = pricing && selectedSale
-      ? getSaleSurchargeLines(pricing, selectedSale.table_name, tables, toGoSurcharge)
-      : [];
-
-    setExpandedSaleId(saleId);
-    setExpandedSaleItems(items.map((item) => `${item.product_name} x${item.quantity} @ $${Number(item.unit_price).toFixed(2)} | -$${Number(item.discount_amount).toFixed(2)} = $${Number(item.final_line_total).toFixed(2)}`).join('\n'));
-    setExpandedSalePricing(
-      pricing
-        ? [
-            `${t('sales.pricing.subtotal')}: $${Number(pricing.subtotal).toFixed(2)}`,
-            `${t('sales.pricing.itemDiscounts')}: -$${Number(pricing.item_discount_total).toFixed(2)}`,
-            `${pricing.global_discount_name ?? t('sales.pricing.globalDiscount')}: -$${Number(pricing.global_discount_amount).toFixed(2)}`,
-            ...surchargeLines,
-            `${t('sales.pricing.finalTotal')}: $${Number(pricing.total).toFixed(2)}`,
-            pricing.discount_applied_by ? `${t('sales.pricing.appliedBy')}: ${pricing.discount_applied_by}` : '',
-          ]
-            .filter(Boolean)
-            .join('\n')
-        : '',
+    return (
+      <SaleCanvasCard
+        key={sale.id}
+        orderId={sale.id}
+        tableName={sale.table_name}
+        productSummary={saleProductsById[sale.id] || t('sales.loadingProducts')}
+        total={Number(sale.total)}
+        paymentLabel={formatPaymentMethod(sale.payment_method)}
+        staffName={sale.staff_name}
+        statusLabel={statusLabel}
+        statusTone={getStatusTone(sale.status, palette)}
+        actions={getActions(sale)}
+        onPress={() => void openDetail(sale)}
+        draggable={isWeb}
+        isDragging={draggingSale?.id === sale.id}
+        onDragStart={() => setDraggingSale(sale)}
+        onDragEnd={() => setDraggingSale(null)}
+        onLongPress={!isWeb ? () => setMoveOrderSale(sale) : undefined}
+      />
     );
   };
+
+  /* ── Shared modals ───────────────────────────────────── */
+
+  const detailModal = (
+    <Modal visible={detailSale !== null} transparent animationType="slide" onRequestClose={closeDetail}>
+      <View style={styles.modalBackdrop}>
+        <ThemedCard style={styles.modalCard}>
+          <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+            {detailSale && (
+              <>
+                <View style={styles.detailHeader}>
+                  <ThemedText type="subtitle">
+                    {t('sales.order')} #{detailSale.id.slice(0, 6)}
+                  </ThemedText>
+                  <View style={[styles.statusBadge, getStatusTone(detailSale.status, palette)]}>
+                    <ThemedText style={[styles.statusBadgeText, { color: getStatusTone(detailSale.status, palette).color }]}>
+                      {formatStatusLabel(detailSale.status)}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <ThemedText style={styles.detailMeta}>
+                  {detailSale.table_name} · {formatPaymentMethod(detailSale.payment_method)} · {detailSale.staff_name}
+                </ThemedText>
+                <ThemedText style={styles.detailMeta}>
+                  {new Date(Number(detailSale.created_at) * 1000).toLocaleString()}
+                </ThemedText>
+
+                {detailLoading ? (
+                  <ThemedText style={styles.smallText}>{t('sales.loadingProducts')}</ThemedText>
+                ) : (
+                  <>
+                    {detailItems.length > 0 && (
+                      <View style={styles.detailSection}>
+                        {detailItems.map((item) => (
+                          <View key={item.id} style={styles.detailRow}>
+                            <ThemedText style={styles.detailRowLabel}>
+                              {item.product_name} x{item.quantity}
+                            </ThemedText>
+                            <ThemedText style={styles.detailRowValue}>
+                              ${Number(item.final_line_total).toFixed(2)}
+                            </ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {detailPricing && (
+                      <View style={styles.detailSection}>
+                        <View style={styles.detailRow}>
+                          <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.subtotal')}</ThemedText>
+                          <ThemedText style={styles.detailRowValue}>${Number(detailPricing.subtotal).toFixed(2)}</ThemedText>
+                        </View>
+                        {Number(detailPricing.item_discount_total) > 0 && (
+                          <View style={styles.detailRow}>
+                            <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
+                            <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
+                              -${Number(detailPricing.item_discount_total).toFixed(2)}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {Number(detailPricing.global_discount_amount) > 0 && (
+                          <View style={styles.detailRow}>
+                            <ThemedText style={styles.detailRowLabel}>
+                              {detailPricing.global_discount_name ?? t('sales.pricing.globalDiscount')}
+                            </ThemedText>
+                            <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
+                              -${Number(detailPricing.global_discount_amount).toFixed(2)}
+                            </ThemedText>
+                          </View>
+                        )}
+                        {getSaleSurchargeLines(detailPricing, detailSale.table_name, tables, toGoSurcharge).map((line) => (
+                          <ThemedText key={line} style={styles.detailRowLabel}>{line}</ThemedText>
+                        ))}
+                        <View style={[styles.detailRow, styles.totalRow]}>
+                          <ThemedText type="defaultSemiBold">{t('sales.pricing.finalTotal')}</ThemedText>
+                          <ThemedText type="defaultSemiBold">${Number(detailPricing.total).toFixed(2)}</ThemedText>
+                        </View>
+                        {detailPricing.discount_applied_by && (
+                          <ThemedText style={styles.detailMeta}>
+                            {t('sales.pricing.appliedBy')}: {detailPricing.discount_applied_by}
+                          </ThemedText>
+                        )}
+                      </View>
+                    )}
+                  </>
+                )}
+
+                <View style={styles.detailActions}>
+                  {getActions(detailSale).map((action) => (
+                    <ThemedButton
+                      key={action.label}
+                      label={action.label}
+                      variant={action.variant ?? 'primary'}
+                      style={styles.actionButton}
+                      onPress={action.onPress}
+                      disabled={action.disabled}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+          <ThemedButton
+            variant="secondary"
+            label={t('sales.receipt.close')}
+            onPress={closeDetail}
+          />
+        </ThemedCard>
+      </View>
+    </Modal>
+  );
+
+  const receiptModal = (
+    <Modal visible={receiptPreviewVisible} transparent animationType="slide" onRequestClose={() => setReceiptPreviewVisible(false)}>
+      <View style={styles.modalBackdrop}>
+        <ThemedCard style={styles.modalCard}>
+          <ThemedText type="subtitle">{t('sales.receipt.title')}</ThemedText>
+          {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
+          {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
+          {receiptMessage ? <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText> : null}
+          <View style={styles.modalActions}>
+            <ThemedButton
+              label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
+              disabled={!receiptData || printingBusy || receiptLoading}
+              onPress={() => void handlePrintReceipt()}
+            />
+            <ThemedButton
+              variant="secondary"
+              label={t('sales.receipt.close')}
+              onPress={() => {
+                setReceiptPreviewVisible(false);
+                setReceiptMessage(null);
+              }}
+            />
+          </View>
+        </ThemedCard>
+      </View>
+    </Modal>
+  );
+
+  /* ── Web: horizontal kanban ──────────────────────────── */
+
+  if (isWeb) {
+    return (
+      <View style={styles.root}>
+        <View style={styles.topBar}>
+          <ThemedText type="title">{t('sales.title')}</ThemedText>
+          <View style={styles.headerActions}>
+            <ThemedButton label={t('sales.newSale')} onPress={() => router.push('/sale-form')} />
+            <ThemedButton variant="secondary" style={styles.logoutButton} label={t('sales.logout')} onPress={logout} />
+          </View>
+        </View>
+        <ScrollView
+          horizontal
+          style={styles.lanesScroll}
+          contentContainerStyle={styles.lanesRow}
+          showsHorizontalScrollIndicator={false}
+        >
+          {LANE_CONFIG.map(({ status }) => {
+            const laneSales = salesByStatus[status] ?? [];
+            const isValidTarget = Boolean(draggingSale && getValidTargets(draggingSale).includes(status));
+            return (
+              <SaleStatusLane
+                key={status}
+                title={formatStatusLabel(status)}
+                count={laneSales.length}
+                toneColor={getLaneToneColor(status, palette)}
+                collapsible={false}
+                bodyScrollable
+                style={styles.webLane}
+                onCardDrop={(saleId) => void handleDropOnLane(saleId, status)}
+                isValidDropTarget={isValidTarget}
+                emptyMessage={t('sales.lane.empty')}
+              >
+                {laneSales.map(renderCard)}
+              </SaleStatusLane>
+            );
+          })}
+        </ScrollView>
+        {detailModal}
+        {receiptModal}
+      </View>
+    );
+  }
+
+  /* ── Native: vertical lanes + long-press move ────────── */
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">{t('sales.title')}</ThemedText>
-      <ThemedText>{t('sales.subtitle')}</ThemedText>
 
       <View style={styles.headerActions}>
         <ThemedButton label={t('sales.newSale')} onPress={() => router.push('/sale-form')} />
         <ThemedButton variant="secondary" style={styles.logoutButton} label={t('sales.logout')} onPress={logout} />
       </View>
 
-      <ThemedCard style={styles.card}>
-        <ThemedText type="subtitle">{t('sales.orders')}</ThemedText>
-        <View style={styles.filterRow}>
-          <ThemedChip label={t('sales.filter.active')} active={filter === 'active'} onPress={() => setFilter('active')} />
-          <ThemedChip label={t('sales.filter.all')} active={filter === 'all'} onPress={() => setFilter('all')} />
-          <ThemedChip label={t('sales.filter.draft')} active={filter === 'draft'} onPress={() => setFilter('draft')} />
-          <ThemedChip label={t('sales.filter.kitchen')} active={filter === 'in-progress'} onPress={() => setFilter('in-progress')} />
-          <ThemedChip label={t('sales.filter.ready')} active={filter === 'ready'} onPress={() => setFilter('ready')} />
-          <ThemedChip label={t('sales.filter.paid')} active={filter === 'paid'} onPress={() => setFilter('paid')} />
-          <ThemedChip label={t('sales.filter.completed')} active={filter === 'completed'} onPress={() => setFilter('completed')} />
-        </View>
-        {filteredSales.length === 0 ? (
-          <ThemedText style={styles.smallText}>{t('sales.empty')}</ThemedText>
-        ) : (
-          Object.entries(salesByTable).map(([tableName, tableSales]) => (
-            <View key={tableName} style={styles.historyGroup}>
-              <ThemedText type="defaultSemiBold" style={styles.historyGroupTitle}>
-                {tableName}
-              </ThemedText>
-              {tableSales.map((sale) => {
-                const statusLabel = sale.status === 'in-progress' && sale.paid_at ? t('sales.status.inProgressPaid') : formatStatusLabel(sale.status);
+      {LANE_CONFIG.map(({ status, defaultExpanded }) => {
+        const laneSales = salesByStatus[status] ?? [];
+        return (
+          <SaleStatusLane
+            key={status}
+            title={formatStatusLabel(status)}
+            count={laneSales.length}
+            toneColor={getLaneToneColor(status, palette)}
+            defaultExpanded={defaultExpanded}
+            emptyMessage={t('sales.lane.empty')}
+          >
+            {laneSales.map(renderCard)}
+          </SaleStatusLane>
+        );
+      })}
 
-                return (
-                  <Pressable key={sale.id} style={[styles.historyItem, { borderColor: palette.border }]} onPress={() => showSaleDetail(sale.id)}>
-                    <View style={styles.statusRow}>
-                      <ThemedText style={styles.smallText}>{t('sales.order')} #{sale.id.slice(0, 6)}</ThemedText>
-                      <View style={[styles.statusBadge, getStatusTone(sale.status, palette)]}>
-                        <ThemedText style={[styles.statusBadgeText, { color: getStatusTone(sale.status, palette).color }]}>{statusLabel}</ThemedText>
-                      </View>
-                    </View>
-                    <ThemedText type="defaultSemiBold">{saleProductsById[sale.id] || t('sales.loadingProducts')}</ThemedText>
-                    <ThemedText style={styles.smallText}>{t('sales.total')}: ${Number(sale.total).toFixed(2)}</ThemedText>
-                    <ThemedText style={styles.smallText}>{t('sales.payment')}: {formatPaymentMethod(sale.payment_method)}</ThemedText>
-                    <ThemedText style={styles.smallText}>{new Date(Number(sale.created_at) * 1000).toLocaleString()} {t('sales.by')} {sale.staff_name}</ThemedText>
-                    {renderOrderActions(sale)}
-                    {expandedSaleId === sale.id && expandedSaleItems.length > 0 ? (
-                      <>
-                        <ThemedText style={styles.detailText}>{expandedSaleItems}</ThemedText>
-                        {expandedSalePricing ? <ThemedText style={styles.detailText}>{expandedSalePricing}</ThemedText> : null}
-                      </>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))
-        )}
-      </ThemedCard>
+      {sales.length === 0 && (
+        <ThemedText style={styles.emptyText}>{t('sales.empty')}</ThemedText>
+      )}
 
-      <Modal visible={receiptPreviewVisible} transparent animationType="slide" onRequestClose={() => setReceiptPreviewVisible(false)}>
+      {/* Move Order Modal (native long-press) */}
+      <Modal visible={moveOrderSale !== null} transparent animationType="fade" onRequestClose={() => setMoveOrderSale(null)}>
         <View style={styles.modalBackdrop}>
-          <ThemedCard style={styles.modalCard}>
-            <ThemedText type="subtitle">{t('sales.receipt.title')}</ThemedText>
-            {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
-            {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
-            {receiptMessage ? <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText> : null}
-            <View style={styles.modalActions}>
-              <ThemedButton
-                label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
-                disabled={!receiptData || printingBusy || receiptLoading}
-                onPress={() => void handlePrintReceipt()}
-              />
-              <ThemedButton
-                variant="secondary"
-                label={t('sales.receipt.close')}
-                onPress={() => {
-                  setReceiptPreviewVisible(false);
-                  setReceiptMessage(null);
-                }}
-              />
-            </View>
+          <ThemedCard style={styles.moveCard}>
+            <ThemedText type="subtitle">{t('sales.move.title')}</ThemedText>
+            {moveOrderSale && (
+              <>
+                <ThemedText style={styles.smallText}>
+                  {t('sales.order')} #{moveOrderSale.id.slice(0, 6)} — {formatStatusLabel(moveOrderSale.status)}
+                </ThemedText>
+                <View style={styles.moveTargets}>
+                  {getValidTargets(moveOrderSale).map((target) => (
+                    <ThemedButton
+                      key={target}
+                      label={formatStatusLabel(target)}
+                      style={[styles.moveTarget, { borderColor: getLaneToneColor(target, palette) }]}
+                      onPress={() => void handleMoveOrder(target)}
+                      disabled={busyOrderId === moveOrderSale.id}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+            <ThemedButton
+              variant="secondary"
+              label={t('sales.receipt.close')}
+              onPress={() => setMoveOrderSale(null)}
+            />
           </ThemedCard>
         </View>
       </Modal>
+
+      {detailModal}
+      {receiptModal}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  /* Shared */
   container: {
     padding: 16,
-    gap: 12,
-  },
-  card: {
-    gap: 10,
+    gap: 16,
   },
   headerActions: {
     flexDirection: 'row',
@@ -529,33 +740,81 @@ const styles = StyleSheet.create({
   logoutButton: {
     paddingVertical: 10,
   },
+  emptyText: {
+    textAlign: 'center',
+    opacity: 0.6,
+    paddingVertical: 20,
+  },
   smallText: {
     opacity: 0.9,
     fontSize: 13,
   },
-  historyItem: {
-    borderWidth: 1,
-    borderColor: '#C5AA90',
-    borderRadius: 10,
-    padding: 10,
-    gap: 4,
+  /* Web horizontal layout */
+  root: {
+    flex: 1,
   },
-  historyGroup: {
-    gap: 8,
+  topBar: {
+    padding: 16,
+    paddingBottom: 8,
+    gap: 12,
   },
-  historyGroupTitle: {
-    opacity: 0.95,
+  lanesScroll: {
+    flex: 1,
   },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  lanesRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 12,
+    alignItems: 'stretch',
   },
-  statusRow: {
+  webLane: {
+    width: 320,
+  },
+  /* Detail modal */
+  detailHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 4,
+  },
+  detailMeta: {
+    fontSize: 13,
+    opacity: 0.7,
+  },
+  detailSection: {
+    gap: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.12)',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailRowLabel: {
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  detailRowValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  totalRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.12)',
+    paddingTop: 6,
+    marginTop: 4,
+  },
+  detailActions: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  actionButton: {
+    paddingVertical: 8,
   },
   statusBadge: {
     borderWidth: 1,
@@ -568,15 +827,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'capitalize',
   },
-  orderActions: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-    marginTop: 4,
+  /* Move order modal (native) */
+  moveCard: {
+    gap: 10,
   },
-  actionButton: {
-    paddingVertical: 8,
+  moveTargets: {
+    gap: 8,
   },
+  moveTarget: {
+    borderWidth: 2,
+  },
+  /* Common modals */
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
@@ -587,14 +848,11 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     gap: 8,
   },
+  modalScroll: {
+    flexShrink: 1,
+  },
   modalActions: {
     flexDirection: 'row',
     gap: 8,
-  },
-  detailText: {
-    marginTop: 6,
-    fontSize: 12,
-    lineHeight: 18,
-    opacity: 0.9,
   },
 });

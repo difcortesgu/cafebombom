@@ -316,6 +316,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'sales.pricing.globalDiscount': 'Descuento global',
     'sales.pricing.finalTotal': 'Total final',
     'sales.pricing.appliedBy': 'Aplicado por',
+    'sales.lane.empty': 'Sin órdenes',
+    'sales.move.title': 'Mover orden',
 
     // Tables tab
     'tables.title': 'Mesas',

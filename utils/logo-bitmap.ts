@@ -1,6 +1,6 @@
 import type { LogoImageData } from '@point-of-sale/receipt-printer-encoder';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { decode } from 'fast-png';
+import UPNG from 'upng-js';
 
 const LOGO_WIDTH_BY_PAPER = {
   58: 256,
@@ -53,14 +53,17 @@ export async function loadLogoBitmap(logoUri: string, paperWidth?: 58 | 80): Pro
     }
 
     const pngBytes = new Uint8Array(await response.arrayBuffer());
-    const decoded = decode(pngBytes);
+    const decoded = UPNG.decode(pngBytes.buffer);
+    const rgbaFrames = UPNG.toRGBA8(decoded);
 
-    if (![3, 4].includes(decoded.channels) || !decoded.data || decoded.width <= 0 || decoded.height <= 0) {
+    if (!rgbaFrames[0] || decoded.width <= 0 || decoded.height <= 0) {
       return null;
     }
 
+    const rgba = new Uint8ClampedArray(rgbaFrames[0]);
+
     return {
-      data: normalizeDecodedPixels(decoded.data, decoded.channels, decoded.width, decoded.height),
+      data: normalizeDecodedPixels(new Uint8Array(rgba.buffer), 4, decoded.width, decoded.height),
       width: decoded.width,
       height: decoded.height,
     };
