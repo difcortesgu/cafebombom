@@ -73,7 +73,7 @@ export type WebSaleRecord = {
   orderDiscountAmount: number;
   discountAppliedBy: string | null;
   total: number;
-  status: 'draft' | 'in-progress' | 'ready' | 'paid' | 'completed' | 'cancelled';
+  status: 'draft' | 'in-progress' | 'ready' | 'completed' | 'cancelled';
   readyAt?: number | null;
   paidAt?: number | null;
   cancelledAt?: number | null;
@@ -385,6 +385,35 @@ export class CafeBomBomDB extends Dexie {
         productIngredients: 'id, productId, [productId+ingredientId]',
         ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
         receiptPreferences: 'id, updatedAt',
+      });
+
+    this.version(14)
+      .stores({
+        users: 'id, name',
+        sessions: 'id, userId',
+        categories: 'id, &name',
+        products: 'id, &name, categoryId',
+        suppliers: 'id, &name',
+        ingredients: 'id, &name',
+        restockLogs: 'id, ingredientId, date',
+        expenses: 'id, date',
+        employees: 'id, &name',
+        payrollEntries: 'id, employeeId',
+        restaurantTables: 'id, &name, tableType, createdAt',
+        surcharges: '&name, updatedAt',
+        sales: 'id, createdAt, staffId, tableId, paymentMethod, status',
+        saleItems: 'id, saleId, productId',
+        discounts: 'id, &name, scope, productId, isActive, startsAt, endsAt',
+        productIngredients: 'id, productId, [productId+ingredientId]',
+        ingredientCompositions: 'id, [parentIngredientId+childIngredientId]',
+        receiptPreferences: 'id, updatedAt',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('sales').toCollection().modify((sale: any) => {
+          if (sale.status === 'paid') {
+            sale.status = sale.readyAt ? 'completed' : 'in-progress';
+          }
+        });
       });
 
     this.attachIdHooks();

@@ -4,7 +4,7 @@ export type DiscountType = 'percentage' | 'fixed';
 export type DiscountScope = 'product' | 'global';
 export type TableType = 'dine-in' | 'to-go' | 'delivery';
 export type PaymentMethod = 'cash' | 'card' | 'transfer';
-export type OrderStatus = 'draft' | 'in-progress' | 'ready' | 'paid' | 'completed' | 'cancelled';
+export type OrderStatus = 'draft' | 'in-progress' | 'ready' | 'completed' | 'cancelled';
 
 
 export type User = {
@@ -61,7 +61,7 @@ export type Sale = {
   staff_name: string;
   total: number;
   table_name: string;
-  payment_method: PaymentMethod;
+  payment_method: PaymentMethod | null;
   status: OrderStatus;
   ready_at?: number | null;
   paid_at?: number | null;

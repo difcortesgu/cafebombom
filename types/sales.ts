@@ -68,7 +68,6 @@ export type CreateSalePayload = {
   staffId: string;
   items: SaleItemInput[];
   tableId: string;
-  paymentMethod?: PaymentMethod;
   globalDiscountId?: string | null;
   orderTypeSurcharge?: number;
 };

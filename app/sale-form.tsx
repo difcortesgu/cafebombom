@@ -12,7 +12,7 @@ import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
-import type { PaymentMethod, TableType } from '@/types/types';
+import type { TableType } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 type CartItem = {
@@ -21,12 +21,6 @@ type CartItem = {
   unitPrice: number;
   quantity: number;
 };
-
-const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
-  { label: t('saleForm.payment.cash'), value: 'cash' },
-  { label: t('saleForm.payment.card'), value: 'card' },
-  { label: t('saleForm.payment.transfer'), value: 'transfer' },
-];
 
 function getTableSurcharge(tableType: TableType, toGoSurcharge: number, deliverySurcharge: number) {
   const safeToGo = Math.max(0, toGoSurcharge);
@@ -44,7 +38,6 @@ function formatStatusLabel(status: string) {
   if (status === 'draft') return t('sales.status.draft');
   if (status === 'in-progress') return t('sales.status.inProgress');
   if (status === 'ready') return t('sales.status.ready');
-  if (status === 'paid') return t('sales.status.paid');
   if (status === 'completed') return t('sales.status.completed');
   if (status === 'cancelled') return t('sales.status.cancelled');
   return status;
@@ -60,7 +53,6 @@ export default function SaleFormScreen() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('cash');
   const [selectedGlobalDiscountId, setSelectedGlobalDiscountId] = useState('');
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [isDraftInitialized, setIsDraftInitialized] = useState(false);
@@ -85,7 +77,6 @@ export default function SaleFormScreen() {
     if (!editingOrderId) {
       setCart([]);
       setSelectedTableId(tables.length > 0 ? tables[0].id : null);
-      setSelectedPaymentMethod('cash');
       setSelectedGlobalDiscountId('');
     }
   }, [editingOrderId, tables]);
@@ -128,7 +119,6 @@ export default function SaleFormScreen() {
 
         const matchedTable = tables.find((table) => table.name === selectedDraftSale.table_name) ?? null;
         setSelectedTableId(matchedTable?.id ?? null);
-        setSelectedPaymentMethod(selectedDraftSale.payment_method ?? 'cash');
 
         const discountName = pricingSummary?.global_discount_name ?? null;
         const matchedGlobalDiscount = discountName
@@ -213,7 +203,7 @@ export default function SaleFormScreen() {
       }
     }
 
-    const result: Array<{ category: string | null; products: typeof products }> = [];
+    const result: { category: string | null; products: typeof products }[] = [];
     
     // Sort categories alphabetically
     const sortedCategories = Array.from(grouped.keys()).sort();
@@ -260,7 +250,6 @@ export default function SaleFormScreen() {
         unitPrice: item.unitPrice,
       })),
       tableId: selectedTableId,
-      paymentMethod: selectedPaymentMethod,
       globalDiscountId: selectedGlobalDiscountId || null,
       orderTypeSurcharge: surchargeBreakdown.total,
     };
@@ -278,22 +267,6 @@ export default function SaleFormScreen() {
   };
 
   const isWeb = Platform.OS === 'web';
-
-  const renderProductsGrid = () => (
-    <View style={styles.grid}>
-      {products.map((product) => (
-        <Pressable
-          key={product.id}
-          style={[styles.productTile, { borderColor: palette.border }, editingOrderId && !canEditDraft ? styles.disabledTile : null]}
-          onPress={() => addToCart(product.id, product.name, Number(product.price))}
-          disabled={Boolean(editingOrderId && !canEditDraft)}>
-          <ThemedText style={styles.productName}>{product.name}</ThemedText>
-          <ThemedText>${Number(product.price).toFixed(2)}</ThemedText>
-          <ThemedText style={styles.smallText}>{product.category || t('saleForm.noCategory')}</ThemedText>
-        </Pressable>
-      ))}
-    </View>
-  );
 
   const renderProductsByCategory = () => (
     <View style={styles.categoriesContainer}>
@@ -446,20 +419,6 @@ export default function SaleFormScreen() {
       </ScrollView>
 
       <View style={styles.selectorsRow}>
-        <View style={styles.inlineSelect}>
-          <ThemedText style={styles.inlineLabel}>{t('saleForm.paymentMethod')}</ThemedText>
-          <ThemedSelect
-            value={selectedPaymentMethod}
-            onValueChange={(value) => {
-              if (!editingOrderId || canEditDraft) {
-                setSelectedPaymentMethod(value as PaymentMethod);
-              }
-            }}
-            items={paymentMethodOptions}
-            placeholder={t('saleForm.selectPayment')}
-          />
-        </View>
-
         <View style={styles.inlineSelect}>
           <ThemedText style={styles.inlineLabel}>{t('saleForm.globalDiscount')}</ThemedText>
           <ThemedSelect

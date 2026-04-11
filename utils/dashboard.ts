@@ -5,7 +5,7 @@ type DashboardSaleRecord = {
   id: string;
   created_at: number;
   total: number;
-  payment_method: PaymentMethod;
+  payment_method: PaymentMethod | null;
   status: OrderStatus;
 };
 
@@ -19,14 +19,13 @@ type DashboardSaleItemRecord = {
 
 const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'transfer'];
 
-export const RECOGNIZED_REVENUE_STATUSES: OrderStatus[] = ['paid', 'completed'];
+export const RECOGNIZED_REVENUE_STATUSES: OrderStatus[] = ['completed'];
 
 function createStatusCounts(): DashboardStatusCounts {
   return {
     draft: 0,
     'in-progress': 0,
     ready: 0,
-    paid: 0,
     completed: 0,
     cancelled: 0,
   };
@@ -106,10 +105,12 @@ export function buildDashboardSalesSummary({
     salesCount += 1;
     realizedSaleIds.add(sale.id);
 
-    const payment = paymentMap.get(sale.payment_method);
-    if (payment) {
-      payment.total += Number(sale.total);
-      payment.count += 1;
+    if (sale.payment_method) {
+      const payment = paymentMap.get(sale.payment_method);
+      if (payment) {
+        payment.total += Number(sale.total);
+        payment.count += 1;
+      }
     }
 
     const bucketStart = getBucketStartUnix(sale.created_at, bucket);

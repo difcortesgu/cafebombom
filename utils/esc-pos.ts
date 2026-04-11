@@ -3,15 +3,18 @@ import ReceiptPrinterEncoder, { type LogoImageData } from '@point-of-sale/receip
 import { t } from '@/i18n';
 import type { ReceiptData } from '@/types/receipt';
 import {
-  centerText,
-  formatCurrency,
-  formatReceiptItem,
-  formatReceiptLine,
-  getReceiptLineWidth,
-  separatorLine,
+    centerText,
+    formatCurrency,
+    formatReceiptItem,
+    formatReceiptLine,
+    getReceiptLineWidth,
+    separatorLine,
 } from '@/utils/receipt-formatter';
 
-function paymentMethodLabel(method: string): string {
+function paymentMethodLabel(method: string | null): string {
+  if (!method) {
+    return '';
+  }
   if (method === 'card') {
     return t('sales.payment.card');
   }

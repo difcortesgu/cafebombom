@@ -11,7 +11,10 @@ type ReceiptPreviewProps = {
   receipt: ReceiptData;
 };
 
-function paymentMethodLabel(method: string): string {
+function paymentMethodLabel(method: string | null): string {
+  if (!method) {
+    return '';
+  }
   if (method === 'card') {
     return t('sales.payment.card');
   }

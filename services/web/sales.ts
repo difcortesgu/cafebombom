@@ -53,7 +53,7 @@ export class SalesWebService implements SalesService {
           created_at: sale.createdAt,
           staff_name: users.find((user) => user.id === sale.staffId)?.name ?? 'Desconocido',
           table_name: tables.find((table) => table.id === sale.tableId)?.name ?? 'Mesa desconocida',
-          payment_method: sale.paymentMethod ?? 'cash',
+          payment_method: sale.paymentMethod ?? null,
           total: sale.total,
           status: sale.status ?? 'draft',
           ready_at: sale.readyAt ?? null,
@@ -199,7 +199,7 @@ export class SalesWebService implements SalesService {
     await db.restaurantTables.delete(id);
   }
 
-  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
+  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
     if (items.length === 0 || !tableId) {
       return null;
     }
@@ -208,7 +208,6 @@ export class SalesWebService implements SalesService {
     const discounts = await db.discounts.toArray();
 
     const now = Math.floor(Date.now() / 1000);
-    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
     const breakdown = calculateSaleDiscountBreakdown(items, discounts, now, globalDiscountId ?? null);
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
 
@@ -216,7 +215,7 @@ export class SalesWebService implements SalesService {
       createdAt: now,
       staffId,
       tableId,
-      paymentMethod: normalizedPaymentMethod,
+      paymentMethod: 'cash',
       subtotal: breakdown.subtotal,
       itemDiscountTotal: breakdown.itemDiscountTotal,
       orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
@@ -245,7 +244,7 @@ export class SalesWebService implements SalesService {
     return saleId;
   }
 
-  async updateDraftOrder({ orderId, staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
+  async updateDraftOrder({ orderId, staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
     if (items.length === 0 || !tableId) {
       return;
     }
@@ -263,7 +262,6 @@ export class SalesWebService implements SalesService {
 
     const discounts = await db.discounts.toArray();
     const now = Math.floor(Date.now() / 1000);
-    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
     const breakdown = calculateSaleDiscountBreakdown(items, discounts, now, globalDiscountId ?? null);
 
@@ -271,7 +269,6 @@ export class SalesWebService implements SalesService {
 
     await db.sales.update(orderId, {
       tableId,
-      paymentMethod: normalizedPaymentMethod,
       subtotal: breakdown.subtotal,
       itemDiscountTotal: breakdown.itemDiscountTotal,
       orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
@@ -410,7 +407,7 @@ export class SalesWebService implements SalesService {
         id: sale.id,
         created_at: sale.createdAt,
         total: sale.total,
-        payment_method: sale.paymentMethod ?? 'cash',
+        payment_method: sale.paymentMethod ?? null,
         status: sale.status ?? 'draft',
       })),
       saleItems: saleItems.map((item) => ({
@@ -509,13 +506,8 @@ export class SalesWebService implements SalesService {
       throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
-    if (!['in-progress', 'paid'].includes(order.status)) {
+    if (order.status !== 'in-progress') {
       throw new Error(t('sales.error.markReadyInvalidStatus', { status: order.status }));
-    }
-
-    // Paid-first flow: inventory is consumed when kitchen marks order ready.
-    if (order.status === 'paid' && !order.readyAt) {
-      await this.deductInventoryForOrder(orderId);
     }
 
     const readyAt = Math.floor(Date.now() / 1000);
@@ -528,7 +520,7 @@ export class SalesWebService implements SalesService {
     await this.autoCompleteIfReady(orderId);
   }
 
-  async markOrderPaid(orderId: string, paymentMethod?: PaymentMethod): Promise<void> {
+  async markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void> {
     const db = await getDb();
     const order = await db.sales.get(orderId);
 
@@ -541,11 +533,11 @@ export class SalesWebService implements SalesService {
     }
 
     const paidAt = Math.floor(Date.now() / 1000);
-    const nextStatus = order.status === 'draft' ? 'paid' : order.status;
+
+    // Simply mark as paid without changing status
     await db.sales.update(orderId, {
-      status: nextStatus,
       paidAt,
-      ...(paymentMethod && { paymentMethod }),
+      paymentMethod,
       updatedAt: paidAt,
     });
 
@@ -659,8 +651,8 @@ export class SalesWebService implements SalesService {
       updatedAt: cancelledAt,
     });
 
-    // If order was in-progress, ready, or paid, restore inventory
-    if (['in-progress', 'ready', 'paid'].includes(order.status)) {
+    // If order was in-progress or ready, restore inventory
+    if (['in-progress', 'ready'].includes(order.status)) {
       const [saleItems, productIngredients, ingredients] = await Promise.all([
         db.saleItems.toArray(),
         db.productIngredients.toArray(),

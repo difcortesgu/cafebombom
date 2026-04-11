@@ -64,7 +64,10 @@ export function formatReceiptItem(item: ReceiptLineItem, width: number): string[
   return [mainLine, detailLine, discountLine];
 }
 
-function paymentMethodLabel(method: string): string {
+function paymentMethodLabel(method: string | null): string {
+  if (!method) {
+    return '';
+  }
   if (method === 'card') {
     return t('sales.payment.card');
   }

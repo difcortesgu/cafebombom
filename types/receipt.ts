@@ -52,7 +52,7 @@ export type ReceiptMetadata = {
   createdAt: number;
   paidAt: number | null;
   status: OrderStatus;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | null;
   tableName: string;
   staffName: string;
 };
@@ -82,7 +82,7 @@ export type BuildReceiptInput = {
     created_at: number;
     staff_name: string;
     table_name: string;
-    payment_method: PaymentMethod;
+    payment_method: PaymentMethod | null;
     status: OrderStatus;
     paid_at?: number | null;
   };

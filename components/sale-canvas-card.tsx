@@ -17,7 +17,8 @@ type SaleCanvasCardProps = {
   tableName: string;
   productSummary: string;
   total: number;
-  paymentLabel: string;
+  paymentLabel: string | null;
+  isPaid: boolean;
   staffName: string;
   statusLabel: string;
   statusTone: { backgroundColor: string; color: string; borderColor: string };
@@ -36,6 +37,7 @@ export function SaleCanvasCard({
   productSummary,
   total,
   paymentLabel,
+  isPaid,
   staffName,
   statusLabel,
   statusTone,
@@ -104,8 +106,19 @@ export function SaleCanvasCard({
       <View style={styles.meta}>
         <ThemedText style={styles.total}>${total.toFixed(2)}</ThemedText>
         <ThemedText style={styles.metaSep}>·</ThemedText>
-        <ThemedText style={styles.metaText}>{paymentLabel}</ThemedText>
-        <ThemedText style={styles.metaSep}>·</ThemedText>
+        {isPaid ? (
+          <View style={[styles.paidBadge, { backgroundColor: '#16a34a' }]}>
+            <ThemedText style={[styles.paidBadgeText, { color: '#ffffff' }]}>
+              Pagado{paymentLabel ? ` (${paymentLabel})` : ''}
+            </ThemedText>
+          </View>
+        ) : null}
+        {paymentLabel && !isPaid ? (
+          <>
+            <ThemedText style={styles.metaText}>{paymentLabel}</ThemedText>
+            <ThemedText style={styles.metaSep}>·</ThemedText>
+          </>
+        ) : null}
         <ThemedText style={styles.metaText}>{staffName}</ThemedText>
       </View>
 
@@ -185,6 +198,15 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
     opacity: 0.7,
+  },
+  paidBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  paidBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',

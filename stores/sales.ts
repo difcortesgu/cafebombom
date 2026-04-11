@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import type { AddItemToOrderPayload, CreateDiscountPayload, CreateSalePayload, DashboardSalesSummary, DashboardTrendBucket, RemoveItemFromOrderPayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
-import type { Discount, Product, RestaurantTable, Sale, TableType } from '@/types/types';
+import type { Discount, PaymentMethod, Product, RestaurantTable, Sale, TableType } from '@/types/types';
 import { RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
 
 type SalesState = {
@@ -30,7 +30,7 @@ type SalesState = {
   getSalePricingSummary: (saleId: string) => Promise<SalePricingSummary | null>;
   sendToKitchen: (orderId: string) => Promise<void>;
   markOrderReady: (orderId: string) => Promise<void>;
-  markOrderPaid: (orderId: string) => Promise<void>;
+  markOrderPaid: (orderId: string, paymentMethod: PaymentMethod) => Promise<void>;
   addItemToOrder: (payload: AddItemToOrderPayload) => Promise<void>;
   removeItemFromOrder: (payload: RemoveItemFromOrderPayload) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
@@ -149,8 +149,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     await get().hydrate();
   },
 
-  markOrderPaid: async (orderId: string) => {
-    await salesService.markOrderPaid(orderId);
+  markOrderPaid: async (orderId: string, paymentMethod: PaymentMethod) => {
+    await salesService.markOrderPaid(orderId, paymentMethod);
     await get().hydrate();
   },
 
@@ -182,7 +182,7 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   },
 
   getPendingPaymentOrders: () => {
-    return get().sales.filter((sale: Sale) => !sale.paid_at && !['completed', 'cancelled', 'paid'].includes(sale.status));
+    return get().sales.filter((sale: Sale) => !sale.paid_at && !['completed', 'cancelled'].includes(sale.status));
   },
 
   getCompletedOrders: () => {

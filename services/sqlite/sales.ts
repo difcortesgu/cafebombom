@@ -220,14 +220,13 @@ export class SalesSqliteService implements SalesService {
     }
   }
 
-  async createSale({ staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
+  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
     await dbReady;
     if (items.length === 0) {
       return null;
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
-    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
 
     const activeDiscounts = db
       .select({
@@ -254,7 +253,6 @@ export class SalesSqliteService implements SalesService {
           createdAt,
           staffId,
           tableId,
-          paymentMethod: normalizedPaymentMethod,
           subtotal: breakdown.subtotal,
           itemDiscountTotal: breakdown.itemDiscountTotal,
           orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
@@ -290,7 +288,7 @@ export class SalesSqliteService implements SalesService {
     return saleId;
   }
 
-  async updateDraftOrder({ orderId, staffId, items, tableId, paymentMethod, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
+  async updateDraftOrder({ orderId, staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
     await dbReady;
 
     if (items.length === 0) {
@@ -312,7 +310,6 @@ export class SalesSqliteService implements SalesService {
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
-    const normalizedPaymentMethod: PaymentMethod = paymentMethod ?? 'cash';
 
     const activeDiscounts = db
       .select({
@@ -338,7 +335,6 @@ export class SalesSqliteService implements SalesService {
       tx.update(sales)
         .set({
           tableId,
-          paymentMethod: normalizedPaymentMethod,
           subtotal: breakdown.subtotal,
           itemDiscountTotal: breakdown.itemDiscountTotal,
           orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
@@ -637,13 +633,8 @@ export class SalesSqliteService implements SalesService {
       throw new Error(t('sales.error.orderNotFound', { orderId }));
     }
 
-    if (!['in-progress', 'paid'].includes(order.status)) {
+    if (order.status !== 'in-progress') {
       throw new Error(t('sales.error.markReadyInvalidStatus', { status: order.status }));
-    }
-
-    // Paid-first flow: inventory was not deducted yet while order was still draft.
-    if (order.status === 'paid' && !order.readyAt) {
-      await this.deductInventoryForOrder(orderId);
     }
 
     const readyAt = Math.floor(Date.now() / 1000);
@@ -660,7 +651,7 @@ export class SalesSqliteService implements SalesService {
     await this.autoCompleteIfReady(orderId);
   }
 
-  async markOrderPaid(orderId: string, paymentMethod?: PaymentMethod): Promise<void> {
+  async markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void> {
     await dbReady;
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
@@ -673,12 +664,12 @@ export class SalesSqliteService implements SalesService {
     }
 
     const paidAt = Math.floor(Date.now() / 1000);
-    const nextStatus = order.status === 'draft' ? 'paid' : order.status;
+
+    // Simply mark as paid without changing status
     db.update(sales)
       .set({
-        status: nextStatus,
         paidAt,
-        ...(paymentMethod && { paymentMethod }),
+        paymentMethod,
         syncedAt: null,
       })
       .where(eq(sales.id, orderId))
@@ -831,7 +822,7 @@ export class SalesSqliteService implements SalesService {
       .run();
 
     // If order was in-progress or ready, restore inventory
-    if (['in-progress', 'ready', 'paid'].includes(order.status)) {
+    if (['in-progress', 'ready'].includes(order.status)) {
       const orderItems = db
         .select({
           productId: saleItems.productId,

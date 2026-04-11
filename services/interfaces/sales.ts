@@ -47,7 +47,7 @@ export interface SalesService {
   saveOrderTypeSurchargeConfig(payload: OrderTypeSurchargeConfig): Promise<void>;
   sendToKitchen(orderId: string): Promise<void>;
   markOrderReady(orderId: string): Promise<void>;
-  markOrderPaid(orderId: string, paymentMethod?: PaymentMethod): Promise<void>;
+  markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void>;
   addItemToOrder(payload: AddItemToOrderPayload): Promise<string>;
   removeItemFromOrder(payload: RemoveItemFromOrderPayload): Promise<void>;
   cancelOrder(orderId: string): Promise<void>;

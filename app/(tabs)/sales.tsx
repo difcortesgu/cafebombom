@@ -8,6 +8,7 @@ import { SaleStatusLane } from '@/components/sale-status-lane';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
@@ -16,7 +17,7 @@ import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
-import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
+import type { OrderStatus, PaymentMethod, RestaurantTable, Sale } from '@/types/types';
 import { buildReceiptData } from '@/utils/receipt';
 
 function buildFallbackPricingSummary(sale: Sale, items: SaleItemDetail[]): SalePricingSummary {
@@ -96,12 +97,15 @@ function getReceiptSurchargeBreakdown(
   return [{ label: t('sales.surcharge.generic'), description: t('tables.type.dineIn'), amount: totalSurcharge }];
 }
 
-function formatPaymentMethod(method: string) {
+function formatPaymentMethod(method: string | null | undefined) {
   if (method === 'card') {
     return t('sales.payment.card');
   }
   if (method === 'transfer') {
     return t('sales.payment.transfer');
+  }
+  if (!method) {
+    return '';
   }
   return t('sales.payment.cash');
 }
@@ -115,9 +119,6 @@ function formatStatusLabel(status: OrderStatus) {
   }
   if (status === 'ready') {
     return t('sales.status.ready');
-  }
-  if (status === 'paid') {
-    return t('sales.status.paid');
   }
   if (status === 'completed') {
     return t('sales.status.completed');
@@ -135,9 +136,6 @@ function getStatusTone(status: OrderStatus, palette: ReturnType<typeof useAppCol
   if (status === 'ready') {
     return { backgroundColor: palette.accent, color: palette.background, borderColor: palette.accent };
   }
-  if (status === 'paid') {
-    return { backgroundColor: '#2E7D32', color: '#FFFFFF', borderColor: '#2E7D32' };
-  }
   if (status === 'cancelled') {
     return { backgroundColor: '#B71C1C', color: '#FFFFFF', borderColor: '#B71C1C' };
   }
@@ -151,7 +149,6 @@ const LANE_CONFIG: { status: OrderStatus; defaultExpanded: boolean }[] = [
   { status: 'draft', defaultExpanded: true },
   { status: 'in-progress', defaultExpanded: true },
   { status: 'ready', defaultExpanded: true },
-  { status: 'paid', defaultExpanded: true },
   { status: 'completed', defaultExpanded: false },
   { status: 'cancelled', defaultExpanded: false },
 ];
@@ -160,7 +157,6 @@ function getLaneToneColor(status: OrderStatus, palette: ReturnType<typeof useApp
   if (status === 'draft') return palette.border;
   if (status === 'in-progress') return '#1565C0';
   if (status === 'ready') return palette.accent;
-  if (status === 'paid') return '#2E7D32';
   if (status === 'completed') return palette.tint;
   if (status === 'cancelled') return '#B71C1C';
   return palette.border;
@@ -168,18 +164,16 @@ function getLaneToneColor(status: OrderStatus, palette: ReturnType<typeof useApp
 
 function getValidTargets(sale: Sale): OrderStatus[] {
   switch (sale.status) {
-    case 'draft': return ['in-progress', 'paid', 'cancelled'];
-    case 'in-progress': return ['ready', 'paid', 'cancelled'];
-    case 'ready': return ['paid', 'cancelled'];
-    case 'paid': return sale.ready_at ? [] : ['ready'];
+    case 'draft': return ['in-progress', 'cancelled'];
+    case 'in-progress': return ['ready', 'cancelled'];
+    case 'ready': return ['cancelled'];
     default: return [];
   }
 }
 
-function getTransitionAction(from: OrderStatus, to: OrderStatus): 'sendToKitchen' | 'markOrderReady' | 'markOrderPaid' | 'cancelOrder' | null {
+function getTransitionAction(from: OrderStatus, to: OrderStatus): 'sendToKitchen' | 'markOrderReady' | 'cancelOrder' | null {
   if (to === 'in-progress' && from === 'draft') return 'sendToKitchen';
   if (to === 'ready') return 'markOrderReady';
-  if (to === 'paid') return 'markOrderPaid';
   if (to === 'cancelled') return 'cancelOrder';
   return null;
 }
@@ -212,10 +206,14 @@ export default function SalesScreen() {
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [receiptPreviewVisible, setReceiptPreviewVisible] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('cash');
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [printingBusy, setPrintingBusy] = useState(false);
+  const [confirmPaymentBusy, setConfirmPaymentBusy] = useState(false);
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [detailItems, setDetailItems] = useState<SaleItemDetail[]>([]);
   const [detailPricing, setDetailPricing] = useState<SalePricingSummary | null>(null);
@@ -283,6 +281,12 @@ export default function SalesScreen() {
     }
   };
 
+  const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
+    { label: t('sales.payment.cash'), value: 'cash' },
+    { label: t('sales.payment.card'), value: 'card' },
+    { label: t('sales.payment.transfer'), value: 'transfer' },
+  ];
+
   const getActions = (sale: Sale): CanvasCardAction[] => {
     const disabled = busyOrderId === sale.id;
 
@@ -290,7 +294,7 @@ export default function SalesScreen() {
       return [
         { label: t('sales.action.sendToKitchen'), onPress: () => void runOrderAction(sale.id, () => sendToKitchen(sale.id)), disabled },
         { label: t('sales.action.openTab'), variant: 'secondary', onPress: () => router.push(`/sale-form?orderId=${sale.id}`), disabled },
-        { label: t('sales.action.payNow'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => markOrderPaid(sale.id)), disabled },
+        { label: t('sales.action.payNow'), variant: 'secondary', onPress: () => void openPaymentFlow(sale), disabled },
         { label: t('sales.action.cancel'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => cancelOrder(sale.id)), disabled },
       ];
     }
@@ -300,7 +304,7 @@ export default function SalesScreen() {
         { label: t('sales.action.markReady'), onPress: () => void runOrderAction(sale.id, () => markOrderReady(sale.id)), disabled },
       ];
       if (!sale.paid_at) {
-        actions.push({ label: t('sales.action.payNow'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => markOrderPaid(sale.id)), disabled });
+        actions.push({ label: t('sales.action.payNow'), variant: 'secondary', onPress: () => void openPaymentFlow(sale), disabled });
       } else {
         actions.push({ label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled });
       }
@@ -309,20 +313,17 @@ export default function SalesScreen() {
     }
 
     if (sale.status === 'ready') {
-      return [
-        { label: t('sales.action.receivePayment'), onPress: () => void runOrderAction(sale.id, () => markOrderPaid(sale.id)), disabled },
-        { label: t('sales.action.cancel'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => cancelOrder(sale.id)), disabled },
-      ];
+      const actions: CanvasCardAction[] = [];
+      if (!sale.paid_at) {
+        actions.push({ label: t('sales.action.receivePayment'), onPress: () => void openPaymentFlow(sale), disabled });
+      } else {
+        actions.push({ label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled });
+      }
+      actions.push({ label: t('sales.action.cancel'), variant: 'secondary', onPress: () => void runOrderAction(sale.id, () => cancelOrder(sale.id)), disabled });
+      return actions;
     }
 
-    if (sale.status === 'paid' && !sale.ready_at) {
-      return [
-        { label: t('sales.action.kitchenReady'), onPress: () => void runOrderAction(sale.id, () => markOrderReady(sale.id)), disabled },
-        { label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled },
-      ];
-    }
-
-    if (sale.status === 'paid' || sale.status === 'completed' || Boolean(sale.paid_at)) {
+    if (sale.status === 'completed' || Boolean(sale.paid_at)) {
       return [
         { label: t('sales.action.previewReceipt'), variant: 'secondary', onPress: () => void openReceiptPreview(sale), disabled },
       ];
@@ -352,8 +353,7 @@ export default function SalesScreen() {
     setDetailPricing(null);
   };
 
-  const openReceiptPreview = async (sale: Sale) => {
-    setReceiptPreviewVisible(true);
+  const loadReceiptData = async (sale: Sale) => {
     setReceiptData(null);
     setReceiptLoading(true);
     setReceiptMessage(null);
@@ -404,6 +404,18 @@ export default function SalesScreen() {
     }
   };
 
+  const openReceiptPreview = async (sale: Sale) => {
+    setReceiptPreviewVisible(true);
+    await loadReceiptData(sale);
+  };
+
+  const openPaymentFlow = async (sale: Sale) => {
+    setPaymentSale(sale);
+    setSelectedPaymentMethod(sale.payment_method ?? 'cash');
+    setPaymentModalVisible(true);
+    await loadReceiptData(sale);
+  };
+
   const handlePrintReceipt = async () => {
     if (!receiptData) {
       return;
@@ -425,6 +437,23 @@ export default function SalesScreen() {
     }
   };
 
+  const handleConfirmPayment = async () => {
+    if (!paymentSale) {
+      return;
+    }
+
+    setConfirmPaymentBusy(true);
+    try {
+      await runOrderAction(paymentSale.id, () => markOrderPaid(paymentSale.id, selectedPaymentMethod));
+      setPaymentModalVisible(false);
+      setPaymentSale(null);
+      setReceiptData(null);
+      setReceiptMessage(null);
+    } finally {
+      setConfirmPaymentBusy(false);
+    }
+  };
+
   const isWeb = Platform.OS === 'web';
 
   const handleDropOnLane = async (saleId: string, targetStatus: OrderStatus) => {
@@ -432,7 +461,7 @@ export default function SalesScreen() {
     if (!sale) return;
     const action = getTransitionAction(sale.status, targetStatus);
     if (!action) return;
-    const actionMap = { sendToKitchen, markOrderReady, markOrderPaid, cancelOrder };
+    const actionMap = { sendToKitchen, markOrderReady, cancelOrder };
     await runOrderAction(saleId, () => actionMap[action](saleId));
   };
 
@@ -442,14 +471,12 @@ export default function SalesScreen() {
     if (!action) return;
     const saleId = moveOrderSale.id;
     setMoveOrderSale(null);
-    const actionMap = { sendToKitchen, markOrderReady, markOrderPaid, cancelOrder };
+    const actionMap = { sendToKitchen, markOrderReady, cancelOrder };
     await runOrderAction(saleId, () => actionMap[action](saleId));
   };
 
   const renderCard = (sale: Sale) => {
-    const statusLabel = sale.status === 'in-progress' && sale.paid_at
-      ? t('sales.status.inProgressPaid')
-      : formatStatusLabel(sale.status);
+    const statusLabel = formatStatusLabel(sale.status);
 
     return (
       <SaleCanvasCard
@@ -459,6 +486,7 @@ export default function SalesScreen() {
         productSummary={saleProductsById[sale.id] || t('sales.loadingProducts')}
         total={Number(sale.total)}
         paymentLabel={formatPaymentMethod(sale.payment_method)}
+        isPaid={Boolean(sale.paid_at)}
         staffName={sale.staff_name}
         statusLabel={statusLabel}
         statusTone={getStatusTone(sale.status, palette)}
@@ -494,7 +522,10 @@ export default function SalesScreen() {
                 </View>
 
                 <ThemedText style={styles.detailMeta}>
-                  {detailSale.table_name} · {formatPaymentMethod(detailSale.payment_method)} · {detailSale.staff_name}
+                  {detailSale.table_name}
+                  {detailSale.paid_at && ' · Pagado'}
+                  {detailSale.payment_method && ' · ' + formatPaymentMethod(detailSale.payment_method)}
+                  {' · ' + detailSale.staff_name}
                 </ThemedText>
                 <ThemedText style={styles.detailMeta}>
                   {new Date(Number(detailSale.created_at) * 1000).toLocaleString()}
@@ -613,6 +644,49 @@ export default function SalesScreen() {
     </Modal>
   );
 
+  const paymentModal = (
+    <Modal visible={paymentModalVisible} transparent animationType="slide" onRequestClose={() => setPaymentModalVisible(false)}>
+      <View style={styles.modalBackdrop}>
+        <ThemedCard style={styles.modalCard}>
+          <ThemedText type="subtitle">{t('sales.action.receivePayment')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('sales.paymentMethod')}</ThemedText>
+          <ThemedSelect
+            value={selectedPaymentMethod}
+            onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+            items={paymentMethodOptions}
+            placeholder={t('saleForm.selectPayment')}
+          />
+          {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
+          {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
+          {receiptMessage ? <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText> : null}
+          <View style={styles.modalActions}>
+            <ThemedButton
+              label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
+              disabled={!receiptData || printingBusy || receiptLoading || confirmPaymentBusy}
+              onPress={() => void handlePrintReceipt()}
+            />
+            <ThemedButton
+              label={confirmPaymentBusy ? `${t('sales.action.confirmPayment')}...` : t('sales.action.confirmPayment')}
+              disabled={receiptLoading || confirmPaymentBusy || !paymentSale}
+              onPress={() => void handleConfirmPayment()}
+            />
+            <ThemedButton
+              variant="secondary"
+              label={t('sales.receipt.close')}
+              disabled={confirmPaymentBusy}
+              onPress={() => {
+                setPaymentModalVisible(false);
+                setPaymentSale(null);
+                setReceiptData(null);
+                setReceiptMessage(null);
+              }}
+            />
+          </View>
+        </ThemedCard>
+      </View>
+    </Modal>
+  );
+
   /* ── Web: horizontal kanban ──────────────────────────── */
 
   if (isWeb) {
@@ -654,6 +728,7 @@ export default function SalesScreen() {
         </ScrollView>
         {detailModal}
         {receiptModal}
+        {paymentModal}
       </View>
     );
   }
@@ -723,6 +798,7 @@ export default function SalesScreen() {
 
       {detailModal}
       {receiptModal}
+      {paymentModal}
     </ScrollView>
   );
 }
