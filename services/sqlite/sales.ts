@@ -30,6 +30,7 @@ export class SalesSqliteService implements SalesService {
         name: products.name,
         category: categories.name,
         price: products.price,
+        imageUri: products.imageUri,
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))

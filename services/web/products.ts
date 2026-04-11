@@ -51,6 +51,7 @@ export class ProductsWebService implements ProductsService {
         categoryId: product.categoryId,
         category: categoriesData.find((c) => c.id === product.categoryId)?.name ?? '',
         price: product.price,
+        imageUri: product.imageUri ?? null,
         isActive: product.isActive,
       }));
 
@@ -74,7 +75,7 @@ export class ProductsWebService implements ProductsService {
     return { categories, products: productsList, productIngredients: ingredientLinks, compositions: compositionLinks };
   }
 
-  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<string | null> {
+  async createProduct({ name, categoryId, price, imageUri, recipe }: CreateProductPayload): Promise<string | null> {
     const db = await getDb();
     const normalizedRecipe = this.normalizeRecipe(recipe);
     if (normalizedRecipe.length === 0) {
@@ -96,6 +97,7 @@ export class ProductsWebService implements ProductsService {
         name,
         categoryId: categoryId ?? null,
         price,
+        imageUri: imageUri ?? null,
         isActive: true,
       });
 
@@ -122,6 +124,7 @@ export class ProductsWebService implements ProductsService {
     product.name = payload.name ?? product.name;
     product.categoryId = payload.categoryId !== undefined ? payload.categoryId : product.categoryId;
     product.price = payload.price ?? product.price;
+    product.imageUri = payload.imageUri !== undefined ? payload.imageUri : product.imageUri;
     product.isActive = payload.isActive !== undefined ? payload.isActive : product.isActive;
 
     await db.products.update(id, product);

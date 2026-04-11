@@ -34,6 +34,7 @@ export type Product = {
   name: string;
   category: string;
   price: number;
+  imageUri: string | null;
 };
 
 export type Discount = {

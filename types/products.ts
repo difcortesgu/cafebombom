@@ -4,6 +4,7 @@ export type ProductDetail = {
   categoryId: string | null;
   category: string;
   price: number;
+  imageUri: string | null;
   isActive: boolean;
 };
 
@@ -33,6 +34,7 @@ export type CreateProductPayload = {
   name: string;
   categoryId?: string;
   price: number;
+  imageUri?: string;
   recipe: [ProductRecipeInput, ...ProductRecipeInput[]];
 };
 
@@ -46,6 +48,7 @@ export type UpdateProductPayload = {
   name?: string;
   categoryId?: string | null;
   price?: number;
+  imageUri?: string | null;
   isActive?: boolean;
 };
 

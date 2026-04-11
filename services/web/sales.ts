@@ -42,6 +42,7 @@ export class SalesWebService implements SalesService {
           name: product.name,
           category: categories.find((category) => category.id === product.categoryId)?.name ?? '',
           price: product.price,
+          imageUri: product.imageUri ?? null,
         })),
       sales: sales
         .slice()

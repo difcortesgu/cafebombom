@@ -15,6 +15,13 @@
       "when": 1775854800000,
       "tag": "0001_receipt_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775900000000,
+      "tag": "0002_product_image",
+      "breakpoints": true
     }
   ]
 }

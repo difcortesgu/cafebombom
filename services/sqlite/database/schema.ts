@@ -75,6 +75,7 @@ export const products = sqliteTable('products', {
   name: text('name').notNull().unique(),
   categoryId: text('category_id').references(() => categories.id),
   price: real('price').notNull(),
+  imageUri: text('image_uri'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),

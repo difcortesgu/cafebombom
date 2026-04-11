@@ -1,6 +1,7 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DateInput } from '@/components/ui/date-input';
@@ -63,6 +64,7 @@ export default function ProductFormScreen() {
     name: '',
     categoryId: null as string | null,
     price: '',
+    imageUri: null as string | null,
   });
   const [productRecipeItems, setProductRecipeItems] = useState<{ ingredientId: string; quantityUsed: string }[]>([]);
 
@@ -74,7 +76,7 @@ export default function ProductFormScreen() {
 
   useEffect(() => {
     if (!productId) {
-      setProductForm({ id: null, name: '', categoryId: null, price: '' });
+      setProductForm({ id: null, name: '', categoryId: null, price: '', imageUri: null });
       setProductRecipeItems([]);
       return;
     }
@@ -89,6 +91,7 @@ export default function ProductFormScreen() {
       name: product.name,
       categoryId: product.categoryId,
       price: String(product.price),
+      imageUri: product.imageUri ?? null,
     });
     setProductRecipeItems([]);
   }, [productId, products]);
@@ -124,6 +127,23 @@ export default function ProductFormScreen() {
     );
   };
 
+  const pickProductImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setProductForm((current) => ({ ...current, imageUri: result.assets[0].uri }));
+    }
+  };
+
+  const removeProductImage = () => {
+    setProductForm((current) => ({ ...current, imageUri: null }));
+  };
+
   const submitProduct = async () => {
     const trimmedName = productForm.name.trim();
     const price = Number(productForm.price || '0');
@@ -155,6 +175,7 @@ export default function ProductFormScreen() {
         name: trimmedName,
         categoryId: productForm.categoryId,
         price,
+        imageUri: productForm.imageUri,
       });
     } else {
       const recipe = productRecipeItems.map((item) => ({
@@ -166,6 +187,7 @@ export default function ProductFormScreen() {
         name: trimmedName,
         categoryId: productForm.categoryId ?? undefined,
         price,
+        imageUri: productForm.imageUri ?? undefined,
         recipe,
       });
     }
@@ -222,6 +244,30 @@ export default function ProductFormScreen() {
           onChangeText={(value) => setProductForm((current) => ({ ...current, price: value }))}
           style={styles.input}
         />
+
+        {/* Product Image Section */}
+        <ThemedText style={styles.label}>{t('productForm.image')}</ThemedText>
+        {productForm.imageUri ? (
+          <View style={styles.imagePreviewContainer}>
+            <Image 
+              source={{ uri: productForm.imageUri }} 
+              style={styles.imagePreview}
+            />
+            <ThemedButton 
+              variant="secondary" 
+              style={styles.removeImageButton} 
+              label={t('productForm.removeImage')} 
+              onPress={removeProductImage}
+            />
+          </View>
+        ) : (
+          <ThemedButton 
+            style={styles.pickImageButton} 
+            label={t('productForm.pickImage')} 
+            onPress={pickProductImage}
+          />
+        )}
+
         <ThemedText style={styles.smallText}>{t('productForm.category')}</ThemedText>
         <View style={styles.chipRow}>
           <ThemedChip
@@ -486,7 +532,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   label: {
-    fontWeight: '700',
+    fontWeight: '600',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 4,
   },
   smallText: {
     opacity: 0.9,
@@ -507,5 +556,23 @@ const styles = StyleSheet.create({
   compactInput: {
     paddingHorizontal: 8,
     paddingVertical: 6,
+  },
+  imagePreviewContainer: {
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 8,
+  },
+  imagePreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 10,
+  },
+  pickImageButton: {
+    paddingVertical: 12,
+    marginVertical: 8,
+  },
+  removeImageButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
 });

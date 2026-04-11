@@ -53,6 +53,7 @@ export class ProductsSqliteService implements ProductsService {
         categoryId: products.categoryId,
         category: categories.name,
         price: products.price,
+        imageUri: products.imageUri,
         isActive: products.isActive,
       })
       .from(products)
@@ -102,7 +103,7 @@ export class ProductsSqliteService implements ProductsService {
     };
   }
 
-  async createProduct({ name, categoryId, price, recipe }: CreateProductPayload): Promise<string | null> {
+  async createProduct({ name, categoryId, price, imageUri, recipe }: CreateProductPayload): Promise<string | null> {
     await dbReady;
     const normalizedRecipe = this.normalizeRecipe(recipe);
     if (normalizedRecipe.length === 0) {
@@ -112,7 +113,7 @@ export class ProductsSqliteService implements ProductsService {
     const productId = generateId();
     db.transaction((tx) => {
       tx.insert(products)
-        .values({ id: productId, name, categoryId: categoryId ?? null, price, isActive: true })
+        .values({ id: productId, name, categoryId: categoryId ?? null, price, imageUri: imageUri ?? null, isActive: true })
         .run();
 
       tx.insert(productIngredients)
@@ -132,7 +133,7 @@ export class ProductsSqliteService implements ProductsService {
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {
     await dbReady;
     const existing = db
-      .select({ name: products.name, categoryId: products.categoryId, price: products.price, isActive: products.isActive })
+      .select({ name: products.name, categoryId: products.categoryId, price: products.price, imageUri: products.imageUri, isActive: products.isActive })
       .from(products)
       .where(eq(products.id, id))
       .get();
@@ -146,6 +147,7 @@ export class ProductsSqliteService implements ProductsService {
         name: payload.name ?? existing.name,
         categoryId: payload.categoryId !== undefined ? payload.categoryId : existing.categoryId,
         price: payload.price ?? existing.price,
+        imageUri: payload.imageUri !== undefined ? payload.imageUri : existing.imageUri,
         isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
         syncedAt: null,
