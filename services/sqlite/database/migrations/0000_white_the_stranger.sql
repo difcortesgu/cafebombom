@@ -104,6 +104,7 @@ CREATE TABLE `products` (
 	`name` text NOT NULL,
 	`category_id` text,
 	`price` real NOT NULL,
+	`image_uri` text,
 	`is_active` integer DEFAULT true NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
@@ -112,6 +113,18 @@ CREATE TABLE `products` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `products_name_unique` ON `products` (`name`);--> statement-breakpoint
+CREATE TABLE `receipt_preferences` (
+	`id` text PRIMARY KEY NOT NULL,
+	`business_name` text DEFAULT 'CafeBomBom' NOT NULL,
+	`business_address` text DEFAULT '' NOT NULL,
+	`business_phone` text DEFAULT '' NOT NULL,
+	`business_logo_uri` text,
+	`footer_message` text DEFAULT 'Gracias por tu compra' NOT NULL,
+	`paper_width` integer DEFAULT 80 NOT NULL,
+	`tax_rate` real DEFAULT 0.08 NOT NULL,
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `restaurant_tables` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -155,7 +168,7 @@ CREATE TABLE `sales` (
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`staff_id` text NOT NULL,
 	`table_id` text NOT NULL,
-	`payment_method` text DEFAULT 'cash' NOT NULL,
+	`payment_method` text,
 	`subtotal` real DEFAULT 0 NOT NULL,
 	`item_discount_total` real DEFAULT 0 NOT NULL,
 	`order_discount_name` text,

@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1775351483898,
-      "tag": "0000_pale_wildside",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1775854800000,
-      "tag": "0001_receipt_preferences",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1775900000000,
-      "tag": "0002_product_image",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1775917800000,
-      "tag": "0003_paid_status_to_flag",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1775926768379,
-      "tag": "0005_next_logan",
+      "when": 1775927695384,
+      "tag": "0000_white_the_stranger",
       "breakpoints": true
     }
   ]
