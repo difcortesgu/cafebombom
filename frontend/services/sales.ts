@@ -83,7 +83,7 @@ export class SalesService {
   }
 
   async updateDraftOrder(payload: UpdateDraftOrderPayload): Promise<void> {
-    await apiClient.put(`/sales/${payload.id}`, payload);
+    await apiClient.put(`/sales/${payload.orderId}`, payload);
   }
 
   async getTopSelling(limit: number = 10): Promise<Array<{ name: string; quantity: number }>> {
@@ -161,7 +161,7 @@ export class SalesService {
   }
 
   async removeItemFromOrder(payload: RemoveItemFromOrderPayload): Promise<void> {
-    await apiClient.delete(`/sales/${payload.orderId}/items/${payload.itemId}`);
+    await apiClient.delete(`/sales/${payload.orderId}/items/${payload.saleItemId}`);
   }
 
   async cancelOrder(orderId: string): Promise<void> {

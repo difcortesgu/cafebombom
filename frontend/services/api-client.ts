@@ -136,8 +136,9 @@ class ApiClient {
   async uploadFile<T>(endpoint: string, file: Uint8Array, fileName: string, options?: RequestOptions): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     const formData = new FormData();
-    // Convert Uint8Array to Blob
-    const blob = new Blob([file]);
+    // Force an ArrayBuffer-backed copy to satisfy strict BlobPart typing.
+    const fileCopy = new Uint8Array(file);
+    const blob = new Blob([fileCopy.buffer]);
     formData.append('file', blob, fileName);
 
     const response = await fetch(url, {
