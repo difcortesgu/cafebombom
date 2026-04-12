@@ -18,11 +18,13 @@ import { getJwtExpiresIn, signAccessToken } from './services/jwt';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const CORS_ORIGIN = process.env.CORS_ORIGIN;
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || '10mb';
 const authService = new AuthSqliteService();
 
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(cors(CORS_ORIGIN ? { origin: CORS_ORIGIN } : undefined));
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
 /**
  * @openapi

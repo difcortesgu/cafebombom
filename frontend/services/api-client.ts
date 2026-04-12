@@ -3,7 +3,7 @@
  * Handles authentication headers, token management, and common HTTP operations
  */
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 
 type ApiResponse<T> = {
   data?: T;
