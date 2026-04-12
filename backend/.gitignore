@@ -6,6 +6,7 @@ dist/
 .env
 
 # SQLite Database
+sqlite.db
 *.sqlite
 *.sqlite-journal
 

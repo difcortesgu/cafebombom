@@ -1,22 +1,7 @@
-import type { AccountsService } from '@/services/interfaces/accounts';
-import type { AuthService } from '@/services/interfaces/auth';
-import type { InventoryService } from '@/services/interfaces/inventory';
-import type { PrintService } from '@/services/interfaces/printing';
-import type { ProductsService } from '@/services/interfaces/products';
-import type { SalesService } from '@/services/interfaces/sales';
-import type { SetupService } from '@/services/interfaces/setup';
-import { AccountsSqliteService } from '@/services/sqlite/accounts';
-import { AuthSqliteService } from '@/services/sqlite/auth';
-import { InventorySqliteService } from '@/services/sqlite/inventory';
-import { PrintSqliteService } from '@/services/sqlite/printing';
-import { ProductsSqliteService } from '@/services/sqlite/products';
-import { SalesSqliteService } from '@/services/sqlite/sales';
-import { SetupSqliteService } from '@/services/sqlite/setup';
-
-export const authService: AuthService = new AuthSqliteService();
-export const accountsService: AccountsService = new AccountsSqliteService();
-export const inventoryService: InventoryService = new InventorySqliteService();
-export const productsService: ProductsService = new ProductsSqliteService();
-export const salesService: SalesService = new SalesSqliteService();
-export const printService: PrintService = new PrintSqliteService();
-export const setupService: SetupService = new SetupSqliteService();
+// Barrel export for all services
+export * from './accounts';
+export * from './inventory';
+export * from './printing';
+export * from './products';
+export * from './sales';
+export * from './setup';
