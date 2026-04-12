@@ -1,7 +1,7 @@
-import { db } from '@/database';
-import { ingredients, restockLogs, suppliers } from '@/database/schema';
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
-import type { Ingredient, Supplier } from '@/types/types';
+import { db } from '../database';
+import { ingredients, restockLogs, suppliers } from '../database/schema';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '../types/inventory';
+import type { Ingredient, Supplier } from '../types/types';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
 export class InventorySqliteService {

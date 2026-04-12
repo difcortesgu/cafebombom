@@ -1,4 +1,4 @@
-import type { Discount, DiscountType, SaleItemInput } from '@/types/types';
+import type { Discount, DiscountType, SaleItemInput } from '../types/types';
 
 export type SaleItemDiscountBreakdown = {
   productId: string;

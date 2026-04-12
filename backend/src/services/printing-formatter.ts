@@ -1,5 +1,5 @@
-import { namedDiscountLabel, paymentMethodLabel, receiptLabels, taxInclusiveLabel } from '@/services/messages';
-import type { ReceiptData, ReceiptLineItem, ReceiptPaperWidth } from '@/types/receipt';
+import { namedDiscountLabel, paymentMethodLabel, receiptLabels, taxInclusiveLabel } from '../services/messages';
+import type { ReceiptData, ReceiptLineItem, ReceiptPaperWidth } from '../types/receipt';
 
 export function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
   return paperWidth === 58 ? 32 : 48;

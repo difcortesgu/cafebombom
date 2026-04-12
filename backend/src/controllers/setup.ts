@@ -1,0 +1,145 @@
+import { SetupSqliteService } from '../services/setup';
+import { UsersSqliteService } from '../services/users';
+import type { Request, Response } from 'express';
+
+const setupService = new SetupSqliteService();
+const usersService = new UsersSqliteService();
+
+export async function getReceiptPreferences(req: Request, res: Response): Promise<void> {
+  try {
+    const prefs = await setupService.getReceiptPreferences();
+    res.status(200).json(prefs);
+  } catch (error) {
+    console.error('[setup] getReceiptPreferences failed:', error);
+    res.status(500).json({ error: 'Failed to fetch receipt preferences.' });
+  }
+}
+
+export async function saveReceiptPreferences(req: Request, res: Response): Promise<void> {
+  const { businessName, businessAddress, businessPhone, businessLogoUri, footerMessage, paperWidth, taxRate } = req.body;
+
+  if (!businessName) {
+    res.status(400).json({ error: 'businessName is required.' });
+    return;
+  }
+
+  if (paperWidth !== 58 && paperWidth !== 80) {
+    res.status(400).json({ error: 'paperWidth must be 58 or 80.' });
+    return;
+  }
+
+  if (typeof taxRate !== 'number' || taxRate < 0 || taxRate > 1) {
+    res.status(400).json({ error: 'taxRate must be a number between 0 and 1.' });
+    return;
+  }
+
+  try {
+    await setupService.saveReceiptPreferences({
+      businessName,
+      businessAddress: businessAddress ?? '',
+      businessPhone: businessPhone ?? '',
+      businessLogoUri: businessLogoUri ?? null,
+      footerMessage: footerMessage ?? '',
+      paperWidth,
+      taxRate,
+    });
+    res.status(204).send();
+  } catch (error) {
+    console.error('[setup] saveReceiptPreferences failed:', error);
+    res.status(500).json({ error: 'Failed to save receipt preferences.' });
+  }
+}
+
+export async function importSeedFromExcel(req: Request, res: Response): Promise<void> {
+  const { content } = req.body as { content?: number[] };
+
+  if (!Array.isArray(content) || content.length === 0) {
+    res.status(400).json({ error: 'content (byte array) is required.' });
+    return;
+  }
+
+  try {
+    const result = await setupService.importSeedFromExcel(new Uint8Array(content));
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('[setup] importSeedFromExcel failed:', error);
+    res.status(500).json({ error: 'Failed to import seed data.' });
+  }
+}
+
+// ── Setup-phase user management (no actor checks) ────────────────────────────
+
+export async function setupGetAllUsers(req: Request, res: Response): Promise<void> {
+  try {
+    const users = await usersService.getAllUsers();
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('[setup] setupGetAllUsers failed:', error);
+    res.status(500).json({ error: 'Failed to fetch users.' });
+  }
+}
+
+export async function setupUpdateUser(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const { name, pin, role } = req.body as { name?: string; pin?: string; role?: string };
+
+  if (role !== undefined && role !== 'owner' && role !== 'staff') {
+    res.status(400).json({ error: 'role must be owner or staff.' });
+    return;
+  }
+
+  try {
+    const user = await usersService.setupUpdateUser(id, { name, pin, role: role as 'owner' | 'staff' | undefined });
+    if (!user) {
+      res.status(404).json({ error: 'User not found or inactive.' });
+      return;
+    }
+    res.status(200).json(user);
+  } catch (error: any) {
+    const msg = String(error?.message ?? '');
+    if (msg.includes('empty') || msg.includes('PIN') || msg.includes('already uses')) {
+      res.status(422).json({ error: msg });
+      return;
+    }
+    console.error('[setup] setupUpdateUser failed:', error);
+    res.status(500).json({ error: 'Failed to update user.' });
+  }
+}
+
+export async function setupDeleteUser(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  try {
+    await usersService.setupDeleteUser(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('[setup] setupDeleteUser failed:', error);
+    res.status(500).json({ error: 'Failed to delete user.' });
+  }
+}
+
+export async function setupHardDeleteUser(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  try {
+    await usersService.setupHardDeleteUser(id);
+    res.status(204).send();
+  } catch (error: any) {
+    const msg = String(error?.message ?? '');
+    if (msg.includes('linked sales')) {
+      res.status(422).json({ error: msg });
+      return;
+    }
+    console.error('[setup] setupHardDeleteUser failed:', error);
+    res.status(500).json({ error: 'Failed to hard-delete user.' });
+  }
+}
+
+export async function setupReactivateUser(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  try {
+    await usersService.setupReactivateUser(id);
+    res.status(204).send();
+  } catch (error) {
+    console.error('[setup] setupReactivateUser failed:', error);
+    res.status(500).json({ error: 'Failed to reactivate user.' });
+  }
+}

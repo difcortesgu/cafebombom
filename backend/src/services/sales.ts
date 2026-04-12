@@ -1,8 +1,8 @@
-import { db } from '@/database';
-import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, surcharges, users } from '@/database/schema';
-import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '@/services/analytics';
-import { salesErrorMessage } from '@/services/messages';
-import { calculateSaleDiscountBreakdown } from '@/services/pricing';
+import { db } from '../database';
+import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, surcharges, users } from '../database/schema';
+import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '../services/analytics';
+import { salesErrorMessage } from '../services/messages';
+import { calculateSaleDiscountBreakdown } from '../services/pricing';
 import type {
   AddItemToOrderPayload,
   CreateDiscountPayload,
@@ -16,8 +16,8 @@ import type {
   UpdateDiscountPayload,
   UpdateDraftOrderPayload,
   UpdateTablePayload,
-} from '@/types/sales';
-import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
+} from '../types/sales';
+import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '../types/types';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 
 export class SalesSqliteService {

@@ -1,0 +1,191 @@
+import { Router } from 'express';
+import {
+    getReceiptPreferences,
+    importSeedFromExcel,
+    saveReceiptPreferences,
+    setupDeleteUser,
+    setupGetAllUsers,
+    setupHardDeleteUser,
+    setupReactivateUser,
+    setupUpdateUser,
+} from '../controllers/setup';
+import { bootstrapOrOwnerAuth } from '../middleware/bootstrap';
+
+const router = Router();
+
+// All setup routes are public during bootstrap, owner-auth after first owner exists
+router.use(bootstrapOrOwnerAuth);
+
+/**
+ * @openapi
+ * /api/setup/receipt-prefs:
+ *   get:
+ *     tags: [Setup]
+ *     summary: Get receipt printing preferences
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current receipt preferences
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ReceiptPreferences'
+ *   put:
+ *     tags: [Setup]
+ *     summary: Save receipt printing preferences
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ReceiptPreferences'
+ *     responses:
+ *       204:
+ *         description: Saved
+ */
+router.get('/receipt-prefs', getReceiptPreferences);
+router.put('/receipt-prefs', saveReceiptPreferences);
+
+/**
+ * @openapi
+ * /api/setup/import:
+ *   post:
+ *     tags: [Setup]
+ *     summary: Import seed data from an Excel file (byte array)
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content:
+ *                 type: array
+ *                 items: { type: integer }
+ *                 description: Raw bytes of the Excel workbook
+ *     responses:
+ *       200:
+ *         description: Import result summary
+ *       400:
+ *         description: Invalid file content
+ */
+router.post('/import', importSeedFromExcel);
+
+/**
+ * @openapi
+ * /api/setup/users:
+ *   get:
+ *     tags: [Setup]
+ *     summary: List all users (including inactive) during setup
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Array of all users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/ManagedUser'
+ */
+router.get('/users', setupGetAllUsers);
+
+/**
+ * @openapi
+ * /api/setup/users/{id}:
+ *   patch:
+ *     tags: [Setup]
+ *     summary: Update a user's name, PIN, or role during setup
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               pin: { type: string }
+ *               role: { type: string, enum: [owner, staff] }
+ *     responses:
+ *       204:
+ *         description: Updated
+ *   delete:
+ *     tags: [Setup]
+ *     summary: Soft-delete a user during setup
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Deactivated
+ */
+router.patch('/users/:id', setupUpdateUser);
+router.delete('/users/:id', setupDeleteUser);
+
+/**
+ * @openapi
+ * /api/setup/users/{id}/hard:
+ *   delete:
+ *     tags: [Setup]
+ *     summary: Permanently delete a user during setup (blocked if user has linked sales)
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Deleted
+ *       409:
+ *         description: User has linked sales records
+ */
+router.delete('/users/:id/hard', setupHardDeleteUser);
+
+/**
+ * @openapi
+ * /api/setup/users/{id}/reactivate:
+ *   post:
+ *     tags: [Setup]
+ *     summary: Reactivate a deactivated user during setup
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Reactivated
+ */
+router.post('/users/:id/reactivate', setupReactivateUser);
+
+export default router;

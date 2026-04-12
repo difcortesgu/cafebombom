@@ -1,8 +1,8 @@
-import { db } from '@/database';
-import { categories, discounts, employees, ingredients, productIngredients, products, receiptPreferences, restaurantTables, suppliers, surcharges } from '@/database/schema';
-import { parseSeedWorkbook } from '@/services/seed-import';
-import { ReceiptPreferences } from '@/types/receipt';
-import { SeedImportResult } from '@/types/setup';
+import { db } from '../database';
+import { categories, discounts, employees, ingredients, productIngredients, products, receiptPreferences, restaurantTables, suppliers, surcharges } from '../database/schema';
+import { parseSeedWorkbook } from '../services/seed-import';
+import { ReceiptPreferences } from '../types/receipt';
+import { SeedImportResult } from '../types/setup';
 import { and, eq } from 'drizzle-orm';
 
 const RECEIPT_PREFERENCES_ID = 'default';

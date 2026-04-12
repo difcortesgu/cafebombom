@@ -1,6 +1,6 @@
 import ReceiptPrinterEncoder, { type LogoImageData } from '@point-of-sale/receipt-printer-encoder';
 
-import { paymentMethodLabel, receiptLabels, taxInclusiveLabel } from '@/services/messages';
+import { paymentMethodLabel, receiptLabels, taxInclusiveLabel } from '../services/messages';
 import {
     centerText,
     formatCurrency,
@@ -8,8 +8,8 @@ import {
     formatReceiptLine,
     getReceiptLineWidth,
     separatorLine,
-} from '@/services/printing-formatter';
-import type { ReceiptData } from '@/types/receipt';
+} from '../services/printing-formatter';
+import type { ReceiptData } from '../types/receipt';
 
 function normalizeEscPosText(value: string): string {
   return value
