@@ -1,5 +1,5 @@
-import { db } from '../database';
-import { users } from '../database/schema';
+import { db } from '@/database';
+import { users } from '@/database/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { NextFunction, Request, Response } from 'express';
 import { authMiddleware, requireRole } from './auth';

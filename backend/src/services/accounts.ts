@@ -1,7 +1,7 @@
-import { db } from '../database';
-import { employees, expenses, payrollEntries } from '../database/schema';
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload } from '../types/accounts';
-import type { Employee, Expense, PayrollEntry } from '../types/types';
+import { db } from '@/database';
+import { employees, expenses, payrollEntries } from '@/database/schema';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload } from '@/types/accounts';
+import type { Employee, Expense, PayrollEntry } from '@/types/types';
 import { between, desc, sql } from 'drizzle-orm';
 
 export class AccountsSqliteService {

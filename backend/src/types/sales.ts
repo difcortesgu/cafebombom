@@ -1,4 +1,4 @@
-import type { DiscountType, OrderStatus, PaymentMethod, SaleItemInput, TableType } from '../types/types';
+import type { DiscountType, OrderStatus, PaymentMethod, SaleItemInput, TableType } from '@/types/types';
 
 export type DashboardRangeKey = 'today' | 'week' | 'month';
 

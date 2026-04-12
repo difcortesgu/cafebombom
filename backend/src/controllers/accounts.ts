@@ -1,4 +1,4 @@
-import { AccountsSqliteService } from '../services/accounts';
+import { AccountsSqliteService } from '@/services/accounts';
 import type { Request, Response } from 'express';
 
 const accountsService = new AccountsSqliteService();

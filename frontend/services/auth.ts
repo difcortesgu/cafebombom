@@ -12,13 +12,26 @@ type LoginResponse = {
 
 export class AuthService {
   async getActiveUsers(): Promise<User[]> {
-    const response = await apiClient.get<{ users: User[] }>('/users/active');
-    return response.users || [];
+    const response = await apiClient.get<User[]>('/users/active');
+    return response || [];
   }
 
   async getAllUsers(): Promise<ManagedUser[]> {
-    const response = await apiClient.get<{ users: ManagedUser[] }>('/users');
-    return response.users || [];
+    try {
+      const response = await apiClient.get<ManagedUser[]>('/users');
+      return response || [];
+    } catch {
+      try {
+        return await this.getSetupUsers();
+      } catch {
+        return [];
+      }
+    }
+  }
+
+  async getSetupUsers(): Promise<ManagedUser[]> {
+    const response = await apiClient.get<ManagedUser[]>('/setup/users');
+    return response || [];
   }
 
   async authenticate(payload: LoginPayload): Promise<User | null> {
@@ -36,9 +49,18 @@ export class AuthService {
 
   async createUser(payload: CreateUserPayload): Promise<User | null> {
     try {
-      const response = await apiClient.post<{ user: User }>('/users', payload);
-      return response.user || null;
+      const response = await apiClient.post<User>('/users', payload);
+      return response || null;
     } catch (error) {
+      return null;
+    }
+  }
+
+  async setupCreateUser(payload: CreateUserPayload): Promise<User | null> {
+    try {
+      const response = await apiClient.post<User>('/setup/users', payload);
+      return response || null;
+    } catch {
       return null;
     }
   }
@@ -65,32 +87,31 @@ export class AuthService {
   }
 
   async setupDeleteUser(userId: string): Promise<void> {
-    await apiClient.delete(`/users/${userId}`);
+    await apiClient.delete(`/setup/users/${userId}`);
   }
 
   async setupReactivateUser(userId: string): Promise<void> {
-    await apiClient.post(`/users/${userId}/reactivate`, {});
+    await apiClient.post(`/setup/users/${userId}/reactivate`, {});
   }
 
   async setupHardDeleteUser(userId: string): Promise<void> {
-    await apiClient.delete(`/users/${userId}`);
+    await apiClient.delete(`/setup/users/${userId}/hard`);
   }
 
   async setupUpdateUser(userId: string, payload: SetupUpdateUserPayload): Promise<User | null> {
     try {
-      const response = await apiClient.patch<{ user: User }>(`/users/${userId}`, payload);
-      return response.user || null;
+      const response = await apiClient.patch<User>(`/setup/users/${userId}`, payload);
+      return response || null;
     } catch (error) {
       return null;
     }
   }
 
-  async startSession(userId: string): Promise<string> {
-    const response = await apiClient.post<{ sessionId: string }>('/auth/login', {});
-    return response.sessionId || '';
+  async startSession(_userId: string): Promise<string> {
+    return '';
   }
 
-  async endOpenSession(userId: string): Promise<void> {
+  async endOpenSession(_userId: string): Promise<void> {
     await apiClient.post('/auth/logout', {});
     // Clear token on logout
     apiClient.setToken(null);

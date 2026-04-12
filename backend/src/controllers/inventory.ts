@@ -1,4 +1,4 @@
-import { InventorySqliteService } from '../services/inventory';
+import { InventorySqliteService } from '@/services/inventory';
 import type { Request, Response } from 'express';
 
 const inventoryService = new InventorySqliteService();

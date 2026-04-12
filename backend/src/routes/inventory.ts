@@ -1,12 +1,12 @@
-import { Router } from 'express';
 import {
     addIngredient,
     addRestock,
     addSupplier,
     getHydrationData,
     updateIngredient,
-} from '../controllers/inventory';
-import { authMiddleware, requireRole } from '../middleware/auth';
+} from '@/controllers/inventory';
+import { authMiddleware, requireRole } from '@/middleware/auth';
+import { Router } from 'express';
 
 const router = Router();
 

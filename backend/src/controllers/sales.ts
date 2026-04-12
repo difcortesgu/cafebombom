@@ -1,6 +1,6 @@
-import { SalesSqliteService } from '../services/sales';
-import type { DashboardTrendBucket } from '../types/sales';
-import type { PaymentMethod } from '../types/types';
+import { SalesSqliteService } from '@/services/sales';
+import type { DashboardTrendBucket } from '@/types/sales';
+import type { PaymentMethod } from '@/types/types';
 import type { Request, Response } from 'express';
 
 const salesService = new SalesSqliteService();

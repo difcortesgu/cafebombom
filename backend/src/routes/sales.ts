@@ -1,4 +1,3 @@
-import { Router } from 'express';
 import {
     addItemToOrder,
     cancelOrder,
@@ -24,8 +23,9 @@ import {
     updateDiscount,
     updateDraftOrder,
     updateTable,
-} from '../controllers/sales';
-import { authMiddleware, requireRole } from '../middleware/auth';
+} from '@/controllers/sales';
+import { authMiddleware, requireRole } from '@/middleware/auth';
+import { Router } from 'express';
 
 const router = Router();
 

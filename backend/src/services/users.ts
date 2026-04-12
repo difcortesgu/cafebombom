@@ -1,8 +1,8 @@
-import { db } from '../database';
-import { sales, sessions, users } from '../database/schema';
-import { hashPin } from '../services/hash';
-import type { CreateUserPayload, ManagedUser, SetupUpdateUserPayload, UpdateOwnProfilePayload } from '../types/auth';
-import type { User } from '../types/types';
+import { db } from '@/database';
+import { sales, sessions, users } from '@/database/schema';
+import { hashPin } from '@/services/hash';
+import type { CreateUserPayload, ManagedUser, SetupUpdateUserPayload, UpdateOwnProfilePayload } from '@/types/auth';
+import type { User } from '@/types/types';
 import { and, asc, eq, or, sql } from 'drizzle-orm';
 
 export class UsersSqliteService {

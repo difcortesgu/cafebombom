@@ -1,4 +1,3 @@
-import { Router } from 'express';
 import {
     createUser,
     deactivateUser,
@@ -7,8 +6,9 @@ import {
     hardDeleteUser,
     reactivateUser,
     updateOwnProfile,
-} from '../controllers/users';
-import { authMiddleware, requireRole } from '../middleware/auth';
+} from '@/controllers/users';
+import { authMiddleware, requireRole } from '@/middleware/auth';
+import { Router } from 'express';
 
 const router = Router();
 
@@ -29,7 +29,7 @@ const router = Router();
  *       401:
  *         description: Unauthorized
  */
-router.get('/active', authMiddleware, getActiveUsers);
+router.get('/active', getActiveUsers);
 
 /**
  * @openapi

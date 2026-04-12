@@ -1,5 +1,5 @@
-import { SetupSqliteService } from '../services/setup';
-import { UsersSqliteService } from '../services/users';
+import { SetupSqliteService } from '@/services/setup';
+import { UsersSqliteService } from '@/services/users';
 import type { Request, Response } from 'express';
 
 const setupService = new SetupSqliteService();
@@ -76,6 +76,32 @@ export async function setupGetAllUsers(req: Request, res: Response): Promise<voi
   } catch (error) {
     console.error('[setup] setupGetAllUsers failed:', error);
     res.status(500).json({ error: 'Failed to fetch users.' });
+  }
+}
+
+export async function setupCreateUser(req: Request, res: Response): Promise<void> {
+  const { name, role, pin } = req.body as { name?: string; role?: string; pin?: string };
+
+  if (!name || !role || !pin) {
+    res.status(400).json({ error: 'name, role, and pin are required.' });
+    return;
+  }
+
+  if (role !== 'owner' && role !== 'staff') {
+    res.status(400).json({ error: 'role must be owner or staff.' });
+    return;
+  }
+
+  try {
+    const user = await usersService.createUser({ name, role, pin });
+    if (!user) {
+      res.status(409).json({ error: 'User already exists or PIN is too short.' });
+      return;
+    }
+    res.status(201).json(user);
+  } catch (error) {
+    console.error('[setup] setupCreateUser failed:', error);
+    res.status(500).json({ error: 'Failed to create user.' });
   }
 }
 

@@ -1,5 +1,5 @@
-import { ProductsSqliteService } from '../services/products';
-import type { ProductRecipeInput } from '../types/products';
+import { ProductsSqliteService } from '@/services/products';
+import type { ProductRecipeInput } from '@/types/products';
 import type { Request, Response } from 'express';
 
 const productsService = new ProductsSqliteService();

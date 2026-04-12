@@ -1,8 +1,8 @@
-import { db } from '../database';
-import { sessions, users } from '../database/schema';
-import { verifyPin } from '../services/hash';
-import type { LoginPayload } from '../types/auth';
-import type { User } from '../types/types';
+import { db } from '@/database';
+import { sessions, users } from '@/database/schema';
+import { verifyPin } from '@/services/hash';
+import type { LoginPayload } from '@/types/auth';
+import type { User } from '@/types/types';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
 export class AuthSqliteService {

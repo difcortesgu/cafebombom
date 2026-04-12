@@ -1,15 +1,16 @@
-import { Router } from 'express';
 import {
     getReceiptPreferences,
     importSeedFromExcel,
     saveReceiptPreferences,
+    setupCreateUser,
     setupDeleteUser,
     setupGetAllUsers,
     setupHardDeleteUser,
     setupReactivateUser,
     setupUpdateUser,
-} from '../controllers/setup';
-import { bootstrapOrOwnerAuth } from '../middleware/bootstrap';
+} from '@/controllers/setup';
+import { bootstrapOrOwnerAuth } from '@/middleware/bootstrap';
+import { Router } from 'express';
 
 const router = Router();
 
@@ -100,6 +101,7 @@ router.post('/import', importSeedFromExcel);
  *                 $ref: '#/components/schemas/ManagedUser'
  */
 router.get('/users', setupGetAllUsers);
+router.post('/users', setupCreateUser);
 
 /**
  * @openapi

@@ -1,6 +1,6 @@
+import { verifyAccessToken } from '@/services/jwt';
+import type { UserRole } from '@/types/types';
 import { NextFunction, Request, Response } from 'express';
-import { verifyAccessToken } from '../services/jwt';
-import type { UserRole } from '../types/types';
 
 type AuthenticatedRequestUser = {
   userId: string;

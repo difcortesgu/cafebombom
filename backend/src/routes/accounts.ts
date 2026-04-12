@@ -1,12 +1,12 @@
-import { Router } from 'express';
 import {
     addEmployee,
     addExpense,
     addPayroll,
     getExpensesTotal,
     getHydrationData,
-} from '../controllers/accounts';
-import { authMiddleware, requireRole } from '../middleware/auth';
+} from '@/controllers/accounts';
+import { authMiddleware, requireRole } from '@/middleware/auth';
+import { Router } from 'express';
 
 const router = Router();
 

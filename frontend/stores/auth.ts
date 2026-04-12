@@ -14,6 +14,7 @@ type AuthState = {
   hydrate: () => Promise<void>;
   hydrateManagedUsers: () => Promise<void>;
   createUser: (payload: CreateUserPayload) => Promise<User | null>;
+  setupCreateUser: (payload: CreateUserPayload) => Promise<User | null>;
   deactivateUser: (targetUserId: string) => Promise<boolean>;
   reactivateUser: (targetUserId: string) => Promise<boolean>;
   hardDeleteUser: (targetUserId: string) => Promise<boolean>;
@@ -52,6 +53,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   createUser: async ({ name, role, pin }: CreateUserPayload) => {
     set({ loading: true, error: null });
     const created = await authService.createUser({ name, role, pin });
+    const [users, managedUsers] = await Promise.all([
+      authService.getActiveUsers(),
+      authService.getAllUsers(),
+    ]);
+
+    if (!created) {
+      set({ users, managedUsers, loading: false, error: t('auth.error.createUserFailed') });
+      return null;
+    }
+
+    set({ users, managedUsers, loading: false, error: null });
+    return created;
+  },
+
+  setupCreateUser: async ({ name, role, pin }: CreateUserPayload) => {
+    set({ loading: true, error: null });
+    const created = await authService.setupCreateUser({ name, role, pin });
     const [users, managedUsers] = await Promise.all([
       authService.getActiveUsers(),
       authService.getAllUsers(),
@@ -232,7 +250,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
 
-    await authService.startSession(userId);
     set({
       currentUser: user,
       loading: false,

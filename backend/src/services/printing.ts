@@ -1,7 +1,7 @@
-import { loadLogoBitmap } from '../services/logo-bitmap';
-import { encodeReceiptToEscPos } from '../services/printing-esc-pos';
-import { buildPrintableReceiptText } from '../services/printing-formatter';
-import type { ReceiptData } from '../types/receipt';
+import { loadLogoBitmap } from '@/services/logo-bitmap';
+import { encodeReceiptToEscPos } from '@/services/printing-esc-pos';
+import { buildPrintableReceiptText } from '@/services/printing-formatter';
+import type { ReceiptData } from '@/types/receipt';
 
 export class PrintSqliteService {
   async getStatus() {

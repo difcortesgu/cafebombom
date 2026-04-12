@@ -1,4 +1,3 @@
-import { Router } from 'express';
 import {
     createProduct,
     getHydrationData,
@@ -7,8 +6,9 @@ import {
     setComposition,
     setProductIngredient,
     updateProduct,
-} from '../controllers/products';
-import { authMiddleware, requireRole } from '../middleware/auth';
+} from '@/controllers/products';
+import { authMiddleware, requireRole } from '@/middleware/auth';
+import { Router } from 'express';
 
 const router = Router();
 

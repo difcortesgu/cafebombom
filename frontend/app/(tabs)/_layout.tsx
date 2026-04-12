@@ -21,7 +21,7 @@ export default function TabLayout() {
     managedUsers,
     currentUser,
     hydrate: hydrateAuth,
-    createUser,
+    setupCreateUser,
     setupDeleteUser,
     setupReactivateUser,
     setupHardDeleteUser,
@@ -72,18 +72,30 @@ export default function TabLayout() {
     }
   }, [bootHydrated, loading, currentUser, users.length]);
 
-  if (!currentUser && setupMode) {
+  useEffect(() => {
+    if (!setupMode || !bootHydrated) {
+      return;
+    }
+
+    if (!loading && users.length > 0 && !users.some((user) => user.role === 'owner')) {
+      setSetupMode(false);
+    }
+  }, [setupMode, bootHydrated, loading, users]);
+
+  if (setupMode) {
     return (
       <SetupScreen
         users={managedUsers}
         loading={loading}
         error={error}
-        createUser={createUser}
+        createUser={setupCreateUser}
         deleteUser={setupDeleteUser}
         reactivateUser={setupReactivateUser}
         hardDeleteUser={setupHardDeleteUser}
         updateUser={setupUpdateUser}
         hasOwnerAccount={hasOwnerAccount}
+        hasOwnerSession={currentUser?.role === 'owner'}
+        login={login}
         hydrateInventory={hydrateInventory}
         hydrateProducts={hydrateProducts}
         onFinish={() => setSetupMode(false)}
