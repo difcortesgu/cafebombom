@@ -1,5 +1,6 @@
 import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload } from '@/types/accounts';
 import type { Employee, Expense, PayrollEntry } from '@/types/types';
+import { apiClient } from './api-client';
 
 export type AccountsHydrationData = {
   expenses: Expense[];
@@ -9,8 +10,8 @@ export type AccountsHydrationData = {
 
 export class AccountsService {
   async getHydrationData(): Promise<AccountsHydrationData> {
-    // Implementation goes here
-    return {
+    const response = await apiClient.get<AccountsHydrationData>('/accounts');
+    return response || {
       expenses: [],
       employees: [],
       payroll: [],
@@ -18,19 +19,28 @@ export class AccountsService {
   }
 
   async addExpense(payload: AddExpensePayload): Promise<string> {
-    // Implementation goes here
-    return '';
+    const response = await apiClient.post<{ id: string }>('/accounts/expenses', payload);
+    return response.id || '';
   }
+
   async addEmployee(payload: AddEmployeePayload): Promise<string | null> {
-    // Implementation goes here
-    return null;
+    try {
+      const response = await apiClient.post<{ id: string }>('/accounts/employees', payload);
+      return response.id || null;
+    } catch {
+      return null;
+    }
   }
+
   async addPayroll(payload: AddPayrollPayload): Promise<string> {
-    // Implementation goes here
-    return '';
+    const response = await apiClient.post<{ id: string }>('/accounts/payroll', payload);
+    return response.id || '';
   }
+
   async getExpensesTotalInRange(startUnix: number, endUnix: number): Promise<number> {
-    // Implementation goes here
-    return 0;
+    const response = await apiClient.get<{ total: number }>(
+      `/accounts/expenses/total?start=${startUnix}&end=${endUnix}`
+    );
+    return response.total || 0;
   }
 }

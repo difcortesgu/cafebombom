@@ -10,6 +10,7 @@ import type {
   SetProductIngredientPayload,
   UpdateProductPayload,
 } from '@/types/products';
+import { apiClient } from './api-client';
 
 export type ProductsHydrationData = {
   categories: CategoryOption[];
@@ -20,8 +21,8 @@ export type ProductsHydrationData = {
 
 export class ProductsService {
   async getHydrationData(): Promise<ProductsHydrationData> {
-    // Implementation goes here
-    return {
+    const response = await apiClient.get<ProductsHydrationData>('/products');
+    return response || {
       categories: [],
       products: [],
       productIngredients: [],
@@ -30,27 +31,31 @@ export class ProductsService {
   }
 
   async createProduct(payload: CreateProductPayload): Promise<string | null> {
-    // Implementation goes here
-    return null;
+    try {
+      const response = await apiClient.post<{ id: string }>('/products', payload);
+      return response.id || null;
+    } catch {
+      return null;
+    }
   }
 
   async updateProduct(payload: UpdateProductPayload): Promise<void> {
-    // Implementation goes here
+    await apiClient.put(`/products/${payload.id}`, payload);
   }
 
   async setProductIngredient(payload: SetProductIngredientPayload): Promise<void> {
-    // Implementation goes here
+    await apiClient.post(`/products/${payload.productId}/ingredients`, payload);
   }
 
   async removeProductIngredient(payload: RemoveProductIngredientPayload): Promise<void> {
-    // Implementation goes here
+    await apiClient.delete(`/products/${payload.productId}/ingredients/${payload.ingredientId}`);
   }
 
   async setComposition(payload: SetCompositionPayload): Promise<void> {
-    // Implementation goes here
+    await apiClient.post(`/products/${payload.productId}/composition`, payload);
   }
 
   async removeComposition(payload: RemoveCompositionPayload): Promise<void> {
-    // Implementation goes here
+    await apiClient.delete(`/products/${payload.productId}/composition/${payload.ingredientId}`);
   }
 }

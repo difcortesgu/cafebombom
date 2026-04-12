@@ -1,5 +1,6 @@
 import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
+import { apiClient } from './api-client';
 
 export type InventoryHydrationData = {
   ingredients: Ingredient[];
@@ -9,8 +10,8 @@ export type InventoryHydrationData = {
 
 export class InventoryService {
   async getHydrationData(): Promise<InventoryHydrationData> {
-    // Implementation goes here
-    return {
+    const response = await apiClient.get<InventoryHydrationData>('/inventory');
+    return response || {
       ingredients: [],
       suppliers: [],
       restocks: [],
@@ -18,21 +19,25 @@ export class InventoryService {
   }
 
   async addIngredient(payload: AddIngredientPayload): Promise<string> {
-    // Implementation goes here
-    return '';
+    const response = await apiClient.post<{ id: string }>('/inventory/ingredients', payload);
+    return response.id || '';
   }
 
   async updateIngredient(payload: UpdateIngredientPayload): Promise<void> {
-    // Implementation goes here
+    await apiClient.put(`/inventory/ingredients/${payload.id}`, payload);
   }
 
   async addSupplier(payload: AddSupplierPayload): Promise<string | null> {
-    // Implementation goes here
-    return null;
+    try {
+      const response = await apiClient.post<{ id: string }>('/inventory/suppliers', payload);
+      return response.id || null;
+    } catch {
+      return null;
+    }
   }
 
   async addRestock(payload: AddRestockPayload): Promise<string> {
-    // Implementation goes here
-    return '';
+    const response = await apiClient.post<{ id: string }>('/inventory/restocks', payload);
+    return response.id || '';
   }
 }
