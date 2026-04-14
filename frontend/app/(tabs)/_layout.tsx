@@ -15,11 +15,13 @@ export default function TabLayout() {
   const palette = useAppColors();
   const [setupMode, setSetupMode] = useState(false);
   const [bootHydrated, setBootHydrated] = useState(false);
+  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
 
   const {
     users,
     managedUsers,
     currentUser,
+    isSetupDone,
     hydrate: hydrateAuth,
     setupCreateUser,
     setupDeleteUser,
@@ -36,11 +38,7 @@ export default function TabLayout() {
   useEffect(() => {
     let cancelled = false;
 
-    void Promise.all([
-      hydrateAuth(),
-      hydrateInventory(),
-      hydrateProducts(),
-    ]).finally(() => {
+    void hydrateAuth().finally(() => {
       if (!cancelled) {
         setBootHydrated(true);
       }
@@ -49,11 +47,36 @@ export default function TabLayout() {
     return () => {
       cancelled = true;
     };
-  }, [hydrateAuth, hydrateInventory, hydrateProducts]);
+  }, [hydrateAuth]);
+
+  useEffect(() => {
+    if (!currentUser || hydratedUserId === currentUser.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void Promise.all([hydrateInventory(), hydrateProducts()]).finally(() => {
+      if (!cancelled) {
+        setHydratedUserId(currentUser.id);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, hydrateInventory, hydrateProducts, hydratedUserId]);
+
+  useEffect(() => {
+    if (currentUser) {
+      return;
+    }
+    setHydratedUserId(null);
+  }, [currentUser]);
 
   const isOwner = currentUser?.role === 'owner';
   const alertCount = lowStockCount();
-  const hasOwnerAccount = users.some((user) => user.role === 'owner');
+  const hasOwnerAccount = managedUsers.some((user) => user.role === 'owner' && user.isActive);
 
   const visibleTabs = useMemo(() => {
     if (isOwner) {
@@ -67,20 +90,13 @@ export default function TabLayout() {
       return;
     }
 
-    if (!loading && !currentUser && users.length === 0) {
+    if (!loading && !setupMode && isSetupDone === false) {
       setSetupMode(true);
     }
-  }, [bootHydrated, loading, currentUser, users.length]);
-
-  useEffect(() => {
-    if (!setupMode || !bootHydrated) {
-      return;
-    }
-
-    if (!loading && users.length > 0 && !users.some((user) => user.role === 'owner')) {
+    if (!loading && !setupMode && isSetupDone === true) {
       setSetupMode(false);
     }
-  }, [setupMode, bootHydrated, loading, users]);
+  }, [bootHydrated, loading, setupMode, isSetupDone]);
 
   if (setupMode) {
     return (

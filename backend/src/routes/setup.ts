@@ -1,5 +1,6 @@
 import {
     getReceiptPreferences,
+    getSetupStatus,
     importSeedFromExcel,
     saveReceiptPreferences,
     setupCreateUser,
@@ -11,8 +12,36 @@ import {
 } from '@/controllers/setup';
 import { bootstrapOrOwnerAuth } from '@/middleware/bootstrap';
 import { Router } from 'express';
+import multer from 'multer';
 
 const router = Router();
+const importUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        // Import only needs one workbook; keep this conservative.
+        fileSize: 10 * 1024 * 1024,
+    },
+});
+
+/**
+ * @openapi
+ * /api/setup/status:
+ *   get:
+ *     tags: [Setup]
+ *     summary: Read whether initial setup is complete
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: Setup status payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 isSetupDone: { type: boolean }
+ *                 activeOwnerCount: { type: integer }
+ */
+router.get('/status', getSetupStatus);
 
 // All setup routes are public during bootstrap, owner-auth after first owner exists
 router.use(bootstrapOrOwnerAuth);
@@ -57,29 +86,35 @@ router.put('/receipt-prefs', saveReceiptPreferences);
  * /api/setup/import:
  *   post:
  *     tags: [Setup]
- *     summary: Import seed data from an Excel file (byte array)
+ *     summary: Import seed data from an Excel file
  *     security:
  *       - {}
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel workbook (.xlsx)
  *         application/json:
  *           schema:
  *             type: object
- *             required: [content]
  *             properties:
  *               content:
  *                 type: array
  *                 items: { type: integer }
- *                 description: Raw bytes of the Excel workbook
+ *                 description: Raw bytes of the Excel workbook (legacy fallback)
  *     responses:
  *       200:
  *         description: Import result summary
  *       400:
  *         description: Invalid file content
  */
-router.post('/import', importSeedFromExcel);
+router.post('/import', importUpload.single('file'), importSeedFromExcel);
 
 /**
  * @openapi

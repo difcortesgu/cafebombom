@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { t } from '@/i18n';
-import { authService } from '@/services';
+import { authService, setupService } from '@/services';
 import type { CreateUserPayload, LoginPayload, ManagedUser, SetupUpdateUserPayload, UpdateOwnProfilePayload } from '@/types/auth';
 import type { User } from '@/types/types';
 
@@ -9,6 +9,7 @@ type AuthState = {
   users: User[];
   managedUsers: ManagedUser[];
   currentUser: User | null;
+  isSetupDone: boolean | null;
   loading: boolean;
   error: string | null;
   hydrate: () => Promise<void>;
@@ -31,17 +32,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   users: [],
   managedUsers: [],
   currentUser: null,
+  isSetupDone: null,
   loading: false,
   error: null,
 
   hydrate: async () => {
     set({ loading: true, error: null });
-    const [users, managedUsers] = await Promise.all([
-      authService.getActiveUsers(),
-      authService.getAllUsers(),
-    ]);
+    try {
+      const status = await setupService.getSetupStatus();
 
-    set({ users, managedUsers, currentUser: null, loading: false });
+      if (!status.isSetupDone) {
+        const managedUsers = await authService.getSetupUsers();
+        const users = managedUsers
+          .filter((user) => user.isActive)
+          .map((user) => ({ id: user.id, name: user.name, role: user.role }));
+
+        set({ users, managedUsers, currentUser: null, isSetupDone: false, loading: false, error: null });
+        return;
+      }
+
+      const users = await authService.getActiveUsers();
+      set({ users, managedUsers: [], currentUser: null, isSetupDone: true, loading: false, error: null });
+    } catch (err) {
+      set({
+        users: [],
+        managedUsers: [],
+        currentUser: null,
+        isSetupDone: null,
+        loading: false,
+        error: String((err as Error)?.message ?? err),
+      });
+    }
   },
 
   hydrateManagedUsers: async () => {
@@ -69,19 +90,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setupCreateUser: async ({ name, role, pin }: CreateUserPayload) => {
     set({ loading: true, error: null });
-    const created = await authService.setupCreateUser({ name, role, pin });
-    const [users, managedUsers] = await Promise.all([
-      authService.getActiveUsers(),
-      authService.getAllUsers(),
-    ]);
+    try {
+      const created = await authService.setupCreateUser({ name, role, pin });
+      const users = await authService.getActiveUsers();
 
-    if (!created) {
-      set({ users, managedUsers, loading: false, error: t('auth.error.createUserFailed') });
+      if (!created) {
+        const managedUsers = await authService.getSetupUsers();
+        set({ users, managedUsers, loading: false, error: t('auth.error.createUserFailed') });
+        return null;
+      }
+
+      // After creating the first owner, setup routes become auth-guarded.
+      // Keep the local list stable until login hydrates owner-managed users.
+      let managedUsers = await authService.getSetupUsers();
+      if (created.role === 'owner' && managedUsers.length === 0) {
+        managedUsers = [
+          ...get().managedUsers,
+          { id: created.id, name: created.name, role: created.role, isActive: true },
+        ];
+      }
+
+      const isSetupDone = users.some((user) => user.role === 'owner');
+      set({ users, managedUsers, isSetupDone, loading: false, error: null });
+      return created;
+    } catch (err) {
+      set({ loading: false, error: String((err as Error)?.message ?? err) });
       return null;
     }
-
-    set({ users, managedUsers, loading: false, error: null });
-    return created;
   },
 
   setupDeleteUser: async (targetUserId: string) => {
@@ -90,9 +125,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await authService.setupDeleteUser(targetUserId);
       const [users, managedUsers] = await Promise.all([
         authService.getActiveUsers(),
-        authService.getAllUsers(),
+        authService.getSetupUsers(),
       ]);
-      set({ users, managedUsers, loading: false, error: null });
+      const isSetupDone = users.some((user) => user.role === 'owner');
+      set({ users, managedUsers, isSetupDone, loading: false, error: null });
       return true;
     } catch (err) {
       set({ loading: false, error: String((err as Error)?.message ?? err) });
@@ -106,9 +142,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await authService.setupReactivateUser(targetUserId);
       const [users, managedUsers] = await Promise.all([
         authService.getActiveUsers(),
-        authService.getAllUsers(),
+        authService.getSetupUsers(),
       ]);
-      set({ users, managedUsers, loading: false, error: null });
+      const isSetupDone = users.some((user) => user.role === 'owner');
+      set({ users, managedUsers, isSetupDone, loading: false, error: null });
       return true;
     } catch (err) {
       set({ loading: false, error: String((err as Error)?.message ?? err) });
@@ -122,9 +159,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await authService.setupHardDeleteUser(targetUserId);
       const [users, managedUsers] = await Promise.all([
         authService.getActiveUsers(),
-        authService.getAllUsers(),
+        authService.getSetupUsers(),
       ]);
-      set({ users, managedUsers, loading: false, error: null });
+      const isSetupDone = users.some((user) => user.role === 'owner');
+      set({ users, managedUsers, isSetupDone, loading: false, error: null });
       return true;
     } catch (err) {
       set({ loading: false, error: String((err as Error)?.message ?? err) });
@@ -138,9 +176,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const updated = await authService.setupUpdateUser(userId, payload);
       const [users, managedUsers] = await Promise.all([
         authService.getActiveUsers(),
-        authService.getAllUsers(),
+        authService.getSetupUsers(),
       ]);
-      set({ users, managedUsers, loading: false, error: null });
+      const isSetupDone = users.some((user) => user.role === 'owner');
+      set({ users, managedUsers, isSetupDone, loading: false, error: null });
       return updated;
     } catch (err) {
       set({ loading: false, error: String((err as Error)?.message ?? err) });
@@ -250,8 +289,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
 
+    const users = await authService.getActiveUsers();
+    const managedUsers = user.role === 'owner' ? await authService.getAllUsers() : [];
+
     set({
+      users,
+      managedUsers,
       currentUser: user,
+      isSetupDone: true,
       loading: false,
       error: null,
     });
@@ -264,6 +309,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (user) {
       await authService.endOpenSession(user.id);
     }
-    set({ currentUser: null, error: null });
+    const users = await authService.getActiveUsers();
+    set({ currentUser: null, users, error: null });
   },
 }));

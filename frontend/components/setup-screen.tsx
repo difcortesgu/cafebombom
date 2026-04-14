@@ -1,7 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { SetupOwnerAccount } from '@/components/setup-owner-account';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -66,7 +67,6 @@ export function SetupScreen({
   const [importIssues, setImportIssues] = useState<string[]>([]);
   const [importBusy, setImportBusy] = useState(false);
   const [ownerSessionReady, setOwnerSessionReady] = useState(hasOwnerSession);
-  const [ownerPin, setOwnerPin] = useState('');
   const [prefs, setPrefs] = useState<ReceiptPreferences>(defaultReceiptPreferences);
   const [taxRatePercent, setTaxRatePercent] = useState('0');
   const [prefsBusy, setPrefsBusy] = useState(false);
@@ -79,16 +79,15 @@ export function SetupScreen({
   const roleLabel = (role: 'owner' | 'staff') =>
     t(role === 'owner' ? 'auth.role.owner' : 'auth.role.staff');
 
-  const canProceedToRestaurantStep = hasOwnerAccount;
-
-  const activeOwners = useMemo(
-    () => users.filter((user) => user.isActive && user.role === 'owner'),
-    [users],
-  );
-
   useEffect(() => {
     setOwnerSessionReady(hasOwnerSession);
   }, [hasOwnerSession]);
+
+  useEffect(() => {
+    if (step === 1 && hasOwnerAccount && ownerSessionReady) {
+      setStep(2);
+    }
+  }, [step, hasOwnerAccount, ownerSessionReady]);
 
   useEffect(() => {
     if (step !== 2 || !ownerSessionReady || prefsLoaded) {
@@ -185,98 +184,20 @@ export function SetupScreen({
 
       {step === 1 ? (
         <>
-          <ThemedButton
-            label={t('setup.account.add')}
-            disabled={importBusy}
-            onPress={openAddModal}
-          />
+          <SetupOwnerAccount
+            loading={loading}
+            onSubmit={async ({ name, pin }) => {
+              const created = await createUser({ name, role: 'owner', pin });
+              if (!created) {
+                return;
+              }
 
-          <UserManagementTable
-            users={users}
-            listTitle={t('setup.account.listTitle')}
-            emptyText={t('setup.account.none')}
-            roleLabel={roleLabel}
-            activeStatusLabel={t('userManagement.status.active')}
-            inactiveStatusLabel={t('userManagement.status.softDeleted')}
-            renderActions={(user) => (
-              <View style={styles.actionsRow}>
-                {user.isActive ? (
-                  <>
-                    <ThemedButton
-                      variant="secondary"
-                      label={t('setup.account.edit')}
-                      style={styles.actionBtn}
-                      onPress={() => openEditModal(user)}
-                    />
-                    <ThemedButton
-                      variant="secondary"
-                      label={t('userManagement.action.softDelete')}
-                      style={[styles.actionBtn, { borderColor: palette.warning }]}
-                      onPress={() => void deleteUser(user.id)}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <ThemedButton
-                      variant="secondary"
-                      label={t('userManagement.action.reactivate')}
-                      style={styles.actionBtn}
-                      onPress={() => void reactivateUser(user.id)}
-                    />
-                    <ThemedButton
-                      variant="secondary"
-                      label={t('userManagement.action.hardDelete')}
-                      style={[styles.actionBtn, { borderColor: palette.danger }]}
-                      labelStyle={{ color: palette.danger }}
-                      onPress={() => void hardDeleteUser(user.id)}
-                    />
-                  </>
-                )}
-              </View>
-            )}
-          />
-
-          {!hasOwnerAccount ? (
-            <ThemedText style={[styles.feedback, { color: palette.warning }]}>{t('setup.ownerRequired')}</ThemedText>
-          ) : null}
-
-          {hasOwnerAccount && !ownerSessionReady ? (
-            <ThemedText style={styles.feedback}>{t('setup.ownerLoginRequired')}</ThemedText>
-          ) : null}
-
-          {hasOwnerAccount && !ownerSessionReady && activeOwners.length > 0 ? (
-            <>
-              <ThemedInput
-                value={ownerPin}
-                secureTextEntry
-                keyboardType="number-pad"
-                maxLength={6}
-                placeholder={t('setup.ownerPinPlaceholder')}
-                onChangeText={setOwnerPin}
-              />
-              <ThemedButton
-                variant="secondary"
-                label={t('setup.ownerLoginAction')}
-                disabled={loading || ownerPin.trim().length < 4}
-                onPress={async () => {
-                  const firstOwner = activeOwners[0];
-                  if (!firstOwner) {
-                    return;
-                  }
-                  const signedIn = await login({ userId: firstOwner.id, pin: ownerPin.trim() });
-                  setOwnerSessionReady(signedIn);
-                  if (signedIn) {
-                    setOwnerPin('');
-                  }
-                }}
-              />
-            </>
-          ) : null}
-
-          <ThemedButton
-            label={t('setup.nextStep')}
-            disabled={!canProceedToRestaurantStep || loading}
-            onPress={() => setStep(2)}
+              const signedIn = await login({ userId: created.id, pin });
+              setOwnerSessionReady(signedIn);
+              if (signedIn) {
+                setStep(2);
+              }
+            }}
           />
         </>
       ) : (
@@ -285,6 +206,57 @@ export function SetupScreen({
             <ThemedText style={[styles.feedback, { color: palette.warning }]}>{t('setup.step2.authRequired')}</ThemedText>
           ) : (
             <>
+              <ThemedButton
+                label={t('setup.account.add')}
+                disabled={importBusy || prefsBusy}
+                onPress={openAddModal}
+              />
+
+              <UserManagementTable
+                users={users}
+                listTitle={t('setup.account.listTitle')}
+                emptyText={t('setup.account.none')}
+                roleLabel={roleLabel}
+                activeStatusLabel={t('userManagement.status.active')}
+                inactiveStatusLabel={t('userManagement.status.softDeleted')}
+                renderActions={(user) => (
+                  <View style={styles.actionsRow}>
+                    {user.isActive ? (
+                      <>
+                        <ThemedButton
+                          variant="secondary"
+                          label={t('setup.account.edit')}
+                          style={styles.actionBtn}
+                          onPress={() => openEditModal(user)}
+                        />
+                        <ThemedButton
+                          variant="secondary"
+                          label={t('userManagement.action.softDelete')}
+                          style={[styles.actionBtn, { borderColor: palette.warning }]}
+                          onPress={() => void deleteUser(user.id)}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <ThemedButton
+                          variant="secondary"
+                          label={t('userManagement.action.reactivate')}
+                          style={styles.actionBtn}
+                          onPress={() => void reactivateUser(user.id)}
+                        />
+                        <ThemedButton
+                          variant="secondary"
+                          label={t('userManagement.action.hardDelete')}
+                          style={[styles.actionBtn, { borderColor: palette.danger }]}
+                          labelStyle={{ color: palette.danger }}
+                          onPress={() => void hardDeleteUser(user.id)}
+                        />
+                      </>
+                    )}
+                  </View>
+                )}
+              />
+
               <ThemedText type="subtitle">{t('setup.restaurant.title')}</ThemedText>
               <ThemedInput
                 value={prefs.businessName}
@@ -407,13 +379,6 @@ export function SetupScreen({
               />
             </>
           )}
-
-          <ThemedButton
-            variant="secondary"
-            label={t('setup.backStep')}
-            disabled={importBusy || prefsBusy}
-            onPress={() => setStep(1)}
-          />
         </>
       )}
 

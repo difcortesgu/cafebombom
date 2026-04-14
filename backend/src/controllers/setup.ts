@@ -1,9 +1,20 @@
+import { getSetupStatus as getBootstrapStatus } from '@/services/bootstrap';
 import { SetupSqliteService } from '@/services/setup';
 import { UsersSqliteService } from '@/services/users';
 import type { Request, Response } from 'express';
 
 const setupService = new SetupSqliteService();
 const usersService = new UsersSqliteService();
+
+export function getSetupStatus(req: Request, res: Response): void {
+  try {
+    const status = getBootstrapStatus();
+    res.status(200).json(status);
+  } catch (error) {
+    console.error('[setup] getSetupStatus failed:', error);
+    res.status(500).json({ error: 'Failed to fetch setup status.' });
+  }
+}
 
 export async function getReceiptPreferences(req: Request, res: Response): Promise<void> {
   try {
@@ -51,15 +62,25 @@ export async function saveReceiptPreferences(req: Request, res: Response): Promi
 }
 
 export async function importSeedFromExcel(req: Request, res: Response): Promise<void> {
-  const { content } = req.body as { content?: number[] };
+  const upload = req as Request & { file?: { buffer?: Buffer } };
+  const fileBuffer = upload.file?.buffer;
+  const content = (req.body as { content?: number[] } | undefined)?.content;
 
-  if (!Array.isArray(content) || content.length === 0) {
-    res.status(400).json({ error: 'content (byte array) is required.' });
+  let workbookBytes: Uint8Array | null = null;
+
+  if (fileBuffer && fileBuffer.length > 0) {
+    workbookBytes = new Uint8Array(fileBuffer);
+  } else if (Array.isArray(content) && content.length > 0) {
+    workbookBytes = new Uint8Array(content);
+  }
+
+  if (!workbookBytes) {
+    res.status(400).json({ error: 'file (multipart) or content (byte array) is required.' });
     return;
   }
 
   try {
-    const result = await setupService.importSeedFromExcel(new Uint8Array(content));
+    const result = await setupService.importSeedFromExcel(workbookBytes);
     res.status(200).json(result);
   } catch (error) {
     console.error('[setup] importSeedFromExcel failed:', error);

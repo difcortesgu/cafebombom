@@ -514,6 +514,10 @@ router.delete('/tables/:id', requireRole('owner'), deleteTable);
 router.get('/config/surcharges', getSurchargeConfig);
 router.put('/config/surcharges', requireRole('owner'), saveSurchargeConfig);
 
+// Backward-compatible alias used by older frontend builds.
+router.get('/surcharge-config', getSurchargeConfig);
+router.put('/surcharge-config', requireRole('owner'), saveSurchargeConfig);
+
 /**
  * @openapi
  * /api/sales/analytics/dashboard:

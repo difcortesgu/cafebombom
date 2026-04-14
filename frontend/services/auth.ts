@@ -21,17 +21,17 @@ export class AuthService {
       const response = await apiClient.get<ManagedUser[]>('/users');
       return response || [];
     } catch {
-      try {
-        return await this.getSetupUsers();
-      } catch {
-        return [];
-      }
+      return [];
     }
   }
 
   async getSetupUsers(): Promise<ManagedUser[]> {
-    const response = await apiClient.get<ManagedUser[]>('/setup/users');
-    return response || [];
+    try {
+      const response = await apiClient.get<ManagedUser[]>('/setup/users');
+      return response || [];
+    } catch {
+      return [];
+    }
   }
 
   async authenticate(payload: LoginPayload): Promise<User | null> {

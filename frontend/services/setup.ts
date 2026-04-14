@@ -27,7 +27,17 @@ export type ReceiptPreferences = {
   taxRate: number;
 };
 
+export type SetupStatus = {
+  isSetupDone: boolean;
+  activeOwnerCount: number;
+};
+
 export class SetupService {
+  async getSetupStatus(): Promise<SetupStatus> {
+    const response = await apiClient.get<SetupStatus>('/setup/status');
+    return response || { isSetupDone: false, activeOwnerCount: 0 };
+  }
+
   async importSeedFromExcel(content: Uint8Array): Promise<SeedImportResult> {
     try {
       const result = await apiClient.uploadFile<SeedImportResult>(

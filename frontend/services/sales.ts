@@ -1,16 +1,16 @@
 import type {
-  AddItemToOrderPayload,
-  CreateDiscountPayload,
-  CreateSalePayload,
-  CreateTablePayload,
-  DashboardSalesSummary,
-  DashboardTrendBucket,
-  RemoveItemFromOrderPayload,
-  SaleItemDetail,
-  SalePricingSummary,
-  UpdateDiscountPayload,
-  UpdateDraftOrderPayload,
-  UpdateTablePayload,
+    AddItemToOrderPayload,
+    CreateDiscountPayload,
+    CreateSalePayload,
+    CreateTablePayload,
+    DashboardSalesSummary,
+    DashboardTrendBucket,
+    RemoveItemFromOrderPayload,
+    SaleItemDetail,
+    SalePricingSummary,
+    UpdateDiscountPayload,
+    UpdateDraftOrderPayload,
+    UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
 import { apiClient } from './api-client';
@@ -132,12 +132,12 @@ export class SalesService {
   }
 
   async getOrderTypeSurchargeConfig(): Promise<OrderTypeSurchargeConfig> {
-    const response = await apiClient.get<OrderTypeSurchargeConfig>('/sales/surcharge-config');
+    const response = await apiClient.get<OrderTypeSurchargeConfig>('/sales/config/surcharges');
     return response || { toGoSurcharge: 0, deliverySurcharge: 0 };
   }
 
   async saveOrderTypeSurchargeConfig(payload: OrderTypeSurchargeConfig): Promise<void> {
-    await apiClient.put('/sales/surcharge-config', payload);
+    await apiClient.put('/sales/config/surcharges', payload);
   }
 
   async sendToKitchen(orderId: string): Promise<void> {
