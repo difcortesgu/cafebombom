@@ -1,9 +1,5 @@
 # CafeBomBom Frontend
 
-Cross-platform cafe management app built with Expo, React Native, and TypeScript.
-
-CafeBomBom supports daily cafe operations across mobile and web, including sales, inventory, products, accounts, and staff authentication.
-
 ## Requirements
 
 - Node.js 18 LTS (minimum)
@@ -18,8 +14,6 @@ CafeBomBom supports daily cafe operations across mobile and web, including sales
 - Expo + React Native + Expo Router
 - TypeScript
 - Zustand for state management
-- Drizzle ORM + Expo SQLite (native)
-- Dexie + IndexedDB (web)
 
 ## Installation (Development)
 
@@ -28,19 +22,6 @@ CafeBomBom supports daily cafe operations across mobile and web, including sales
 ```bash
 npm install
 ```
-
-2. (Optional) Generate migrations after schema changes:
-
-```bash
-npm run db:generate
-```
-
-Notes:
-
-- Database migrations and default seed data are applied during app startup.
-- Web and native use different data service implementations:
-    - Native uses SQLite
-    - Web uses IndexedDB
 
 ## How To Run
 
@@ -67,44 +48,6 @@ npm run web
 | `npm run ios` | Start app on iOS |
 | `npm run web` | Start app on web |
 | `npm run lint` | Run Expo ESLint configuration |
-| `npm run db:generate` | Generate Drizzle SQL migrations from schema changes |
-| `npm run db:studio` | Open Drizzle Studio |
-| `npm run reset-project` | Expo template reset script that can move/delete core app folders and create a blank starter app |
-
-## Features Implemented
-
-- Authentication
-    - PIN-based login
-    - Session tracking
-    - Role-based user support (owner/staff)
-- Dashboard
-    - Revenue summary
-    - Recent sales insights
-    - Low-stock indicators
-- Sales Management
-    - Create and track sales transactions
-    - Sale items and totals
-    - Table-linked sales flow
-- Table Management
-    - Restaurant table records and assignment support
-- Product Management
-    - Product catalog with categories and prices
-    - Product ingredient mapping
-- Inventory Management
-    - Ingredient stock tracking by unit
-    - Low-stock threshold tracking
-    - Restock logging
-    - Supplier linkage
-- Accounts and Finance
-    - Expense tracking
-    - Employee and payroll records
-    - Profit/Loss calculation support
-- Settings
-    - Theme mode and theme palette selection
-    - Sync toggle state in settings
-- Cross-Platform Data Layer
-    - Native service layer using SQLite
-    - Web service layer using IndexedDB
 
 ## Production Build Notes (Expo EAS)
 
@@ -142,18 +85,3 @@ If you also plan to publish web, use your preferred static hosting provider for 
 ## Testing Status
 
 - No automated test script is currently configured in package scripts.
-
-## Next Features To Implement
-
-- UX/UI Improvements and Persistent User Preferences
-- Biometric Authentication
-- Backups
-- Sync multiple devices
-- Ranking de productos por ventas mas popular menos popular
-- Promedios Semanales, por dias, por horas, mensuales
-- Inventario, cuando debo hacer pedido
-- Pedido de ingredientes hecho por los empleados
-- Que pasa si por algun accidente se pierden productos o ingredientes
-- Limite de descuentos diarios
-- Agrupar productos por categorias
-- Que se vea mas claro cuando se agrega un producto

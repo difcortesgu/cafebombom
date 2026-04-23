@@ -1,7 +1,5 @@
 # CafeBomBom Backend
 
-Express + TypeScript API server for CafeBomBom, supporting authentication, sales, inventory, products, accounts, and user management.
-
 ## Requirements
 
 - Node.js 18+
@@ -86,4 +84,3 @@ See `.env.example` for all available configuration options:
   - `types/` - TypeScript types
 
 ---
-For frontend setup, see the main [README.md](../README.md).
