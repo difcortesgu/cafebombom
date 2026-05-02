@@ -58,6 +58,10 @@ class ApiClient {
       throw new Error(errorMessage);
     }
 
+    if (response.status === 204 || response.headers.get('content-length') === '0') {
+      return null as unknown as T;
+    }
+
     if (!isJson) {
       throw new Error('Invalid response format');
     }

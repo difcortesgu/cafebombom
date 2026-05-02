@@ -19,7 +19,7 @@ import { UserManagementTable } from '@/components/user-management-table';
 import { THEME_OPTIONS } from '@/constants/theme';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { setupService } from '@/services';
+import { printService, setupService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
@@ -69,6 +69,8 @@ export default function SettingsScreen() {
     receiptFooterMessage,
     printerPaperWidth,
     taxRate,
+    printerDeviceName,
+    printerDeviceAddress,
     hydrateFromDb,
     toggleSync,
     markSynced,
@@ -79,6 +81,7 @@ export default function SettingsScreen() {
     setBusinessInfo,
     setPrinterPaperWidth,
     setTaxRate,
+    setPrinterDevice,
   } = useSettingsStore();
 
   const [section, setSection] = useState<SettingsSection>('ui');
@@ -90,6 +93,12 @@ export default function SettingsScreen() {
   const [businessLogoUriInput, setBusinessLogoUriInput] = useState(businessLogoUri ?? '');
   const [receiptFooterInput, setReceiptFooterInput] = useState(receiptFooterMessage);
   const [taxRateInput, setTaxRateInput] = useState((taxRate * 100).toFixed(2));
+  const [printerNameInput, setPrinterNameInput] = useState(printerDeviceName);
+  const [printerAddressInput, setPrinterAddressInput] = useState(printerDeviceAddress);
+  const [printerStatusMessage, setPrinterStatusMessage] = useState<string | null>(null);
+  const [printerTestBusy, setPrinterTestBusy] = useState(false);
+  const [bondedPrintersBusy, setBondedPrintersBusy] = useState(false);
+  const [bondedPrinters, setBondedPrinters] = useState<{ label: string; value: string }[]>([]);
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoMessage, setLogoMessage] = useState<string | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -156,6 +165,36 @@ export default function SettingsScreen() {
   }, [taxRate]);
 
   useEffect(() => {
+    setPrinterNameInput(printerDeviceName);
+  }, [printerDeviceName]);
+
+  useEffect(() => {
+    setPrinterAddressInput(printerDeviceAddress);
+  }, [printerDeviceAddress]);
+
+  useEffect(() => {
+    if (section !== 'app' || Platform.OS !== 'android') {
+      return;
+    }
+
+    void (async () => {
+      try {
+        setBondedPrintersBusy(true);
+        const devices = await printService.getBondedPrinters();
+        const items = devices.map((device) => ({
+          label: device.name?.trim() ? `${device.name} (${device.address})` : String(device.address),
+          value: String(device.address),
+        }));
+        setBondedPrinters(items);
+      } catch (error) {
+        setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
+      } finally {
+        setBondedPrintersBusy(false);
+      }
+    })();
+  }, [section]);
+
+  useEffect(() => {
     setProfileName(currentUser?.name ?? '');
   }, [currentUser?.name]);
 
@@ -194,6 +233,58 @@ export default function SettingsScreen() {
     const normalized = Number.isFinite(numeric) && numeric >= 0 ? numeric / 100 : taxRate;
     setTaxRate(normalized);
     setTaxRateInput((normalized * 100).toFixed(2));
+  };
+
+  const commitPrinterDevice = () => {
+    setPrinterDevice({
+      name: printerNameInput,
+      address: printerAddressInput,
+    });
+    setPrinterStatusMessage(t('settings.receipt.printerSaved'));
+  };
+
+  const clearPrinterDevice = () => {
+    setPrinterNameInput('');
+    setPrinterAddressInput('');
+    setPrinterDevice({ name: '', address: '' });
+    setPrinterStatusMessage(t('settings.receipt.printerCleared'));
+  };
+
+  const refreshBondedPrinters = async () => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    try {
+      setBondedPrintersBusy(true);
+      setPrinterStatusMessage(null);
+      const devices = await printService.getBondedPrinters();
+      const items = devices.map((device) => ({
+        label: device.name?.trim() ? `${device.name} (${device.address})` : String(device.address),
+        value: String(device.address),
+      }));
+      setBondedPrinters(items);
+    } catch (error) {
+      setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
+    } finally {
+      setBondedPrintersBusy(false);
+    }
+  };
+
+  const runPrinterTest = async () => {
+    try {
+      setPrinterTestBusy(true);
+      setPrinterStatusMessage(null);
+      await printService.printTestReceipt(printerPaperWidth, {
+        name: printerNameInput,
+        address: printerAddressInput,
+      });
+      setPrinterStatusMessage(t('settings.receipt.testPrinted'));
+    } catch (error) {
+      setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
+    } finally {
+      setPrinterTestBusy(false);
+    }
   };
 
   const resolveLogoExtension = (uri: string, mimeType?: string) => {
@@ -624,6 +715,67 @@ export default function SettingsScreen() {
                 );
               })}
             </View>
+
+            <ThemedText style={styles.muted}>{t('settings.receipt.printerConfigTitle')}</ThemedText>
+            {Platform.OS === 'android' ? (
+              <>
+                <ThemedSelect
+                  value={printerAddressInput}
+                  onValueChange={(value) => {
+                    const selected = bondedPrinters.find((item) => item.value === value);
+                    setPrinterAddressInput(value);
+                    if (selected) {
+                      const parsedName = selected.label.includes(' (')
+                        ? selected.label.split(' (')[0]
+                        : selected.label;
+                      setPrinterNameInput(parsedName);
+                    }
+                    setPrinterStatusMessage(null);
+                  }}
+                  items={bondedPrinters.length > 0 ? bondedPrinters : [{ label: t('settings.receipt.noBondedPrinters'), value: '' }]}
+                />
+                <ThemedButton
+                  variant="secondary"
+                  label={bondedPrintersBusy ? t('settings.receipt.refreshingPrinters') : t('settings.receipt.refreshPrinters')}
+                  disabled={bondedPrintersBusy}
+                  onPress={() => void refreshBondedPrinters()}
+                />
+              </>
+            ) : null}
+            <ThemedInput
+              value={printerNameInput}
+              placeholder={t('settings.receipt.printerName')}
+              onChangeText={setPrinterNameInput}
+              onBlur={commitPrinterDevice}
+            />
+            <ThemedInput
+              value={printerAddressInput}
+              placeholder={t('settings.receipt.printerAddress')}
+              onChangeText={setPrinterAddressInput}
+              onBlur={commitPrinterDevice}
+              autoCapitalize="characters"
+            />
+            <View style={styles.logoActions}>
+              <ThemedButton
+                variant="secondary"
+                label={t('settings.receipt.savePrinter')}
+                onPress={commitPrinterDevice}
+              />
+              <ThemedButton
+                variant="secondary"
+                label={printerTestBusy ? t('settings.receipt.testingPrinter') : t('settings.receipt.testPrinter')}
+                disabled={printerTestBusy}
+                onPress={() => void runPrinterTest()}
+              />
+              <ThemedButton
+                variant="secondary"
+                label={t('settings.receipt.clearPrinter')}
+                onPress={clearPrinterDevice}
+                disabled={printerTestBusy}
+              />
+            </View>
+            <ThemedText style={styles.muted}>{t('settings.receipt.printerHint')}</ThemedText>
+            {printerStatusMessage ? <ThemedText style={styles.muted}>{printerStatusMessage}</ThemedText> : null}
           </ThemedCard>
 
           <ThemedCard style={styles.card}>
@@ -754,7 +906,7 @@ export default function SettingsScreen() {
                   <ThemedText style={styles.muted}>{t('tables.empty')}</ThemedText>
                 ) : (
                   tables.map((table) => (
-                    <View key={table.id} style={[styles.tableRow, { borderColor: palette.border }]}> 
+                    <View key={table.id} style={[styles.tableRow, { borderColor: palette.border }]}>
                       <View style={styles.tableTextWrap}>
                         <ThemedText type="defaultSemiBold">{table.name}</ThemedText>
                         <ThemedText style={styles.muted}>

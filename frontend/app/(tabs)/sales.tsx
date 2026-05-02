@@ -201,6 +201,8 @@ export default function SalesScreen() {
     receiptFooterMessage,
     printerPaperWidth,
     taxRate,
+    printerDeviceName,
+    printerDeviceAddress,
   } = useSettingsStore();
 
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
@@ -423,8 +425,14 @@ export default function SalesScreen() {
 
     setPrintingBusy(true);
     try {
-      await printService.printReceipt(receiptData);
-      const status = await printService.getStatus();
+      await printService.printReceipt(receiptData, {
+        name: printerDeviceName,
+        address: printerDeviceAddress,
+      });
+      const status = await printService.getStatus({
+        name: printerDeviceName,
+        address: printerDeviceAddress,
+      });
       if (status.mode === 'native-pending') {
         setReceiptMessage(t('sales.receipt.pendingAdapter'));
       } else {
