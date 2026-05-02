@@ -63,7 +63,7 @@ export async function getSaleItems(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
   try {
     const items = await salesService.getSaleItems(id);
-    res.status(200).json(items);
+    res.status(200).json({ items });
   } catch (error) {
     console.error('[sales] getSaleItems failed:', error);
     res.status(500).json({ error: 'Failed to fetch sale items.' });
