@@ -181,6 +181,75 @@ export async function markOrderPaid(req: Request, res: Response): Promise<void> 
   }
 }
 
+export async function getSalePaymentBoard(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+
+  try {
+    const board = await salesService.getSalePaymentBoard(id);
+    res.status(200).json(board);
+  } catch (error: any) {
+    const msg = String(error?.message ?? '');
+    if (msg.includes('orden') || msg.includes('order')) {
+      res.status(404).json({ error: msg });
+      return;
+    }
+    console.error('[sales] getSalePaymentBoard failed:', error);
+    res.status(500).json({ error: 'Failed to fetch sale payment board.' });
+  }
+}
+
+export async function getSalePayments(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+
+  try {
+    const payments = await salesService.getSalePayments(id);
+    res.status(200).json({ payments });
+  } catch (error) {
+    console.error('[sales] getSalePayments failed:', error);
+    res.status(500).json({ error: 'Failed to fetch sale payments.' });
+  }
+}
+
+export async function createPartialPayment(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const { paymentMethod, lines } = req.body as {
+    paymentMethod?: PaymentMethod;
+    lines?: Array<{ saleItemId?: string; quantity?: number }>;
+  };
+
+  const validMethods: PaymentMethod[] = ['cash', 'card', 'transfer'];
+  if (!paymentMethod || !validMethods.includes(paymentMethod)) {
+    res.status(400).json({ error: 'paymentMethod must be cash, card, or transfer.' });
+    return;
+  }
+
+  if (!Array.isArray(lines) || lines.length === 0) {
+    res.status(400).json({ error: 'lines must be a non-empty array.' });
+    return;
+  }
+
+  try {
+    await salesService.createPartialPayment({
+      orderId: id,
+      paymentMethod,
+      lines: lines.map((line) => ({
+        saleItemId: String(line.saleItemId ?? ''),
+        quantity: Number(line.quantity ?? 0),
+      })),
+      paidBy: req.auth?.userId ?? null,
+    });
+    res.status(204).send();
+  } catch (error: any) {
+    const msg = String(error?.message ?? '');
+    if (msg.includes('pendiente') || msg.includes('Debe seleccionar') || msg.includes('excede') || msg.includes('status')) {
+      res.status(422).json({ error: msg });
+      return;
+    }
+    console.error('[sales] createPartialPayment failed:', error);
+    res.status(500).json({ error: 'Failed to create partial payment.' });
+  }
+}
+
 export async function cancelOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
   try {

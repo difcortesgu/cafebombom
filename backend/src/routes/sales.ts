@@ -2,6 +2,7 @@ import {
     addItemToOrder,
     cancelOrder,
     createDiscount,
+    createPartialPayment,
     createSale,
     createTable,
     deleteDiscount,
@@ -11,6 +12,8 @@ import {
     getHydrationData,
     getRevenueInRange,
     getSaleItems,
+    getSalePaymentBoard,
+    getSalePayments,
     getSalePricingSummary,
     getSurchargeConfig,
     getTables,
@@ -292,6 +295,9 @@ router.post('/:id/mark-ready', markOrderReady);
  *         description: Invalid status transition
  */
 router.post('/:id/mark-paid', markOrderPaid);
+router.get('/:id/payment-board', getSalePaymentBoard);
+router.get('/:id/payments', getSalePayments);
+router.post('/:id/partial-pay', createPartialPayment);
 
 /**
  * @openapi

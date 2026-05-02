@@ -24,6 +24,12 @@ type DashboardSaleItemRecord = {
   discount_amount: number;
 };
 
+type DashboardPaymentEventRecord = {
+  sale_id: string;
+  method: PaymentMethod;
+  total: number;
+};
+
 const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'card', 'transfer'];
 
 export const RECOGNIZED_REVENUE_STATUSES: OrderStatus[] = ['completed'];
@@ -79,12 +85,14 @@ function buildTrendBuckets(startUnix: number, endUnix: number, bucket: Dashboard
 export function buildDashboardSalesSummary({
   sales,
   saleItems,
+  paymentEvents,
   startUnix,
   endUnix,
   bucket,
 }: {
   sales: DashboardSaleRecord[];
   saleItems: DashboardSaleItemRecord[];
+  paymentEvents?: DashboardPaymentEventRecord[];
   startUnix: number;
   endUnix: number;
   bucket: DashboardTrendBucket;
@@ -112,14 +120,6 @@ export function buildDashboardSalesSummary({
     salesCount += 1;
     realizedSaleIds.add(sale.id);
 
-    if (sale.payment_method) {
-      const payment = paymentMap.get(sale.payment_method);
-      if (payment) {
-        payment.total += Number(sale.total);
-        payment.count += 1;
-      }
-    }
-
     const bucketStart = getBucketStartUnix(sale.created_at, bucket);
     const trendIndex = trendIndexByBucketStart.get(bucketStart);
     if (trendIndex != null) {
@@ -128,6 +128,36 @@ export function buildDashboardSalesSummary({
         total: trend[trendIndex].total + Number(sale.total),
         sale_count: trend[trendIndex].sale_count + 1,
       };
+    }
+  }
+
+  if (paymentEvents && paymentEvents.length > 0) {
+    for (const paymentEvent of paymentEvents) {
+      if (!realizedSaleIds.has(paymentEvent.sale_id)) {
+        continue;
+      }
+
+      const payment = paymentMap.get(paymentEvent.method);
+      if (!payment) {
+        continue;
+      }
+
+      payment.total += Number(paymentEvent.total);
+      payment.count += 1;
+    }
+  } else {
+    for (const sale of sales) {
+      if (!realizedSaleIds.has(sale.id) || !sale.payment_method) {
+        continue;
+      }
+
+      const payment = paymentMap.get(sale.payment_method);
+      if (!payment) {
+        continue;
+      }
+
+      payment.total += Number(sale.total);
+      payment.count += 1;
     }
   }
 

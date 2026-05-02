@@ -1,16 +1,19 @@
 import type {
-    AddItemToOrderPayload,
-    CreateDiscountPayload,
-    CreateSalePayload,
-    CreateTablePayload,
-    DashboardSalesSummary,
-    DashboardTrendBucket,
-    RemoveItemFromOrderPayload,
-    SaleItemDetail,
-    SalePricingSummary,
-    UpdateDiscountPayload,
-    UpdateDraftOrderPayload,
-    UpdateTablePayload,
+  AddItemToOrderPayload,
+  CreateDiscountPayload,
+  CreatePartialPaymentPayload,
+  CreateSalePayload,
+  CreateTablePayload,
+  DashboardSalesSummary,
+  DashboardTrendBucket,
+  RemoveItemFromOrderPayload,
+  SaleItemDetail,
+  SalePayment,
+  SalePaymentBoard,
+  SalePricingSummary,
+  UpdateDiscountPayload,
+  UpdateDraftOrderPayload,
+  UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
 import { apiClient } from './api-client';
@@ -150,6 +153,23 @@ export class SalesService {
 
   async markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void> {
     await apiClient.post(`/sales/${orderId}/mark-paid`, { paymentMethod });
+  }
+
+  async getSalePaymentBoard(orderId: string): Promise<SalePaymentBoard> {
+    const response = await apiClient.get<SalePaymentBoard>(`/sales/${orderId}/payment-board`);
+    return response || { sale_id: orderId, pending: [], paid: [] };
+  }
+
+  async getSalePayments(orderId: string): Promise<SalePayment[]> {
+    const response = await apiClient.get<{ payments: SalePayment[] }>(`/sales/${orderId}/payments`);
+    return response.payments || [];
+  }
+
+  async createPartialPayment(payload: CreatePartialPaymentPayload): Promise<void> {
+    await apiClient.post(`/sales/${payload.orderId}/partial-pay`, {
+      paymentMethod: payload.paymentMethod,
+      lines: payload.lines,
+    });
   }
 
   async addItemToOrder(payload: AddItemToOrderPayload): Promise<string> {

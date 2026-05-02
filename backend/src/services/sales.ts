@@ -1,24 +1,62 @@
 import { db } from '@/database';
-import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, sales, surcharges, users } from '@/database/schema';
+import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '@/database/schema';
 import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '@/services/analytics';
 import { salesErrorMessage } from '@/services/messages';
 import { calculateSaleDiscountBreakdown } from '@/services/pricing';
 import type {
-    AddItemToOrderPayload,
-    CreateDiscountPayload,
-    CreateSalePayload,
-    CreateTablePayload,
-    DashboardSalesSummary,
-    DashboardTrendBucket,
-    RemoveItemFromOrderPayload,
-    SaleItemDetail,
-    SalePricingSummary,
-    UpdateDiscountPayload,
-    UpdateDraftOrderPayload,
-    UpdateTablePayload,
+  AddItemToOrderPayload,
+  CreateDiscountPayload,
+  CreatePartialPaymentPayload,
+  CreateSalePayload,
+  CreateTablePayload,
+  DashboardSalesSummary,
+  DashboardTrendBucket,
+  RemoveItemFromOrderPayload,
+  SaleItemDetail,
+  SalePayment,
+  SalePaymentBoard,
+  SalePaymentBoardItem,
+  SalePaymentLine,
+  SalePricingSummary,
+  UpdateDiscountPayload,
+  UpdateDraftOrderPayload,
+  UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+
+function roundMoney(value: number): number {
+  return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
+}
+
+function clampQuantity(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.floor(value));
+}
+
+function allocateProportionally(total: number, weights: number[]): number[] {
+  const safeTotal = roundMoney(total);
+  if (safeTotal <= 0 || weights.length === 0) {
+    return weights.map(() => 0);
+  }
+
+  const safeWeights = weights.map((weight) => Math.max(0, Number(weight) || 0));
+  const weightSum = safeWeights.reduce((sum, value) => sum + value, 0);
+  if (weightSum <= 0) {
+    const evenShare = roundMoney(safeTotal / safeWeights.length);
+    const result = safeWeights.map(() => evenShare);
+    const currentSum = roundMoney(result.reduce((sum, value) => sum + value, 0));
+    result[result.length - 1] = roundMoney(result[result.length - 1] + (safeTotal - currentSum));
+    return result;
+  }
+
+  const provisional = safeWeights.map((weight) => roundMoney((safeTotal * weight) / weightSum));
+  const provisionalSum = roundMoney(provisional.reduce((sum, value) => sum + value, 0));
+  provisional[provisional.length - 1] = roundMoney(provisional[provisional.length - 1] + (safeTotal - provisionalSum));
+  return provisional;
+}
 
 export class SalesSqliteService {
   async getHydrationData() {
@@ -373,6 +411,7 @@ export class SalesSqliteService {
         product_id: saleItems.productId,
         product_name: products.name,
         quantity: saleItems.quantity,
+        quantity_paid: saleItems.quantityPaid,
         unit_price: saleItems.unitPrice,
         line_subtotal: saleItems.lineSubtotal,
         discount_name: saleItems.discountName,
@@ -389,8 +428,12 @@ export class SalesSqliteService {
         const lineSubtotal = Number(item.line_subtotal ?? Number(item.unit_price) * item.quantity);
         const discountAmount = Number(item.discount_amount ?? 0);
         const finalLineTotal = Math.max(0, lineSubtotal - discountAmount);
+        const quantityPaid = clampQuantity(Number(item.quantity_paid ?? 0));
+        const quantityPending = Math.max(0, item.quantity - quantityPaid);
         return {
           ...item,
+          quantity_paid: quantityPaid,
+          quantity_pending: quantityPending,
           line_subtotal: lineSubtotal,
           discount_amount: discountAmount,
           final_line_total: finalLineTotal,
@@ -488,9 +531,27 @@ export class SalesSqliteService {
       )
       .all();
 
+    const paymentEvents = db
+      .select({
+        sale_id: salePayments.saleId,
+        method: salePayments.paymentMethod,
+        total: salePayments.total,
+      })
+      .from(salePayments)
+      .innerJoin(sales, eq(sales.id, salePayments.saleId))
+      .where(
+        and(
+          gte(sales.createdAt, startUnix),
+          lt(sales.createdAt, endUnix),
+          inArray(sales.status, RECOGNIZED_REVENUE_STATUSES),
+        ),
+      )
+      .all() as Array<{ sale_id: string; method: PaymentMethod; total: number }>;
+
     return buildDashboardSalesSummary({
       sales: salesList,
       saleItems: saleItemsList,
+      paymentEvents,
       startUnix,
       endUnix,
       bucket,
@@ -625,6 +686,350 @@ export class SalesSqliteService {
     await this.autoCompleteIfReady(orderId);
   }
 
+  async getSalePayments(orderId: string): Promise<SalePayment[]> {
+    const payments = db
+      .select({
+        id: salePayments.id,
+        sale_id: salePayments.saleId,
+        payment_method: salePayments.paymentMethod,
+        subtotal: salePayments.subtotal,
+        item_discount_total: salePayments.itemDiscountTotal,
+        global_discount_amount: salePayments.globalDiscountAmount,
+        surcharge_amount: salePayments.surchargeAmount,
+        total: salePayments.total,
+        paid_at: salePayments.paidAt,
+        created_by_name: users.name,
+      })
+      .from(salePayments)
+      .leftJoin(users, eq(users.id, salePayments.createdBy))
+      .where(eq(salePayments.saleId, orderId))
+      .orderBy(salePayments.paidAt, salePayments.id)
+      .all() as Array<Omit<SalePayment, 'lines'>>;
+
+    const paymentLines = db
+      .select({
+        payment_id: salePaymentItems.paymentId,
+        payment_item_id: salePaymentItems.id,
+        sale_item_id: salePaymentItems.saleItemId,
+        product_id: saleItems.productId,
+        product_name: products.name,
+        quantity_paid: salePaymentItems.quantityPaid,
+        unit_price: salePaymentItems.unitPriceSnapshot,
+        line_subtotal: salePaymentItems.lineSubtotalSnapshot,
+        discount_amount: salePaymentItems.discountAmountSnapshot,
+        line_total: salePaymentItems.lineTotalSnapshot,
+      })
+      .from(salePaymentItems)
+      .innerJoin(salePayments, eq(salePayments.id, salePaymentItems.paymentId))
+      .innerJoin(saleItems, eq(saleItems.id, salePaymentItems.saleItemId))
+      .innerJoin(products, eq(products.id, saleItems.productId))
+      .where(eq(salePayments.saleId, orderId))
+      .all() as Array<SalePaymentLine & { payment_id: string }>;
+
+    const linesByPayment = new Map<string, SalePaymentLine[]>();
+    for (const line of paymentLines) {
+      if (!linesByPayment.has(line.payment_id)) {
+        linesByPayment.set(line.payment_id, []);
+      }
+      linesByPayment.get(line.payment_id)!.push({
+        payment_item_id: line.payment_item_id,
+        sale_item_id: line.sale_item_id,
+        product_id: line.product_id,
+        product_name: line.product_name,
+        quantity_paid: clampQuantity(line.quantity_paid),
+        unit_price: Number(line.unit_price),
+        line_subtotal: Number(line.line_subtotal),
+        discount_amount: Number(line.discount_amount),
+        line_total: Number(line.line_total),
+      });
+    }
+
+    return payments.map((payment) => ({
+      ...payment,
+      subtotal: Number(payment.subtotal),
+      item_discount_total: Number(payment.item_discount_total),
+      global_discount_amount: Number(payment.global_discount_amount),
+      surcharge_amount: Number(payment.surcharge_amount),
+      total: Number(payment.total),
+      paid_at: Number(payment.paid_at),
+      lines: linesByPayment.get(payment.id) ?? [],
+    }));
+  }
+
+  async getSalePaymentBoard(orderId: string): Promise<SalePaymentBoard> {
+    const order = db
+      .select({ id: sales.id })
+      .from(sales)
+      .where(eq(sales.id, orderId))
+      .get();
+
+    if (!order) {
+      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+    }
+
+    const pending = db
+      .select({
+        sale_item_id: saleItems.id,
+        product_id: saleItems.productId,
+        product_name: products.name,
+        unit_price: saleItems.unitPrice,
+        discount_amount_total: saleItems.discountAmount,
+        line_subtotal_total: saleItems.lineSubtotal,
+        quantity_total: saleItems.quantity,
+        quantity_paid: saleItems.quantityPaid,
+      })
+      .from(saleItems)
+      .innerJoin(products, eq(products.id, saleItems.productId))
+      .where(eq(saleItems.saleId, orderId))
+      .orderBy(saleItems.id)
+      .all()
+      .map((item) => {
+        const quantityTotal = clampQuantity(item.quantity_total);
+        const quantityPaid = clampQuantity(item.quantity_paid);
+        const quantityPending = Math.max(0, quantityTotal - quantityPaid);
+        const lineSubtotalTotal = Number(item.line_subtotal_total);
+        const discountAmountTotal = Number(item.discount_amount_total);
+        const lineTotalTotal = roundMoney(Math.max(0, lineSubtotalTotal - discountAmountTotal));
+        return {
+          sale_item_id: item.sale_item_id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          unit_price: Number(item.unit_price),
+          discount_amount_total: discountAmountTotal,
+          line_subtotal_total: lineSubtotalTotal,
+          line_total_total: lineTotalTotal,
+          quantity_total: quantityTotal,
+          quantity_paid: quantityPaid,
+          quantity_pending: quantityPending,
+        } satisfies SalePaymentBoardItem;
+      })
+      .filter((item) => item.quantity_pending > 0);
+
+    const paid = await this.getSalePayments(orderId);
+    return {
+      sale_id: orderId,
+      pending,
+      paid,
+    };
+  }
+
+  async createPartialPayment(payload: CreatePartialPaymentPayload): Promise<void> {
+    const order = db
+      .select({
+        status: sales.status,
+        subtotal: sales.subtotal,
+        item_discount_total: sales.itemDiscountTotal,
+        global_discount_amount: sales.orderDiscountAmount,
+        total: sales.total,
+      })
+      .from(sales)
+      .where(eq(sales.id, payload.orderId))
+      .get();
+
+    if (!order) {
+      throw new Error(salesErrorMessage('orderNotFound', { orderId: payload.orderId }));
+    }
+
+    if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
+      throw new Error(salesErrorMessage('markPaidInvalidStatus', { status: order.status }));
+    }
+
+    const lineSelectionMap = new Map<string, number>();
+    for (const rawLine of payload.lines) {
+      const quantity = clampQuantity(rawLine.quantity);
+      if (!rawLine.saleItemId || quantity <= 0) {
+        continue;
+      }
+      lineSelectionMap.set(rawLine.saleItemId, (lineSelectionMap.get(rawLine.saleItemId) ?? 0) + quantity);
+    }
+
+    if (lineSelectionMap.size === 0) {
+      throw new Error('Debe seleccionar al menos un item para pagar.');
+    }
+
+    const items = db
+      .select({
+        id: saleItems.id,
+        productId: saleItems.productId,
+        quantity: saleItems.quantity,
+        quantityPaid: saleItems.quantityPaid,
+        unitPrice: saleItems.unitPrice,
+        lineSubtotal: saleItems.lineSubtotal,
+        discountAmount: saleItems.discountAmount,
+      })
+      .from(saleItems)
+      .where(eq(saleItems.saleId, payload.orderId))
+      .all();
+
+    const selected: Array<{
+      saleItemId: string;
+      productId: string;
+      quantity: number;
+      quantityPaid: number;
+      quantityPending: number;
+      selectedQuantity: number;
+      unitPrice: number;
+      lineSubtotal: number;
+      discountAmount: number;
+    }> = [];
+
+    for (const item of items) {
+      const selectedQuantity = clampQuantity(lineSelectionMap.get(item.id) ?? 0);
+      if (selectedQuantity <= 0) {
+        continue;
+      }
+
+      const quantity = clampQuantity(item.quantity);
+      const quantityPaid = clampQuantity(item.quantityPaid);
+      const quantityPending = Math.max(0, quantity - quantityPaid);
+
+      if (selectedQuantity > quantityPending) {
+        throw new Error(`La cantidad seleccionada excede el pendiente para el item ${item.id}.`);
+      }
+
+      selected.push({
+        saleItemId: item.id,
+        productId: item.productId,
+        quantity,
+        quantityPaid,
+        quantityPending,
+        selectedQuantity,
+        unitPrice: Number(item.unitPrice),
+        lineSubtotal: Number(item.lineSubtotal),
+        discountAmount: Number(item.discountAmount),
+      });
+    }
+
+    if (selected.length === 0) {
+      throw new Error('Debe seleccionar al menos un item valido para pagar.');
+    }
+
+    const selectedLineSnapshots = selected.map((item) => {
+      const lineSubtotalPerUnit = item.quantity > 0 ? Number(item.lineSubtotal) / item.quantity : 0;
+      const lineDiscountPerUnit = item.quantity > 0 ? Number(item.discountAmount) / item.quantity : 0;
+      const lineSubtotal = roundMoney(lineSubtotalPerUnit * item.selectedQuantity);
+      const discountAmount = roundMoney(lineDiscountPerUnit * item.selectedQuantity);
+      const lineTotal = roundMoney(Math.max(0, lineSubtotal - discountAmount));
+      return {
+        saleItemId: item.saleItemId,
+        productId: item.productId,
+        selectedQuantity: item.selectedQuantity,
+        unitPrice: item.unitPrice,
+        lineSubtotal,
+        discountAmount,
+        lineTotal,
+      };
+    });
+
+    const selectedSubtotal = roundMoney(selectedLineSnapshots.reduce((sum, line) => sum + line.lineSubtotal, 0));
+    const selectedItemDiscountTotal = roundMoney(selectedLineSnapshots.reduce((sum, line) => sum + line.discountAmount, 0));
+    const selectedDiscountedSubtotal = roundMoney(Math.max(0, selectedSubtotal - selectedItemDiscountTotal));
+
+    const orderSubtotal = Number(order.subtotal ?? 0);
+    const orderItemDiscountTotal = Number(order.item_discount_total ?? 0);
+    const orderGlobalDiscountAmount = Number(order.global_discount_amount ?? 0);
+    const orderTotal = Number(order.total ?? 0);
+
+    const orderDiscountedSubtotal = roundMoney(Math.max(0, orderSubtotal - orderItemDiscountTotal));
+    const orderGlobalAndDiscountedTotal = roundMoney(Math.max(0, orderDiscountedSubtotal - orderGlobalDiscountAmount));
+    const orderSurchargeAmount = roundMoney(Math.max(0, orderTotal - orderGlobalAndDiscountedTotal));
+
+    const globalDiscountAmount = allocateProportionally(orderGlobalDiscountAmount, [selectedDiscountedSubtotal, Math.max(0, orderDiscountedSubtotal - selectedDiscountedSubtotal)])[0];
+    const surchargeAmount = allocateProportionally(orderSurchargeAmount, [selectedDiscountedSubtotal, Math.max(0, orderDiscountedSubtotal - selectedDiscountedSubtotal)])[0];
+
+    let paymentTotal = roundMoney(Math.max(0, selectedDiscountedSubtotal - globalDiscountAmount + surchargeAmount));
+
+    const paidSoFarRow = db
+      .select({ total: sql<number>`COALESCE(SUM(${salePayments.total}), 0)` })
+      .from(salePayments)
+      .where(eq(salePayments.saleId, payload.orderId))
+      .get();
+    const paidSoFar = roundMoney(Number(paidSoFarRow?.total ?? 0));
+    const remainingDue = roundMoney(Math.max(0, orderTotal - paidSoFar));
+
+    const closesPayment = items.every((item) => {
+      const selectedQuantity = clampQuantity(lineSelectionMap.get(item.id) ?? 0);
+      const quantity = clampQuantity(item.quantity);
+      const quantityPaid = clampQuantity(item.quantityPaid);
+      return quantity - (quantityPaid + selectedQuantity) <= 0;
+    });
+    let finalSurchargeAmount = surchargeAmount;
+    const finalGlobalDiscountAmount = globalDiscountAmount;
+    if (closesPayment) {
+      const delta = roundMoney(remainingDue - paymentTotal);
+      finalSurchargeAmount = roundMoney(finalSurchargeAmount + delta);
+      paymentTotal = roundMoney(Math.max(0, selectedDiscountedSubtotal - finalGlobalDiscountAmount + finalSurchargeAmount));
+    } else if (paymentTotal > remainingDue) {
+      throw new Error('El pago parcial excede el saldo pendiente de la orden.');
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
+    db.transaction((tx) => {
+      const [insertedPayment] = tx
+        .insert(salePayments)
+        .values({
+          saleId: payload.orderId,
+          paymentMethod: payload.paymentMethod,
+          subtotal: selectedSubtotal,
+          itemDiscountTotal: selectedItemDiscountTotal,
+          globalDiscountAmount: finalGlobalDiscountAmount,
+          surchargeAmount: finalSurchargeAmount,
+          total: paymentTotal,
+          paidAt: now,
+          createdBy: payload.paidBy ?? null,
+          syncedAt: null,
+        })
+        .returning({ id: salePayments.id })
+        .all();
+
+      if (!insertedPayment) {
+        throw new Error('No se pudo crear el pago parcial.');
+      }
+
+      for (const line of selectedLineSnapshots) {
+        tx.insert(salePaymentItems)
+          .values({
+            paymentId: insertedPayment.id,
+            saleItemId: line.saleItemId,
+            quantityPaid: line.selectedQuantity,
+            unitPriceSnapshot: line.unitPrice,
+            lineSubtotalSnapshot: line.lineSubtotal,
+            discountAmountSnapshot: line.discountAmount,
+            lineTotalSnapshot: line.lineTotal,
+          })
+          .run();
+
+        tx.update(saleItems)
+          .set({
+            quantityPaid: sql`${saleItems.quantityPaid} + ${line.selectedQuantity}`,
+          })
+          .where(eq(saleItems.id, line.saleItemId))
+          .run();
+      }
+
+      const pendingRow = tx
+        .select({
+          pending: sql<number>`COALESCE(SUM(CASE WHEN ${saleItems.quantity} - ${saleItems.quantityPaid} > 0 THEN ${saleItems.quantity} - ${saleItems.quantityPaid} ELSE 0 END), 0)`,
+        })
+        .from(saleItems)
+        .where(eq(saleItems.saleId, payload.orderId))
+        .get();
+
+      const hasPending = Number(pendingRow?.pending ?? 0) > 0;
+      tx.update(sales)
+        .set({
+          paidAt: hasPending ? null : now,
+          paymentMethod: hasPending ? null : payload.paymentMethod,
+          syncedAt: null,
+        })
+        .where(eq(sales.id, payload.orderId))
+        .run();
+    });
+
+    await this.autoCompleteIfReady(payload.orderId);
+  }
+
   async markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void> {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
@@ -636,20 +1041,30 @@ export class SalesSqliteService {
       throw new Error(salesErrorMessage('markPaidInvalidStatus', { status: order.status }));
     }
 
-    const paidAt = Math.floor(Date.now() / 1000);
-
-    // Simply mark as paid without changing status
-    db.update(sales)
-      .set({
-        paidAt,
-        paymentMethod,
-        syncedAt: null,
+    const pendingLines = db
+      .select({
+        saleItemId: saleItems.id,
+        quantity: saleItems.quantity,
+        quantityPaid: saleItems.quantityPaid,
       })
-      .where(eq(sales.id, orderId))
-      .run();
+      .from(saleItems)
+      .where(eq(saleItems.saleId, orderId))
+      .all()
+      .map((item) => ({
+        saleItemId: item.saleItemId,
+        quantity: Math.max(0, clampQuantity(item.quantity) - clampQuantity(item.quantityPaid)),
+      }))
+      .filter((line) => line.quantity > 0);
 
-    // Check if order should auto-complete
-    await this.autoCompleteIfReady(orderId);
+    if (pendingLines.length === 0) {
+      return;
+    }
+
+    await this.createPartialPayment({
+      orderId,
+      paymentMethod,
+      lines: pendingLines,
+    });
   }
 
   private async autoCompleteIfReady(orderId: string): Promise<void> {

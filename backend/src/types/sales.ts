@@ -46,6 +46,8 @@ export type SaleItemDetail = {
   product_id: string;
   product_name: string;
   quantity: number;
+  quantity_paid: number;
+  quantity_pending: number;
   unit_price: number;
   line_subtotal: number;
   final_unit_price: number;
@@ -110,4 +112,61 @@ export type AddItemToOrderPayload = {
 export type RemoveItemFromOrderPayload = {
   orderId: string;
   saleItemId: string;
+};
+
+export type PartialPaymentLineInput = {
+  saleItemId: string;
+  quantity: number;
+};
+
+export type CreatePartialPaymentPayload = {
+  orderId: string;
+  paymentMethod: PaymentMethod;
+  lines: PartialPaymentLineInput[];
+  paidBy?: string | null;
+};
+
+export type SalePaymentLine = {
+  payment_item_id: string;
+  sale_item_id: string;
+  product_id: string;
+  product_name: string;
+  quantity_paid: number;
+  unit_price: number;
+  line_subtotal: number;
+  discount_amount: number;
+  line_total: number;
+};
+
+export type SalePayment = {
+  id: string;
+  sale_id: string;
+  payment_method: PaymentMethod;
+  subtotal: number;
+  item_discount_total: number;
+  global_discount_amount: number;
+  surcharge_amount: number;
+  total: number;
+  paid_at: number;
+  created_by_name: string | null;
+  lines: SalePaymentLine[];
+};
+
+export type SalePaymentBoardItem = {
+  sale_item_id: string;
+  product_id: string;
+  product_name: string;
+  unit_price: number;
+  discount_amount_total: number;
+  line_subtotal_total: number;
+  line_total_total: number;
+  quantity_total: number;
+  quantity_paid: number;
+  quantity_pending: number;
+};
+
+export type SalePaymentBoard = {
+  sale_id: string;
+  pending: SalePaymentBoardItem[];
+  paid: SalePayment[];
 };

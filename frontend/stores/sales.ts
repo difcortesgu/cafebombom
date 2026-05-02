@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
-import type { AddItemToOrderPayload, CreateDiscountPayload, CreateSalePayload, DashboardSalesSummary, DashboardTrendBucket, RemoveItemFromOrderPayload, SaleItemDetail, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
+import type { AddItemToOrderPayload, CreateDiscountPayload, CreatePartialPaymentPayload, CreateSalePayload, DashboardSalesSummary, DashboardTrendBucket, RemoveItemFromOrderPayload, SaleItemDetail, SalePayment, SalePaymentBoard, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
 import type { Discount, PaymentMethod, Product, RestaurantTable, Sale, TableType } from '@/types/types';
 import { RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
 
@@ -13,6 +13,8 @@ type SalesState = {
   discounts: Discount[];
   saleItemsById: Record<string, SaleItemDetail[]>;
   salePricingById: Record<string, SalePricingSummary>;
+  salePaymentBoardById: Record<string, SalePaymentBoard>;
+  salePaymentsById: Record<string, SalePayment[]>;
   loading: boolean;
   hydrate: () => Promise<void>;
   createSale: (payload: CreateSalePayload) => Promise<void>;
@@ -28,6 +30,9 @@ type SalesState = {
   getDashboardSummary: (startUnix: number, endUnix: number, bucket?: DashboardTrendBucket) => Promise<DashboardSalesSummary>;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
   getSalePricingSummary: (saleId: string) => Promise<SalePricingSummary | null>;
+  getSalePaymentBoard: (saleId: string) => Promise<SalePaymentBoard>;
+  getSalePayments: (saleId: string) => Promise<SalePayment[]>;
+  createPartialPayment: (payload: CreatePartialPaymentPayload) => Promise<void>;
   sendToKitchen: (orderId: string) => Promise<void>;
   markOrderReady: (orderId: string) => Promise<void>;
   markOrderPaid: (orderId: string, paymentMethod: PaymentMethod) => Promise<void>;
@@ -48,6 +53,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
   discounts: [],
   saleItemsById: {},
   salePricingById: {},
+  salePaymentBoardById: {},
+  salePaymentsById: {},
   loading: false,
 
   hydrate: async () => {
@@ -137,6 +144,34 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     }
 
     return summary;
+  },
+
+  getSalePaymentBoard: async (saleId: string) => {
+    const board = await salesService.getSalePaymentBoard(saleId);
+    set((state) => ({
+      salePaymentBoardById: {
+        ...state.salePaymentBoardById,
+        [saleId]: board,
+      },
+    }));
+    return board;
+  },
+
+  getSalePayments: async (saleId: string) => {
+    const payments = await salesService.getSalePayments(saleId);
+    set((state) => ({
+      salePaymentsById: {
+        ...state.salePaymentsById,
+        [saleId]: payments,
+      },
+    }));
+    return payments;
+  },
+
+  createPartialPayment: async (payload: CreatePartialPaymentPayload) => {
+    await salesService.createPartialPayment(payload);
+    await get().hydrate();
+    await Promise.all([get().getSalePaymentBoard(payload.orderId), get().getSalePayments(payload.orderId)]);
   },
 
   sendToKitchen: async (orderId: string) => {

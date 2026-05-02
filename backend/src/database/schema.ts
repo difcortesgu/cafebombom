@@ -154,6 +154,7 @@ export const saleItems = sqliteTable('sale_items', {
   saleId: text('sale_id').notNull().references(() => sales.id),
   productId: text('product_id').notNull().references(() => products.id),
   quantity: integer('quantity').notNull(),
+  quantityPaid: integer('quantity_paid').notNull().default(0),
   unitPrice: real('unit_price').notNull(),
   lineSubtotal: real('line_subtotal').notNull().default(0),
   discountName: text('discount_name'),
@@ -161,6 +162,37 @@ export const saleItems = sqliteTable('sale_items', {
   discountValue: real('discount_value'),
   discountAmount: real('discount_amount').notNull().default(0),
 });
+
+export const salePayments = sqliteTable('sale_payments', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  saleId: text('sale_id').notNull().references(() => sales.id),
+  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull(),
+  subtotal: real('subtotal').notNull().default(0),
+  itemDiscountTotal: real('item_discount_total').notNull().default(0),
+  globalDiscountAmount: real('global_discount_amount').notNull().default(0),
+  surchargeAmount: real('surcharge_amount').notNull().default(0),
+  total: real('total').notNull().default(0),
+  paidAt: integer('paid_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  createdBy: text('created_by').references(() => users.id),
+  syncedAt: integer('synced_at'),
+}, (t) => [
+  index('idx_sale_payments_sale_id').on(t.saleId),
+  index('idx_sale_payments_paid_at').on(t.paidAt),
+]);
+
+export const salePaymentItems = sqliteTable('sale_payment_items', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  paymentId: text('payment_id').notNull().references(() => salePayments.id),
+  saleItemId: text('sale_item_id').notNull().references(() => saleItems.id),
+  quantityPaid: integer('quantity_paid').notNull(),
+  unitPriceSnapshot: real('unit_price_snapshot').notNull(),
+  lineSubtotalSnapshot: real('line_subtotal_snapshot').notNull(),
+  discountAmountSnapshot: real('discount_amount_snapshot').notNull().default(0),
+  lineTotalSnapshot: real('line_total_snapshot').notNull(),
+}, (t) => [
+  index('idx_sale_payment_items_payment_id').on(t.paymentId),
+  index('idx_sale_payment_items_sale_item_id').on(t.saleItemId),
+]);
 
 export const restockLogs = sqliteTable('restock_logs', {
   id: text('id').primaryKey().$defaultFn(() => uuidv4()),

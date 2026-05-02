@@ -8,6 +8,13 @@
       "when": 1775963190347,
       "tag": "0000_dashing_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1775963190348,
+      "tag": "0001_split_payment_board",
+      "breakpoints": true
     }
   ]
 }

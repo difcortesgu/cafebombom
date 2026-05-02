@@ -2,13 +2,13 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PaymentModal } from '@/components/payment-modal';
 import { ReceiptPreview } from '@/components/receipt-preview';
 import { SaleCanvasCard, type CanvasCardAction } from '@/components/sale-canvas-card';
 import { SaleStatusLane } from '@/components/sale-status-lane';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
@@ -17,7 +17,7 @@ import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
-import type { OrderStatus, PaymentMethod, RestaurantTable, Sale } from '@/types/types';
+import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
 import { buildReceiptData } from '@/utils/receipt';
 
 function buildFallbackPricingSummary(sale: Sale, items: SaleItemDetail[]): SalePricingSummary {
@@ -188,7 +188,6 @@ export default function SalesScreen() {
     tables,
     sendToKitchen,
     markOrderReady,
-    markOrderPaid,
     cancelOrder,
   } = useSalesStore();
   const {
@@ -208,14 +207,12 @@ export default function SalesScreen() {
   const [saleProductsById, setSaleProductsById] = useState<Record<string, string>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [receiptPreviewVisible, setReceiptPreviewVisible] = useState(false);
-  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
-  const [paymentSale, setPaymentSale] = useState<Sale | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('cash');
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [printingBusy, setPrintingBusy] = useState(false);
-  const [confirmPaymentBusy, setConfirmPaymentBusy] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [paymentModalSale, setPaymentModalSale] = useState<Sale | null>(null);
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [detailItems, setDetailItems] = useState<SaleItemDetail[]>([]);
   const [detailPricing, setDetailPricing] = useState<SalePricingSummary | null>(null);
@@ -282,12 +279,6 @@ export default function SalesScreen() {
       setBusyOrderId(null);
     }
   };
-
-  const paymentMethodOptions: { label: string; value: PaymentMethod }[] = [
-    { label: t('sales.payment.cash'), value: 'cash' },
-    { label: t('sales.payment.card'), value: 'card' },
-    { label: t('sales.payment.transfer'), value: 'transfer' },
-  ];
 
   const getActions = (sale: Sale): CanvasCardAction[] => {
     const disabled = busyOrderId === sale.id;
@@ -411,11 +402,9 @@ export default function SalesScreen() {
     await loadReceiptData(sale);
   };
 
-  const openPaymentFlow = async (sale: Sale) => {
-    setPaymentSale(sale);
-    setSelectedPaymentMethod(sale.payment_method ?? 'cash');
+  const openPaymentFlow = (sale: Sale) => {
+    setPaymentModalSale(sale);
     setPaymentModalVisible(true);
-    await loadReceiptData(sale);
   };
 
   const handlePrintReceipt = async () => {
@@ -442,23 +431,6 @@ export default function SalesScreen() {
       setReceiptMessage(String((error as Error).message || t('sales.receipt.error')));
     } finally {
       setPrintingBusy(false);
-    }
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!paymentSale) {
-      return;
-    }
-
-    setConfirmPaymentBusy(true);
-    try {
-      await runOrderAction(paymentSale.id, () => markOrderPaid(paymentSale.id, selectedPaymentMethod));
-      setPaymentModalVisible(false);
-      setPaymentSale(null);
-      setReceiptData(null);
-      setReceiptMessage(null);
-    } finally {
-      setConfirmPaymentBusy(false);
     }
   };
 
@@ -653,46 +625,25 @@ export default function SalesScreen() {
   );
 
   const paymentModal = (
-    <Modal visible={paymentModalVisible} transparent animationType="slide" onRequestClose={() => setPaymentModalVisible(false)}>
-      <View style={styles.modalBackdrop}>
-        <ThemedCard style={styles.modalCard}>
-          <ThemedText type="subtitle">{t('sales.action.receivePayment')}</ThemedText>
-          <ThemedText style={styles.smallText}>{t('sales.paymentMethod')}</ThemedText>
-          <ThemedSelect
-            value={selectedPaymentMethod}
-            onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
-            items={paymentMethodOptions}
-            placeholder={t('saleForm.selectPayment')}
-          />
-          {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
-          {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
-          {receiptMessage ? <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText> : null}
-          <View style={styles.modalActions}>
-            <ThemedButton
-              label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
-              disabled={!receiptData || printingBusy || receiptLoading || confirmPaymentBusy}
-              onPress={() => void handlePrintReceipt()}
-            />
-            <ThemedButton
-              label={confirmPaymentBusy ? `${t('sales.action.confirmPayment')}...` : t('sales.action.confirmPayment')}
-              disabled={receiptLoading || confirmPaymentBusy || !paymentSale}
-              onPress={() => void handleConfirmPayment()}
-            />
-            <ThemedButton
-              variant="secondary"
-              label={t('sales.receipt.close')}
-              disabled={confirmPaymentBusy}
-              onPress={() => {
-                setPaymentModalVisible(false);
-                setPaymentSale(null);
-                setReceiptData(null);
-                setReceiptMessage(null);
-              }}
-            />
-          </View>
-        </ThemedCard>
-      </View>
-    </Modal>
+    <PaymentModal
+      visible={paymentModalVisible}
+      sale={paymentModalSale}
+      onClose={() => {
+        setPaymentModalVisible(false);
+        setPaymentModalSale(null);
+      }}
+      business={{
+        name: businessName,
+        address: businessAddress,
+        phone: businessPhone,
+        logoUri: businessLogoUri,
+        footerMessage: receiptFooterMessage,
+        taxRate,
+        paperWidth: printerPaperWidth,
+        printerDeviceName,
+        printerDeviceAddress,
+      }}
+    />
   );
 
   /* ── Web: horizontal kanban ──────────────────────────── */
