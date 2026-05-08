@@ -26,15 +26,14 @@ See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
 
-- UX/UI Improvements and Persistent User Preferences
-- Biometric Authentication
-- Backups
-- Sync multiple devices
-- Ranking de productos por ventas mas popular menos popular
-- Promedios Semanales, por dias, por horas, mensuales
-- Inventario, cuando debo hacer pedido
-- Pedido de ingredientes hecho por los empleados
-- Que pasa si por algun accidente se pierden productos o ingredientes
-- Limite de descuentos diarios
-- Agrupar productos por categorias
-- Que se vea mas claro cuando se agrega un producto
+- Colocar anotaciones para cada producto, por ejemplo sin cebolla o sin salsa...
+- Eliminar recetas de ingredientes
+- Mejorar la forma de hacer restock Que se registren en gastos
+- Mover el restock también para que se pueda hacer desde gastos
+- Eliminar sync
+- Habilitar la posibilidad de eliminar algunos ingredientes cuando se haga una venta, por ejemplo sin cebolla no descuenta la cebolla del inventario si está en la receta
+- Si la cuenta se dividió, quiero después siempre poder imprimir los recibos parciales tal cual como se pagaron
+- Ajustar las unidades para que sean personalizables pero desde una lista predefinida
+- Cuando se haga un restock poder registrar el proveedor inline y que se guarde como un proveedor nuevo
+- Asociar por defecto el último proveedor usado para cada ingrediente en el restock
+- Agregar nit del negocio
