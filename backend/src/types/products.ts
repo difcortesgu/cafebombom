@@ -21,15 +21,6 @@ export type ProductIngredientLink = {
   quantityUsed: number;
 };
 
-export type IngredientCompositionLink = {
-  id: string;
-  parentIngredientId: string;
-  parentIngredientName: string;
-  childIngredientId: string;
-  childIngredientName: string;
-  quantityNeeded: number;
-};
-
 export type CreateProductPayload = {
   name: string;
   categoryId?: string;
@@ -63,13 +54,4 @@ export type RemoveProductIngredientPayload = {
   ingredientId: string;
 };
 
-export type SetCompositionPayload = {
-  parentIngredientId: string;
-  childIngredientId: string;
-  quantityNeeded: number;
-};
 
-export type RemoveCompositionPayload = {
-  parentIngredientId: string;
-  childIngredientId: string;
-};

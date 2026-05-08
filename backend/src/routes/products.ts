@@ -1,9 +1,7 @@
 import {
     createProduct,
     getHydrationData,
-    removeComposition,
     removeProductIngredient,
-    setComposition,
     setProductIngredient,
     updateProduct,
 } from '@/controllers/products';
@@ -145,55 +143,5 @@ router.put('/:id', requireRole('owner'), updateProduct);
  */
 router.put('/:id/ingredients/:ingredientId', requireRole('owner'), setProductIngredient);
 router.delete('/:id/ingredients/:ingredientId', requireRole('owner'), removeProductIngredient);
-
-/**
- * @openapi
- * /api/products/ingredients/{parentId}/composition/{childId}:
- *   put:
- *     tags: [Products]
- *     summary: Set a child ingredient composition on a parent ingredient (owner only)
- *     parameters:
- *       - in: path
- *         name: parentId
- *         required: true
- *         schema: { type: string }
- *       - in: path
- *         name: childId
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [quantityNeeded]
- *             properties:
- *               quantityNeeded: { type: number }
- *     responses:
- *       204:
- *         description: Set
- *       403:
- *         description: Forbidden
- *   delete:
- *     tags: [Products]
- *     summary: Remove a child ingredient composition (owner only)
- *     parameters:
- *       - in: path
- *         name: parentId
- *         required: true
- *         schema: { type: string }
- *       - in: path
- *         name: childId
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       204:
- *         description: Removed
- *       403:
- *         description: Forbidden
- */
-router.put('/ingredients/:parentId/composition/:childId', requireRole('owner'), setComposition);
-router.delete('/ingredients/:parentId/composition/:childId', requireRole('owner'), removeComposition);
 
 export default router;

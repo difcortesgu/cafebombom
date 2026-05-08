@@ -1,17 +1,14 @@
 import { db } from '@/database';
-import { categories, ingredientCompositions, ingredients, productIngredients, products } from '@/database/schema';
+import { categories, ingredients, productIngredients, products } from '@/database/schema';
 import type {
-    CategoryOption,
-    CreateProductPayload,
-    IngredientCompositionLink,
-    ProductDetail,
-    ProductIngredientLink,
-    ProductRecipeInput,
-    RemoveCompositionPayload,
-    RemoveProductIngredientPayload,
-    SetCompositionPayload,
-    SetProductIngredientPayload,
-    UpdateProductPayload,
+  CategoryOption,
+  CreateProductPayload,
+  ProductDetail,
+  ProductIngredientLink,
+  ProductRecipeInput,
+  RemoveProductIngredientPayload,
+  SetProductIngredientPayload,
+  UpdateProductPayload,
 } from '@/types/products';
 import { randomUUID } from 'crypto';
 import { and, eq, sql } from 'drizzle-orm';
@@ -35,13 +32,6 @@ export class ProductsSqliteService {
       .from(categories)
       .orderBy(categories.name)
       .all() as CategoryOption[];
-
-    const ingredientOptions = db
-      .select({ id: ingredients.id, name: ingredients.name })
-      .from(ingredients)
-      .all();
-
-    const ingredientNameById = new Map(ingredientOptions.map((ingredient) => [ingredient.id, ingredient.name]));
 
     const productsList = db
       .select({
@@ -75,28 +65,10 @@ export class ProductsSqliteService {
       .orderBy(productIngredients.productId, ingredients.name)
       .all() as ProductIngredientLink[];
 
-    const compositionRows = db
-      .select({
-        id: ingredientCompositions.id,
-        parentIngredientId: ingredientCompositions.parentIngredientId,
-        childIngredientId: ingredientCompositions.childIngredientId,
-        quantityNeeded: ingredientCompositions.quantityNeeded,
-      })
-      .from(ingredientCompositions)
-      .orderBy(ingredientCompositions.parentIngredientId, ingredientCompositions.childIngredientId)
-      .all();
-
-    const compositionLinks = compositionRows.map((row) => ({
-      ...row,
-      parentIngredientName: ingredientNameById.get(row.parentIngredientId) ?? 'Unknown',
-      childIngredientName: ingredientNameById.get(row.childIngredientId) ?? 'Unknown',
-    })) as IngredientCompositionLink[];
-
     return {
       categories: categoryOptions,
       products: productsList,
       productIngredients: ingredientLinks,
-      compositions: compositionLinks,
     };
   }
 
@@ -123,7 +95,7 @@ export class ProductsSqliteService {
         .run();
     });
 
-      return productId;
+    return productId;
   }
 
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {
@@ -189,46 +161,4 @@ export class ProductsSqliteService {
       .run();
   }
 
-  async setComposition({ parentIngredientId, childIngredientId, quantityNeeded }: SetCompositionPayload): Promise<void> {
-    if (parentIngredientId === childIngredientId) {
-      console.warn('[products] Rejecting self-reference composition.');
-      return;
-    }
-    if (quantityNeeded <= 0) {
-      return;
-    }
-
-    const existing = db
-      .select({ id: ingredientCompositions.id })
-      .from(ingredientCompositions)
-      .where(
-        and(
-          eq(ingredientCompositions.parentIngredientId, parentIngredientId),
-          eq(ingredientCompositions.childIngredientId, childIngredientId),
-        ),
-      )
-      .get();
-
-    if (existing) {
-      db.update(ingredientCompositions)
-        .set({ quantityNeeded, updatedAt: sql`cast(strftime('%s', 'now') as int)`, syncedAt: null })
-        .where(eq(ingredientCompositions.id, existing.id))
-        .run();
-    } else {
-      db.insert(ingredientCompositions)
-        .values({ parentIngredientId, childIngredientId, quantityNeeded })
-        .run();
-    }
-  }
-
-  async removeComposition({ parentIngredientId, childIngredientId }: RemoveCompositionPayload): Promise<void> {
-    db.delete(ingredientCompositions)
-      .where(
-        and(
-          eq(ingredientCompositions.parentIngredientId, parentIngredientId),
-          eq(ingredientCompositions.childIngredientId, childIngredientId),
-        ),
-      )
-      .run();
-  }
 }

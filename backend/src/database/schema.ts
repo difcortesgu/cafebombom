@@ -233,17 +233,4 @@ export const payrollEntries = sqliteTable('payroll_entries', {
   syncedAt: integer('synced_at'),
 });
 
-// Processed ingredient composition: parent ingredient requires child ingredient at a given quantity.
-// Used to model "processed ingredients" that are assembled from raw/leaf ingredients.
-export const ingredientCompositions = sqliteTable('ingredient_compositions', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
-  parentIngredientId: text('parent_ingredient_id').notNull().references(() => ingredients.id),
-  childIngredientId: text('child_ingredient_id').notNull().references(() => ingredients.id),
-  quantityNeeded: real('quantity_needed').notNull(),
-  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
-}, (t) => [
-  uniqueIndex('ingredient_compositions_unique').on(t.parentIngredientId, t.childIngredientId),
-  index('idx_ingredient_compositions_parent').on(t.parentIngredientId),
-]);
+

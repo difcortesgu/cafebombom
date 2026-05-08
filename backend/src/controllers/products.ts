@@ -79,33 +79,3 @@ export async function removeProductIngredient(req: Request, res: Response): Prom
     res.status(500).json({ error: 'Failed to remove product ingredient.' });
   }
 }
-
-export async function setComposition(req: Request, res: Response): Promise<void> {
-  const { parentId } = req.params as Record<string, string>;
-  const { childIngredientId, quantityNeeded } = req.body;
-
-  if (!childIngredientId || quantityNeeded == null) {
-    res.status(400).json({ error: 'childIngredientId and quantityNeeded are required.' });
-    return;
-  }
-
-  try {
-    await productsService.setComposition({ parentIngredientId: parentId, childIngredientId, quantityNeeded });
-    res.status(204).send();
-  } catch (error) {
-    console.error('[products] setComposition failed:', error);
-    res.status(500).json({ error: 'Failed to set ingredient composition.' });
-  }
-}
-
-export async function removeComposition(req: Request, res: Response): Promise<void> {
-  const { parentId, childId } = req.params as Record<string, string>;
-
-  try {
-    await productsService.removeComposition({ parentIngredientId: parentId, childIngredientId: childId });
-    res.status(204).send();
-  } catch (error) {
-    console.error('[products] removeComposition failed:', error);
-    res.status(500).json({ error: 'Failed to remove ingredient composition.' });
-  }
-}
