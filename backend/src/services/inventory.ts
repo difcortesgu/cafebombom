@@ -80,7 +80,6 @@ export class InventorySqliteService {
         lowStockThreshold: payload.low_stock_threshold ?? existing.lowStockThreshold,
         supplierId: payload.supplier_id ?? existing.supplierId,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-        syncedAt: null,
       })
       .where(eq(ingredients.id, id))
       .run();
@@ -112,7 +111,6 @@ export class InventorySqliteService {
       .set({
         quantity: sql`${ingredients.quantity} + ${quantityAdded}`,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-        syncedAt: null,
       })
       .where(eq(ingredients.id, ingredientId))
       .run();

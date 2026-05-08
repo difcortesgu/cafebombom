@@ -56,8 +56,6 @@ export default function SettingsScreen() {
   } = useSalesStore();
   const palette = useAppColors();
   const {
-    syncEnabled,
-    lastSyncAt,
     selectedThemeId,
     themeModePreference,
     deliverySurcharge,
@@ -72,8 +70,6 @@ export default function SettingsScreen() {
     printerDeviceName,
     printerDeviceAddress,
     hydrateFromDb,
-    toggleSync,
-    markSynced,
     setTheme,
     setThemeModePreference,
     setDeliverySurcharge,
@@ -955,24 +951,6 @@ export default function SettingsScreen() {
             {importIssues.map((issue) => (
               <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>{issue}</ThemedText>
             ))}
-          </ThemedCard>
-
-          <ThemedCard style={styles.card}>
-            <ThemedText type="subtitle">{t('settings.sync.title')}</ThemedText>
-            <ThemedText style={styles.muted}>{t('settings.sync.subtitle')}</ThemedText>
-
-            <ThemedButton
-              variant="secondary"
-              style={styles.secondaryButton}
-              label={syncEnabled ? t('settings.sync.disable') : t('settings.sync.enable')}
-              onPress={toggleSync}
-            />
-
-            <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('settings.sync.now')} onPress={markSynced} />
-
-            <ThemedText style={styles.muted}>
-              {t('settings.sync.last')}: {lastSyncAt ? new Date(lastSyncAt * 1000).toLocaleString() : t('settings.sync.never')}
-            </ThemedText>
           </ThemedCard>
 
           <ThemedCard style={styles.card}>

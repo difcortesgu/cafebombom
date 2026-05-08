@@ -10,7 +10,6 @@ export const users = sqliteTable('users', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 });
 
 export const sessions = sqliteTable('sessions', {
@@ -45,7 +44,6 @@ export const suppliers = sqliteTable('suppliers', {
   notes: text('notes'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 });
 
 export const ingredients = sqliteTable('ingredients', {
@@ -57,7 +55,6 @@ export const ingredients = sqliteTable('ingredients', {
   supplierId: text('supplier_id').references(() => suppliers.id),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_ingredients_low_stock').on(t.quantity, t.lowStockThreshold),
 ]);
@@ -67,7 +64,6 @@ export const categories = sqliteTable('categories', {
   name: text('name').notNull().unique(),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 });
 
 export const products = sqliteTable('products', {
@@ -79,7 +75,6 @@ export const products = sqliteTable('products', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 });
 
 export const productIngredients = sqliteTable('product_ingredients', {
@@ -89,7 +84,6 @@ export const productIngredients = sqliteTable('product_ingredients', {
   quantityUsed: real('quantity_used').notNull(),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   uniqueIndex('product_ingredients_unique').on(t.productId, t.ingredientId),
 ]);
@@ -100,7 +94,6 @@ export const restaurantTables = sqliteTable('restaurant_tables', {
   tableType: text('table_type', { enum: ['dine-in', 'to-go', 'delivery'] }).notNull().default('dine-in'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_restaurant_tables_name').on(t.name),
 ]);
@@ -117,7 +110,6 @@ export const discounts = sqliteTable('discounts', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_discounts_scope').on(t.scope),
   index('idx_discounts_active').on(t.isActive),
@@ -142,7 +134,6 @@ export const sales = sqliteTable('sales', {
   readyAt: integer('ready_at'),
   paidAt: integer('paid_at'),
   cancelledAt: integer('cancelled_at'),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_sales_created_at').on(t.createdAt),
   index('idx_sales_table_id').on(t.tableId),
@@ -174,7 +165,6 @@ export const salePayments = sqliteTable('sale_payments', {
   total: real('total').notNull().default(0),
   paidAt: integer('paid_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   createdBy: text('created_by').references(() => users.id),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_sale_payments_sale_id').on(t.saleId),
   index('idx_sale_payments_paid_at').on(t.paidAt),
@@ -201,7 +191,6 @@ export const restockLogs = sqliteTable('restock_logs', {
   cost: real('cost').notNull(),
   supplierId: text('supplier_id').references(() => suppliers.id),
   date: integer('date').notNull(),
-  syncedAt: integer('synced_at'),
 });
 
 export const expenses = sqliteTable('expenses', {
@@ -211,7 +200,6 @@ export const expenses = sqliteTable('expenses', {
   amount: real('amount').notNull(),
   description: text('description'),
   supplierId: text('supplier_id').references(() => suppliers.id),
-  syncedAt: integer('synced_at'),
 }, (t) => [
   index('idx_expenses_date').on(t.date),
 ]);
@@ -221,7 +209,6 @@ export const employees = sqliteTable('employees', {
   name: text('name').notNull().unique(),
   salaryType: text('salary_type', { enum: ['hourly', 'monthly'] }).notNull(),
   rate: real('rate').notNull(),
-  syncedAt: integer('synced_at'),
 });
 
 export const payrollEntries = sqliteTable('payroll_entries', {
@@ -230,7 +217,6 @@ export const payrollEntries = sqliteTable('payroll_entries', {
   periodStart: integer('period_start').notNull(),
   periodEnd: integer('period_end').notNull(),
   amount: real('amount').notNull(),
-  syncedAt: integer('synced_at'),
 });
 
 

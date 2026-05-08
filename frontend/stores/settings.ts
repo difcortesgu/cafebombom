@@ -49,8 +49,6 @@ async function writeStoredPrinterDevice(device: StoredPrinterDevice | null): Pro
 }
 
 type SettingsState = {
-  syncEnabled: boolean;
-  lastSyncAt: number | null;
   selectedThemeId: AppThemeId;
   themeModePreference: ThemeModePreference;
   deliverySurcharge: number;
@@ -65,8 +63,6 @@ type SettingsState = {
   printerDeviceName: string;
   printerDeviceAddress: string;
   hydrateFromDb: () => Promise<void>;
-  toggleSync: () => void;
-  markSynced: () => void;
   setTheme: (themeId: AppThemeId) => void;
   setThemeModePreference: (mode: ThemeModePreference) => void;
   setDeliverySurcharge: (value: number) => void;
@@ -78,8 +74,6 @@ type SettingsState = {
 };
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  syncEnabled: false,
-  lastSyncAt: null,
   selectedThemeId: 'cafe-classic',
   themeModePreference: 'system',
   deliverySurcharge: 0,
@@ -113,8 +107,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       printerDeviceAddress: storedPrinter?.address ?? '',
     });
   },
-  toggleSync: () => set((state) => ({ syncEnabled: !state.syncEnabled })),
-  markSynced: () => set({ lastSyncAt: Math.floor(Date.now() / 1000) }),
   setTheme: (themeId) => set({ selectedThemeId: themeId }),
   setThemeModePreference: (mode) => set({ themeModePreference: mode }),
   setDeliverySurcharge: (value) => {

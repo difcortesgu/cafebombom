@@ -180,7 +180,6 @@ export class SalesSqliteService {
         endsAt,
         isActive: payload.isActive,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-        syncedAt: null,
       })
       .where(eq(discounts.id, payload.id))
       .run();
@@ -230,7 +229,6 @@ export class SalesSqliteService {
         name: normalizedName,
         tableType,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-        syncedAt: null,
       })
       .where(eq(restaurantTables.id, id))
       .run();
@@ -368,7 +366,6 @@ export class SalesSqliteService {
           orderDiscountAmount: breakdown.globalDiscountAmount,
           discountAppliedBy: staffId,
           total: breakdown.total + normalizedSurcharge,
-          syncedAt: null,
         })
         .where(eq(sales.id, orderId))
         .run();
@@ -626,7 +623,6 @@ export class SalesSqliteService {
             .set({
               quantity: sql`MAX(0, ${ingredients.quantity} - ${leaf.quantity})`,
               updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-              syncedAt: null,
             })
             .where(eq(ingredients.id, leaf.ingredientId))
             .run();
@@ -649,7 +645,6 @@ export class SalesSqliteService {
     db.update(sales)
       .set({
         status: 'in-progress',
-        syncedAt: null,
       })
       .where(eq(sales.id, orderId))
       .run();
@@ -677,7 +672,6 @@ export class SalesSqliteService {
       .set({
         status: 'ready',
         readyAt,
-        syncedAt: null,
       })
       .where(eq(sales.id, orderId))
       .run();
@@ -978,7 +972,6 @@ export class SalesSqliteService {
           total: paymentTotal,
           paidAt: now,
           createdBy: payload.paidBy ?? null,
-          syncedAt: null,
         })
         .returning({ id: salePayments.id })
         .all();
@@ -1021,7 +1014,6 @@ export class SalesSqliteService {
         .set({
           paidAt: hasPending ? null : now,
           paymentMethod: hasPending ? null : payload.paymentMethod,
-          syncedAt: null,
         })
         .where(eq(sales.id, payload.orderId))
         .run();
@@ -1078,7 +1070,6 @@ export class SalesSqliteService {
       db.update(sales)
         .set({
           status: 'completed',
-          syncedAt: null,
         })
         .where(eq(sales.id, orderId))
         .run();
@@ -1138,7 +1129,6 @@ export class SalesSqliteService {
       .set({
         subtotal: orderItems?.subtotal ?? 0,
         total: orderItems?.subtotal ?? 0,
-        syncedAt: null,
       })
       .where(eq(sales.id, orderId))
       .run();
@@ -1174,7 +1164,6 @@ export class SalesSqliteService {
       .set({
         subtotal: orderItems?.subtotal ?? 0,
         total: orderItems?.subtotal ?? 0,
-        syncedAt: null,
       })
       .where(eq(sales.id, orderId))
       .run();
@@ -1200,7 +1189,6 @@ export class SalesSqliteService {
       .set({
         status: 'cancelled',
         cancelledAt,
-        syncedAt: null,
       })
       .where(eq(sales.id, orderId))
       .run();
@@ -1231,7 +1219,6 @@ export class SalesSqliteService {
               .set({
                 quantity: sql`${ingredients.quantity} + ${leaf.quantity}`,
                 updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-                syncedAt: null,
               })
               .where(eq(ingredients.id, leaf.ingredientId))
               .run();

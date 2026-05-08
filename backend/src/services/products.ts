@@ -117,7 +117,6 @@ export class ProductsSqliteService {
         imageUri: payload.imageUri !== undefined ? payload.imageUri : existing.imageUri,
         isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-        syncedAt: null,
       })
       .where(eq(products.id, id))
       .run();
@@ -136,7 +135,7 @@ export class ProductsSqliteService {
 
     if (existing) {
       db.update(productIngredients)
-        .set({ quantityUsed, updatedAt: sql`cast(strftime('%s', 'now') as int)`, syncedAt: null })
+        .set({ quantityUsed, updatedAt: sql`cast(strftime('%s', 'now') as int)` })
         .where(eq(productIngredients.id, existing.id))
         .run();
     } else {
