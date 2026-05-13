@@ -249,6 +249,7 @@ function buildTestReceipt(paperWidth: ReceiptPaperWidth): ReceiptData {
       name: 'CafeBomBom',
       address: 'Prueba de impresion',
       phone: '000-000-0000',
+      nit: '',
       logoUri: null,
       footerMessage: 'Ticket de prueba',
     },
@@ -266,6 +267,7 @@ function buildTestReceipt(paperWidth: ReceiptPaperWidth): ReceiptData {
       {
         id: 'test-item-1',
         name: 'Cafe Americano',
+        observation: null,
         quantity: 1,
         unitPrice: 5,
         lineSubtotal: 5,

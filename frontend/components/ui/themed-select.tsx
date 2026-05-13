@@ -128,45 +128,45 @@ export function ThemedSelect({
                   </ThemedText>
                 </Pressable>
               ) : (
-              showAddNew ? (
-                <View style={[styles.addNewRow, { borderTopColor: palette.border }]}>
-                  <ThemedInput
-                    placeholder={addNewPlaceholder || t('shared.select.addNewPlaceholder')}
-                    value={addNewText}
-                    onChangeText={setAddNewText}
-                    style={styles.addNewInput}
-                    autoFocus
-                  />
+                showAddNew ? (
+                  <View style={[styles.addNewRow, { borderTopColor: palette.border }]}>
+                    <ThemedInput
+                      placeholder={addNewPlaceholder || t('shared.select.addNewPlaceholder')}
+                      value={addNewText}
+                      onChangeText={setAddNewText}
+                      style={styles.addNewInput}
+                      autoFocus
+                    />
+                    <Pressable
+                      style={[styles.addNewConfirm, { backgroundColor: palette.tint }]}
+                      onPress={async () => {
+                        const trimmed = addNewText.trim();
+                        if (!trimmed) return;
+                        await onAddNew?.(trimmed);
+                        setAddNewText('');
+                        setShowAddNew(false);
+                      }}>
+                      <MaterialIcons name="check" size={20} color="#fff" />
+                    </Pressable>
+                    <Pressable
+                      style={[styles.addNewCancel, { backgroundColor: palette.border }]}
+                      onPress={() => {
+                        setShowAddNew(false);
+                        setAddNewText('');
+                      }}>
+                      <MaterialIcons name="close" size={20} color={palette.text} />
+                    </Pressable>
+                  </View>
+                ) : (
                   <Pressable
-                    style={[styles.addNewConfirm, { backgroundColor: palette.tint }]}
-                    onPress={async () => {
-                      const trimmed = addNewText.trim();
-                      if (!trimmed) return;
-                      await onAddNew(trimmed);
-                      setAddNewText('');
-                      setShowAddNew(false);
-                    }}>
-                    <MaterialIcons name="check" size={20} color="#fff" />
+                    style={[styles.addNewButton, { borderTopColor: palette.border }]}
+                    onPress={() => setShowAddNew(true)}>
+                    <MaterialIcons name="add" size={18} color={palette.tint} />
+                    <ThemedText style={[styles.addNewLabel, { color: palette.tint }]}>
+                      {addNewLabel || t('shared.select.addNew')}
+                    </ThemedText>
                   </Pressable>
-                  <Pressable
-                    style={[styles.addNewCancel, { backgroundColor: palette.border }]}
-                    onPress={() => {
-                      setShowAddNew(false);
-                      setAddNewText('');
-                    }}>
-                    <MaterialIcons name="close" size={20} color={palette.text} />
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable
-                  style={[styles.addNewButton, { borderTopColor: palette.border }]}
-                  onPress={() => setShowAddNew(true)}>
-                  <MaterialIcons name="add" size={18} color={palette.tint} />
-                  <ThemedText style={[styles.addNewLabel, { color: palette.tint }]}>
-                    {addNewLabel || t('shared.select.addNew')}
-                  </ThemedText>
-                </Pressable>
-              )
+                )
               )
             ) : null}
 

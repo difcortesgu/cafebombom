@@ -18,6 +18,7 @@ export type SplitPaymentBusiness = {
     name: string;
     address: string;
     phone: string;
+    nit: string;
     logoUri: string | null;
     footerMessage: string;
     taxRate: number;

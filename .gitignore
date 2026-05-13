@@ -1,0 +1,22 @@
+# Global workspace/local files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Root env files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.swp

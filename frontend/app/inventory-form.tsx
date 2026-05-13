@@ -109,7 +109,7 @@ export default function InventoryFormScreen() {
 
       return {
         ...current,
-        supplierId: ingredient.supplier_id,
+        supplierId: ingredient.supplier_id ?? '',
       };
     });
   }, [ingredients, restockForm.ingredientId, restockForm.supplierId]);
