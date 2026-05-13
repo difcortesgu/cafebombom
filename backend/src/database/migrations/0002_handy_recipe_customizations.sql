@@ -1,0 +1,1 @@
+ALTER TABLE `sale_items` ADD `removed_ingredient_ids` text DEFAULT '[]' NOT NULL;

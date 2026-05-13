@@ -29,6 +29,7 @@ See the respective README in each folder for setup and usage instructions.
 - Colocar anotaciones para cada producto, por ejemplo sin cebolla o sin salsa...
 
 - Mejorar la forma de hacer restock Que se registren en gastos
+
 - Mover el restock también para que se pueda hacer desde gastos
 
 - Habilitar la posibilidad de eliminar algunos ingredientes cuando se haga una venta, por ejemplo sin cebolla no descuenta la cebolla del inventario si está en la receta

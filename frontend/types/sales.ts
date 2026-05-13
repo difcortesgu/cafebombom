@@ -48,6 +48,7 @@ export type SaleItemDetail = {
   quantity: number;
   quantity_paid: number;
   quantity_pending: number;
+  removed_ingredient_ids: string[];
   unit_price: number;
   line_subtotal: number;
   final_unit_price: number;

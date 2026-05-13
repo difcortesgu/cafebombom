@@ -10,17 +10,50 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
+import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { TableType } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 type CartItem = {
+  id: string;
   productId: string;
   name: string;
   unitPrice: number;
   quantity: number;
+  removedIngredientIds: string[];
 };
+
+function createCartItemId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function normalizeIngredientIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.map((value) => value.trim()).filter((value) => value.length > 0))).sort();
+}
+
+function buildCustomizationKey(productId: string, removedIngredientIds: string[]): string {
+  return `${productId}::${normalizeIngredientIds(removedIngredientIds).join(',')}`;
+}
+
+function mergeCartLines(items: CartItem[]): CartItem[] {
+  const grouped = new Map<string, CartItem>();
+  for (const item of items) {
+    const removedIngredientIds = normalizeIngredientIds(item.removedIngredientIds);
+    const key = buildCustomizationKey(item.productId, removedIngredientIds);
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.quantity += item.quantity;
+      continue;
+    }
+    grouped.set(key, {
+      ...item,
+      removedIngredientIds,
+    });
+  }
+  return [...grouped.values()];
+}
 
 function getTableSurcharge(tableType: TableType, toGoSurcharge: number, deliverySurcharge: number) {
   const safeToGo = Math.max(0, toGoSurcharge);
@@ -49,6 +82,7 @@ export default function SaleFormScreen() {
   const { orderId } = useLocalSearchParams<{ orderId?: string }>();
   const user = useAuthStore((state) => state.currentUser);
   const { hydrate, products, tables, discounts, sales, createSale, updateDraftOrder } = useSalesStore();
+  const { productIngredients, hydrate: hydrateProducts } = useProductsStore();
   const { deliverySurcharge, toGoSurcharge, hydrateFromDb } = useSettingsStore();
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -68,8 +102,9 @@ export default function SaleFormScreen() {
   useFocusEffect(
     useCallback(() => {
       void hydrate();
+      void hydrateProducts();
       void hydrateFromDb();
-    }, [hydrate, hydrateFromDb]),
+    }, [hydrate, hydrateFromDb, hydrateProducts]),
   );
 
   useEffect(() => {
@@ -102,15 +137,19 @@ export default function SaleFormScreen() {
 
         const itemMap = new Map<string, CartItem>();
         for (const item of items) {
-          const existing = itemMap.get(item.product_id);
+          const removedIngredientIds = normalizeIngredientIds(item.removed_ingredient_ids ?? []);
+          const key = buildCustomizationKey(item.product_id, removedIngredientIds);
+          const existing = itemMap.get(key);
           if (existing) {
             existing.quantity += item.quantity;
           } else {
-            itemMap.set(item.product_id, {
+            itemMap.set(key, {
+              id: createCartItemId(),
               productId: item.product_id,
               name: item.product_name,
               unitPrice: Number(item.unit_price),
               quantity: item.quantity,
+              removedIngredientIds,
             });
           }
         }
@@ -172,6 +211,17 @@ export default function SaleFormScreen() {
     [cart, discounts, nowUnix, selectedGlobalDiscountId],
   );
 
+  const recipeByProductId = useMemo(() => {
+    const map = new Map<string, typeof productIngredients>();
+    for (const link of productIngredients) {
+      if (!map.has(link.productId)) {
+        map.set(link.productId, []);
+      }
+      map.get(link.productId)!.push(link);
+    }
+    return map;
+  }, [productIngredients]);
+
   const selectedTable = useMemo(
     () => tables.find((table) => table.id === selectedTableId) ?? null,
     [selectedTableId, tables],
@@ -204,7 +254,7 @@ export default function SaleFormScreen() {
     }
 
     const result: { category: string | null; products: typeof products }[] = [];
-    
+
     // Sort categories alphabetically
     const sortedCategories = Array.from(grouped.keys()).sort();
     sortedCategories.forEach((category) => {
@@ -221,20 +271,60 @@ export default function SaleFormScreen() {
 
   const addToCart = (productId: string, name: string, unitPrice: number) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.productId === productId);
+      const existing = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0);
       if (existing) {
-        return prev.map((item) => (item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item));
+        return prev.map((item) => (item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item));
       }
-      return [...prev, { productId, name, unitPrice, quantity: 1 }];
+      return [...prev, { id: createCartItemId(), productId, name, unitPrice, quantity: 1, removedIngredientIds: [] }];
     });
   };
 
-  const updateQty = (productId: string, delta: number) => {
+  const decrementProductInCatalog = (productId: string) => {
+    setCart((prev) => {
+      const preferred = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0)
+        ?? prev.find((item) => item.productId === productId);
+
+      if (!preferred) {
+        return prev;
+      }
+
+      return prev
+        .map((item) => (item.id === preferred.id ? { ...item, quantity: Math.max(0, item.quantity - 1) } : item))
+        .filter((item) => item.quantity > 0);
+    });
+  };
+
+  const getProductTotalQuantity = (productId: string): number => {
+    return cart
+      .filter((item) => item.productId === productId)
+      .reduce((sum, item) => sum + item.quantity, 0);
+  };
+
+  const updateQty = (cartItemId: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((item) => (item.productId === productId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item))
+        .map((item) => (item.id === cartItemId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item))
         .filter((item) => item.quantity > 0),
     );
+  };
+
+  const toggleRemovedIngredient = (cartItemId: string, ingredientId: string) => {
+    setCart((prev) => {
+      const next = prev.map((item) => {
+        if (item.id !== cartItemId) {
+          return item;
+        }
+        const hasIngredient = item.removedIngredientIds.includes(ingredientId);
+        const removedIngredientIds = hasIngredient
+          ? item.removedIngredientIds.filter((id) => id !== ingredientId)
+          : [...item.removedIngredientIds, ingredientId];
+        return {
+          ...item,
+          removedIngredientIds: normalizeIngredientIds(removedIngredientIds),
+        };
+      });
+      return mergeCartLines(next);
+    });
   };
 
   const submitSale = async () => {
@@ -248,6 +338,7 @@ export default function SaleFormScreen() {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        removedIngredientIds: item.removedIngredientIds,
       })),
       tableId: selectedTableId,
       globalDiscountId: selectedGlobalDiscountId || null,
@@ -277,8 +368,7 @@ export default function SaleFormScreen() {
           </ThemedText>
           <View style={styles.categoryGrid}>
             {categoryProducts.map((product) => {
-              const cartItem = cart.find((item) => item.productId === product.id);
-              const quantity = cartItem?.quantity ?? 0;
+              const quantity = getProductTotalQuantity(product.id);
               const isSelected = quantity > 0;
 
               return (
@@ -318,7 +408,7 @@ export default function SaleFormScreen() {
                         style={[styles.qtyControlButton, { backgroundColor: palette.tint }]}
                         onPress={(e) => {
                           e.stopPropagation();
-                          updateQty(product.id, -1);
+                          decrementProductInCatalog(product.id);
                         }}
                         disabled={Boolean(editingOrderId && !canEditDraft)}>
                         <ThemedText style={styles.qtyControlButtonText}>−</ThemedText>
@@ -327,7 +417,7 @@ export default function SaleFormScreen() {
                         style={[styles.qtyControlButton, { backgroundColor: palette.tint }]}
                         onPress={(e) => {
                           e.stopPropagation();
-                          updateQty(product.id, 1);
+                          addToCart(product.id, product.name, Number(product.price));
                         }}
                         disabled={Boolean(editingOrderId && !canEditDraft)}>
                         <ThemedText style={styles.qtyControlButtonText}>+</ThemedText>
@@ -392,22 +482,52 @@ export default function SaleFormScreen() {
             <ThemedText style={styles.smallText}>{t('saleForm.noItems')}</ThemedText>
           ) : (
             cart.map((item) => (
-              <View key={item.productId} style={styles.compactCartRow}>
+              <View key={item.id} style={styles.compactCartRow}>
                 <View style={styles.compactCartDetails}>
                   <ThemedText style={styles.compactProductName}>{item.name}</ThemedText>
                   <ThemedText style={styles.tinyText}>${item.unitPrice.toFixed(2)}</ThemedText>
+                  {item.removedIngredientIds.length > 0 ? (
+                    <ThemedText style={styles.tinyText}>
+                      {t('saleForm.withoutLabel')}: {item.removedIngredientIds
+                        .map((ingredientId) => recipeByProductId.get(item.productId)?.find((x) => x.ingredientId === ingredientId)?.ingredientName)
+                        .filter((name): name is string => Boolean(name))
+                        .join(', ')}
+                    </ThemedText>
+                  ) : null}
+                  {(recipeByProductId.get(item.productId)?.length ?? 0) > 0 ? (
+                    <View style={styles.removedIngredientsRow}>
+                      {(recipeByProductId.get(item.productId) ?? []).map((ingredient) => {
+                        const removed = item.removedIngredientIds.includes(ingredient.ingredientId);
+                        return (
+                          <Pressable
+                            key={`${item.id}-${ingredient.ingredientId}`}
+                            onPress={() => toggleRemovedIngredient(item.id, ingredient.ingredientId)}
+                            style={[
+                              styles.ingredientToggleChip,
+                              { borderColor: removed ? palette.tint : palette.border },
+                              removed ? { backgroundColor: `${palette.tint}20` } : null,
+                            ]}
+                            disabled={Boolean(editingOrderId && !canEditDraft)}>
+                            <ThemedText style={styles.ingredientToggleText}>
+                              {removed ? t('saleForm.withoutChip') : t('saleForm.removeChip')} {ingredient.ingredientName}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
                 </View>
                 <View style={styles.compactQtyControl}>
                   <Pressable
                     style={[styles.compactQtyButton, { borderColor: palette.border }]}
-                    onPress={() => updateQty(item.productId, -1)}
+                    onPress={() => updateQty(item.id, -1)}
                     disabled={Boolean(editingOrderId && !canEditDraft)}>
                     <ThemedText style={styles.tinyText}>−</ThemedText>
                   </Pressable>
                   <ThemedText style={styles.tinyText}>{item.quantity}</ThemedText>
                   <Pressable
                     style={[styles.compactQtyButton, { borderColor: palette.border }]}
-                    onPress={() => updateQty(item.productId, 1)}
+                    onPress={() => updateQty(item.id, 1)}
                     disabled={Boolean(editingOrderId && !canEditDraft)}>
                     <ThemedText style={styles.tinyText}>+</ThemedText>
                   </Pressable>
@@ -654,6 +774,22 @@ const styles = StyleSheet.create({
   compactProductName: {
     fontWeight: '600',
     fontSize: 12,
+  },
+  removedIngredientsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  ingredientToggleChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  ingredientToggleText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
   qtyControl: {
     flexDirection: 'row',

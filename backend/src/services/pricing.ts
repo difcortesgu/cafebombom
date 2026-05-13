@@ -4,6 +4,7 @@ export type SaleItemDiscountBreakdown = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  removedIngredientIds: string[];
   lineSubtotal: number;
   lineTotal: number;
   finalUnitPrice: number;
@@ -80,6 +81,9 @@ export function calculateSaleDiscountBreakdown(
   const itemBreakdowns = items.map((item) => {
     const safeUnitPrice = roundMoney(toValidNumber(item.unitPrice));
     const safeQty = Math.max(0, Math.floor(toValidNumber(item.quantity)));
+    const removedIngredientIds = Array.isArray(item.removedIngredientIds)
+      ? Array.from(new Set(item.removedIngredientIds.filter((value): value is string => typeof value === 'string' && value.length > 0)))
+      : [];
     const lineSubtotal = roundMoney(safeUnitPrice * safeQty);
 
     const selectedProductDiscount = activeProductDiscounts
@@ -97,6 +101,7 @@ export function calculateSaleDiscountBreakdown(
       productId: item.productId,
       quantity: safeQty,
       unitPrice: safeUnitPrice,
+      removedIngredientIds,
       lineSubtotal,
       lineTotal,
       finalUnitPrice,

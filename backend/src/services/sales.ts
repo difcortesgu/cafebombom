@@ -59,6 +59,30 @@ function allocateProportionally(total: number, weights: number[]): number[] {
 }
 
 export class SalesSqliteService {
+  private normalizeRemovedIngredientIds(raw: unknown): string[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return Array.from(new Set(raw
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0)));
+  }
+
+  private parseRemovedIngredientIds(raw: string | null | undefined): string[] {
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return this.normalizeRemovedIngredientIds(parsed);
+    } catch {
+      return [];
+    }
+  }
+
   async getHydrationData() {
     const productsList = db
       .select({
@@ -297,6 +321,7 @@ export class SalesSqliteService {
             saleId: newSale.id,
             productId: item.productId,
             quantity: item.quantity,
+            removedIngredientIds: JSON.stringify(item.removedIngredientIds),
             unitPrice: item.unitPrice,
             lineSubtotal: item.lineSubtotal,
             discountName: item.discountSnapshot.discountName,
@@ -376,6 +401,7 @@ export class SalesSqliteService {
             saleId: orderId,
             productId: item.productId,
             quantity: item.quantity,
+            removedIngredientIds: JSON.stringify(item.removedIngredientIds),
             unitPrice: item.unitPrice,
             lineSubtotal: item.lineSubtotal,
             discountName: item.discountSnapshot.discountName,
@@ -409,6 +435,7 @@ export class SalesSqliteService {
         product_name: products.name,
         quantity: saleItems.quantity,
         quantity_paid: saleItems.quantityPaid,
+        removed_ingredient_ids: saleItems.removedIngredientIds,
         unit_price: saleItems.unitPrice,
         line_subtotal: saleItems.lineSubtotal,
         discount_name: saleItems.discountName,
@@ -431,6 +458,7 @@ export class SalesSqliteService {
           ...item,
           quantity_paid: quantityPaid,
           quantity_pending: quantityPending,
+          removed_ingredient_ids: this.parseRemovedIngredientIds(item.removed_ingredient_ids),
           line_subtotal: lineSubtotal,
           discount_amount: discountAmount,
           final_line_total: finalLineTotal,
@@ -603,6 +631,7 @@ export class SalesSqliteService {
       .select({
         productId: saleItems.productId,
         quantity: saleItems.quantity,
+        removedIngredientIds: saleItems.removedIngredientIds,
       })
       .from(saleItems)
       .where(eq(saleItems.saleId, orderId))
@@ -610,13 +639,16 @@ export class SalesSqliteService {
 
     db.transaction((tx) => {
       for (const item of orderItems) {
+        const removedIngredientIds = this.parseRemovedIngredientIds(item.removedIngredientIds);
         const recipeEdges = tx
           .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
           .from(productIngredients)
           .where(eq(productIngredients.productId, item.productId))
           .all();
 
-        const leafConsumptions = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+        const leafConsumptions = recipeEdges
+          .filter(({ ingredientId }) => !removedIngredientIds.includes(ingredientId))
+          .map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
 
         for (const leaf of leafConsumptions) {
           tx.update(ingredients)
@@ -1100,12 +1132,14 @@ export class SalesSqliteService {
     }
 
     const lineSubtotal = item.unitPrice * item.quantity;
+    const removedIngredientIds = this.normalizeRemovedIngredientIds(item.removedIngredientIds ?? []);
 
     const [inserted] = db.insert(saleItems)
       .values({
         saleId: orderId,
         productId: item.productId,
         quantity: item.quantity,
+        removedIngredientIds: JSON.stringify(removedIngredientIds),
         unitPrice: item.unitPrice,
         lineSubtotal,
       })
@@ -1199,6 +1233,7 @@ export class SalesSqliteService {
         .select({
           productId: saleItems.productId,
           quantity: saleItems.quantity,
+          removedIngredientIds: saleItems.removedIngredientIds,
         })
         .from(saleItems)
         .where(eq(saleItems.saleId, orderId))
@@ -1206,13 +1241,16 @@ export class SalesSqliteService {
 
       db.transaction((tx) => {
         for (const item of orderItems) {
+          const removedIngredientIds = this.parseRemovedIngredientIds(item.removedIngredientIds);
           const recipeEdges = tx
             .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
             .from(productIngredients)
             .where(eq(productIngredients.productId, item.productId))
             .all();
 
-          const leafRestorations = recipeEdges.map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+          const leafRestorations = recipeEdges
+            .filter(({ ingredientId }) => !removedIngredientIds.includes(ingredientId))
+            .map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
 
           for (const leaf of leafRestorations) {
             tx.update(ingredients)

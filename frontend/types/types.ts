@@ -53,6 +53,7 @@ export type SaleItemInput = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  removedIngredientIds?: string[];
 };
 
 export type Sale = {
