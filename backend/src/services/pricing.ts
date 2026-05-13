@@ -4,6 +4,7 @@ export type SaleItemDiscountBreakdown = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  observation: string | null;
   removedIngredientIds: string[];
   additionalIngredients: SaleItemAdditionalIngredientInput[];
   lineSubtotal: number;
@@ -82,6 +83,7 @@ export function calculateSaleDiscountBreakdown(
   const itemBreakdowns = items.map((item) => {
     const safeUnitPrice = roundMoney(toValidNumber(item.unitPrice));
     const safeQty = Math.max(0, Math.floor(toValidNumber(item.quantity)));
+    const observation = typeof item.observation === 'string' ? item.observation.trim() : '';
     const removedIngredientIds = Array.isArray(item.removedIngredientIds)
       ? Array.from(new Set(item.removedIngredientIds.filter((value): value is string => typeof value === 'string' && value.length > 0)))
       : [];
@@ -107,6 +109,7 @@ export function calculateSaleDiscountBreakdown(
       productId: item.productId,
       quantity: safeQty,
       unitPrice: safeUnitPrice,
+      observation: observation.length > 0 ? observation : null,
       removedIngredientIds,
       additionalIngredients,
       lineSubtotal,

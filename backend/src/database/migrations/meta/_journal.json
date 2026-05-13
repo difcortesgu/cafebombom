@@ -29,6 +29,13 @@
       "when": 1780000001000,
       "tag": "0003_solid_product_additional_ingredients",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1780000002000,
+      "tag": "0004_lucky_sale_item_observations",
+      "breakpoints": true
     }
   ]
 }

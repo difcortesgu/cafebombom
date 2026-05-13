@@ -9,6 +9,7 @@ function mapReceiptItems(inputItems: BuildReceiptInput['items']): ReceiptLineIte
   return inputItems.map((item) => ({
     id: item.id,
     name: item.product_name,
+    observation: item.observation,
     quantity: Number(item.quantity),
     unitPrice: Number(item.unit_price),
     lineSubtotal: Number(item.line_subtotal),

@@ -57,6 +57,11 @@ export function ReceiptPreview({ receipt }: ReceiptPreviewProps) {
               <ThemedText style={styles.metaText}>{item.quantity} x {formatCurrency(item.unitPrice)}</ThemedText>
               {item.discountAmount > 0 ? <ThemedText style={styles.metaText}>-{formatCurrency(item.discountAmount)}</ThemedText> : null}
             </View>
+            {item.observation ? (
+              <View style={styles.row}>
+                <ThemedText style={styles.metaText}>{t('sales.receipt.observationLabel')}: {item.observation}</ThemedText>
+              </View>
+            ) : null}
             {item.additionalIngredients.length > 0 ? (
               <View style={styles.row}>
                 <ThemedText style={styles.metaText}>{t('sales.receipt.additionalsLabel')}</ThemedText>

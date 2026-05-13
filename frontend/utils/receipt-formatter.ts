@@ -52,6 +52,9 @@ export function formatReceiptItem(item: ReceiptLineItem, width: number): string[
   const qtyAndPrice = `${item.quantity} x ${formatCurrency(item.unitPrice)}`;
   const mainLine = formatReceiptLine(item.name, formatCurrency(item.lineTotal), width);
   const detailLine = formatReceiptLine(qtyAndPrice, '', width);
+  const observationLine = item.observation
+    ? [formatReceiptLine(t('sales.receipt.observationLabel'), item.observation, width)]
+    : [];
   const additionalTotal = item.additionalIngredients.reduce((sum, a) => sum + a.totalAdditionalPrice, 0);
   const additionalSummaryLine = additionalTotal > 0
     ? [formatReceiptLine(t('sales.receipt.additionalsLabel'), `+${formatCurrency(additionalTotal)}`, width)]
@@ -64,14 +67,14 @@ export function formatReceiptItem(item: ReceiptLineItem, width: number): string[
     ));
 
   if (item.discountAmount <= 0) {
-    return [mainLine, detailLine, ...additionalSummaryLine, ...additionalLines];
+    return [mainLine, detailLine, ...observationLine, ...additionalSummaryLine, ...additionalLines];
   }
 
   const discountLabel = item.discountName
     ? t('sales.receipt.discountNamed', { name: item.discountName })
     : t('sales.receipt.discount');
   const discountLine = formatReceiptLine(discountLabel, `-${formatCurrency(item.discountAmount)}`, width);
-  return [mainLine, detailLine, ...additionalSummaryLine, ...additionalLines, discountLine];
+  return [mainLine, detailLine, ...observationLine, ...additionalSummaryLine, ...additionalLines, discountLine];
 }
 
 function paymentMethodLabel(method: string | null): string {

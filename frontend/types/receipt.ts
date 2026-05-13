@@ -21,6 +21,7 @@ export type BusinessInfo = {
 export type ReceiptLineItem = {
   id: string;
   name: string;
+  observation: string | null;
   quantity: number;
   unitPrice: number;
   lineSubtotal: number;

@@ -53,6 +53,7 @@ export type SaleItemDetail = {
   id: string;
   product_id: string;
   product_name: string;
+  observation: string | null;
   quantity: number;
   quantity_paid: number;
   quantity_pending: number;

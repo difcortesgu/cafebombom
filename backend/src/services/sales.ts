@@ -36,6 +36,15 @@ function clampQuantity(value: number): number {
   return Math.max(0, Math.floor(value));
 }
 
+function normalizeObservation(raw: unknown): string | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  const value = raw.trim();
+  return value.length > 0 ? value : null;
+}
+
 function allocateProportionally(total: number, weights: number[]): number[] {
   const safeTotal = roundMoney(total);
   if (safeTotal <= 0 || weights.length === 0) {
@@ -188,6 +197,7 @@ export class SalesSqliteService {
         productId: item.productId,
         quantity,
         unitPrice: roundMoney(productPrice + additionalUnitPrice),
+        observation: normalizeObservation(item.observation),
         removedIngredientIds,
         additionalIngredients: normalizedAdditional,
       });
@@ -470,6 +480,7 @@ export class SalesSqliteService {
             saleId: newSale.id,
             productId: item.productId,
             quantity: item.quantity,
+            observation: normalizeObservation(item.observation),
             removedIngredientIds: JSON.stringify(item.removedIngredientIds),
             selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
             unitPrice: item.unitPrice,
@@ -552,6 +563,7 @@ export class SalesSqliteService {
             saleId: orderId,
             productId: item.productId,
             quantity: item.quantity,
+            observation: normalizeObservation(item.observation),
             removedIngredientIds: JSON.stringify(item.removedIngredientIds),
             selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
             unitPrice: item.unitPrice,
@@ -585,6 +597,7 @@ export class SalesSqliteService {
         id: saleItems.id,
         product_id: saleItems.productId,
         product_name: products.name,
+        observation: saleItems.observation,
         quantity: saleItems.quantity,
         quantity_paid: saleItems.quantityPaid,
         removed_ingredient_ids: saleItems.removedIngredientIds,
@@ -647,6 +660,7 @@ export class SalesSqliteService {
 
         return {
           ...item,
+          observation: normalizeObservation(item.observation),
           quantity_paid: quantityPaid,
           quantity_pending: quantityPending,
           removed_ingredient_ids: this.parseRemovedIngredientIds(item.removed_ingredient_ids),
@@ -1348,6 +1362,7 @@ export class SalesSqliteService {
         saleId: orderId,
         productId: resolvedItem.productId,
         quantity: resolvedItem.quantity,
+        observation: normalizeObservation(resolvedItem.observation),
         removedIngredientIds: JSON.stringify(removedIngredientIds),
         selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(resolvedItem.additionalIngredients),
         unitPrice: resolvedItem.unitPrice,

@@ -194,6 +194,7 @@ function buildPartialReceiptData(sale: Sale, payment: SalePayment, business: Pay
         id: line.payment_item_id,
         product_id: line.product_id,
         product_name: line.product_name,
+        observation: null,
         quantity: line.quantity_paid,
         quantity_paid: line.quantity_paid,
         quantity_pending: 0,

@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -23,6 +23,7 @@ type CartItem = {
   basePrice: number;
   unitPrice: number;
   quantity: number;
+  observation: string | null;
   removedIngredientIds: string[];
   additionalIngredients: SaleItemAdditionalIngredientInput[];
 };
@@ -52,13 +53,15 @@ function normalizeAdditionalIngredients(entries: SaleItemAdditionalIngredientInp
 
 function buildCustomizationKey(
   productId: string,
+  observation: string | null,
   removedIngredientIds: string[],
   additionalIngredients: SaleItemAdditionalIngredientInput[],
 ): string {
   const normalizedAdditional = normalizeAdditionalIngredients(additionalIngredients)
     .map((entry) => `${entry.ingredientId}:${entry.quantity}`)
     .join(',');
-  return `${productId}::${normalizeIngredientIds(removedIngredientIds).join(',')}::${normalizedAdditional}`;
+  const normalizedObservation = typeof observation === 'string' ? observation.trim() : '';
+  return `${productId}::${normalizedObservation}::${normalizeIngredientIds(removedIngredientIds).join(',')}::${normalizedAdditional}`;
 }
 
 function mergeCartLines(items: CartItem[]): CartItem[] {
@@ -66,7 +69,8 @@ function mergeCartLines(items: CartItem[]): CartItem[] {
   for (const item of items) {
     const removedIngredientIds = normalizeIngredientIds(item.removedIngredientIds);
     const additionalIngredients = normalizeAdditionalIngredients(item.additionalIngredients);
-    const key = buildCustomizationKey(item.productId, removedIngredientIds, additionalIngredients);
+    const observation = typeof item.observation === 'string' ? item.observation.trim() : '';
+    const key = buildCustomizationKey(item.productId, observation, removedIngredientIds, additionalIngredients);
     const existing = grouped.get(key);
     if (existing) {
       existing.quantity += item.quantity;
@@ -74,6 +78,7 @@ function mergeCartLines(items: CartItem[]): CartItem[] {
     }
     grouped.set(key, {
       ...item,
+      observation: observation.length > 0 ? observation : null,
       removedIngredientIds,
       additionalIngredients,
     });
@@ -165,7 +170,8 @@ export default function SaleFormScreen() {
         for (const item of items) {
           const removedIngredientIds = normalizeIngredientIds(item.removed_ingredient_ids ?? []);
           const additionalIngredients = normalizeAdditionalIngredients(item.selected_additional_ingredients ?? []);
-          const key = buildCustomizationKey(item.product_id, removedIngredientIds, additionalIngredients);
+          const observation = typeof item.observation === 'string' ? item.observation.trim() : '';
+          const key = buildCustomizationKey(item.product_id, observation, removedIngredientIds, additionalIngredients);
           const currentProduct = products.find((product) => product.id === item.product_id);
           const existing = itemMap.get(key);
           if (existing) {
@@ -178,6 +184,7 @@ export default function SaleFormScreen() {
               basePrice: Number(currentProduct?.price ?? item.unit_price),
               unitPrice: Number(item.unit_price),
               quantity: item.quantity,
+              observation: observation.length > 0 ? observation : null,
               removedIngredientIds,
               additionalIngredients,
             });
@@ -324,7 +331,10 @@ export default function SaleFormScreen() {
 
   const addToCart = (productId: string, name: string, basePrice: number) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0 && item.additionalIngredients.length === 0);
+      const existing = prev.find((item) => item.productId === productId
+        && !item.observation
+        && item.removedIngredientIds.length === 0
+        && item.additionalIngredients.length === 0);
       if (existing) {
         return prev.map((item) => (item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item));
       }
@@ -335,6 +345,7 @@ export default function SaleFormScreen() {
         basePrice,
         unitPrice: Number(basePrice.toFixed(2)),
         quantity: 1,
+        observation: null,
         removedIngredientIds: [],
         additionalIngredients: [],
       }];
@@ -343,7 +354,10 @@ export default function SaleFormScreen() {
 
   const decrementProductInCatalog = (productId: string) => {
     setCart((prev) => {
-      const preferred = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0 && item.additionalIngredients.length === 0)
+      const preferred = prev.find((item) => item.productId === productId
+        && !item.observation
+        && item.removedIngredientIds.length === 0
+        && item.additionalIngredients.length === 0)
         ?? prev.find((item) => item.productId === productId);
 
       if (!preferred) {
@@ -418,6 +432,24 @@ export default function SaleFormScreen() {
     });
   };
 
+  const updateObservation = (cartItemId: string, observation: string) => {
+    setCart((prev) => {
+      const next = prev.map((item) => {
+        if (item.id !== cartItemId) {
+          return item;
+        }
+
+        const normalizedObservation = observation.trim();
+        return {
+          ...item,
+          observation: normalizedObservation.length > 0 ? normalizedObservation : null,
+        };
+      });
+
+      return mergeCartLines(next);
+    });
+  };
+
   const submitSale = async () => {
     if (!user || cart.length === 0 || !selectedTableId) {
       return;
@@ -429,6 +461,7 @@ export default function SaleFormScreen() {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        observation: item.observation,
         removedIngredientIds: item.removedIngredientIds,
         additionalIngredients: item.additionalIngredients,
       })),
@@ -597,6 +630,14 @@ export default function SaleFormScreen() {
                         .join(', ')}
                     </ThemedText>
                   ) : null}
+                  <TextInput
+                    value={item.observation ?? ''}
+                    onChangeText={(value) => updateObservation(item.id, value)}
+                    placeholder={t('saleForm.observationPlaceholder')}
+                    editable={!(editingOrderId && !canEditDraft)}
+                    style={[styles.observationInput, { borderColor: palette.border, color: palette.text }]}
+                    placeholderTextColor={`${palette.text}99`}
+                  />
                   {(recipeByProductId.get(item.productId)?.length ?? 0) > 0 ? (
                     <View style={styles.removedIngredientsRow}>
                       {(recipeByProductId.get(item.productId) ?? []).map((ingredient) => {
@@ -912,6 +953,14 @@ const styles = StyleSheet.create({
   compactProductName: {
     fontWeight: '600',
     fontSize: 12,
+  },
+  observationInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    marginTop: 4,
   },
   removedIngredientsRow: {
     flexDirection: 'row',

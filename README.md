@@ -32,8 +32,6 @@ See the respective README in each folder for setup and usage instructions.
 
 - Mover el restock también para que se pueda hacer desde gastos
 
-- Habilitar la posibilidad de eliminar algunos ingredientes cuando se haga una venta, por ejemplo sin cebolla no descuenta la cebolla del inventario si está en la receta
-
 - Si la cuenta se dividió, quiero después siempre poder imprimir los recibos parciales tal cual como se pagaron
 
 - Ajustar las unidades para que sean personalizables pero desde una lista predefinida

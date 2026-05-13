@@ -66,6 +66,7 @@ export type SaleItemInput = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  observation?: string | null;
   removedIngredientIds?: string[];
   additionalIngredients?: SaleItemAdditionalIngredientInput[];
 };

@@ -159,6 +159,7 @@ export const saleItems = sqliteTable('sale_items', {
   productId: text('product_id').notNull().references(() => products.id),
   quantity: integer('quantity').notNull(),
   quantityPaid: integer('quantity_paid').notNull().default(0),
+  observation: text('observation'),
   removedIngredientIds: text('removed_ingredient_ids').notNull().default('[]'),
   selectedAdditionalIngredients: text('selected_additional_ingredients').notNull().default('[]'),
   unitPrice: real('unit_price').notNull(),
