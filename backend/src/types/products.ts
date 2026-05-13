@@ -21,12 +21,28 @@ export type ProductIngredientLink = {
   quantityUsed: number;
 };
 
+export type ProductAdditionalIngredientLink = {
+  id: string;
+  productId: string;
+  ingredientId: string;
+  ingredientName: string;
+  quantityUsed: number;
+  additionalPrice: number;
+};
+
+export type ProductAdditionalIngredientInput = {
+  ingredientId: string;
+  quantityUsed: number;
+  additionalPrice: number;
+};
+
 export type CreateProductPayload = {
   name: string;
   categoryId?: string;
   price: number;
   imageUri?: string;
   recipe: [ProductRecipeInput, ...ProductRecipeInput[]];
+  additionalIngredients?: ProductAdditionalIngredientInput[];
 };
 
 export type ProductRecipeInput = {
@@ -49,7 +65,19 @@ export type SetProductIngredientPayload = {
   quantityUsed: number;
 };
 
+export type SetProductAdditionalIngredientPayload = {
+  productId: string;
+  ingredientId: string;
+  quantityUsed: number;
+  additionalPrice: number;
+};
+
 export type RemoveProductIngredientPayload = {
+  productId: string;
+  ingredientId: string;
+};
+
+export type RemoveProductAdditionalIngredientPayload = {
   productId: string;
   ingredientId: string;
 };

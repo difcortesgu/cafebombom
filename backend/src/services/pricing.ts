@@ -1,10 +1,11 @@
-import type { Discount, DiscountType, SaleItemInput } from '@/types/types';
+import type { Discount, DiscountType, SaleItemAdditionalIngredientInput, SaleItemInput } from '@/types/types';
 
 export type SaleItemDiscountBreakdown = {
   productId: string;
   quantity: number;
   unitPrice: number;
   removedIngredientIds: string[];
+  additionalIngredients: SaleItemAdditionalIngredientInput[];
   lineSubtotal: number;
   lineTotal: number;
   finalUnitPrice: number;
@@ -84,6 +85,11 @@ export function calculateSaleDiscountBreakdown(
     const removedIngredientIds = Array.isArray(item.removedIngredientIds)
       ? Array.from(new Set(item.removedIngredientIds.filter((value): value is string => typeof value === 'string' && value.length > 0)))
       : [];
+    const additionalIngredients = Array.isArray(item.additionalIngredients)
+      ? item.additionalIngredients
+        .map((entry) => ({ ingredientId: String(entry.ingredientId ?? '').trim(), quantity: Math.max(0, Math.floor(Number(entry.quantity ?? 0))) }))
+        .filter((entry) => entry.ingredientId.length > 0 && entry.quantity > 0)
+      : [];
     const lineSubtotal = roundMoney(safeUnitPrice * safeQty);
 
     const selectedProductDiscount = activeProductDiscounts
@@ -102,6 +108,7 @@ export function calculateSaleDiscountBreakdown(
       quantity: safeQty,
       unitPrice: safeUnitPrice,
       removedIngredientIds,
+      additionalIngredients,
       lineSubtotal,
       lineTotal,
       finalUnitPrice,

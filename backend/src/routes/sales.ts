@@ -80,10 +80,24 @@ router.use(authMiddleware);
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required: [productId, quantity]
  *                   properties:
  *                     productId: { type: string }
  *                     quantity: { type: integer }
- *                     unitPrice: { type: number }
+ *                     unitPrice:
+ *                       type: number
+ *                       description: Optional client estimate. Final price is recalculated by backend using base price plus selected additional ingredients.
+ *                     removedIngredientIds:
+ *                       type: array
+ *                       items: { type: string }
+ *                     additionalIngredients:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         required: [ingredientId, quantity]
+ *                         properties:
+ *                           ingredientId: { type: string }
+ *                           quantity: { type: integer, minimum: 1 }
  *     responses:
  *       201:
  *         description: Sale created
@@ -126,6 +140,24 @@ router.post('/', createSale);
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required: [productId, quantity]
+ *                   properties:
+ *                     productId: { type: string }
+ *                     quantity: { type: integer }
+ *                     unitPrice:
+ *                       type: number
+ *                       description: Optional client estimate. Final price is recalculated by backend using base price plus selected additional ingredients.
+ *                     removedIngredientIds:
+ *                       type: array
+ *                       items: { type: string }
+ *                     additionalIngredients:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         required: [ingredientId, quantity]
+ *                         properties:
+ *                           ingredientId: { type: string }
+ *                           quantity: { type: integer, minimum: 1 }
  *     responses:
  *       204:
  *         description: Updated
@@ -148,6 +180,43 @@ router.put('/:id', updateDraftOrder);
  *     responses:
  *       200:
  *         description: Array of sale item details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       product_id: { type: string }
+ *                       product_name: { type: string }
+ *                       quantity: { type: integer }
+ *                       removed_ingredient_ids:
+ *                         type: array
+ *                         items: { type: string }
+ *                       selected_additional_ingredients:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             ingredientId: { type: string }
+ *                             quantity: { type: integer }
+ *                       selected_additional_ingredient_details:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             ingredient_id: { type: string }
+ *                             ingredient_name: { type: string }
+ *                             quantity: { type: integer }
+ *                             unit_additional_price: { type: number }
+ *                             total_additional_price: { type: number }
+ *                       unit_price: { type: number }
+ *                       line_subtotal: { type: number }
+ *                       final_line_total: { type: number }
  *   post:
  *     tags: [Sales]
  *     summary: Add an item to a draft order
@@ -166,11 +235,24 @@ router.put('/:id', updateDraftOrder);
  *             properties:
  *               item:
  *                 type: object
- *                 required: [productId, quantity, unitPrice]
+ *                 required: [productId, quantity]
  *                 properties:
  *                   productId: { type: string }
  *                   quantity: { type: integer }
- *                   unitPrice: { type: number }
+ *                   unitPrice:
+ *                     type: number
+ *                     description: Optional client estimate. Final price is recalculated by backend using base price plus selected additional ingredients.
+ *                   removedIngredientIds:
+ *                     type: array
+ *                     items: { type: string }
+ *                   additionalIngredients:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       required: [ingredientId, quantity]
+ *                       properties:
+ *                         ingredientId: { type: string }
+ *                         quantity: { type: integer, minimum: 1 }
  *     responses:
  *       201:
  *         description: Item added

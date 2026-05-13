@@ -57,6 +57,18 @@ export function ReceiptPreview({ receipt }: ReceiptPreviewProps) {
               <ThemedText style={styles.metaText}>{item.quantity} x {formatCurrency(item.unitPrice)}</ThemedText>
               {item.discountAmount > 0 ? <ThemedText style={styles.metaText}>-{formatCurrency(item.discountAmount)}</ThemedText> : null}
             </View>
+            {item.additionalIngredients.length > 0 ? (
+              <View style={styles.row}>
+                <ThemedText style={styles.metaText}>{t('sales.receipt.additionalsLabel')}</ThemedText>
+                <ThemedText style={styles.metaText}>+{formatCurrency(item.additionalIngredients.reduce((sum, a) => sum + a.totalAdditionalPrice, 0))}</ThemedText>
+              </View>
+            ) : null}
+            {item.additionalIngredients.map((additional, index) => (
+              <View key={`${item.id}-additional-${index}`} style={[styles.row, styles.additionalDetailRow]}>
+                <ThemedText style={styles.additionalDetailText}>+ {additional.name} x{additional.quantity}</ThemedText>
+                <ThemedText style={styles.additionalDetailText}>{formatCurrency(additional.totalAdditionalPrice)}</ThemedText>
+              </View>
+            ))}
           </View>
         ))}
 
@@ -158,6 +170,13 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
     opacity: 0.8,
+  },
+  additionalDetailRow: {
+    paddingLeft: 8,
+  },
+  additionalDetailText: {
+    fontSize: 11,
+    opacity: 0.65,
   },
   totalLabel: {
     fontSize: 14,

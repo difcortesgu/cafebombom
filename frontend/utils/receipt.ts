@@ -15,6 +15,12 @@ function mapReceiptItems(inputItems: BuildReceiptInput['items']): ReceiptLineIte
     discountAmount: Number(item.discount_amount),
     lineTotal: Number(item.final_line_total),
     discountName: item.discount_name,
+    additionalIngredients: (item.selected_additional_ingredient_details ?? []).map((additional) => ({
+      name: additional.ingredient_name,
+      quantity: Number(additional.quantity),
+      unitAdditionalPrice: Number(additional.unit_additional_price),
+      totalAdditionalPrice: Number(additional.total_additional_price),
+    })),
   }));
 }
 

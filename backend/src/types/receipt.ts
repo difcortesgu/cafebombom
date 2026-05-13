@@ -27,6 +27,12 @@ export type ReceiptLineItem = {
   discountAmount: number;
   lineTotal: number;
   discountName: string | null;
+  additionalIngredients: Array<{
+    name: string;
+    quantity: number;
+    unitAdditionalPrice: number;
+    totalAdditionalPrice: number;
+  }>;
 };
 
 export type ReceiptPricingBreakdown = {

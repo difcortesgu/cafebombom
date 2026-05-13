@@ -15,7 +15,7 @@ import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
-import type { ProductRecipeInput } from '@/types/products';
+import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
 import type { Discount } from '@/types/types';
 
 const formatDateInput = (unix: number | null): string => {
@@ -44,11 +44,14 @@ export default function ProductFormScreen() {
     categories,
     products,
     productIngredients,
+    productAdditionalIngredients,
     hydrate,
     createProduct,
     updateProduct,
     setProductIngredient,
     removeProductIngredient,
+    setProductAdditionalIngredient,
+    removeProductAdditionalIngredient,
   } = useProductsStore();
   const { discounts, hydrateDiscounts, createDiscount, updateDiscount, deleteDiscount } = useSalesStore();
   const { ingredients, hydrate: hydrateInventory } = useInventoryStore();
@@ -67,6 +70,7 @@ export default function ProductFormScreen() {
     imageUri: null as string | null,
   });
   const [productRecipeItems, setProductRecipeItems] = useState<{ ingredientId: string; quantityUsed: string }[]>([]);
+  const [productAdditionalItems, setProductAdditionalItems] = useState<{ ingredientId: string; quantityUsed: string; additionalPrice: string }[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -78,6 +82,7 @@ export default function ProductFormScreen() {
     if (!productId) {
       setProductForm({ id: null, name: '', categoryId: null, price: '', imageUri: null });
       setProductRecipeItems([]);
+      setProductAdditionalItems([]);
       return;
     }
 
@@ -94,6 +99,7 @@ export default function ProductFormScreen() {
       imageUri: product.imageUri ?? null,
     });
     setProductRecipeItems([]);
+    setProductAdditionalItems([]);
   }, [productId, products]);
 
   const editingProductRecipes = useMemo(
@@ -104,6 +110,11 @@ export default function ProductFormScreen() {
   const productDiscounts = useMemo(
     () => (productForm.id ? discounts.filter((discount) => discount.scope === 'product' && discount.productId === productForm.id) : []),
     [discounts, productForm.id],
+  );
+
+  const editingProductAdditionalIngredients = useMemo(
+    () => (productForm.id ? productAdditionalIngredients.filter((link) => link.productId === productForm.id) : []),
+    [productAdditionalIngredients, productForm.id],
   );
 
   const addProductRecipeItem = (ingredientId: string = '', quantityUsed: string = '') => {
@@ -119,9 +130,31 @@ export default function ProductFormScreen() {
       items.map((item, i) =>
         i === index
           ? {
-              ingredientId: ingredientId ?? item.ingredientId,
-              quantityUsed: quantityUsed ?? item.quantityUsed,
-            }
+            ingredientId: ingredientId ?? item.ingredientId,
+            quantityUsed: quantityUsed ?? item.quantityUsed,
+          }
+          : item,
+      ),
+    );
+  };
+
+  const addProductAdditionalItem = (ingredientId: string = '', quantityUsed: string = '', additionalPrice: string = '') => {
+    setProductAdditionalItems((items) => [...items, { ingredientId, quantityUsed, additionalPrice }]);
+  };
+
+  const removeProductAdditionalItem = (index: number) => {
+    setProductAdditionalItems((items) => items.filter((_, i) => i !== index));
+  };
+
+  const updateProductAdditionalItem = (index: number, ingredientId?: string, quantityUsed?: string, additionalPrice?: string) => {
+    setProductAdditionalItems((items) =>
+      items.map((item, i) =>
+        i === index
+          ? {
+            ingredientId: ingredientId ?? item.ingredientId,
+            quantityUsed: quantityUsed ?? item.quantityUsed,
+            additionalPrice: additionalPrice ?? item.additionalPrice,
+          }
           : item,
       ),
     );
@@ -169,6 +202,14 @@ export default function ProductFormScreen() {
       return;
     }
 
+    const invalidAdditionalItems = productAdditionalItems.filter(
+      (item) => !item.ingredientId || Number(item.quantityUsed || '0') <= 0 || Number(item.additionalPrice || '0') < 0,
+    );
+    if (invalidAdditionalItems.length > 0) {
+      setMessage(t('productForm.error.additionalItemInvalid'));
+      return;
+    }
+
     if (productForm.id) {
       await updateProduct({
         id: productForm.id,
@@ -182,6 +223,13 @@ export default function ProductFormScreen() {
         ingredientId: item.ingredientId,
         quantityUsed: Number(item.quantityUsed),
       })) as [ProductRecipeInput, ...ProductRecipeInput[]];
+      const additionalIngredients = productAdditionalItems
+        .map((item) => ({
+          ingredientId: item.ingredientId,
+          quantityUsed: Number(item.quantityUsed),
+          additionalPrice: Number(item.additionalPrice || '0'),
+        }))
+        .filter((item) => item.ingredientId && item.quantityUsed > 0 && item.additionalPrice >= 0) as ProductAdditionalIngredientInput[];
 
       await createProduct({
         name: trimmedName,
@@ -189,6 +237,7 @@ export default function ProductFormScreen() {
         price,
         imageUri: productForm.imageUri ?? undefined,
         recipe,
+        additionalIngredients,
       });
     }
 
@@ -220,6 +269,32 @@ export default function ProductFormScreen() {
     setMessage(t('productForm.recipeAdded', { count: productRecipeItems.length }));
   };
 
+  const saveProductAdditionalIngredients = async () => {
+    const currentProductId = productForm.id;
+
+    if (!currentProductId) {
+      setMessage(t('productForm.error.saveFirst'));
+      return;
+    }
+
+    for (const item of productAdditionalItems) {
+      if (!item.ingredientId || Number(item.quantityUsed || '0') <= 0 || Number(item.additionalPrice || '0') < 0) {
+        setMessage(t('productForm.error.additionalItemInvalid'));
+        return;
+      }
+
+      await setProductAdditionalIngredient({
+        productId: currentProductId,
+        ingredientId: item.ingredientId,
+        quantityUsed: Number(item.quantityUsed),
+        additionalPrice: Number(item.additionalPrice),
+      });
+    }
+
+    setProductAdditionalItems([]);
+    setMessage(t('productForm.additionalAdded', { count: productAdditionalItems.length }));
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">{productForm.id ? t('productForm.title.edit') : t('productForm.title.create')}</ThemedText>
@@ -249,21 +324,21 @@ export default function ProductFormScreen() {
         <ThemedText style={styles.label}>{t('productForm.image')}</ThemedText>
         {productForm.imageUri ? (
           <View style={styles.imagePreviewContainer}>
-            <Image 
-              source={{ uri: productForm.imageUri }} 
+            <Image
+              source={{ uri: productForm.imageUri }}
               style={styles.imagePreview}
             />
-            <ThemedButton 
-              variant="secondary" 
-              style={styles.removeImageButton} 
-              label={t('productForm.removeImage')} 
+            <ThemedButton
+              variant="secondary"
+              style={styles.removeImageButton}
+              label={t('productForm.removeImage')}
               onPress={removeProductImage}
             />
           </View>
         ) : (
-          <ThemedButton 
-            style={styles.pickImageButton} 
-            label={t('productForm.pickImage')} 
+          <ThemedButton
+            style={styles.pickImageButton}
+            label={t('productForm.pickImage')}
             onPress={pickProductImage}
           />
         )}
@@ -326,6 +401,45 @@ export default function ProductFormScreen() {
             );
           })}
           <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+
+          <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
+          <ThemedText style={styles.smallText}>{t('productForm.additionalHelp')}</ThemedText>
+          {productAdditionalItems.map((item, index) => {
+            const addedIngredientIds = productAdditionalItems.map((i) => i.ingredientId).filter((id) => id);
+            const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
+            return (
+              <View key={`new-additional-${index}`} style={styles.recipeControlsRow}>
+                <View style={styles.recipeSelectWrapper}>
+                  <ThemedSelect
+                    placeholder={t('productForm.selectIngredient')}
+                    value={item.ingredientId}
+                    items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
+                    onValueChange={(value) => updateProductAdditionalItem(index, value, undefined, undefined)}
+                  />
+                </View>
+                <View style={styles.recipeInputWrapper}>
+                  <ThemedInput
+                    placeholder={t('common.qtyShort')}
+                    keyboardType="decimal-pad"
+                    value={item.quantityUsed}
+                    onChangeText={(value) => updateProductAdditionalItem(index, undefined, value, undefined)}
+                    style={styles.compactInput}
+                  />
+                </View>
+                <View style={styles.recipeInputWrapper}>
+                  <ThemedInput
+                    placeholder={t('productForm.additionalPrice')}
+                    keyboardType="decimal-pad"
+                    value={item.additionalPrice}
+                    onChangeText={(value) => updateProductAdditionalItem(index, undefined, undefined, value)}
+                    style={styles.compactInput}
+                  />
+                </View>
+                <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductAdditionalItem(index)} />
+              </View>
+            );
+          })}
+          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
         </ThemedCard>
       ) : (
         <ThemedCard style={styles.card}>
@@ -390,6 +504,75 @@ export default function ProductFormScreen() {
 
           <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
           <ThemedButton style={styles.primaryButton} label={t('productForm.saveRecipeItems')} onPress={saveProductRecipe} />
+
+          <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
+          {editingProductAdditionalIngredients.length === 0 ? (
+            <ThemedText style={styles.smallText}>{t('productForm.noAdditionalIngredients')}</ThemedText>
+          ) : (
+            editingProductAdditionalIngredients.map((link) => (
+              <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
+                <View style={styles.listTextWrap}>
+                  <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
+                  <ThemedText style={styles.smallText}>
+                    {link.quantityUsed} {t('productForm.perUnit')} · +${link.additionalPrice.toFixed(2)}
+                  </ThemedText>
+                </View>
+                <ThemedButton
+                  variant="secondary"
+                  style={styles.secondaryButton}
+                  icon="trash.fill"
+                  onPress={async () => {
+                    await removeProductAdditionalIngredient({ productId: link.productId, ingredientId: link.ingredientId });
+                    setMessage(t('productForm.additionalLinkRemoved'));
+                  }}
+                />
+              </View>
+            ))
+          )}
+
+          <ThemedText style={styles.label}>{t('productForm.addAdditionalIngredients')}</ThemedText>
+          {productAdditionalItems.length === 0 ? (
+            <ThemedText style={styles.smallText}>{t('productForm.addAdditionalHelp')}</ThemedText>
+          ) : (
+            productAdditionalItems.map((item, index) => {
+              const addedIngredientIds = productAdditionalItems.map((i) => i.ingredientId).filter((id) => id);
+              const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
+              return (
+                <View key={`edit-additional-${index}`} style={styles.recipeControlsRow}>
+                  <View style={styles.recipeSelectWrapper}>
+                    <ThemedSelect
+                      placeholder={t('productForm.selectIngredient')}
+                      value={item.ingredientId}
+                      items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
+                      onValueChange={(value) => updateProductAdditionalItem(index, value, undefined, undefined)}
+                    />
+                  </View>
+                  <View style={styles.recipeInputWrapper}>
+                    <ThemedInput
+                      placeholder={t('common.qtyShort')}
+                      keyboardType="decimal-pad"
+                      value={item.quantityUsed}
+                      onChangeText={(value) => updateProductAdditionalItem(index, undefined, value, undefined)}
+                      style={styles.compactInput}
+                    />
+                  </View>
+                  <View style={styles.recipeInputWrapper}>
+                    <ThemedInput
+                      placeholder={t('productForm.additionalPrice')}
+                      keyboardType="decimal-pad"
+                      value={item.additionalPrice}
+                      onChangeText={(value) => updateProductAdditionalItem(index, undefined, undefined, value)}
+                      style={styles.compactInput}
+                    />
+                  </View>
+                  <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductAdditionalItem(index)} />
+                </View>
+              );
+            })
+          )}
+
+          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+          <ThemedButton style={styles.primaryButton} label={t('productForm.saveAdditionalItems')} onPress={saveProductAdditionalIngredients} />
         </ThemedCard>
       )}
 

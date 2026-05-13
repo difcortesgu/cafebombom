@@ -1,4 +1,4 @@
-import type { DiscountType, OrderStatus, PaymentMethod, SaleItemInput, TableType } from '@/types/types';
+import type { DiscountType, OrderStatus, PaymentMethod, SaleItemAdditionalIngredientInput, SaleItemInput, TableType } from '@/types/types';
 
 export type DashboardRangeKey = 'today' | 'week' | 'month';
 
@@ -41,6 +41,14 @@ export type DiscountSnapshot = {
   discount_amount: number;
 };
 
+export type SaleItemAdditionalIngredientDetail = {
+  ingredient_id: string;
+  ingredient_name: string;
+  quantity: number;
+  unit_additional_price: number;
+  total_additional_price: number;
+};
+
 export type SaleItemDetail = {
   id: string;
   product_id: string;
@@ -49,6 +57,8 @@ export type SaleItemDetail = {
   quantity_paid: number;
   quantity_pending: number;
   removed_ingredient_ids: string[];
+  selected_additional_ingredients: SaleItemAdditionalIngredientInput[];
+  selected_additional_ingredient_details: SaleItemAdditionalIngredientDetail[];
   unit_price: number;
   line_subtotal: number;
   final_unit_price: number;

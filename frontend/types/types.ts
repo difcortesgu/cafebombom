@@ -35,6 +35,19 @@ export type Product = {
   category: string;
   price: number;
   imageUri: string | null;
+  additionalIngredients: ProductAdditionalIngredientOption[];
+};
+
+export type ProductAdditionalIngredientOption = {
+  ingredientId: string;
+  ingredientName: string;
+  quantityUsed: number;
+  additionalPrice: number;
+};
+
+export type SaleItemAdditionalIngredientInput = {
+  ingredientId: string;
+  quantity: number;
 };
 
 export type Discount = {
@@ -54,6 +67,7 @@ export type SaleItemInput = {
   quantity: number;
   unitPrice: number;
   removedIngredientIds?: string[];
+  additionalIngredients?: SaleItemAdditionalIngredientInput[];
 };
 
 export type Sale = {

@@ -22,6 +22,13 @@
       "when": 1780000000000,
       "tag": "0002_handy_recipe_customizations",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1780000001000,
+      "tag": "0003_solid_product_additional_ingredients",
+      "breakpoints": true
     }
   ]
 }

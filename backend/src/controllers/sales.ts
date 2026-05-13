@@ -74,8 +74,8 @@ export async function addItemToOrder(req: Request, res: Response): Promise<void>
   const { id } = req.params as Record<string, string>;
   const { item } = req.body;
 
-  if (!item || !item.productId || item.quantity == null || item.unitPrice == null) {
-    res.status(400).json({ error: 'item with productId, quantity, and unitPrice is required.' });
+  if (!item || !item.productId || item.quantity == null) {
+    res.status(400).json({ error: 'item with productId and quantity is required.' });
     return;
   }
 

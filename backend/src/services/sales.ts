@@ -1,5 +1,5 @@
 import { db } from '@/database';
-import { categories, discounts, ingredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '@/database/schema';
+import { categories, discounts, ingredients, productAdditionalIngredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '@/database/schema';
 import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '@/services/analytics';
 import { salesErrorMessage } from '@/services/messages';
 import { calculateSaleDiscountBreakdown } from '@/services/pricing';
@@ -22,7 +22,7 @@ import type {
   UpdateDraftOrderPayload,
   UpdateTablePayload,
 } from '@/types/sales';
-import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
+import type { Discount, PaymentMethod, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '@/types/types';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 
 function roundMoney(value: number): number {
@@ -83,6 +83,119 @@ export class SalesSqliteService {
     }
   }
 
+  private normalizeSelectedAdditionalIngredients(raw: unknown): SaleItemAdditionalIngredientInput[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    const deduped = new Map<string, number>();
+    for (const value of raw) {
+      if (!value || typeof value !== 'object') {
+        continue;
+      }
+
+      const ingredientId = typeof (value as { ingredientId?: unknown }).ingredientId === 'string'
+        ? (value as { ingredientId: string }).ingredientId.trim()
+        : '';
+      const quantity = clampQuantity(Number((value as { quantity?: unknown }).quantity ?? 0));
+
+      if (!ingredientId || quantity <= 0) {
+        continue;
+      }
+
+      deduped.set(ingredientId, quantity);
+    }
+
+    return Array.from(deduped.entries()).map(([ingredientId, quantity]) => ({ ingredientId, quantity }));
+  }
+
+  private parseSelectedAdditionalIngredients(raw: string | null | undefined): SaleItemAdditionalIngredientInput[] {
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return this.normalizeSelectedAdditionalIngredients(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  private serializeSelectedAdditionalIngredients(raw: SaleItemAdditionalIngredientInput[] | undefined): string {
+    return JSON.stringify(this.normalizeSelectedAdditionalIngredients(raw ?? []));
+  }
+
+  private async resolveSaleItems(items: SaleItemInput[]): Promise<SaleItemInput[]> {
+    if (items.length === 0) {
+      return [];
+    }
+
+    const productIds = Array.from(new Set(items.map((item) => item.productId).filter((id) => typeof id === 'string' && id.length > 0)));
+    if (productIds.length === 0) {
+      return [];
+    }
+
+    const productRows = db
+      .select({ id: products.id, price: products.price })
+      .from(products)
+      .where(inArray(products.id, productIds))
+      .all();
+    const productMap = new Map(productRows.map((row) => [row.id, Number(row.price)]));
+
+    const additionalRows = db
+      .select({
+        productId: productAdditionalIngredients.productId,
+        ingredientId: productAdditionalIngredients.ingredientId,
+        additionalPrice: productAdditionalIngredients.additionalPrice,
+      })
+      .from(productAdditionalIngredients)
+      .where(inArray(productAdditionalIngredients.productId, productIds))
+      .all();
+
+    const additionalMap = new Map<string, Map<string, number>>();
+    for (const row of additionalRows) {
+      if (!additionalMap.has(row.productId)) {
+        additionalMap.set(row.productId, new Map());
+      }
+      additionalMap.get(row.productId)!.set(row.ingredientId, Number(row.additionalPrice));
+    }
+
+    const resolvedItems: SaleItemInput[] = [];
+    for (const item of items) {
+      const productPrice = productMap.get(item.productId);
+      if (productPrice == null) {
+        throw new Error(salesErrorMessage('productNotFound', { productId: item.productId }));
+      }
+
+      const quantity = clampQuantity(Number(item.quantity));
+      if (quantity <= 0) {
+        continue;
+      }
+
+      const removedIngredientIds = this.normalizeRemovedIngredientIds(item.removedIngredientIds ?? []);
+      const allowedAdditionalByIngredient = additionalMap.get(item.productId) ?? new Map<string, number>();
+      const normalizedAdditional = this
+        .normalizeSelectedAdditionalIngredients(item.additionalIngredients ?? [])
+        .filter((entry) => allowedAdditionalByIngredient.has(entry.ingredientId));
+
+      const additionalUnitPrice = normalizedAdditional.reduce(
+        (sum, entry) => sum + (allowedAdditionalByIngredient.get(entry.ingredientId) ?? 0) * entry.quantity,
+        0,
+      );
+
+      resolvedItems.push({
+        productId: item.productId,
+        quantity,
+        unitPrice: roundMoney(productPrice + additionalUnitPrice),
+        removedIngredientIds,
+        additionalIngredients: normalizedAdditional,
+      });
+    }
+
+    return resolvedItems;
+  }
+
   async getHydrationData() {
     const productsList = db
       .select({
@@ -96,7 +209,42 @@ export class SalesSqliteService {
       .leftJoin(categories, eq(categories.id, products.categoryId))
       .where(eq(products.isActive, true))
       .orderBy(products.name)
-      .all() as Product[];
+      .all();
+
+    const additionalRows = db
+      .select({
+        productId: productAdditionalIngredients.productId,
+        ingredientId: productAdditionalIngredients.ingredientId,
+        ingredientName: ingredients.name,
+        quantityUsed: productAdditionalIngredients.quantityUsed,
+        additionalPrice: productAdditionalIngredients.additionalPrice,
+      })
+      .from(productAdditionalIngredients)
+      .innerJoin(ingredients, eq(ingredients.id, productAdditionalIngredients.ingredientId))
+      .all();
+
+    const additionalByProduct = new Map<string, ProductAdditionalIngredientOption[]>();
+    for (const row of additionalRows) {
+      if (!additionalByProduct.has(row.productId)) {
+        additionalByProduct.set(row.productId, []);
+      }
+
+      additionalByProduct.get(row.productId)!.push({
+        ingredientId: row.ingredientId,
+        ingredientName: row.ingredientName,
+        quantityUsed: Number(row.quantityUsed),
+        additionalPrice: Number(row.additionalPrice),
+      });
+    }
+
+    const mappedProducts = productsList.map((row) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category ?? '',
+      price: Number(row.price),
+      imageUri: row.imageUri,
+      additionalIngredients: additionalByProduct.get(row.id) ?? [],
+    })) as Product[];
 
     const salesList = db
       .select({
@@ -145,7 +293,7 @@ export class SalesSqliteService {
       .orderBy(discounts.name)
       .all() as Discount[];
 
-    return { products: productsList, sales: salesList, tables: tablesList, discounts: discountsList };
+    return { products: mappedProducts, sales: salesList, tables: tablesList, discounts: discountsList };
   }
 
   async getDiscounts(): Promise<Discount[]> {
@@ -271,7 +419,8 @@ export class SalesSqliteService {
   }
 
   async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
-    if (items.length === 0) {
+    const resolvedItems = await this.resolveSaleItems(items);
+    if (resolvedItems.length === 0) {
       return null;
     }
 
@@ -293,7 +442,7 @@ export class SalesSqliteService {
       .all() as Discount[];
 
     const createdAt = Math.floor(Date.now() / 1000);
-    const breakdown = calculateSaleDiscountBreakdown(items, activeDiscounts, createdAt, globalDiscountId ?? null);
+    const breakdown = calculateSaleDiscountBreakdown(resolvedItems, activeDiscounts, createdAt, globalDiscountId ?? null);
 
     const saleId = db.transaction((tx) => {
       const [newSale] = tx
@@ -322,6 +471,7 @@ export class SalesSqliteService {
             productId: item.productId,
             quantity: item.quantity,
             removedIngredientIds: JSON.stringify(item.removedIngredientIds),
+            selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
             unitPrice: item.unitPrice,
             lineSubtotal: item.lineSubtotal,
             discountName: item.discountSnapshot.discountName,
@@ -339,7 +489,8 @@ export class SalesSqliteService {
   }
 
   async updateDraftOrder({ orderId, staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
-    if (items.length === 0) {
+    const resolvedItems = await this.resolveSaleItems(items);
+    if (resolvedItems.length === 0) {
       return;
     }
 
@@ -375,7 +526,7 @@ export class SalesSqliteService {
       .all() as Discount[];
 
     const now = Math.floor(Date.now() / 1000);
-    const breakdown = calculateSaleDiscountBreakdown(items, activeDiscounts, now, globalDiscountId ?? null);
+    const breakdown = calculateSaleDiscountBreakdown(resolvedItems, activeDiscounts, now, globalDiscountId ?? null);
 
     db.transaction((tx) => {
       tx.delete(saleItems).where(eq(saleItems.saleId, orderId)).run();
@@ -402,6 +553,7 @@ export class SalesSqliteService {
             productId: item.productId,
             quantity: item.quantity,
             removedIngredientIds: JSON.stringify(item.removedIngredientIds),
+            selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
             unitPrice: item.unitPrice,
             lineSubtotal: item.lineSubtotal,
             discountName: item.discountSnapshot.discountName,
@@ -428,7 +580,7 @@ export class SalesSqliteService {
   }
 
   async getSaleItems(saleId: string): Promise<SaleItemDetail[]> {
-    return db
+    const rawItems = db
       .select({
         id: saleItems.id,
         product_id: saleItems.productId,
@@ -436,6 +588,7 @@ export class SalesSqliteService {
         quantity: saleItems.quantity,
         quantity_paid: saleItems.quantityPaid,
         removed_ingredient_ids: saleItems.removedIngredientIds,
+        selected_additional_ingredients: saleItems.selectedAdditionalIngredients,
         unit_price: saleItems.unitPrice,
         line_subtotal: saleItems.lineSubtotal,
         discount_name: saleItems.discountName,
@@ -447,18 +600,58 @@ export class SalesSqliteService {
       .innerJoin(products, eq(products.id, saleItems.productId))
       .where(eq(saleItems.saleId, saleId))
       .orderBy(saleItems.id)
-      .all()
+      .all();
+
+    const productIds = Array.from(new Set(rawItems.map((item) => item.product_id)));
+    const additionalOptions = productIds.length > 0
+      ? db
+        .select({
+          productId: productAdditionalIngredients.productId,
+          ingredientId: productAdditionalIngredients.ingredientId,
+          ingredientName: ingredients.name,
+          additionalPrice: productAdditionalIngredients.additionalPrice,
+        })
+        .from(productAdditionalIngredients)
+        .innerJoin(ingredients, eq(ingredients.id, productAdditionalIngredients.ingredientId))
+        .where(inArray(productAdditionalIngredients.productId, productIds))
+        .all()
+      : [];
+
+    const additionalOptionMap = new Map<string, { ingredientName: string; additionalPrice: number }>();
+    for (const option of additionalOptions) {
+      additionalOptionMap.set(`${option.productId}:${option.ingredientId}`, {
+        ingredientName: option.ingredientName,
+        additionalPrice: Number(option.additionalPrice),
+      });
+    }
+
+    return rawItems
       .map((item) => {
         const lineSubtotal = Number(item.line_subtotal ?? Number(item.unit_price) * item.quantity);
         const discountAmount = Number(item.discount_amount ?? 0);
         const finalLineTotal = Math.max(0, lineSubtotal - discountAmount);
         const quantityPaid = clampQuantity(Number(item.quantity_paid ?? 0));
         const quantityPending = Math.max(0, item.quantity - quantityPaid);
+        const selectedAdditionalIngredients = this.parseSelectedAdditionalIngredients(item.selected_additional_ingredients);
+        const selectedAdditionalIngredientDetails = selectedAdditionalIngredients.map((entry) => {
+          const option = additionalOptionMap.get(`${item.product_id}:${entry.ingredientId}`);
+          const unitAdditionalPrice = Number(option?.additionalPrice ?? 0);
+          return {
+            ingredient_id: entry.ingredientId,
+            ingredient_name: option?.ingredientName ?? entry.ingredientId,
+            quantity: entry.quantity,
+            unit_additional_price: unitAdditionalPrice,
+            total_additional_price: roundMoney(unitAdditionalPrice * entry.quantity),
+          };
+        });
+
         return {
           ...item,
           quantity_paid: quantityPaid,
           quantity_pending: quantityPending,
           removed_ingredient_ids: this.parseRemovedIngredientIds(item.removed_ingredient_ids),
+          selected_additional_ingredients: selectedAdditionalIngredients,
+          selected_additional_ingredient_details: selectedAdditionalIngredientDetails,
           line_subtotal: lineSubtotal,
           discount_amount: discountAmount,
           final_line_total: finalLineTotal,
@@ -632,6 +825,7 @@ export class SalesSqliteService {
         productId: saleItems.productId,
         quantity: saleItems.quantity,
         removedIngredientIds: saleItems.removedIngredientIds,
+        selectedAdditionalIngredients: saleItems.selectedAdditionalIngredients,
       })
       .from(saleItems)
       .where(eq(saleItems.saleId, orderId))
@@ -640,23 +834,43 @@ export class SalesSqliteService {
     db.transaction((tx) => {
       for (const item of orderItems) {
         const removedIngredientIds = this.parseRemovedIngredientIds(item.removedIngredientIds);
+        const selectedAdditionalIngredients = this.parseSelectedAdditionalIngredients(item.selectedAdditionalIngredients);
+        const selectedAdditionalByIngredient = new Map(selectedAdditionalIngredients.map((entry) => [entry.ingredientId, entry.quantity]));
+
         const recipeEdges = tx
           .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
           .from(productIngredients)
           .where(eq(productIngredients.productId, item.productId))
           .all();
+        const additionalEdges = tx
+          .select({ ingredientId: productAdditionalIngredients.ingredientId, quantityUsed: productAdditionalIngredients.quantityUsed })
+          .from(productAdditionalIngredients)
+          .where(eq(productAdditionalIngredients.productId, item.productId))
+          .all();
 
         const leafConsumptions = recipeEdges
           .filter(({ ingredientId }) => !removedIngredientIds.includes(ingredientId))
           .map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+        const leafAdditionalConsumptions = additionalEdges
+          .map(({ ingredientId, quantityUsed }) => ({
+            ingredientId,
+            quantity: quantityUsed * (selectedAdditionalByIngredient.get(ingredientId) ?? 0) * item.quantity,
+          }))
+          .filter((leaf) => leaf.quantity > 0);
 
-        for (const leaf of leafConsumptions) {
+        const consumptionByIngredient = new Map<string, number>();
+        for (const leaf of [...leafConsumptions, ...leafAdditionalConsumptions]) {
+          const current = consumptionByIngredient.get(leaf.ingredientId) ?? 0;
+          consumptionByIngredient.set(leaf.ingredientId, current + leaf.quantity);
+        }
+
+        for (const [ingredientId, quantity] of consumptionByIngredient.entries()) {
           tx.update(ingredients)
             .set({
-              quantity: sql`MAX(0, ${ingredients.quantity} - ${leaf.quantity})`,
+              quantity: sql`MAX(0, ${ingredients.quantity} - ${quantity})`,
               updatedAt: sql`cast(strftime('%s', 'now') as int)`,
             })
-            .where(eq(ingredients.id, leaf.ingredientId))
+            .where(eq(ingredients.id, ingredientId))
             .run();
         }
       }
@@ -1121,26 +1335,22 @@ export class SalesSqliteService {
       throw new Error(salesErrorMessage('addItemsDraftOnly', { status: order.status }));
     }
 
-    const product = db
-      .select({ price: products.price })
-      .from(products)
-      .where(eq(products.id, item.productId))
-      .get();
-
-    if (!product) {
+    const [resolvedItem] = await this.resolveSaleItems([item]);
+    if (!resolvedItem) {
       throw new Error(salesErrorMessage('productNotFound', { productId: item.productId }));
     }
 
-    const lineSubtotal = item.unitPrice * item.quantity;
-    const removedIngredientIds = this.normalizeRemovedIngredientIds(item.removedIngredientIds ?? []);
+    const lineSubtotal = resolvedItem.unitPrice * resolvedItem.quantity;
+    const removedIngredientIds = this.normalizeRemovedIngredientIds(resolvedItem.removedIngredientIds ?? []);
 
     const [inserted] = db.insert(saleItems)
       .values({
         saleId: orderId,
-        productId: item.productId,
-        quantity: item.quantity,
+        productId: resolvedItem.productId,
+        quantity: resolvedItem.quantity,
         removedIngredientIds: JSON.stringify(removedIngredientIds),
-        unitPrice: item.unitPrice,
+        selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(resolvedItem.additionalIngredients),
+        unitPrice: resolvedItem.unitPrice,
         lineSubtotal,
       })
       .returning({ id: saleItems.id })
@@ -1234,6 +1444,7 @@ export class SalesSqliteService {
           productId: saleItems.productId,
           quantity: saleItems.quantity,
           removedIngredientIds: saleItems.removedIngredientIds,
+          selectedAdditionalIngredients: saleItems.selectedAdditionalIngredients,
         })
         .from(saleItems)
         .where(eq(saleItems.saleId, orderId))
@@ -1242,23 +1453,43 @@ export class SalesSqliteService {
       db.transaction((tx) => {
         for (const item of orderItems) {
           const removedIngredientIds = this.parseRemovedIngredientIds(item.removedIngredientIds);
+          const selectedAdditionalIngredients = this.parseSelectedAdditionalIngredients(item.selectedAdditionalIngredients);
+          const selectedAdditionalByIngredient = new Map(selectedAdditionalIngredients.map((entry) => [entry.ingredientId, entry.quantity]));
+
           const recipeEdges = tx
             .select({ ingredientId: productIngredients.ingredientId, quantityUsed: productIngredients.quantityUsed })
             .from(productIngredients)
             .where(eq(productIngredients.productId, item.productId))
             .all();
+          const additionalEdges = tx
+            .select({ ingredientId: productAdditionalIngredients.ingredientId, quantityUsed: productAdditionalIngredients.quantityUsed })
+            .from(productAdditionalIngredients)
+            .where(eq(productAdditionalIngredients.productId, item.productId))
+            .all();
 
           const leafRestorations = recipeEdges
             .filter(({ ingredientId }) => !removedIngredientIds.includes(ingredientId))
             .map(({ ingredientId, quantityUsed }) => ({ ingredientId, quantity: quantityUsed * item.quantity }));
+          const leafAdditionalRestorations = additionalEdges
+            .map(({ ingredientId, quantityUsed }) => ({
+              ingredientId,
+              quantity: quantityUsed * (selectedAdditionalByIngredient.get(ingredientId) ?? 0) * item.quantity,
+            }))
+            .filter((leaf) => leaf.quantity > 0);
 
-          for (const leaf of leafRestorations) {
+          const restorationByIngredient = new Map<string, number>();
+          for (const leaf of [...leafRestorations, ...leafAdditionalRestorations]) {
+            const current = restorationByIngredient.get(leaf.ingredientId) ?? 0;
+            restorationByIngredient.set(leaf.ingredientId, current + leaf.quantity);
+          }
+
+          for (const [ingredientId, quantity] of restorationByIngredient.entries()) {
             tx.update(ingredients)
               .set({
-                quantity: sql`${ingredients.quantity} + ${leaf.quantity}`,
+                quantity: sql`${ingredients.quantity} + ${quantity}`,
                 updatedAt: sql`cast(strftime('%s', 'now') as int)`,
               })
-              .where(eq(ingredients.id, leaf.ingredientId))
+              .where(eq(ingredients.id, ingredientId))
               .run();
           }
         }

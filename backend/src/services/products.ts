@@ -1,12 +1,16 @@
 import { db } from '@/database';
-import { categories, ingredients, productIngredients, products } from '@/database/schema';
+import { categories, ingredients, productAdditionalIngredients, productIngredients, products } from '@/database/schema';
 import type {
   CategoryOption,
   CreateProductPayload,
+  ProductAdditionalIngredientInput,
+  ProductAdditionalIngredientLink,
   ProductDetail,
   ProductIngredientLink,
   ProductRecipeInput,
+  RemoveProductAdditionalIngredientPayload,
   RemoveProductIngredientPayload,
+  SetProductAdditionalIngredientPayload,
   SetProductIngredientPayload,
   UpdateProductPayload,
 } from '@/types/products';
@@ -24,6 +28,23 @@ export class ProductsSqliteService {
     }
 
     return Array.from(deduped.entries()).map(([ingredientId, quantityUsed]) => ({ ingredientId, quantityUsed }));
+  }
+
+  private normalizeAdditionalIngredients(items: ProductAdditionalIngredientInput[]): ProductAdditionalIngredientInput[] {
+    const deduped = new Map<string, ProductAdditionalIngredientInput>();
+    for (const entry of items) {
+      if (!entry.ingredientId || entry.quantityUsed <= 0 || entry.additionalPrice < 0) {
+        continue;
+      }
+
+      deduped.set(entry.ingredientId, {
+        ingredientId: entry.ingredientId,
+        quantityUsed: entry.quantityUsed,
+        additionalPrice: entry.additionalPrice,
+      });
+    }
+
+    return Array.from(deduped.values());
   }
 
   async getHydrationData() {
@@ -65,18 +86,34 @@ export class ProductsSqliteService {
       .orderBy(productIngredients.productId, ingredients.name)
       .all() as ProductIngredientLink[];
 
+    const productAdditionalIngredientLinks = db
+      .select({
+        id: productAdditionalIngredients.id,
+        productId: productAdditionalIngredients.productId,
+        ingredientId: productAdditionalIngredients.ingredientId,
+        ingredientName: ingredients.name,
+        quantityUsed: productAdditionalIngredients.quantityUsed,
+        additionalPrice: productAdditionalIngredients.additionalPrice,
+      })
+      .from(productAdditionalIngredients)
+      .innerJoin(ingredients, eq(ingredients.id, productAdditionalIngredients.ingredientId))
+      .orderBy(productAdditionalIngredients.productId, ingredients.name)
+      .all() as ProductAdditionalIngredientLink[];
+
     return {
       categories: categoryOptions,
       products: productsList,
       productIngredients: ingredientLinks,
+      productAdditionalIngredients: productAdditionalIngredientLinks,
     };
   }
 
-  async createProduct({ name, categoryId, price, imageUri, recipe }: CreateProductPayload): Promise<string | null> {
+  async createProduct({ name, categoryId, price, imageUri, recipe, additionalIngredients = [] }: CreateProductPayload): Promise<string | null> {
     const normalizedRecipe = this.normalizeRecipe(recipe);
     if (normalizedRecipe.length === 0) {
       return null;
     }
+    const normalizedAdditionalIngredients = this.normalizeAdditionalIngredients(additionalIngredients);
 
     const productId = randomUUID();
     db.transaction((tx) => {
@@ -93,6 +130,19 @@ export class ProductsSqliteService {
           })),
         )
         .run();
+
+      if (normalizedAdditionalIngredients.length > 0) {
+        tx.insert(productAdditionalIngredients)
+          .values(
+            normalizedAdditionalIngredients.map((entry) => ({
+              productId,
+              ingredientId: entry.ingredientId,
+              quantityUsed: entry.quantityUsed,
+              additionalPrice: entry.additionalPrice,
+            })),
+          )
+          .run();
+      }
     });
 
     return productId;
@@ -157,6 +207,35 @@ export class ProductsSqliteService {
 
     db.delete(productIngredients)
       .where(and(eq(productIngredients.productId, productId), eq(productIngredients.ingredientId, ingredientId)))
+      .run();
+  }
+
+  async setProductAdditionalIngredient({ productId, ingredientId, quantityUsed, additionalPrice }: SetProductAdditionalIngredientPayload): Promise<void> {
+    if (quantityUsed <= 0 || additionalPrice < 0) {
+      return;
+    }
+
+    const existing = db
+      .select({ id: productAdditionalIngredients.id })
+      .from(productAdditionalIngredients)
+      .where(and(eq(productAdditionalIngredients.productId, productId), eq(productAdditionalIngredients.ingredientId, ingredientId)))
+      .get();
+
+    if (existing) {
+      db.update(productAdditionalIngredients)
+        .set({ quantityUsed, additionalPrice, updatedAt: sql`cast(strftime('%s', 'now') as int)` })
+        .where(eq(productAdditionalIngredients.id, existing.id))
+        .run();
+    } else {
+      db.insert(productAdditionalIngredients)
+        .values({ productId, ingredientId, quantityUsed, additionalPrice })
+        .run();
+    }
+  }
+
+  async removeProductAdditionalIngredient({ productId, ingredientId }: RemoveProductAdditionalIngredientPayload): Promise<void> {
+    db.delete(productAdditionalIngredients)
+      .where(and(eq(productAdditionalIngredients.productId, productId), eq(productAdditionalIngredients.ingredientId, ingredientId)))
       .run();
   }
 

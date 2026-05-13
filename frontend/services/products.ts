@@ -1,9 +1,12 @@
 import type {
   CategoryOption,
   CreateProductPayload,
+  ProductAdditionalIngredientLink,
   ProductDetail,
   ProductIngredientLink,
+  RemoveProductAdditionalIngredientPayload,
   RemoveProductIngredientPayload,
+  SetProductAdditionalIngredientPayload,
   SetProductIngredientPayload,
   UpdateProductPayload,
 } from '@/types/products';
@@ -13,6 +16,7 @@ export type ProductsHydrationData = {
   categories: CategoryOption[];
   products: ProductDetail[];
   productIngredients: ProductIngredientLink[];
+  productAdditionalIngredients: ProductAdditionalIngredientLink[];
 };
 
 export class ProductsService {
@@ -22,6 +26,7 @@ export class ProductsService {
       categories: [],
       products: [],
       productIngredients: [],
+      productAdditionalIngredients: [],
     };
   }
 
@@ -39,10 +44,18 @@ export class ProductsService {
   }
 
   async setProductIngredient(payload: SetProductIngredientPayload): Promise<void> {
-    await apiClient.post(`/products/${payload.productId}/ingredients`, payload);
+    await apiClient.put(`/products/${payload.productId}/ingredients/${payload.ingredientId}`, payload);
   }
 
   async removeProductIngredient(payload: RemoveProductIngredientPayload): Promise<void> {
     await apiClient.delete(`/products/${payload.productId}/ingredients/${payload.ingredientId}`);
+  }
+
+  async setProductAdditionalIngredient(payload: SetProductAdditionalIngredientPayload): Promise<void> {
+    await apiClient.put(`/products/${payload.productId}/additional-ingredients/${payload.ingredientId}`, payload);
+  }
+
+  async removeProductAdditionalIngredient(payload: RemoveProductAdditionalIngredientPayload): Promise<void> {
+    await apiClient.delete(`/products/${payload.productId}/additional-ingredients/${payload.ingredientId}`);
   }
 }

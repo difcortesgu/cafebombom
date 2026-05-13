@@ -89,6 +89,18 @@ export const productIngredients = sqliteTable('product_ingredients', {
   uniqueIndex('product_ingredients_unique').on(t.productId, t.ingredientId),
 ]);
 
+export const productAdditionalIngredients = sqliteTable('product_additional_ingredients', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  productId: text('product_id').notNull().references(() => products.id),
+  ingredientId: text('ingredient_id').notNull().references(() => ingredients.id),
+  quantityUsed: real('quantity_used').notNull(),
+  additionalPrice: real('additional_price').notNull().default(0),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+}, (t) => [
+  uniqueIndex('product_additional_ingredients_unique').on(t.productId, t.ingredientId),
+]);
+
 export const restaurantTables = sqliteTable('restaurant_tables', {
   id: text('id').primaryKey().$defaultFn(() => uuidv4()),
   name: text('name').notNull().unique(),
@@ -148,6 +160,7 @@ export const saleItems = sqliteTable('sale_items', {
   quantity: integer('quantity').notNull(),
   quantityPaid: integer('quantity_paid').notNull().default(0),
   removedIngredientIds: text('removed_ingredient_ids').notNull().default('[]'),
+  selectedAdditionalIngredients: text('selected_additional_ingredients').notNull().default('[]'),
   unitPrice: real('unit_price').notNull(),
   lineSubtotal: real('line_subtotal').notNull().default(0),
   discountName: text('discount_name'),

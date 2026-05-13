@@ -13,16 +13,18 @@ import { useAuthStore } from '@/stores/auth';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
-import type { TableType } from '@/types/types';
+import type { SaleItemAdditionalIngredientInput, TableType } from '@/types/types';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
 
 type CartItem = {
   id: string;
   productId: string;
   name: string;
+  basePrice: number;
   unitPrice: number;
   quantity: number;
   removedIngredientIds: string[];
+  additionalIngredients: SaleItemAdditionalIngredientInput[];
 };
 
 function createCartItemId(): string {
@@ -33,15 +35,38 @@ function normalizeIngredientIds(ids: string[]): string[] {
   return Array.from(new Set(ids.map((value) => value.trim()).filter((value) => value.length > 0))).sort();
 }
 
-function buildCustomizationKey(productId: string, removedIngredientIds: string[]): string {
-  return `${productId}::${normalizeIngredientIds(removedIngredientIds).join(',')}`;
+function normalizeAdditionalIngredients(entries: SaleItemAdditionalIngredientInput[]): SaleItemAdditionalIngredientInput[] {
+  const deduped = new Map<string, number>();
+  for (const entry of entries) {
+    const ingredientId = String(entry.ingredientId ?? '').trim();
+    const quantity = Math.max(0, Math.floor(Number(entry.quantity ?? 0)));
+    if (!ingredientId || quantity <= 0) {
+      continue;
+    }
+    deduped.set(ingredientId, quantity);
+  }
+  return Array.from(deduped.entries())
+    .map(([ingredientId, quantity]) => ({ ingredientId, quantity }))
+    .sort((left, right) => left.ingredientId.localeCompare(right.ingredientId));
+}
+
+function buildCustomizationKey(
+  productId: string,
+  removedIngredientIds: string[],
+  additionalIngredients: SaleItemAdditionalIngredientInput[],
+): string {
+  const normalizedAdditional = normalizeAdditionalIngredients(additionalIngredients)
+    .map((entry) => `${entry.ingredientId}:${entry.quantity}`)
+    .join(',');
+  return `${productId}::${normalizeIngredientIds(removedIngredientIds).join(',')}::${normalizedAdditional}`;
 }
 
 function mergeCartLines(items: CartItem[]): CartItem[] {
   const grouped = new Map<string, CartItem>();
   for (const item of items) {
     const removedIngredientIds = normalizeIngredientIds(item.removedIngredientIds);
-    const key = buildCustomizationKey(item.productId, removedIngredientIds);
+    const additionalIngredients = normalizeAdditionalIngredients(item.additionalIngredients);
+    const key = buildCustomizationKey(item.productId, removedIngredientIds, additionalIngredients);
     const existing = grouped.get(key);
     if (existing) {
       existing.quantity += item.quantity;
@@ -50,6 +75,7 @@ function mergeCartLines(items: CartItem[]): CartItem[] {
     grouped.set(key, {
       ...item,
       removedIngredientIds,
+      additionalIngredients,
     });
   }
   return [...grouped.values()];
@@ -138,7 +164,9 @@ export default function SaleFormScreen() {
         const itemMap = new Map<string, CartItem>();
         for (const item of items) {
           const removedIngredientIds = normalizeIngredientIds(item.removed_ingredient_ids ?? []);
-          const key = buildCustomizationKey(item.product_id, removedIngredientIds);
+          const additionalIngredients = normalizeAdditionalIngredients(item.selected_additional_ingredients ?? []);
+          const key = buildCustomizationKey(item.product_id, removedIngredientIds, additionalIngredients);
+          const currentProduct = products.find((product) => product.id === item.product_id);
           const existing = itemMap.get(key);
           if (existing) {
             existing.quantity += item.quantity;
@@ -147,9 +175,11 @@ export default function SaleFormScreen() {
               id: createCartItemId(),
               productId: item.product_id,
               name: item.product_name,
+              basePrice: Number(currentProduct?.price ?? item.unit_price),
               unitPrice: Number(item.unit_price),
               quantity: item.quantity,
               removedIngredientIds,
+              additionalIngredients,
             });
           }
         }
@@ -177,7 +207,7 @@ export default function SaleFormScreen() {
     return () => {
       isMounted = false;
     };
-  }, [editingOrderId, isDraftInitialized, selectedDraftSale, tables, discounts]);
+  }, [editingOrderId, isDraftInitialized, selectedDraftSale, tables, discounts, products]);
 
   const nowUnix = Math.floor(Date.now() / 1000);
 
@@ -203,6 +233,7 @@ export default function SaleFormScreen() {
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        additionalIngredients: item.additionalIngredients,
       })),
       discounts,
       nowUnix,
@@ -221,6 +252,28 @@ export default function SaleFormScreen() {
     }
     return map;
   }, [productIngredients]);
+
+  const additionalOptionsByProductId = useMemo(() => {
+    const map = new Map<string, Map<string, { ingredientName: string; additionalPrice: number }>>();
+    for (const product of products) {
+      const byIngredient = new Map<string, { ingredientName: string; additionalPrice: number }>();
+      for (const option of product.additionalIngredients ?? []) {
+        byIngredient.set(option.ingredientId, {
+          ingredientName: option.ingredientName,
+          additionalPrice: Number(option.additionalPrice),
+        });
+      }
+      map.set(product.id, byIngredient);
+    }
+    return map;
+  }, [products]);
+
+  const getCartItemUnitPrice = useCallback((productId: string, basePrice: number, additionalIngredients: SaleItemAdditionalIngredientInput[]) => {
+    const options = additionalOptionsByProductId.get(productId) ?? new Map<string, { ingredientName: string; additionalPrice: number }>();
+    const additionalPrice = normalizeAdditionalIngredients(additionalIngredients)
+      .reduce((sum, entry) => sum + (options.get(entry.ingredientId)?.additionalPrice ?? 0) * entry.quantity, 0);
+    return Number((basePrice + additionalPrice).toFixed(2));
+  }, [additionalOptionsByProductId]);
 
   const selectedTable = useMemo(
     () => tables.find((table) => table.id === selectedTableId) ?? null,
@@ -269,19 +322,28 @@ export default function SaleFormScreen() {
     return result;
   }, [products]);
 
-  const addToCart = (productId: string, name: string, unitPrice: number) => {
+  const addToCart = (productId: string, name: string, basePrice: number) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0);
+      const existing = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0 && item.additionalIngredients.length === 0);
       if (existing) {
         return prev.map((item) => (item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item));
       }
-      return [...prev, { id: createCartItemId(), productId, name, unitPrice, quantity: 1, removedIngredientIds: [] }];
+      return [...prev, {
+        id: createCartItemId(),
+        productId,
+        name,
+        basePrice,
+        unitPrice: Number(basePrice.toFixed(2)),
+        quantity: 1,
+        removedIngredientIds: [],
+        additionalIngredients: [],
+      }];
     });
   };
 
   const decrementProductInCatalog = (productId: string) => {
     setCart((prev) => {
-      const preferred = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0)
+      const preferred = prev.find((item) => item.productId === productId && item.removedIngredientIds.length === 0 && item.additionalIngredients.length === 0)
         ?? prev.find((item) => item.productId === productId);
 
       if (!preferred) {
@@ -327,6 +389,35 @@ export default function SaleFormScreen() {
     });
   };
 
+  const updateAdditionalIngredientQty = (cartItemId: string, ingredientId: string, delta: number) => {
+    setCart((prev) => {
+      const next = prev.map((item) => {
+        if (item.id !== cartItemId) {
+          return item;
+        }
+
+        const currentQty = item.additionalIngredients.find((entry) => entry.ingredientId === ingredientId)?.quantity ?? 0;
+        const nextQty = Math.max(0, currentQty + delta);
+        const additionalIngredients = normalizeAdditionalIngredients(
+          nextQty > 0
+            ? [
+              ...item.additionalIngredients.filter((entry) => entry.ingredientId !== ingredientId),
+              { ingredientId, quantity: nextQty },
+            ]
+            : item.additionalIngredients.filter((entry) => entry.ingredientId !== ingredientId),
+        );
+
+        return {
+          ...item,
+          additionalIngredients,
+          unitPrice: getCartItemUnitPrice(item.productId, item.basePrice, additionalIngredients),
+        };
+      });
+
+      return mergeCartLines(next);
+    });
+  };
+
   const submitSale = async () => {
     if (!user || cart.length === 0 || !selectedTableId) {
       return;
@@ -339,6 +430,7 @@ export default function SaleFormScreen() {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         removedIngredientIds: item.removedIngredientIds,
+        additionalIngredients: item.additionalIngredients,
       })),
       tableId: selectedTableId,
       globalDiscountId: selectedGlobalDiscountId || null,
@@ -486,6 +578,17 @@ export default function SaleFormScreen() {
                 <View style={styles.compactCartDetails}>
                   <ThemedText style={styles.compactProductName}>{item.name}</ThemedText>
                   <ThemedText style={styles.tinyText}>${item.unitPrice.toFixed(2)}</ThemedText>
+                  {item.additionalIngredients.length > 0 ? (
+                    <ThemedText style={styles.tinyText}>
+                      {t('saleForm.additionalLabel')}: {item.additionalIngredients
+                        .map((entry) => {
+                          const option = additionalOptionsByProductId.get(item.productId)?.get(entry.ingredientId);
+                          return option ? `${option.ingredientName} x${entry.quantity}` : null;
+                        })
+                        .filter((value): value is string => Boolean(value))
+                        .join(', ')}
+                    </ThemedText>
+                  ) : null}
                   {item.removedIngredientIds.length > 0 ? (
                     <ThemedText style={styles.tinyText}>
                       {t('saleForm.withoutLabel')}: {item.removedIngredientIds
@@ -512,6 +615,41 @@ export default function SaleFormScreen() {
                               {removed ? t('saleForm.withoutChip') : t('saleForm.removeChip')} {ingredient.ingredientName}
                             </ThemedText>
                           </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {(products.find((product) => product.id === item.productId)?.additionalIngredients.length ?? 0) > 0 ? (
+                    <View style={styles.removedIngredientsRow}>
+                      {(products.find((product) => product.id === item.productId)?.additionalIngredients ?? []).map((additionalOption) => {
+                        const selectedQty = item.additionalIngredients.find((entry) => entry.ingredientId === additionalOption.ingredientId)?.quantity ?? 0;
+                        return (
+                          <View
+                            key={`${item.id}-additional-${additionalOption.ingredientId}`}
+                            style={[
+                              styles.additionalOptionRow,
+                              { borderColor: selectedQty > 0 ? palette.tint : palette.border },
+                            ]}>
+                            <View style={styles.additionalOptionTextWrap}>
+                              <ThemedText style={styles.ingredientToggleText}>{additionalOption.ingredientName}</ThemedText>
+                              <ThemedText style={styles.tinyText}>+${Number(additionalOption.additionalPrice).toFixed(2)}</ThemedText>
+                            </View>
+                            <View style={styles.compactQtyControl}>
+                              <Pressable
+                                style={[styles.compactQtyButton, { borderColor: palette.border }]}
+                                onPress={() => updateAdditionalIngredientQty(item.id, additionalOption.ingredientId, -1)}
+                                disabled={Boolean(editingOrderId && !canEditDraft)}>
+                                <ThemedText style={styles.tinyText}>−</ThemedText>
+                              </Pressable>
+                              <ThemedText style={styles.tinyText}>{selectedQty}</ThemedText>
+                              <Pressable
+                                style={[styles.compactQtyButton, { borderColor: palette.border }]}
+                                onPress={() => updateAdditionalIngredientQty(item.id, additionalOption.ingredientId, 1)}
+                                disabled={Boolean(editingOrderId && !canEditDraft)}>
+                                <ThemedText style={styles.tinyText}>+</ThemedText>
+                              </Pressable>
+                            </View>
+                          </View>
                         );
                       })}
                     </View>
@@ -790,6 +928,21 @@ const styles = StyleSheet.create({
   ingredientToggleText: {
     fontSize: 10,
     fontWeight: '500',
+  },
+  additionalOptionRow: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    minWidth: 160,
+  },
+  additionalOptionTextWrap: {
+    flex: 1,
+    gap: 2,
   },
   qtyControl: {
     flexDirection: 'row',

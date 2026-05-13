@@ -272,6 +272,7 @@ function buildTestReceipt(paperWidth: ReceiptPaperWidth): ReceiptData {
         discountAmount: 0,
         lineTotal: 5,
         discountName: null,
+        additionalIngredients: [],
       },
     ],
     pricing: {
