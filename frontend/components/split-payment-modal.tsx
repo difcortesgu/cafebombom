@@ -7,12 +7,12 @@ import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { printService } from '@/services';
+import { printService, salesService } from '@/services';
 import { useSalesStore } from '@/stores/sales';
-import type { ReceiptData, ReceiptPaperWidth } from '@/types/receipt';
+import type { ReceiptPaperWidth } from '@/types/receipt';
 import type { SalePayment, SalePaymentBoard, SalePaymentBoardItem } from '@/types/sales';
 import type { PaymentMethod, Sale } from '@/types/types';
-import { buildReceiptData } from '@/utils/receipt';
+import { buildPartialReceiptData } from '@/utils/receipt';
 
 export type SplitPaymentBusiness = {
     name: string;
@@ -174,63 +174,6 @@ function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: P
     );
 }
 
-function buildPartialReceiptData(sale: Sale, payment: SalePayment, business: SplitPaymentBusiness): ReceiptData {
-    const items = payment.lines.map((line) => ({
-        id: line.payment_item_id,
-        product_id: line.product_id,
-        product_name: line.product_name,
-        observation: null,
-        quantity: line.quantity_paid,
-        quantity_paid: line.quantity_paid,
-        quantity_pending: 0,
-        removed_ingredient_ids: [],
-        selected_additional_ingredients: [],
-        selected_additional_ingredient_details: [],
-        unit_price: line.unit_price,
-        line_subtotal: line.line_subtotal,
-        final_unit_price: line.unit_price,
-        final_line_total: line.line_total,
-        discount_name: null,
-        discount_type: null,
-        discount_value: null,
-        discount_amount: line.discount_amount,
-    }));
-
-    return buildReceiptData({
-        sale: {
-            id: sale.id,
-            created_at: Number(sale.created_at),
-            staff_name: sale.staff_name,
-            table_name: sale.table_name,
-            payment_method: payment.payment_method,
-            status: sale.status,
-            paid_at: payment.paid_at,
-        },
-        items,
-        pricing: {
-            subtotal: payment.subtotal,
-            item_discount_total: payment.item_discount_total,
-            global_discount_name: payment.global_discount_amount > 0 ? t('sales.pricing.globalDiscount') : null,
-            global_discount_type: null,
-            global_discount_value: null,
-            global_discount_amount: payment.global_discount_amount,
-            order_type_surcharge: payment.surcharge_amount,
-            total: payment.total,
-            discount_applied_by: null,
-        },
-        business: {
-            name: business.name,
-            address: business.address,
-            phone: business.phone,
-            nit: business.nit,
-            logoUri: business.logoUri,
-            footerMessage: business.footerMessage,
-        },
-        taxConfig: { label: 'IVA', rate: business.taxRate, inclusive: true },
-        paperWidth: business.paperWidth,
-    });
-}
-
 type Props = {
     visible: boolean;
     sale: Sale | null;
@@ -365,10 +308,26 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
 
     const handlePrintPayment = async (payment: SalePayment) => {
         if (!sale || printingPaymentId !== null) return;
-        const receiptData = buildPartialReceiptData(sale, payment, business);
         setPrintingPaymentId(payment.id);
         setPrintMessages((prev) => { const next = { ...prev }; delete next[payment.id]; return next; });
         try {
+            const saleItems = await salesService.getSaleItems(sale.id);
+            const receiptData = buildPartialReceiptData({
+                sale,
+                payment,
+                saleItems,
+                business: {
+                    name: business.name,
+                    address: business.address,
+                    phone: business.phone,
+                    nit: business.nit,
+                    logoUri: business.logoUri,
+                    footerMessage: business.footerMessage,
+                },
+                taxConfig: { label: 'IVA', rate: business.taxRate, inclusive: true },
+                paperWidth: business.paperWidth,
+                globalDiscountName: payment.global_discount_amount > 0 ? t('sales.pricing.globalDiscount') : null,
+            });
             await printService.printReceipt(receiptData, {
                 name: business.printerDeviceName ?? undefined,
                 address: business.printerDeviceAddress ?? undefined,

@@ -18,7 +18,13 @@ import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
 import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
-import { buildReceiptData } from '@/utils/receipt';
+import { buildPartialReceiptData, buildReceiptData, isSinglePaymentForWholeSale } from '@/utils/receipt';
+
+type ReceiptVariant = {
+  id: string;
+  label: string;
+  receipt: ReceiptData;
+};
 
 function buildFallbackPricingSummary(sale: Sale, items: SaleItemDetail[]): SalePricingSummary {
   const subtotal = items.reduce((sum, item) => sum + Number(item.line_subtotal ?? 0), 0);
@@ -209,6 +215,8 @@ export default function SalesScreen() {
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [receiptPreviewVisible, setReceiptPreviewVisible] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [receiptVariants, setReceiptVariants] = useState<ReceiptVariant[]>([]);
+  const [selectedReceiptVariantId, setSelectedReceiptVariantId] = useState<string>('full');
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [printingBusy, setPrintingBusy] = useState(false);
@@ -349,13 +357,16 @@ export default function SalesScreen() {
 
   const loadReceiptData = async (sale: Sale) => {
     setReceiptData(null);
+    setReceiptVariants([]);
+    setSelectedReceiptVariantId('full');
     setReceiptLoading(true);
     setReceiptMessage(null);
 
     try {
-      const [items, pricing] = await Promise.all([
+      const [items, pricing, payments] = await Promise.all([
         salesService.getSaleItems(sale.id),
         salesService.getSalePricingSummary(sale.id),
+        salesService.getSalePayments(sale.id),
       ]);
 
       const pricingSummary = pricing ?? buildFallbackPricingSummary(sale, items);
@@ -387,7 +398,44 @@ export default function SalesScreen() {
         surchargeBreakdown,
       });
 
-      setReceiptData(receipt);
+      const fullOrderPaidInSinglePayment = isSinglePaymentForWholeSale(items, payments);
+
+      const variants: ReceiptVariant[] = [
+        {
+          id: 'full',
+          label: t('sales.receipt.fullReceipt'),
+          receipt,
+        },
+        ...(!fullOrderPaidInSinglePayment
+          ? payments.map((payment, index) => ({
+            id: payment.id,
+            label: t('sales.receipt.partialReceipt', { number: index + 1 }),
+            receipt: buildPartialReceiptData({
+              sale,
+              payment,
+              saleItems: items,
+              business: {
+                name: businessName,
+                address: businessAddress,
+                phone: businessPhone,
+                nit: businessNit,
+                logoUri: businessLogoUri,
+                footerMessage: receiptFooterMessage,
+              },
+              taxConfig: {
+                label: 'IVA',
+                rate: taxRate,
+                inclusive: true,
+              },
+              paperWidth: printerPaperWidth,
+              globalDiscountName: payment.global_discount_amount > 0 ? t('sales.pricing.globalDiscount') : null,
+            }),
+          }))
+          : []),
+      ];
+
+      setReceiptVariants(variants);
+      setReceiptData(variants[0]?.receipt ?? receipt);
       if (!pricing) {
         setReceiptMessage(t('sales.receipt.fallbackPricing'));
       }
@@ -402,6 +450,12 @@ export default function SalesScreen() {
   const openReceiptPreview = async (sale: Sale) => {
     setReceiptPreviewVisible(true);
     await loadReceiptData(sale);
+  };
+
+  const handleSelectReceiptVariant = (variantId: string) => {
+    setSelectedReceiptVariantId(variantId);
+    const variant = receiptVariants.find((entry) => entry.id === variantId);
+    setReceiptData(variant?.receipt ?? null);
   };
 
   const openPaymentFlow = (sale: Sale) => {
@@ -506,7 +560,7 @@ export default function SalesScreen() {
                 <ThemedText style={styles.detailMeta}>
                   {detailSale.table_name}
                   {detailSale.paid_at && ' · Pagado'}
-                  {detailSale.payment_method && ' · ' + formatPaymentMethod(detailSale.payment_method)}
+                  {!detailSale.paid_at && detailSale.payment_method && ' · ' + formatPaymentMethod(detailSale.payment_method)}
                   {' · ' + detailSale.staff_name}
                 </ThemedText>
                 <ThemedText style={styles.detailMeta}>
@@ -604,6 +658,22 @@ export default function SalesScreen() {
         <ThemedCard style={styles.modalCard}>
           <ThemedText type="subtitle">{t('sales.receipt.title')}</ThemedText>
           {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
+          {!receiptLoading && receiptVariants.length > 1 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.receiptVariantTabs}>
+              {receiptVariants.map((variant) => {
+                const isActive = variant.id === selectedReceiptVariantId;
+                return (
+                  <ThemedButton
+                    key={variant.id}
+                    label={variant.label}
+                    variant={isActive ? 'primary' : 'secondary'}
+                    style={styles.receiptVariantButton}
+                    onPress={() => handleSelectReceiptVariant(variant.id)}
+                  />
+                );
+              })}
+            </ScrollView>
+          ) : null}
           {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
           {receiptMessage ? <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText> : null}
           <View style={styles.modalActions}>
@@ -892,5 +962,12 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  receiptVariantTabs: {
+    gap: 8,
+    paddingVertical: 8,
+  },
+  receiptVariantButton: {
+    minWidth: 132,
   },
 });

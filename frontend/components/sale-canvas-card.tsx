@@ -109,7 +109,7 @@ export function SaleCanvasCard({
         {isPaid ? (
           <View style={[styles.paidBadge, { backgroundColor: '#16a34a' }]}>
             <ThemedText style={[styles.paidBadgeText, { color: '#ffffff' }]}>
-              Pagado{paymentLabel ? ` (${paymentLabel})` : ''}
+              Pagado
             </ThemedText>
           </View>
         ) : null}

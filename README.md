@@ -26,10 +26,7 @@ See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
 
-- Colocar anotaciones para cada producto, por ejemplo sin cebolla o sin salsa...
-
 - Mejorar la forma de hacer restock Que se registren en gastos
-
 - Mover el restock también para que se pueda hacer desde gastos
 
 - Si la cuenta se dividió, quiero después siempre poder imprimir los recibos parciales tal cual como se pagaron

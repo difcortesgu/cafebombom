@@ -313,6 +313,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'sales.receipt.title': 'Vista previa del recibo',
     'sales.receipt.loading': 'Preparando recibo...',
     'sales.receipt.close': 'Cerrar vista previa',
+    'sales.receipt.fullReceipt': 'Recibo completo',
+    'sales.receipt.partialReceipt': 'Parcial {number}',
     'sales.receipt.fallbackPricing': 'Recibo preparado con resumen de precios de respaldo.',
     'sales.receipt.phonePrefix': 'Tel',
     'sales.receipt.nitPrefix': 'NIT',
