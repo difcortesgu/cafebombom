@@ -20,7 +20,7 @@ export default function ProductsScreen() {
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
   const { products, categories, hydrate, updateProduct } = useProductsStore();
-  const { ingredients, hydrate: hydrateInventory, updateIngredient } = useInventoryStore();
+  const { ingredients, hydrate: hydrateInventory } = useInventoryStore();
 
   const [section, setSection] = useState<Section>('products');
   const [message, setMessage] = useState('');
@@ -138,11 +138,8 @@ export default function ProductsScreen() {
                     <ThemedButton
                       variant="secondary"
                       style={styles.secondaryButton}
-                      label={t('products.ingredients.plusOne')}
-                      onPress={async () => {
-                        await updateIngredient({ id: item.id, quantity: Number(item.quantity) + 1 });
-                        setMessage(t('products.ingredients.updated'));
-                      }}
+                      label={t('inventory.restock.add')}
+                      onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'restock', ingredientId: item.id } })}
                     />
                   </View>
                 </View>

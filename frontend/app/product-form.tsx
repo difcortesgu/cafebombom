@@ -34,6 +34,12 @@ function normalizeParam(value?: string | string[]) {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+type PendingIngredientSelection = {
+  scope: 'recipe' | 'additional';
+  index: number;
+  knownIngredientIds: string[];
+};
+
 export default function ProductFormScreen() {
   const palette = useAppColors();
   const router = useRouter();
@@ -71,6 +77,7 @@ export default function ProductFormScreen() {
   });
   const [productRecipeItems, setProductRecipeItems] = useState<{ ingredientId: string; quantityUsed: string }[]>([]);
   const [productAdditionalItems, setProductAdditionalItems] = useState<{ ingredientId: string; quantityUsed: string; additionalPrice: string }[]>([]);
+  const [pendingIngredientSelection, setPendingIngredientSelection] = useState<PendingIngredientSelection | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -140,6 +147,15 @@ export default function ProductFormScreen() {
 
   const addProductAdditionalItem = (ingredientId: string = '', quantityUsed: string = '', additionalPrice: string = '') => {
     setProductAdditionalItems((items) => [...items, { ingredientId, quantityUsed, additionalPrice }]);
+  };
+
+  const startCreateIngredientForItem = (scope: 'recipe' | 'additional', index: number) => {
+    setPendingIngredientSelection({
+      scope,
+      index,
+      knownIngredientIds: ingredients.map((ingredient) => ingredient.id),
+    });
+    router.push('/ingredient-form');
   };
 
   const removeProductAdditionalItem = (index: number) => {
@@ -295,6 +311,25 @@ export default function ProductFormScreen() {
     setMessage(t('productForm.additionalAdded', { count: productAdditionalItems.length }));
   };
 
+  useEffect(() => {
+    if (!pendingIngredientSelection) {
+      return;
+    }
+
+    const createdIngredient = ingredients.find((ingredient) => !pendingIngredientSelection.knownIngredientIds.includes(ingredient.id));
+    if (!createdIngredient) {
+      return;
+    }
+
+    if (pendingIngredientSelection.scope === 'recipe') {
+      updateProductRecipeItem(pendingIngredientSelection.index, createdIngredient.id, undefined);
+    } else {
+      updateProductAdditionalItem(pendingIngredientSelection.index, createdIngredient.id, undefined, undefined);
+    }
+
+    setPendingIngredientSelection(null);
+  }, [ingredients, pendingIngredientSelection]);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">{productForm.id ? t('productForm.title.edit') : t('productForm.title.create')}</ThemedText>
@@ -400,7 +435,19 @@ export default function ProductFormScreen() {
               </View>
             );
           })}
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+          <View style={styles.actionsRow}>
+            <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+            <ThemedButton
+              variant="secondary"
+              style={styles.primaryButton}
+              label={t('products.ingredients.add')}
+              onPress={() => {
+                const nextIndex = productRecipeItems.length;
+                addProductRecipeItem('', '');
+                startCreateIngredientForItem('recipe', nextIndex);
+              }}
+            />
+          </View>
 
           <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
           <ThemedText style={styles.smallText}>{t('productForm.additionalHelp')}</ThemedText>
@@ -439,7 +486,19 @@ export default function ProductFormScreen() {
               </View>
             );
           })}
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+          <View style={styles.actionsRow}>
+            <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+            <ThemedButton
+              variant="secondary"
+              style={styles.primaryButton}
+              label={t('products.ingredients.add')}
+              onPress={() => {
+                const nextIndex = productAdditionalItems.length;
+                addProductAdditionalItem('', '', '');
+                startCreateIngredientForItem('additional', nextIndex);
+              }}
+            />
+          </View>
         </ThemedCard>
       ) : (
         <ThemedCard style={styles.card}>
@@ -502,7 +561,19 @@ export default function ProductFormScreen() {
             })
           )}
 
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+          <View style={styles.actionsRow}>
+            <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+            <ThemedButton
+              variant="secondary"
+              style={styles.primaryButton}
+              label={t('products.ingredients.add')}
+              onPress={() => {
+                const nextIndex = productRecipeItems.length;
+                addProductRecipeItem('', '');
+                startCreateIngredientForItem('recipe', nextIndex);
+              }}
+            />
+          </View>
           <ThemedButton style={styles.primaryButton} label={t('productForm.saveRecipeItems')} onPress={saveProductRecipe} />
 
           <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
@@ -571,7 +642,19 @@ export default function ProductFormScreen() {
             })
           )}
 
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+          <View style={styles.actionsRow}>
+            <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+            <ThemedButton
+              variant="secondary"
+              style={styles.primaryButton}
+              label={t('products.ingredients.add')}
+              onPress={() => {
+                const nextIndex = productAdditionalItems.length;
+                addProductAdditionalItem('', '', '');
+                startCreateIngredientForItem('additional', nextIndex);
+              }}
+            />
+          </View>
           <ThemedButton style={styles.primaryButton} label={t('productForm.saveAdditionalItems')} onPress={saveProductAdditionalIngredients} />
         </ThemedCard>
       )}

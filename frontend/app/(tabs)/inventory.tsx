@@ -21,7 +21,7 @@ export default function InventoryScreen() {
   const [section, setSection] = useState<Section>('products');
   const [message, setMessage] = useState('');
 
-  const { suppliers, ingredients, hydrate: hydrateInventory, updateIngredient } = useInventoryStore();
+  const { suppliers, ingredients, hydrate: hydrateInventory } = useInventoryStore();
   const { products, categories, hydrate: hydrateProducts, updateProduct } = useProductsStore();
 
   const lowStock = useMemo(
@@ -80,7 +80,7 @@ export default function InventoryScreen() {
           </View>
 
           {products.map((product) => (
-            <View key={product.id} style={[styles.listItemColumn, { borderColor: palette.border }]}> 
+            <View key={product.id} style={[styles.listItemColumn, { borderColor: palette.border }]}>
               <View style={styles.listHeader}>
                 <View style={styles.listTextWrap}>
                   <ThemedText type="defaultSemiBold">{product.name}</ThemedText>
@@ -122,7 +122,7 @@ export default function InventoryScreen() {
             {ingredients.map((item) => {
               const isLow = Number(item.quantity) <= Number(item.low_stock_threshold);
               return (
-                <View key={item.id} style={[styles.listItem, { borderColor: palette.border }]}> 
+                <View key={item.id} style={[styles.listItem, { borderColor: palette.border }]}>
                   <View style={styles.listTextWrap}>
                     <ThemedText type="defaultSemiBold">{item.name}</ThemedText>
                     <ThemedText style={styles.smallText}>
@@ -140,11 +140,8 @@ export default function InventoryScreen() {
                     <ThemedButton
                       variant="secondary"
                       style={styles.secondaryButton}
-                      label={t('products.ingredients.plusOne')}
-                      onPress={async () => {
-                        await updateIngredient({ id: item.id, quantity: Number(item.quantity) + 1 });
-                        setMessage(t('products.ingredients.updated'));
-                      }}
+                      label={t('inventory.restock.add')}
+                      onPress={() => router.push({ pathname: '/inventory-form', params: { section: 'restock', ingredientId: item.id } })}
                     />
                   </View>
                 </View>

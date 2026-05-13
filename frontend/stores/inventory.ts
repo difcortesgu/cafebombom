@@ -13,7 +13,7 @@ type InventoryState = {
   hydrate: () => Promise<void>;
   addIngredient: (payload: AddIngredientPayload) => Promise<string>;
   updateIngredient: (payload: UpdateIngredientPayload) => Promise<void>;
-  addSupplier: (payload: AddSupplierPayload) => Promise<void>;
+  addSupplier: (payload: AddSupplierPayload) => Promise<string | null>;
   addUnit: (payload: AddUnitPayload) => Promise<InventoryUnit | null>;
   deleteUnit: (payload: DeleteUnitPayload) => Promise<string | null>;
   addRestock: (payload: AddRestockPayload) => Promise<void>;
@@ -52,8 +52,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   addSupplier: async ({ name, phone, notes }: AddSupplierPayload) => {
-    await inventoryService.addSupplier({ name, phone, notes });
+    const supplierId = await inventoryService.addSupplier({ name, phone, notes });
     await get().hydrate();
+    return supplierId;
   },
 
   addUnit: async ({ name }: AddUnitPayload) => {

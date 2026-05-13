@@ -1,5 +1,5 @@
 import { db } from '@/database';
-import { ingredientUnits, ingredients, restockLogs, suppliers } from '@/database/schema';
+import { expenses, ingredientUnits, ingredients, restockLogs, suppliers } from '@/database/schema';
 import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 import { asc, desc, eq, sql } from 'drizzle-orm';
@@ -154,6 +154,12 @@ export class InventorySqliteService {
   async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
 
+    const ingredient = db
+      .select({ name: ingredients.name, unit: ingredients.unit })
+      .from(ingredients)
+      .where(eq(ingredients.id, ingredientId))
+      .get();
+
     const [inserted] = db.insert(restockLogs)
       .values({ ingredientId, quantityAdded, cost, supplierId: supplierId ?? null, date: now })
       .returning({ id: restockLogs.id })
@@ -169,6 +175,16 @@ export class InventorySqliteService {
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
       })
       .where(eq(ingredients.id, ingredientId))
+      .run();
+
+    db.insert(expenses)
+      .values({
+        date: now,
+        category: 'Reposición de inventario',
+        amount: cost,
+        description: ingredient ? `${ingredient.name} (${quantityAdded} ${ingredient.unit})` : null,
+        supplierId: supplierId ?? null,
+      })
       .run();
 
     return inserted.id;

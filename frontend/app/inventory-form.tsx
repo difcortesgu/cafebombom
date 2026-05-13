@@ -1,11 +1,10 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
@@ -17,23 +16,71 @@ function normalizeSection(value?: string | string[]): Section {
   return raw === 'restock' ? 'restock' : 'suppliers';
 }
 
+function normalizeParam(value?: string | string[]): string {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw ?? '';
+}
+
 export default function InventoryFormScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ section?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    section?: string | string[];
+    returnSection?: string | string[];
+    ingredientId?: string | string[];
+    quantityAdded?: string | string[];
+    cost?: string | string[];
+    supplierId?: string | string[];
+  }>();
   const initialSection = normalizeSection(params.section);
+  const returnSection = normalizeSection(params.returnSection);
+  const initialIngredientId = normalizeParam(params.ingredientId);
+  const isRestockSection = initialSection === 'restock';
+  const returnToRestock = returnSection === 'restock';
 
   const { suppliers, hydrate, addSupplier, addRestock, ingredients } = useInventoryStore();
 
-  const [section, setSection] = useState<Section>(initialSection);
   const [message, setMessage] = useState('');
   const [supplierForm, setSupplierForm] = useState({ name: '', phone: '', notes: '' });
-  const [restockForm, setRestockForm] = useState({ ingredientId: '', quantityAdded: '1', cost: '0', supplierId: '' });
+  const [restockForm, setRestockForm] = useState({
+    ingredientId: initialIngredientId,
+    quantityAdded: normalizeParam(params.quantityAdded) || '1',
+    cost: normalizeParam(params.cost) || '0',
+    supplierId: normalizeParam(params.supplierId),
+  });
 
   useFocusEffect(
     useCallback(() => {
       void hydrate();
     }, [hydrate]),
   );
+
+  useEffect(() => {
+    setRestockForm((current) => {
+      const ingredientIdFromParams = normalizeParam(params.ingredientId);
+      const quantityAddedFromParams = normalizeParam(params.quantityAdded);
+      const costFromParams = normalizeParam(params.cost);
+      const supplierIdFromParams = normalizeParam(params.supplierId);
+
+      const next = {
+        ...current,
+        ingredientId: ingredientIdFromParams || current.ingredientId,
+        quantityAdded: quantityAddedFromParams || current.quantityAdded,
+        cost: costFromParams || current.cost,
+        supplierId: supplierIdFromParams,
+      };
+
+      if (
+        next.ingredientId === current.ingredientId
+        && next.quantityAdded === current.quantityAdded
+        && next.cost === current.cost
+        && next.supplierId === current.supplierId
+      ) {
+        return current;
+      }
+
+      return next;
+    });
+  }, [params.cost, params.ingredientId, params.quantityAdded, params.supplierId]);
 
   const selectedIngredient = useMemo(
     () => ingredients.find((ingredient) => ingredient.id === restockForm.ingredientId) ?? null,
@@ -54,13 +101,7 @@ export default function InventoryFormScreen() {
         </ThemedCard>
       ) : null}
 
-      <View style={styles.tabRow}>
-        {(['suppliers', 'restock'] as Section[]).map((item) => (
-          <ThemedChip key={item} style={styles.sectionButton} label={item === 'suppliers' ? t('inventoryForm.tab.suppliers') : t('inventoryForm.tab.restock')} active={section === item} onPress={() => setSection(item)} />
-        ))}
-      </View>
-
-      {section === 'suppliers' ? (
+      {!isRestockSection ? (
         <ThemedCard style={styles.card}>
           <ThemedText type="subtitle">{t('inventoryForm.suppliers.title')}</ThemedText>
           <ThemedInput placeholder={t('inventoryForm.suppliers.name')} value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
@@ -75,26 +116,67 @@ export default function InventoryFormScreen() {
                   setMessage(t('inventoryForm.suppliers.required'));
                   return;
                 }
-                await addSupplier({ name: supplierForm.name.trim(), phone: supplierForm.phone, notes: supplierForm.notes });
+
+                const supplierId = await addSupplier({ name: supplierForm.name.trim(), phone: supplierForm.phone, notes: supplierForm.notes });
+                if (!supplierId) {
+                  setMessage(t('inventoryForm.suppliers.duplicate'));
+                  return;
+                }
+
+                if (returnToRestock) {
+                  router.replace({
+                    pathname: '/inventory-form',
+                    params: {
+                      section: 'restock',
+                      ingredientId: normalizeParam(params.ingredientId),
+                      quantityAdded: normalizeParam(params.quantityAdded),
+                      cost: normalizeParam(params.cost),
+                      supplierId,
+                    },
+                  });
+                  return;
+                }
+
                 router.back();
               }}
             />
-            <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
+            <ThemedButton
+              variant="secondary"
+              style={styles.secondaryButton}
+              label={t('common.back')}
+              onPress={() => {
+                if (returnToRestock) {
+                  router.replace({
+                    pathname: '/inventory-form',
+                    params: {
+                      section: 'restock',
+                      ingredientId: normalizeParam(params.ingredientId),
+                      quantityAdded: normalizeParam(params.quantityAdded),
+                      cost: normalizeParam(params.cost),
+                      supplierId: normalizeParam(params.supplierId),
+                    },
+                  });
+                  return;
+                }
+
+                router.back();
+              }}
+            />
           </View>
         </ThemedCard>
       ) : null}
 
-      {section === 'restock' ? (
+      {isRestockSection ? (
         <ThemedCard style={styles.card}>
           <ThemedText type="subtitle">{t('inventoryForm.restock.title')}</ThemedText>
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.ingredient')}</ThemedText>
           <View style={styles.tabRow}>
             {ingredients.map((ingredient) => (
-              <ThemedChip
+              <ThemedButton
                 key={ingredient.id}
-                style={styles.sectionButton}
+                variant={restockForm.ingredientId === ingredient.id ? 'primary' : 'secondary'}
+                style={styles.secondaryButton}
                 label={ingredient.name}
-                active={restockForm.ingredientId === ingredient.id}
                 onPress={() => setRestockForm((f) => ({ ...f, ingredientId: ingredient.id }))}
               />
             ))}
@@ -106,13 +188,36 @@ export default function InventoryFormScreen() {
 
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplierOptional')}</ThemedText>
           <View style={styles.tabRow}>
-            <ThemedChip style={styles.sectionButton} label={t('inventoryForm.restock.noSupplier')} active={!restockForm.supplierId} onPress={() => setRestockForm((f) => ({ ...f, supplierId: '' }))} />
+            <ThemedButton
+              variant={!restockForm.supplierId ? 'primary' : 'secondary'}
+              style={styles.secondaryButton}
+              label={t('inventoryForm.restock.noSupplier')}
+              onPress={() => setRestockForm((f) => ({ ...f, supplierId: '' }))}
+            />
+            <ThemedButton
+              variant="secondary"
+              style={styles.secondaryButton}
+              label={t('inventory.suppliers.add')}
+              onPress={() => {
+                router.replace({
+                  pathname: '/inventory-form',
+                  params: {
+                    section: 'suppliers',
+                    returnSection: 'restock',
+                    ingredientId: restockForm.ingredientId,
+                    quantityAdded: restockForm.quantityAdded,
+                    cost: restockForm.cost,
+                    supplierId: restockForm.supplierId,
+                  },
+                });
+              }}
+            />
             {suppliers.map((supplier) => (
-              <ThemedChip
+              <ThemedButton
                 key={supplier.id}
-                style={styles.sectionButton}
+                variant={restockForm.supplierId === supplier.id ? 'primary' : 'secondary'}
+                style={styles.secondaryButton}
                 label={supplier.name}
-                active={restockForm.supplierId === supplier.id}
                 onPress={() => setRestockForm((f) => ({ ...f, supplierId: supplier.id }))}
               />
             ))}
@@ -156,9 +261,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
-  },
-  sectionButton: {
-    borderRadius: 10,
   },
   card: {
     gap: 10,

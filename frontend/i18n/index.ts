@@ -415,6 +415,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'inventoryForm.suppliers.notes': 'Notas',
     'inventoryForm.suppliers.save': 'Guardar proveedor',
     'inventoryForm.suppliers.required': 'El nombre del proveedor es obligatorio.',
+    'inventoryForm.suppliers.duplicate': 'Ya existe un proveedor con ese nombre.',
     'inventoryForm.restock.title': 'Registrar ingreso de stock',
     'inventoryForm.restock.ingredient': 'Ingrediente',
     'inventoryForm.restock.selected': 'Seleccionado',
