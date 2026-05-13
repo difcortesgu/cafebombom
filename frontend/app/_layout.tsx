@@ -37,6 +37,7 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="product-form" options={{ title: t('nav.stack.product') }} />
+        <Stack.Screen name="category-form" options={{ title: t('nav.stack.category') }} />
         <Stack.Screen name="ingredient-form" options={{ title: t('nav.stack.ingredient') }} />
         <Stack.Screen name="table-form" options={{ title: t('nav.stack.table') }} />
         <Stack.Screen name="inventory-form" options={{ title: t('nav.stack.inventory') }} />

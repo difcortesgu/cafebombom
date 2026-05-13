@@ -13,6 +13,10 @@ export type CategoryOption = {
   name: string;
 };
 
+export type AddCategoryPayload = {
+  name: string;
+};
+
 export type ProductIngredientLink = {
   id: string;
   productId: string;

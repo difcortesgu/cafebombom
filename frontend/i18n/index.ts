@@ -4,6 +4,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
   es: {
     // Stack and tabs
     'nav.stack.product': 'Producto',
+    'nav.stack.category': 'Categoria',
     'nav.stack.ingredient': 'Ingrediente',
     'nav.stack.table': 'Mesa',
     'nav.stack.inventory': 'Inventario',
@@ -450,6 +451,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'productForm.name': 'Nombre del producto',
     'productForm.price': 'Precio',
     'productForm.category': 'Categoria',
+    'productForm.addCategory': 'Agregar categoria',
     'productForm.none': 'Ninguna',
     'productForm.image': 'Imagen del producto',
     'productForm.pickImage': 'Seleccionar imagen',
@@ -501,6 +503,13 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'productForm.error.additionalItemInvalid': 'Todos los adicionales deben tener ingrediente, cantidad mayor que 0 y precio mayor o igual a 0.',
     'productForm.error.saveFirst': 'Guarda primero el producto y luego agrega recetas.',
     'productForm.error.keepOneIngredient': 'Cada producto debe mantener al menos un ingrediente de receta.',
+
+    // Category form
+    'categoryForm.title': 'Agregar categoria',
+    'categoryForm.name': 'Nombre de la categoria',
+    'categoryForm.save': 'Guardar categoria',
+    'categoryForm.required': 'El nombre de la categoria es obligatorio.',
+    'categoryForm.duplicate': 'Ya existe una categoria con ese nombre.',
 
     // Sale form
     'saleForm.title.new': 'Nueva venta',

@@ -44,6 +44,28 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
   }
 }
 
+export async function addCategory(req: Request, res: Response): Promise<void> {
+  const { name } = req.body;
+
+  if (!name) {
+    res.status(400).json({ error: 'name is required.' });
+    return;
+  }
+
+  try {
+    const id = await productsService.addCategory({ name });
+    if (!id) {
+      res.status(409).json({ error: 'A category with that name already exists.' });
+      return;
+    }
+
+    res.status(201).json({ id });
+  } catch (error) {
+    console.error('[products] addCategory failed:', error);
+    res.status(500).json({ error: 'Failed to create category.' });
+  }
+}
+
 export async function updateProduct(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
   const { name, categoryId, price, imageUri, isActive } = req.body;

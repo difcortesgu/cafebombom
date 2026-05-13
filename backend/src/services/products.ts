@@ -1,6 +1,7 @@
 import { db } from '@/database';
 import { categories, ingredients, productAdditionalIngredients, productIngredients, products } from '@/database/schema';
 import type {
+  AddCategoryPayload,
   CategoryOption,
   CreateProductPayload,
   ProductAdditionalIngredientInput,
@@ -146,6 +147,16 @@ export class ProductsSqliteService {
     });
 
     return productId;
+  }
+
+  async addCategory({ name }: AddCategoryPayload): Promise<string | null> {
+    const [inserted] = db.insert(categories)
+      .values({ name })
+      .onConflictDoNothing()
+      .returning({ id: categories.id })
+      .all();
+
+    return inserted?.id ?? null;
   }
 
   async updateProduct({ id, ...payload }: UpdateProductPayload): Promise<void> {

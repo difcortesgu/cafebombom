@@ -1,4 +1,5 @@
 import {
+    addCategory,
     createProduct,
     getHydrationData,
     removeProductAdditionalIngredient,
@@ -74,6 +75,7 @@ router.use(authMiddleware);
  */
 router.get('/', getHydrationData);
 router.post('/', requireRole('owner'), createProduct);
+router.post('/categories', requireRole('owner'), addCategory);
 
 /**
  * @openapi

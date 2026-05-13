@@ -4,6 +4,7 @@ import { productsService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import { useSalesStore } from '@/stores/sales';
 import type {
+  AddCategoryPayload,
   CategoryOption,
   CreateProductPayload,
   ProductAdditionalIngredientLink,
@@ -27,6 +28,7 @@ type ProductsState = {
   productAdditionalIngredients: ProductAdditionalIngredientLink[];
   loading: boolean;
   hydrate: () => Promise<void>;
+  addCategory: (payload: AddCategoryPayload) => Promise<string | null>;
   createProduct: (payload: CreateProductPayload) => Promise<void>;
   updateProduct: (payload: UpdateProductPayload) => Promise<void>;
   setProductIngredient: (payload: SetProductIngredientPayload) => Promise<void>;
@@ -46,6 +48,12 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     set({ loading: true });
     const { categories, products, productIngredients, productAdditionalIngredients } = await productsService.getHydrationData();
     set({ categories, products, productIngredients, productAdditionalIngredients, loading: false });
+  },
+
+  addCategory: async (payload) => {
+    const categoryId = await productsService.addCategory(payload);
+    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    return categoryId;
   },
 
   createProduct: async (payload) => {

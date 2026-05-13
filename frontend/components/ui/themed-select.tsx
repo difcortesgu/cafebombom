@@ -19,6 +19,8 @@ type ThemedSelectProps = {
   onItemAction?: (item: { label: string; value: string }) => void | Promise<void>;
   onAddNew?: (name: string) => Promise<void> | void;
   addNewPlaceholder?: string;
+  onAddNewPress?: () => Promise<void> | void;
+  addNewLabel?: string;
 };
 
 export function ThemedSelect({
@@ -32,6 +34,8 @@ export function ThemedSelect({
   onItemAction,
   onAddNew,
   addNewPlaceholder,
+  onAddNewPress,
+  addNewLabel,
 }: ThemedSelectProps) {
   const palette = useAppColors();
   const [isOpen, setIsOpen] = useState(false);
@@ -110,7 +114,20 @@ export function ThemedSelect({
               ))}
             </ScrollView>
 
-            {onAddNew ? (
+            {onAddNew || onAddNewPress ? (
+              onAddNewPress ? (
+                <Pressable
+                  style={[styles.addNewButton, { borderTopColor: palette.border }]}
+                  onPress={async () => {
+                    await onAddNewPress();
+                    handleClose();
+                  }}>
+                  <MaterialIcons name="add" size={18} color={palette.tint} />
+                  <ThemedText style={[styles.addNewLabel, { color: palette.tint }]}>
+                    {addNewLabel || t('shared.select.addNew')}
+                  </ThemedText>
+                </Pressable>
+              ) : (
               showAddNew ? (
                 <View style={[styles.addNewRow, { borderTopColor: palette.border }]}>
                   <ThemedInput
@@ -146,9 +163,10 @@ export function ThemedSelect({
                   onPress={() => setShowAddNew(true)}>
                   <MaterialIcons name="add" size={18} color={palette.tint} />
                   <ThemedText style={[styles.addNewLabel, { color: palette.tint }]}>
-                    {t('shared.select.addNew')}
+                    {addNewLabel || t('shared.select.addNew')}
                   </ThemedText>
                 </Pressable>
+              )
               )
             ) : null}
 

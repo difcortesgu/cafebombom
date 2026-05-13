@@ -169,11 +169,21 @@ export class InventorySqliteService {
       throw new Error('Failed to create restock log.');
     }
 
+    const ingredientUpdate: {
+      quantity: ReturnType<typeof sql>;
+      updatedAt: ReturnType<typeof sql>;
+      supplierId?: string | null;
+    } = {
+      quantity: sql`${ingredients.quantity} + ${quantityAdded}`,
+      updatedAt: sql`cast(strftime('%s', 'now') as int)`,
+    };
+
+    if (supplierId !== undefined) {
+      ingredientUpdate.supplierId = supplierId ?? null;
+    }
+
     db.update(ingredients)
-      .set({
-        quantity: sql`${ingredients.quantity} + ${quantityAdded}`,
-        updatedAt: sql`cast(strftime('%s', 'now') as int)`,
-      })
+      .set(ingredientUpdate)
       .where(eq(ingredients.id, ingredientId))
       .run();
 

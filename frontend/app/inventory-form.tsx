@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -47,6 +47,7 @@ export default function InventoryFormScreen() {
     cost: normalizeParam(params.cost) || '0',
     supplierId: normalizeParam(params.supplierId),
   });
+  const initialSupplierDefaultAppliedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -81,6 +82,37 @@ export default function InventoryFormScreen() {
       return next;
     });
   }, [params.cost, params.ingredientId, params.quantityAdded, params.supplierId]);
+
+  useEffect(() => {
+    if (initialSupplierDefaultAppliedRef.current) {
+      return;
+    }
+
+    if (!restockForm.ingredientId || restockForm.supplierId) {
+      return;
+    }
+
+    const ingredient = ingredients.find((item) => item.id === restockForm.ingredientId);
+    if (!ingredient) {
+      return;
+    }
+
+    initialSupplierDefaultAppliedRef.current = true;
+    if (!ingredient.supplier_id) {
+      return;
+    }
+
+    setRestockForm((current) => {
+      if (current.supplierId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        supplierId: ingredient.supplier_id,
+      };
+    });
+  }, [ingredients, restockForm.ingredientId, restockForm.supplierId]);
 
   const selectedIngredient = useMemo(
     () => ingredients.find((ingredient) => ingredient.id === restockForm.ingredientId) ?? null,
@@ -177,7 +209,11 @@ export default function InventoryFormScreen() {
                 variant={restockForm.ingredientId === ingredient.id ? 'primary' : 'secondary'}
                 style={styles.secondaryButton}
                 label={ingredient.name}
-                onPress={() => setRestockForm((f) => ({ ...f, ingredientId: ingredient.id }))}
+                onPress={() => setRestockForm((f) => ({
+                  ...f,
+                  ingredientId: ingredient.id,
+                  supplierId: ingredient.supplier_id ?? '',
+                }))}
               />
             ))}
           </View>

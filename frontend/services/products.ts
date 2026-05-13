@@ -1,4 +1,5 @@
 import type {
+  AddCategoryPayload,
   CategoryOption,
   CreateProductPayload,
   ProductAdditionalIngredientLink,
@@ -33,6 +34,15 @@ export class ProductsService {
   async createProduct(payload: CreateProductPayload): Promise<string | null> {
     try {
       const response = await apiClient.post<{ id: string }>('/products', payload);
+      return response.id || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async addCategory(payload: AddCategoryPayload): Promise<string | null> {
+    try {
+      const response = await apiClient.post<{ id: string }>('/products/categories', payload);
       return response.id || null;
     } catch {
       return null;

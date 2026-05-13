@@ -25,7 +25,3 @@ CafeBomBom is a full-stack solution for daily cafe operations, including sales, 
 See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
-
-- Cuando se haga un restock poder registrar el proveedor inline y que se guarde como un proveedor nuevo
-
-- Asociar por defecto el último proveedor usado para cada ingrediente en el restock
