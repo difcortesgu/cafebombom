@@ -1,31 +1,35 @@
 import { create } from 'zustand';
 
 import { accountsService, salesService } from '@/services';
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, GetPnLPayload, PnLSummary } from '@/types/accounts';
-import type { Employee, Expense, PayrollEntry } from '@/types/types';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, GetPnLPayload, OpenCashRegisterPayload, PnLSummary } from '@/types/accounts';
+import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 
 type AccountsState = {
   expenses: Expense[];
   employees: Employee[];
   payroll: PayrollEntry[];
+  cashRegisterToday: CashRegisterSession | null;
   loading: boolean;
   hydrate: () => Promise<void>;
   addExpense: (payload: AddExpensePayload) => Promise<void>;
   addEmployee: (payload: AddEmployeePayload) => Promise<void>;
   addPayroll: (payload: AddPayrollPayload) => Promise<void>;
   getPnL: (payload: GetPnLPayload) => Promise<PnLSummary>;
+  openCashRegister: (payload: OpenCashRegisterPayload) => Promise<void>;
+  closeCashRegister: (payload: CloseCashRegisterPayload) => Promise<void>;
 };
 
 export const useAccountsStore = create<AccountsState>((set, get) => ({
   expenses: [],
   employees: [],
   payroll: [],
+  cashRegisterToday: null,
   loading: false,
 
   hydrate: async () => {
     set({ loading: true });
-    const { expenses, employees, payroll } = await accountsService.getHydrationData();
-    set({ expenses, employees, payroll, loading: false });
+    const { expenses, employees, payroll, cashRegisterToday } = await accountsService.getHydrationData();
+    set({ expenses, employees, payroll, cashRegisterToday, loading: false });
   },
 
   addExpense: async ({
@@ -33,8 +37,9 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     amount,
     description,
     dateUnix,
+    paymentMethod,
   }: AddExpensePayload) => {
-    await accountsService.addExpense({ category, amount, description, dateUnix });
+    await accountsService.addExpense({ category, amount, description, dateUnix, paymentMethod });
     await get().hydrate();
   },
 
@@ -52,8 +57,9 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     periodStart,
     periodEnd,
     amount,
+    paymentMethod,
   }: AddPayrollPayload) => {
-    await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount });
+    await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethod });
     await get().hydrate();
   },
 
@@ -65,5 +71,15 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
       expenses,
       net: income - expenses,
     };
+  },
+
+  openCashRegister: async (payload: OpenCashRegisterPayload) => {
+    await accountsService.openCashRegister(payload);
+    await get().hydrate();
+  },
+
+  closeCashRegister: async (payload: CloseCashRegisterPayload) => {
+    await accountsService.closeCashRegister(payload);
+    await get().hydrate();
   },
 }));

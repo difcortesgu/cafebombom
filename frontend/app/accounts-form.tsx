@@ -9,12 +9,13 @@ import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
+import type { PaymentMethod } from '@/types/types';
 
-type Section = 'expenses' | 'employees' | 'payroll';
+type Section = 'expenses' | 'employees' | 'payroll' | 'caja';
 
 function normalizeSection(value?: string | string[]): Section {
   const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === 'employees' || raw === 'payroll') {
+  if (raw === 'employees' || raw === 'payroll' || raw === 'caja') {
     return raw;
   }
   return 'expenses';
@@ -25,12 +26,13 @@ export default function AccountsFormScreen() {
   const params = useLocalSearchParams<{ section?: string | string[] }>();
   const section = normalizeSection(params.section);
 
-  const { hydrate, employees, addExpense, addEmployee, addPayroll } = useAccountsStore();
+  const { hydrate, employees, addExpense, addEmployee, addPayroll, cashRegisterToday, openCashRegister, closeCashRegister } = useAccountsStore();
 
   const [message, setMessage] = useState('');
-  const [expenseForm, setExpenseForm] = useState({ category: 'Insumos', amount: '0', description: '' });
+  const [expenseForm, setExpenseForm] = useState({ category: 'Insumos', amount: '0', description: '', paymentMethod: 'cash' as PaymentMethod });
   const [employeeForm, setEmployeeForm] = useState({ name: '', salaryType: 'monthly' as 'hourly' | 'monthly', rate: '0' });
-  const [payrollForm, setPayrollForm] = useState({ employeeId: '', amount: '0' });
+  const [payrollForm, setPayrollForm] = useState({ employeeId: '', amount: '0', paymentMethod: 'cash' as PaymentMethod });
+  const [cajaForm, setCajaForm] = useState({ amount: '0', notes: '' });
 
   const selectedPayrollEmployee = useMemo(
     () => employees.find((employee) => employee.id === payrollForm.employeeId) ?? null,
@@ -46,7 +48,7 @@ export default function AccountsFormScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">
-        {section === 'employees' ? t('accountsForm.title.employee') : section === 'payroll' ? t('accountsForm.title.payroll') : t('accountsForm.title.expense')}
+        {section === 'employees' ? t('accountsForm.title.employee') : section === 'payroll' ? t('accountsForm.title.payroll') : section === 'caja' ? t('accountsForm.title.caja') : t('accountsForm.title.expense')}
       </ThemedText>
       {message ? (
         <ThemedCard style={styles.card}>
@@ -60,6 +62,12 @@ export default function AccountsFormScreen() {
           <ThemedInput value={expenseForm.category} onChangeText={(value) => setExpenseForm((f) => ({ ...f, category: value }))} style={styles.input} placeholder={t('accountsForm.expense.category')} />
           <ThemedInput value={expenseForm.amount} onChangeText={(value) => setExpenseForm((f) => ({ ...f, amount: value }))} style={styles.input} keyboardType="decimal-pad" placeholder={t('accountsForm.expense.amount')} />
           <ThemedInput value={expenseForm.description} onChangeText={(value) => setExpenseForm((f) => ({ ...f, description: value }))} style={styles.input} placeholder={t('accountsForm.expense.description')} />
+          <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
+          <View style={styles.row}>
+            <ThemedChip style={styles.switchButton} label={t('sales.payment.cash')} active={expenseForm.paymentMethod === 'cash'} onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: 'cash' }))} />
+            <ThemedChip style={styles.switchButton} label={t('sales.payment.card')} active={expenseForm.paymentMethod === 'card'} onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: 'card' }))} />
+            <ThemedChip style={styles.switchButton} label={t('sales.payment.transfer')} active={expenseForm.paymentMethod === 'transfer'} onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: 'transfer' }))} />
+          </View>
           <View style={styles.actionsRow}>
             <ThemedButton
               style={styles.primaryButton}
@@ -69,6 +77,7 @@ export default function AccountsFormScreen() {
                   category: expenseForm.category,
                   amount: Number(expenseForm.amount || '0'),
                   description: expenseForm.description,
+                  paymentMethod: expenseForm.paymentMethod,
                 });
                 router.back();
               }}
@@ -116,6 +125,12 @@ export default function AccountsFormScreen() {
           </View>
           {selectedPayrollEmployee ? <ThemedText style={styles.smallText}>{t('accountsForm.payroll.selected')}: {selectedPayrollEmployee.name}</ThemedText> : <ThemedText style={styles.smallText}>{t('accountsForm.payroll.selectPrompt')}</ThemedText>}
           <ThemedInput value={payrollForm.amount} onChangeText={(value) => setPayrollForm((f) => ({ ...f, amount: value }))} style={styles.input} keyboardType="decimal-pad" placeholder={t('accountsForm.payroll.amount')} />
+          <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
+          <View style={styles.row}>
+            <ThemedChip style={styles.switchButton} label={t('sales.payment.cash')} active={payrollForm.paymentMethod === 'cash'} onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: 'cash' }))} />
+            <ThemedChip style={styles.switchButton} label={t('sales.payment.card')} active={payrollForm.paymentMethod === 'card'} onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: 'card' }))} />
+            <ThemedChip style={styles.switchButton} label={t('sales.payment.transfer')} active={payrollForm.paymentMethod === 'transfer'} onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: 'transfer' }))} />
+          </View>
           <View style={styles.actionsRow}>
             <ThemedButton
               style={styles.primaryButton}
@@ -131,12 +146,101 @@ export default function AccountsFormScreen() {
                   periodStart: now,
                   periodEnd: now,
                   amount: Number(payrollForm.amount || '0'),
+                  paymentMethod: payrollForm.paymentMethod,
                 });
                 router.back();
               }}
             />
             <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
           </View>
+        </ThemedCard>
+      ) : null}
+
+      {section === 'caja' ? (
+        <ThemedCard style={styles.card}>
+          <ThemedText type="subtitle">{t('accountsForm.caja.subtitle')}</ThemedText>
+
+          {!cashRegisterToday ? (
+            <>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.noSession')}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.openTitle')}</ThemedText>
+              <ThemedInput
+                value={cajaForm.amount}
+                onChangeText={(value) => setCajaForm((f) => ({ ...f, amount: value }))}
+                style={styles.input}
+                keyboardType="decimal-pad"
+                placeholder={t('accountsForm.caja.openingAmount')}
+              />
+              <ThemedInput
+                value={cajaForm.notes}
+                onChangeText={(value) => setCajaForm((f) => ({ ...f, notes: value }))}
+                style={styles.input}
+                placeholder={t('accountsForm.caja.notes')}
+              />
+              <View style={styles.actionsRow}>
+                <ThemedButton
+                  style={styles.primaryButton}
+                  label={t('accountsForm.caja.open')}
+                  onPress={async () => {
+                    const amount = Number(cajaForm.amount || '0');
+                    if (amount < 0) {
+                      setMessage(t('accountsForm.caja.openAmountRequired'));
+                      return;
+                    }
+                    await openCashRegister({ openingAmount: amount, notes: cajaForm.notes || undefined });
+                    setCajaForm({ amount: '0', notes: '' });
+                    setMessage('');
+                  }}
+                />
+                <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
+              </View>
+            </>
+          ) : cashRegisterToday.closed_at ? (
+            <>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.openingAmountLabel')}: {cashRegisterToday.opening_amount.toFixed(2)}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.openedAt')}: {new Date(cashRegisterToday.opened_at * 1000).toLocaleTimeString()}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.closingAmountLabel')}: {cashRegisterToday.closing_amount?.toFixed(2)}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.closedAt')}: {new Date((cashRegisterToday.closed_at) * 1000).toLocaleTimeString()}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.alreadyClosed')}</ThemedText>
+              <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
+            </>
+          ) : (
+            <>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.openingAmountLabel')}: {cashRegisterToday.opening_amount.toFixed(2)}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.openedAt')}: {new Date(cashRegisterToday.opened_at * 1000).toLocaleTimeString()}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('accountsForm.caja.closeTitle')}</ThemedText>
+              <ThemedInput
+                value={cajaForm.amount}
+                onChangeText={(value) => setCajaForm((f) => ({ ...f, amount: value }))}
+                style={styles.input}
+                keyboardType="decimal-pad"
+                placeholder={t('accountsForm.caja.closingAmount')}
+              />
+              <ThemedInput
+                value={cajaForm.notes}
+                onChangeText={(value) => setCajaForm((f) => ({ ...f, notes: value }))}
+                style={styles.input}
+                placeholder={t('accountsForm.caja.notes')}
+              />
+              <View style={styles.actionsRow}>
+                <ThemedButton
+                  style={styles.primaryButton}
+                  label={t('accountsForm.caja.close')}
+                  onPress={async () => {
+                    const amount = Number(cajaForm.amount || '0');
+                    if (amount < 0) {
+                      setMessage(t('accountsForm.caja.closeAmountRequired'));
+                      return;
+                    }
+                    await closeCashRegister({ sessionId: cashRegisterToday.id, closingAmount: amount, notes: cajaForm.notes || undefined });
+                    setCajaForm({ amount: '0', notes: '' });
+                    setMessage('');
+                  }}
+                />
+                <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
+              </View>
+            </>
+          )}
         </ThemedCard>
       ) : null}
     </ScrollView>

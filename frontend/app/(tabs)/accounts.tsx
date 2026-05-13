@@ -12,14 +12,15 @@ import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 
-type Section = 'expenses' | 'employees' | 'payroll';
+type Section = 'expenses' | 'employees' | 'payroll' | 'caja';
 
 export default function AccountsScreen() {
   const palette = useAppColors();
   const router = useRouter();
   const currentUser = useAuthStore((state) => state.currentUser);
   const { hydrate, expenses, employees, payroll } = useAccountsStore();
-  const [section, setSection] = useState<Section>('expenses');
+  const isOwner = currentUser?.role === 'owner';
+  const [section, setSection] = useState<Section>(isOwner ? 'expenses' : 'caja');
 
   const todayExpenses = useMemo(
     () => expenses.reduce((sum, expense) => sum + Number(expense.amount), 0),
@@ -32,26 +33,17 @@ export default function AccountsScreen() {
     }, [hydrate]),
   );
 
-  if (currentUser?.role !== 'owner') {
-    return (
-      <ThemedView style={styles.denied}>
-        <ThemedText type="title">{t('accounts.title')}</ThemedText>
-        <ThemedText>{t('accounts.restricted')}</ThemedText>
-      </ThemedView>
-    );
-  }
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ThemedText type="title">{t('accounts.title')}</ThemedText>
       <ThemedText>{t('accounts.subtitle')}</ThemedText>
 
       <View style={styles.tabRow}>
-        {(['expenses', 'employees', 'payroll'] as Section[]).map((item) => (
+        {(isOwner ? (['expenses', 'employees', 'payroll', 'caja'] as Section[]) : (['caja'] as Section[])).map((item) => (
           <ThemedChip
             key={item}
             style={styles.sectionButton}
-            label={item === 'expenses' ? t('accounts.tab.expenses') : item === 'employees' ? t('accounts.tab.employees') : t('accounts.tab.payroll')}
+            label={item === 'expenses' ? t('accounts.tab.expenses') : item === 'employees' ? t('accounts.tab.employees') : item === 'payroll' ? t('accounts.tab.payroll') : t('accounts.tab.caja')}
             active={section === item}
             onPress={() => setSection(item)}
           />
@@ -103,6 +95,15 @@ export default function AccountsScreen() {
               <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
             </View>
           ))}
+        </ThemedCard>
+      ) : null}
+
+      {section === 'caja' ? (
+        <ThemedCard style={styles.card}>
+          <View style={styles.headerRow}>
+            <ThemedText type="subtitle">{t('accounts.tab.caja')}</ThemedText>
+            <ThemedButton label={t('accountsForm.title.caja')} onPress={() => router.push({ pathname: '/accounts-form', params: { section: 'caja' } })} />
+          </View>
         </ThemedCard>
       ) : null}
     </ScrollView>

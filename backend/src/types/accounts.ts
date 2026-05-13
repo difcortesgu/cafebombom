@@ -1,9 +1,24 @@
+import type { PaymentMethod } from '@/types/types';
 
 export type AddExpensePayload = {
   category: string;
   amount: number;
   description?: string;
   dateUnix?: number;
+  paymentMethod: PaymentMethod;
+};
+
+export type OpenCashRegisterPayload = {
+  openingAmount: number;
+  notes?: string;
+  userId: string;
+};
+
+export type CloseCashRegisterPayload = {
+  sessionId: string;
+  closingAmount: number;
+  notes?: string;
+  userId: string;
 };
 
 export type AddEmployeePayload = {
@@ -17,6 +32,7 @@ export type AddPayrollPayload = {
   periodStart: number;
   periodEnd: number;
   amount: number;
+  paymentMethod: PaymentMethod;
 };
 
 export type GetPnLPayload = {

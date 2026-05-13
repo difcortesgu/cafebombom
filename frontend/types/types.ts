@@ -102,6 +102,19 @@ export type Expense = {
   category: string;
   amount: number;
   description: string | null;
+  payment_method: PaymentMethod;
+};
+
+export type CashRegisterSession = {
+  id: string;
+  opening_amount: number;
+  closing_amount: number | null;
+  opening_notes: string | null;
+  closing_notes: string | null;
+  opened_at: number;
+  closed_at: number | null;
+  opened_by: string;
+  closed_by: string | null;
 };
 
 export type Employee = {
@@ -117,4 +130,5 @@ export type PayrollEntry = {
   period_start: number;
   period_end: number;
   amount: number;
+  payment_method: PaymentMethod;
 };

@@ -17,7 +17,7 @@ type RequestOptions = {
 };
 
 export type DownloadedFile = {
-  bytes: Uint8Array;
+  bytes: Uint8Array<ArrayBuffer>;
   contentType: string | null;
   fileName: string;
 };
@@ -198,7 +198,7 @@ class ApiClient {
     const fileName = match?.[1] || fallbackFileName;
 
     return {
-      bytes: new Uint8Array(arrayBuffer),
+      bytes: new Uint8Array(arrayBuffer) as Uint8Array<ArrayBuffer>,
       contentType: response.headers.get('content-type'),
       fileName,
     };

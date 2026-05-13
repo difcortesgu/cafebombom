@@ -73,7 +73,7 @@ export type SetupStatus = {
 };
 
 export type SeedImportTemplateFile = {
-  bytes: Uint8Array;
+  bytes: Uint8Array<ArrayBuffer>;
   fileName: string;
   contentType: string | null;
 };

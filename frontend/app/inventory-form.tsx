@@ -5,9 +5,11 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
+import type { PaymentMethod } from '@/types/types';
 
 type Section = 'suppliers' | 'restock';
 
@@ -46,6 +48,7 @@ export default function InventoryFormScreen() {
     quantityAdded: normalizeParam(params.quantityAdded) || '1',
     cost: normalizeParam(params.cost) || '0',
     supplierId: normalizeParam(params.supplierId),
+    paymentMethod: 'cash' as PaymentMethod,
   });
   const initialSupplierDefaultAppliedRef = useRef(false);
 
@@ -222,6 +225,28 @@ export default function InventoryFormScreen() {
           <ThemedInput placeholder={t('inventoryForm.restock.quantity')} keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
           <ThemedInput placeholder={t('inventoryForm.restock.cost')} keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
 
+          <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
+          <View style={styles.tabRow}>
+            <ThemedButton
+              variant={restockForm.paymentMethod === 'cash' ? 'primary' : 'secondary'}
+              style={styles.secondaryButton}
+              label={t('sales.payment.cash')}
+              onPress={() => setRestockForm((f) => ({ ...f, paymentMethod: 'cash' }))}
+            />
+            <ThemedButton
+              variant={restockForm.paymentMethod === 'card' ? 'primary' : 'secondary'}
+              style={styles.secondaryButton}
+              label={t('sales.payment.card')}
+              onPress={() => setRestockForm((f) => ({ ...f, paymentMethod: 'card' }))}
+            />
+            <ThemedButton
+              variant={restockForm.paymentMethod === 'transfer' ? 'primary' : 'secondary'}
+              style={styles.secondaryButton}
+              label={t('sales.payment.transfer')}
+              onPress={() => setRestockForm((f) => ({ ...f, paymentMethod: 'transfer' }))}
+            />
+          </View>
+
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplierOptional')}</ThemedText>
           <View style={styles.tabRow}>
             <ThemedButton
@@ -275,6 +300,7 @@ export default function InventoryFormScreen() {
                   quantityAdded: Number(restockForm.quantityAdded || '0'),
                   cost: Number(restockForm.cost || '0'),
                   supplierId: restockForm.supplierId || undefined,
+                  paymentMethod: restockForm.paymentMethod,
                 });
 
                 router.back();

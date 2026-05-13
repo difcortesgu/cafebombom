@@ -1,5 +1,5 @@
 
-import type { IngredientUnit, Unit } from '@/types/types';
+import type { IngredientUnit, PaymentMethod, Unit } from '@/types/types';
 
 export type InventoryUnit = IngredientUnit;
 
@@ -46,4 +46,5 @@ export type AddRestockPayload = {
   quantityAdded: number;
   cost: number;
   supplierId?: string;
+  paymentMethod: PaymentMethod;
 };

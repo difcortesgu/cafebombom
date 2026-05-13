@@ -1,11 +1,12 @@
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload } from '@/types/accounts';
-import type { Employee, Expense, PayrollEntry } from '@/types/types';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, OpenCashRegisterPayload } from '@/types/accounts';
+import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { apiClient } from './api-client';
 
 export type AccountsHydrationData = {
   expenses: Expense[];
   employees: Employee[];
   payroll: PayrollEntry[];
+  cashRegisterToday: CashRegisterSession | null;
 };
 
 export class AccountsService {
@@ -15,6 +16,7 @@ export class AccountsService {
       expenses: [],
       employees: [],
       payroll: [],
+      cashRegisterToday: null,
     };
   }
 
@@ -42,5 +44,14 @@ export class AccountsService {
       `/accounts/expenses/total?start=${startUnix}&end=${endUnix}`
     );
     return response.total || 0;
+  }
+
+  async openCashRegister(payload: OpenCashRegisterPayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/accounts/cash-register/open', payload);
+    return response.id || '';
+  }
+
+  async closeCashRegister(payload: CloseCashRegisterPayload): Promise<void> {
+    await apiClient.post<{ ok: boolean }>('/accounts/cash-register/close', payload);
   }
 }

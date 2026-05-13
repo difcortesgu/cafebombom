@@ -74,8 +74,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     quantityAdded,
     cost,
     supplierId,
+    paymentMethod,
   }: AddRestockPayload) => {
-    await inventoryService.addRestock({ ingredientId, quantityAdded, cost, supplierId });
+    await inventoryService.addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethod });
 
     await get().hydrate();
   },

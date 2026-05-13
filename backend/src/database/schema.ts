@@ -225,8 +225,23 @@ export const expenses = sqliteTable('expenses', {
   amount: real('amount').notNull(),
   description: text('description'),
   supplierId: text('supplier_id').references(() => suppliers.id),
+  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull().default('cash'),
 }, (t) => [
   index('idx_expenses_date').on(t.date),
+]);
+
+export const cashRegisterSessions = sqliteTable('cash_register_sessions', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  openingAmount: real('opening_amount').notNull(),
+  closingAmount: real('closing_amount'),
+  openingNotes: text('opening_notes'),
+  closingNotes: text('closing_notes'),
+  openedAt: integer('opened_at').notNull(),
+  closedAt: integer('closed_at'),
+  openedBy: text('opened_by').notNull().references(() => users.id),
+  closedBy: text('closed_by').references(() => users.id),
+}, (t) => [
+  index('idx_cash_register_opened_at').on(t.openedAt),
 ]);
 
 export const employees = sqliteTable('employees', {
@@ -242,6 +257,7 @@ export const payrollEntries = sqliteTable('payroll_entries', {
   periodStart: integer('period_start').notNull(),
   periodEnd: integer('period_end').notNull(),
   amount: real('amount').notNull(),
+  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull().default('cash'),
 });
 
 
