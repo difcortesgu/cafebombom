@@ -1,7 +1,10 @@
 import { getSetupStatus as getBootstrapStatus } from '@/services/bootstrap';
+import { SeedImportParseError, SeedImportValidationError } from '@/services/seed-import';
 import { SetupSqliteService } from '@/services/setup';
 import { UsersSqliteService } from '@/services/users';
 import type { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 
 const setupService = new SetupSqliteService();
 const usersService = new UsersSqliteService();
@@ -84,9 +87,37 @@ export async function importSeedFromExcel(req: Request, res: Response): Promise<
     const result = await setupService.importSeedFromExcel(workbookBytes);
     res.status(200).json(result);
   } catch (error) {
+    if (error instanceof SeedImportParseError) {
+      res.status(400).json({
+        error: error.message,
+        code: 'INVALID_WORKBOOK',
+      });
+      return;
+    }
+
+    if (error instanceof SeedImportValidationError) {
+      res.status(422).json({
+        error: error.message,
+        code: 'SEED_VALIDATION_FAILED',
+        issues: error.issues,
+      });
+      return;
+    }
+
     console.error('[setup] importSeedFromExcel failed:', error);
     res.status(500).json({ error: 'Failed to import seed data.' });
   }
+}
+
+export function downloadImportTemplate(req: Request, res: Response): void {
+  const templatePath = path.resolve(__dirname, '../../../docs/import-template-v2.xlsx');
+
+  if (!fs.existsSync(templatePath)) {
+    res.status(404).json({ error: 'Import template not found.' });
+    return;
+  }
+
+  res.download(templatePath, 'import-template-v2.xlsx');
 }
 
 // ── Setup-phase user management (no actor checks) ────────────────────────────

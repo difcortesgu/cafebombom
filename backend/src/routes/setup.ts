@@ -1,4 +1,5 @@
 import {
+    downloadImportTemplate,
     getReceiptPreferences,
     getSetupStatus,
     importSeedFromExcel,
@@ -11,6 +12,7 @@ import {
     setupUpdateUser,
 } from '@/controllers/setup';
 import { bootstrapOrOwnerAuth } from '@/middleware/bootstrap';
+import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import multer from 'multer';
 
@@ -21,7 +23,44 @@ const importUpload = multer({
         // Import only needs one workbook; keep this conservative.
         fileSize: 10 * 1024 * 1024,
     },
+    fileFilter: (_req, file, cb) => {
+        const acceptedMimeTypes = new Set([
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+            'application/octet-stream',
+        ]);
+        const lowerName = file.originalname.toLowerCase();
+        const hasExcelExtension = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+
+        if (hasExcelExtension || acceptedMimeTypes.has(file.mimetype)) {
+            cb(null, true);
+            return;
+        }
+
+        cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'file'));
+    },
 });
+
+function importUploadMiddleware(req: Request, res: Response, next: NextFunction): void {
+    importUpload.single('file')(req, res, (error: unknown) => {
+        if (!error) {
+            next();
+            return;
+        }
+
+        if (error instanceof multer.MulterError) {
+            if (error.code === 'LIMIT_FILE_SIZE') {
+                res.status(400).json({ error: 'File exceeds maximum size of 10MB.', code: error.code });
+                return;
+            }
+
+            res.status(400).json({ error: 'Invalid import file upload.', code: error.code });
+            return;
+        }
+
+        res.status(400).json({ error: 'Invalid import file upload.', code: 'UPLOAD_FAILED' });
+    });
+}
 
 /**
  * @openapi
@@ -83,6 +122,28 @@ router.put('/receipt-prefs', saveReceiptPreferences);
 
 /**
  * @openapi
+ * /api/setup/import-template:
+ *   get:
+ *     tags: [Setup]
+ *     summary: Download the official Excel import template (v2)
+ *     security:
+ *       - {}
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Excel file download
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Template file not found on server
+ */
+router.get('/import-template', downloadImportTemplate);
+
+/**
+ * @openapi
  * /api/setup/import:
  *   post:
  *     tags: [Setup]
@@ -114,7 +175,7 @@ router.put('/receipt-prefs', saveReceiptPreferences);
  *       400:
  *         description: Invalid file content
  */
-router.post('/import', importUpload.single('file'), importSeedFromExcel);
+router.post('/import', importUploadMiddleware, importSeedFromExcel);
 
 /**
  * @openapi

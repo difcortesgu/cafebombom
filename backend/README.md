@@ -49,6 +49,18 @@ npm start
 
 - Swagger UI is available at `/api/docs` when the server is running.
 
+## Excel Seed Import v2
+
+- Official template file: `../docs/import-template-v2.xlsx`
+- Guide: `../docs/import-template-v2.md`
+- Download template endpoint: `GET /api/setup/import-template`
+- Import endpoint: `POST /api/setup/import`
+
+Behavior:
+- Upsert per supported entity (insert/update/skip summary).
+- Transaction fail-fast: any validation/write failure rolls back all changes.
+- Structured validation issues returned with HTTP `422`.
+
 ## Scripts
 
 | Command         | Description                                 |

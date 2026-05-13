@@ -1,6 +1,8 @@
+import { Buffer } from 'buffer';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { SetupOwnerAccount } from '@/components/setup-owner-account';
 import { ThemedText } from '@/components/themed-text';
@@ -171,12 +173,12 @@ export function SetupScreen({
       </ThemedText>
 
       <View style={styles.stepPills}>
-        <View style={[styles.stepPill, step === 1 ? { backgroundColor: palette.tint } : { borderColor: palette.border, borderWidth: 1 }]}> 
+        <View style={[styles.stepPill, step === 1 ? { backgroundColor: palette.tint } : { borderColor: palette.border, borderWidth: 1 }]}>
           <ThemedText style={step === 1 ? { color: palette.card, fontWeight: '700' } : undefined}>
             {t('setup.step1.title')}
           </ThemedText>
         </View>
-        <View style={[styles.stepPill, step === 2 ? { backgroundColor: palette.tint } : { borderColor: palette.border, borderWidth: 1 }]}> 
+        <View style={[styles.stepPill, step === 2 ? { backgroundColor: palette.tint } : { borderColor: palette.border, borderWidth: 1 }]}>
           <ThemedText style={step === 2 ? { color: palette.card, fontWeight: '700' } : undefined}>
             {t('setup.step2.title')}
           </ThemedText>
@@ -361,16 +363,81 @@ export function SetupScreen({
                     const importResult = await setupService.importSeedFromExcel(new Uint8Array(buffer));
                     setImportMessage(
                       t('setup.import.success', {
-                        categories: importResult.inserted.categories,
-                        ingredients: importResult.inserted.ingredients,
-                        products: importResult.inserted.products,
-                        tables: importResult.inserted.restaurantTables,
+                        categories: importResult.summary.categories.inserted + importResult.summary.categories.updated,
+                        ingredients: importResult.summary.ingredients.inserted + importResult.summary.ingredients.updated,
+                        products: importResult.summary.products.inserted + importResult.summary.products.updated,
+                        tables: importResult.summary.restaurantTables.inserted + importResult.summary.restaurantTables.updated,
                       }),
                     );
-                    setImportIssues(importResult.issues.slice(0, 4));
+                    setImportIssues(importResult.issues.map((issue) => issue.message));
                     await Promise.all([hydrateInventory(), hydrateProducts()]);
                   } catch (importError) {
                     setImportMessage(t('setup.import.failed', { message: String((importError as Error)?.message ?? importError) }));
+                  } finally {
+                    setImportBusy(false);
+                  }
+                }}
+              />
+
+              <ThemedButton
+                variant="secondary"
+                disabled={importBusy || prefsBusy}
+                label="Descargar plantilla Excel v2"
+                onPress={async () => {
+                  try {
+                    setImportBusy(true);
+                    setImportMessage(null);
+
+                    const file = await setupService.downloadImportTemplate();
+
+                    if (Platform.OS === 'web') {
+                      const blob = new Blob([file.bytes], {
+                        type: file.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const anchor = document.createElement('a');
+                      anchor.href = url;
+                      anchor.download = file.fileName;
+                      anchor.click();
+                      URL.revokeObjectURL(url);
+                      setImportMessage('Plantilla descargada.');
+                      return;
+                    }
+
+                    if (Platform.OS === 'android') {
+                      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+                      if (!permissions.granted) {
+                        setImportMessage('Permiso denegado. Selecciona la carpeta Descargas para guardar la plantilla.');
+                        return;
+                      }
+
+                      const destination = await FileSystem.StorageAccessFramework.createFileAsync(
+                        permissions.directoryUri,
+                        file.fileName,
+                        file.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      );
+
+                      await FileSystem.writeAsStringAsync(destination, Buffer.from(file.bytes).toString('base64'), {
+                        encoding: FileSystem.EncodingType.Base64,
+                      });
+                      setImportMessage(`Plantilla guardada en la carpeta seleccionada: ${file.fileName}`);
+                      return;
+                    }
+
+                    if (!FileSystem.documentDirectory) {
+                      setImportMessage('No se pudo acceder al almacenamiento local.');
+                      return;
+                    }
+
+                    const templateDir = `${FileSystem.documentDirectory}templates/`;
+                    await FileSystem.makeDirectoryAsync(templateDir, { intermediates: true });
+                    const destination = `${templateDir}${file.fileName}`;
+                    await FileSystem.writeAsStringAsync(destination, Buffer.from(file.bytes).toString('base64'), {
+                      encoding: FileSystem.EncodingType.Base64,
+                    });
+                    setImportMessage(`Plantilla guardada en: ${destination}`);
+                  } catch (downloadError) {
+                    setImportMessage(`Descarga fallida: ${String((downloadError as Error)?.message ?? downloadError)}`);
                   } finally {
                     setImportBusy(false);
                   }
@@ -394,7 +461,7 @@ export function SetupScreen({
 
       {importMessage ? <ThemedText style={styles.feedback}>{importMessage}</ThemedText> : null}
       {importIssues.map((issue) => (
-        <ThemedText key={issue} style={[styles.feedback, { color: palette.danger }]}> 
+        <ThemedText key={issue} style={[styles.feedback, { color: palette.danger }]}>
           {issue}
         </ThemedText>
       ))}

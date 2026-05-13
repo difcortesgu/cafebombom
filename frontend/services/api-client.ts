@@ -16,6 +16,12 @@ type RequestOptions = {
   body?: unknown;
 };
 
+export type DownloadedFile = {
+  bytes: Uint8Array;
+  contentType: string | null;
+  fileName: string;
+};
+
 class ApiClient {
   private token: string | null = null;
 
@@ -25,6 +31,10 @@ class ApiClient {
 
   getToken(): string | null {
     return this.token;
+  }
+
+  getBaseUrl(): string {
+    return API_BASE_URL;
   }
 
   private getAuthHeaders(): Record<string, string> {
@@ -155,6 +165,43 @@ class ApiClient {
     });
 
     return this.handleResponse<T>(response);
+  }
+
+  async downloadFile(endpoint: string, fallbackFileName: string, options?: RequestOptions): Promise<DownloadedFile> {
+    const url = `${API_BASE_URL}${endpoint}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeaders(),
+        ...options?.headers,
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}`;
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        try {
+          const error = await response.json() as { error?: string; message?: string };
+          errorMessage = error.error || error.message || errorMessage;
+        } catch {
+          // Ignore JSON parse errors
+        }
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const contentDisposition = response.headers.get('content-disposition') || '';
+    const match = contentDisposition.match(/filename="?([^\";]+)"?/i);
+    const fileName = match?.[1] || fallbackFileName;
+
+    return {
+      bytes: new Uint8Array(arrayBuffer),
+      contentType: response.headers.get('content-type'),
+      fileName,
+    };
   }
 }
 

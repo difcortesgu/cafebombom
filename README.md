@@ -19,9 +19,17 @@ CafeBomBom is a full-stack solution for daily cafe operations, including sales, 
 
 - Frontend: [frontend/README.md](frontend/README.md)
 - Backend: [backend/README.md](backend/README.md)
+- Import template v2: [docs/import-template-v2.xlsx](docs/import-template-v2.xlsx)
+- Import template guide: [docs/import-template-v2.md](docs/import-template-v2.md)
 
 ## Quick Start
 
 See the respective README in each folder for setup and usage instructions.
+
+## Excel Seed Import v2
+
+- Use the official template in [docs/import-template-v2.xlsx](docs/import-template-v2.xlsx).
+- Import mode is upsert with transaction fail-fast behavior.
+- API template download endpoint: GET /api/setup/import-template
 
 ## Next Features To Implement

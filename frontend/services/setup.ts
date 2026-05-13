@@ -1,21 +1,60 @@
 import { apiClient } from './api-client';
 
+export type SeedImportEntitySummary = {
+  inserted: number;
+  updated: number;
+  skipped: number;
+};
+
 export type SeedImportSummary = {
-  suppliers: number;
-  employees: number;
-  categories: number;
-  ingredients: number;
-  products: number;
-  productIngredients: number;
-  restaurantTables: number;
-  discounts: number;
-  surcharges: number;
+  suppliers: SeedImportEntitySummary;
+  employees: SeedImportEntitySummary;
+  categories: SeedImportEntitySummary;
+  ingredients: SeedImportEntitySummary;
+  products: SeedImportEntitySummary;
+  productIngredients: SeedImportEntitySummary;
+  productAdditionalIngredients: SeedImportEntitySummary;
+  restaurantTables: SeedImportEntitySummary;
+  discounts: SeedImportEntitySummary;
+  surcharges: SeedImportEntitySummary;
+  receiptPreferences: SeedImportEntitySummary;
+};
+
+export type SeedImportIssue = {
+  code: string;
+  entity: keyof SeedImportSummary | 'workbook';
+  message: string;
+  row?: number;
+  column?: string;
 };
 
 export type SeedImportResult = {
-  inserted: SeedImportSummary;
-  issues: string[];
+  summary: SeedImportSummary;
+  issues: SeedImportIssue[];
+  importedAt: number;
+  durationMs: number;
+  templateVersion: 2;
 };
+
+const emptyEntitySummary = (): SeedImportEntitySummary => ({
+  inserted: 0,
+  updated: 0,
+  skipped: 0,
+});
+
+const emptySeedImportSummary = (): SeedImportSummary => ({
+  suppliers: emptyEntitySummary(),
+  employees: emptyEntitySummary(),
+  categories: emptyEntitySummary(),
+  ingredients: emptyEntitySummary(),
+  products: emptyEntitySummary(),
+  productIngredients: emptyEntitySummary(),
+  productAdditionalIngredients: emptyEntitySummary(),
+  restaurantTables: emptyEntitySummary(),
+  discounts: emptyEntitySummary(),
+  surcharges: emptyEntitySummary(),
+  receiptPreferences: emptyEntitySummary(),
+});
 
 export type ReceiptPreferences = {
   businessName: string;
@@ -33,6 +72,12 @@ export type SetupStatus = {
   activeOwnerCount: number;
 };
 
+export type SeedImportTemplateFile = {
+  bytes: Uint8Array;
+  fileName: string;
+  contentType: string | null;
+};
+
 export class SetupService {
   async getSetupStatus(): Promise<SetupStatus> {
     const response = await apiClient.get<SetupStatus>('/setup/status');
@@ -46,7 +91,13 @@ export class SetupService {
         content,
         'seed.xlsx'
       );
-      return result || { inserted: { suppliers: 0, employees: 0, categories: 0, ingredients: 0, products: 0, productIngredients: 0, restaurantTables: 0, discounts: 0, surcharges: 0 }, issues: [] };
+      return result || {
+        summary: emptySeedImportSummary(),
+        issues: [],
+        importedAt: Math.floor(Date.now() / 1000),
+        durationMs: 0,
+        templateVersion: 2,
+      };
     } catch (error) {
       throw error;
     }
@@ -68,5 +119,14 @@ export class SetupService {
 
   async saveReceiptPreferences(payload: ReceiptPreferences): Promise<void> {
     await apiClient.put('/setup/receipt-prefs', payload);
+  }
+
+  async downloadImportTemplate(): Promise<SeedImportTemplateFile> {
+    const file = await apiClient.downloadFile('/setup/import-template', 'import-template-v2.xlsx');
+    return {
+      bytes: file.bytes,
+      fileName: file.fileName,
+      contentType: file.contentType,
+    };
   }
 }

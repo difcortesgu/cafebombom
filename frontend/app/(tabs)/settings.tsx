@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import Constants from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -409,13 +410,73 @@ export default function SettingsScreen() {
       const importResult = await setupService.importSeedFromExcel(new Uint8Array(buffer));
 
       setImportMessage(
-        `Imported ${importResult.inserted.suppliers} providers, ${importResult.inserted.employees} employees, ${importResult.inserted.categories} categories, ${importResult.inserted.ingredients} ingredients, ${importResult.inserted.products} products, and ${importResult.inserted.restaurantTables} tables.`,
+        `Imported/updated ${importResult.summary.suppliers.inserted + importResult.summary.suppliers.updated} providers, ${importResult.summary.employees.inserted + importResult.summary.employees.updated} employees, ${importResult.summary.categories.inserted + importResult.summary.categories.updated} categories, ${importResult.summary.ingredients.inserted + importResult.summary.ingredients.updated} ingredients, ${importResult.summary.products.inserted + importResult.summary.products.updated} products, and ${importResult.summary.restaurantTables.inserted + importResult.summary.restaurantTables.updated} tables.`,
       );
-      setImportIssues(importResult.issues.slice(0, 4));
+      setImportIssues(importResult.issues.map((issue) => issue.message));
 
       await Promise.all([hydrateInventory(), hydrateProducts(), hydrateSales()]);
     } catch (importError) {
       setImportMessage(`Import failed: ${String((importError as Error)?.message ?? importError)}`);
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const downloadImportTemplate = async () => {
+    try {
+      setImportBusy(true);
+      setImportMessage(null);
+
+      const file = await setupService.downloadImportTemplate();
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([file.bytes], {
+          type: file.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = file.fileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        setImportMessage('Template downloaded successfully.');
+        return;
+      }
+
+      if (Platform.OS === 'android') {
+        const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!permissions.granted) {
+          setImportMessage('Permission denied. Select Download folder to save the template.');
+          return;
+        }
+
+        const destination = await FileSystem.StorageAccessFramework.createFileAsync(
+          permissions.directoryUri,
+          file.fileName,
+          file.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+
+        await FileSystem.writeAsStringAsync(destination, Buffer.from(file.bytes).toString('base64'), {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        setImportMessage(`Template saved in selected folder: ${file.fileName}`);
+        return;
+      }
+
+      if (!FileSystem.documentDirectory) {
+        setImportMessage('Could not access local storage.');
+        return;
+      }
+
+      const templateDir = `${FileSystem.documentDirectory}templates/`;
+      await FileSystem.makeDirectoryAsync(templateDir, { intermediates: true });
+      const destination = `${templateDir}${file.fileName}`;
+      await FileSystem.writeAsStringAsync(destination, Buffer.from(file.bytes).toString('base64'), {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      setImportMessage(`Template saved to: ${destination}`);
+    } catch (downloadError) {
+      setImportMessage(`Template download failed: ${String((downloadError as Error)?.message ?? downloadError)}`);
     } finally {
       setImportBusy(false);
     }
@@ -959,6 +1020,12 @@ export default function SettingsScreen() {
               disabled={importBusy}
               label={importBusy ? 'Importing...' : 'Upload Seed Excel'}
               onPress={importSeedData}
+            />
+            <ThemedButton
+              variant="secondary"
+              disabled={importBusy}
+              label="Download Import Template"
+              onPress={downloadImportTemplate}
             />
             {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
             {importIssues.map((issue) => (
