@@ -24,6 +24,7 @@ export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
   const safeBusinessName = String(input.business.name ?? '').trim();
   const safeBusinessAddress = String(input.business.address ?? '').trim();
   const safeBusinessPhone = String(input.business.phone ?? '').trim();
+  const safeBusinessNit = String(input.business.nit ?? '').trim();
   const safeFooterMessage = String(input.business.footerMessage ?? '').trim();
   const safeTaxRate = Number.isFinite(Number(input.taxConfig.rate)) ? Number(input.taxConfig.rate) : 0;
   const safeTaxLabel = String(input.taxConfig.label ?? 'IVA').trim() || 'IVA';
@@ -45,6 +46,7 @@ export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
       name: safeBusinessName || 'CafeBomBom',
       address: safeBusinessAddress,
       phone: safeBusinessPhone,
+      nit: safeBusinessNit,
       logoUri: input.business.logoUri,
       footerMessage: safeFooterMessage,
     },

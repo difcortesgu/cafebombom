@@ -21,6 +21,7 @@ export type ReceiptPreferences = {
   businessName: string;
   businessAddress: string;
   businessPhone: string;
+  businessNit: string;
   businessLogoUri: string | null;
   footerMessage: string;
   paperWidth: 58 | 80;
@@ -57,6 +58,7 @@ export class SetupService {
       businessName: '',
       businessAddress: '',
       businessPhone: '',
+      businessNit: '',
       businessLogoUri: null,
       footerMessage: '',
       paperWidth: 58,

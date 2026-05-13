@@ -8,6 +8,13 @@
       "when": 1778281838910,
       "tag": "0000_daily_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1778285125633,
+      "tag": "0001_cultured_patriot",
+      "breakpoints": true
     }
   ]
 }

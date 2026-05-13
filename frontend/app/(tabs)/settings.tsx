@@ -63,6 +63,7 @@ export default function SettingsScreen() {
     businessName,
     businessAddress,
     businessPhone,
+    businessNit,
     businessLogoUri,
     receiptFooterMessage,
     printerPaperWidth,
@@ -86,6 +87,7 @@ export default function SettingsScreen() {
   const [businessNameInput, setBusinessNameInput] = useState(businessName);
   const [businessAddressInput, setBusinessAddressInput] = useState(businessAddress);
   const [businessPhoneInput, setBusinessPhoneInput] = useState(businessPhone);
+  const [businessNitInput, setBusinessNitInput] = useState(businessNit);
   const [businessLogoUriInput, setBusinessLogoUriInput] = useState(businessLogoUri ?? '');
   const [receiptFooterInput, setReceiptFooterInput] = useState(receiptFooterMessage);
   const [taxRateInput, setTaxRateInput] = useState((taxRate * 100).toFixed(2));
@@ -147,6 +149,10 @@ export default function SettingsScreen() {
   useEffect(() => {
     setBusinessPhoneInput(businessPhone);
   }, [businessPhone]);
+
+  useEffect(() => {
+    setBusinessNitInput(businessNit);
+  }, [businessNit]);
 
   useEffect(() => {
     setBusinessLogoUriInput(businessLogoUri ?? '');
@@ -219,6 +225,7 @@ export default function SettingsScreen() {
       name: businessNameInput.trim() || 'CafeBomBom',
       address: businessAddressInput.trim(),
       phone: businessPhoneInput.trim(),
+      nit: businessNitInput.trim(),
       logoUri: businessLogoUriInput.trim() || null,
       footerMessage: receiptFooterInput.trim(),
     });
@@ -643,6 +650,12 @@ export default function SettingsScreen() {
               value={businessPhoneInput}
               placeholder={t('settings.receipt.businessPhone')}
               onChangeText={setBusinessPhoneInput}
+              onBlur={commitBusinessInfo}
+            />
+            <ThemedInput
+              value={businessNitInput}
+              placeholder={t('settings.receipt.businessNit')}
+              onChangeText={setBusinessNitInput}
               onBlur={commitBusinessInfo}
             />
 

@@ -19,6 +19,7 @@ export type PaymentModalBusiness = {
     name: string;
     address: string;
     phone: string;
+    nit: string;
     logoUri: string | null;
     footerMessage: string;
     taxRate: number;
@@ -300,6 +301,7 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
                     name: business.name,
                     address: business.address,
                     phone: business.phone,
+                    nit: business.nit,
                     logoUri: business.logoUri,
                     footerMessage: business.footerMessage,
                 },
@@ -750,6 +752,7 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
                     name: business.name,
                     address: business.address,
                     phone: business.phone,
+                    nit: business.nit,
                     logoUri: business.logoUri,
                     footerMessage: business.footerMessage,
                 },

@@ -13,6 +13,7 @@ export type BusinessInfo = {
   name: string;
   address: string;
   phone: string;
+  nit: string;
   logoUri: string | null;
   footerMessage: string;
 };
@@ -70,6 +71,7 @@ export type ReceiptPreferences = {
   businessName: string;
   businessAddress: string;
   businessPhone: string;
+  businessNit: string;
   businessLogoUri: string | null;
   footerMessage: string;
   paperWidth: ReceiptPaperWidth;

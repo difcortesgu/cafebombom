@@ -27,7 +27,7 @@ export async function getReceiptPreferences(req: Request, res: Response): Promis
 }
 
 export async function saveReceiptPreferences(req: Request, res: Response): Promise<void> {
-  const { businessName, businessAddress, businessPhone, businessLogoUri, footerMessage, paperWidth, taxRate } = req.body;
+  const { businessName, businessAddress, businessPhone, businessNit, businessLogoUri, footerMessage, paperWidth, taxRate } = req.body;
 
   if (!businessName) {
     res.status(400).json({ error: 'businessName is required.' });
@@ -49,6 +49,7 @@ export async function saveReceiptPreferences(req: Request, res: Response): Promi
       businessName,
       businessAddress: businessAddress ?? '',
       businessPhone: businessPhone ?? '',
+      businessNit: businessNit ?? '',
       businessLogoUri: businessLogoUri ?? null,
       footerMessage: footerMessage ?? '',
       paperWidth,

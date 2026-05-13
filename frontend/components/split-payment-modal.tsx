@@ -218,6 +218,7 @@ function buildPartialReceiptData(sale: Sale, payment: SalePayment, business: Spl
             name: business.name,
             address: business.address,
             phone: business.phone,
+            nit: business.nit,
             logoUri: business.logoUri,
             footerMessage: business.footerMessage,
         },

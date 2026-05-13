@@ -56,6 +56,7 @@ type SettingsState = {
   businessName: string;
   businessAddress: string;
   businessPhone: string;
+  businessNit: string;
   businessLogoUri: string | null;
   receiptFooterMessage: string;
   printerPaperWidth: ReceiptPaperWidth;
@@ -81,6 +82,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   businessName: 'CafeBomBom',
   businessAddress: '',
   businessPhone: '',
+  businessNit: '',
   businessLogoUri: null,
   receiptFooterMessage: 'Gracias por tu compra',
   printerPaperWidth: 80,
@@ -99,6 +101,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessName: receiptConfig.businessName,
       businessAddress: receiptConfig.businessAddress,
       businessPhone: receiptConfig.businessPhone,
+      businessNit: receiptConfig.businessNit,
       businessLogoUri: receiptConfig.businessLogoUri,
       receiptFooterMessage: receiptConfig.footerMessage,
       printerPaperWidth: receiptConfig.paperWidth,
@@ -132,6 +135,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessName: patch.name ?? state.businessName,
       businessAddress: patch.address ?? state.businessAddress,
       businessPhone: patch.phone ?? state.businessPhone,
+      businessNit: patch.nit ?? state.businessNit,
       businessLogoUri: patch.logoUri === undefined ? state.businessLogoUri : patch.logoUri,
       receiptFooterMessage: patch.footerMessage ?? state.receiptFooterMessage,
     }));
@@ -141,6 +145,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessName: state.businessName,
       businessAddress: state.businessAddress,
       businessPhone: state.businessPhone,
+      businessNit: state.businessNit,
       businessLogoUri: state.businessLogoUri,
       footerMessage: state.receiptFooterMessage,
       paperWidth: state.printerPaperWidth,

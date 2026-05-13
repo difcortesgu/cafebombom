@@ -30,6 +30,7 @@ export const receiptPreferences = sqliteTable('receipt_preferences', {
   businessName: text('business_name').notNull().default('CafeBomBom'),
   businessAddress: text('business_address').notNull().default(''),
   businessPhone: text('business_phone').notNull().default(''),
+  businessNit: text('business_nit').notNull().default(''),
   businessLogoUri: text('business_logo_uri'),
   footerMessage: text('footer_message').notNull().default('Gracias por tu compra'),
   paperWidth: integer('paper_width').notNull().default(80),

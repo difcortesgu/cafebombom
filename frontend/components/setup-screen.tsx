@@ -39,6 +39,7 @@ const defaultReceiptPreferences: ReceiptPreferences = {
   businessName: '',
   businessAddress: '',
   businessPhone: '',
+  businessNit: '',
   businessLogoUri: null,
   footerMessage: '',
   paperWidth: 80,
@@ -272,6 +273,11 @@ export function SetupScreen({
                 value={prefs.businessPhone}
                 placeholder={t('setup.restaurant.businessPhone')}
                 onChangeText={(value) => setPrefs((prev) => ({ ...prev, businessPhone: value }))}
+              />
+              <ThemedInput
+                value={prefs.businessNit}
+                placeholder={t('setup.restaurant.businessNit')}
+                onChangeText={(value) => setPrefs((prev) => ({ ...prev, businessNit: value }))}
               />
               <ThemedInput
                 value={taxRatePercent}

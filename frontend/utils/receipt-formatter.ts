@@ -88,6 +88,9 @@ export function buildPrintableReceiptText(receipt: ReceiptData): string {
   if (receipt.business.phone) {
     lines.push(centerText(`${t('sales.receipt.phonePrefix')}: ${receipt.business.phone}`, width));
   }
+  if (receipt.business.nit) {
+    lines.push(centerText(`${t('sales.receipt.nitPrefix')}: ${receipt.business.nit}`, width));
+  }
 
   lines.push(separatorLine(width));
   lines.push(formatReceiptLine(t('sales.receipt.orderLabel'), `#${receipt.metadata.orderShortId}`, width));

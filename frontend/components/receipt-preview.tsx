@@ -35,6 +35,7 @@ export function ReceiptPreview({ receipt }: ReceiptPreviewProps) {
         <ThemedText style={styles.centerTitle}>{receipt.business.name || 'CafeBomBom'}</ThemedText>
         {receipt.business.address ? <ThemedText style={styles.centerText}>{receipt.business.address}</ThemedText> : null}
         {receipt.business.phone ? <ThemedText style={styles.centerText}>{t('sales.receipt.phonePrefix')}: {receipt.business.phone}</ThemedText> : null}
+        {receipt.business.nit ? <ThemedText style={styles.centerText}>{t('sales.receipt.nitPrefix')}: {receipt.business.nit}</ThemedText> : null}
 
         <View style={[styles.separator, { borderBottomColor: palette.border }]} />
 
