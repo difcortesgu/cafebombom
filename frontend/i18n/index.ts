@@ -29,7 +29,10 @@ const catalogs: Record<Locale, Record<string, string>> = {
 
     // Shared components
     'shared.select.placeholder': 'Selecciona...',
+    'shared.select.title': 'Selecciona una opcion',
     'shared.select.ingredient': 'Selecciona un ingrediente',
+    'shared.select.addNew': 'Agregar nueva opcion',
+    'shared.select.addNewPlaceholder': 'Nueva opcion...',
     'shared.search.placeholder': 'Buscar...',
     'shared.close': 'Cerrar',
     'shared.date.select': 'Selecciona una fecha',
@@ -429,9 +432,16 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'ingredientForm.title.add': 'Agregar ingrediente',
     'ingredientForm.name': 'Nombre',
     'ingredientForm.unit': 'Unidad',
+    'ingredientForm.units.addOption': '+ Agregar nueva unidad',
+    'ingredientForm.newUnitPlaceholder': 'Nueva unidad (ej. kilo, botella, unidad)',
+    'ingredientForm.addUnit': 'Agregar unidad',
+    'ingredientForm.deleteUnit': 'Eliminar',
     'ingredientForm.lowStockThreshold': 'Umbral de stock bajo',
     'ingredientForm.save': 'Guardar ingrediente',
     'ingredientForm.error.nameRequired': 'El nombre del ingrediente es obligatorio.',
+    'ingredientForm.error.unitRequired': 'La unidad es obligatoria.',
+    'ingredientForm.error.newUnitRequired': 'Ingresa un nombre para la nueva unidad.',
+    'ingredientForm.error.unitAlreadyExists': 'Esa unidad ya existe.',
 
     // Product form
     'productForm.title.edit': 'Editar producto',

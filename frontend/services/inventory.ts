@@ -1,4 +1,4 @@
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 import { apiClient } from './api-client';
 
@@ -6,6 +6,7 @@ export type InventoryHydrationData = {
   ingredients: Ingredient[];
   suppliers: Supplier[];
   restocks: RestockLog[];
+  units: InventoryUnit[];
 };
 
 export class InventoryService {
@@ -15,6 +16,7 @@ export class InventoryService {
       ingredients: [],
       suppliers: [],
       restocks: [],
+      units: [],
     };
   }
 
@@ -39,5 +41,26 @@ export class InventoryService {
   async addRestock(payload: AddRestockPayload): Promise<string> {
     const response = await apiClient.post<{ id: string }>('/inventory/restocks', payload);
     return response.id || '';
+  }
+
+  async addUnit(payload: AddUnitPayload): Promise<InventoryUnit | null> {
+    try {
+      const response = await apiClient.post<InventoryUnit>('/inventory/units', payload);
+      return response || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async deleteUnit({ id }: DeleteUnitPayload): Promise<string | null> {
+    try {
+      await apiClient.delete<void>(`/inventory/units/${id}`);
+      return null;
+    } catch (error) {
+      if (error instanceof Error) {
+        return error.message;
+      }
+      return 'No se pudo eliminar la unidad.';
+    }
   }
 }

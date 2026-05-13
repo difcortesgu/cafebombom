@@ -1,5 +1,5 @@
 import { db } from '@/database';
-import { categories, discounts, employees, ingredients, productIngredients, products, receiptPreferences, restaurantTables, suppliers, surcharges } from '@/database/schema';
+import { categories, discounts, employees, ingredientUnits, ingredients, productIngredients, products, receiptPreferences, restaurantTables, suppliers, surcharges } from '@/database/schema';
 import { parseSeedWorkbook } from '@/services/seed-import';
 import { ReceiptPreferences } from '@/types/receipt';
 import { SeedImportResult } from '@/types/setup';
@@ -145,6 +145,17 @@ export class SetupSqliteService {
     }
 
     for (const row of data.ingredients) {
+      const normalizedUnit = String(row.unit).trim().toLowerCase();
+      if (!normalizedUnit) {
+        result.issues.push(`Ingredient '${row.name}' skipped because unit is empty.`);
+        continue;
+      }
+
+      const existingUnit = db.select({ id: ingredientUnits.id }).from(ingredientUnits).where(eq(ingredientUnits.name, normalizedUnit)).get();
+      if (!existingUnit) {
+        db.insert(ingredientUnits).values({ name: normalizedUnit }).run();
+      }
+
       const existing = db.select({ id: ingredients.id }).from(ingredients).where(eq(ingredients.name, row.name)).get();
       if (existing) {
         continue;
@@ -152,7 +163,7 @@ export class SetupSqliteService {
       db.insert(ingredients)
         .values({
           name: row.name,
-          unit: row.unit,
+          unit: normalizedUnit,
           quantity: row.quantity,
           lowStockThreshold: row.lowStockThreshold,
           supplierId: null,

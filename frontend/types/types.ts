@@ -1,5 +1,5 @@
 export type UserRole = 'owner' | 'staff';
-export type Unit = 'grams' | 'liters' | 'pieces';
+export type Unit = string;
 export type DiscountType = 'percentage' | 'fixed';
 export type DiscountScope = 'product' | 'global';
 export type TableType = 'dine-in' | 'to-go' | 'delivery';
@@ -20,6 +20,11 @@ export type Ingredient = {
   quantity: number;
   low_stock_threshold: number;
   supplier_id: string | null;
+};
+
+export type IngredientUnit = {
+  id: string;
+  name: string;
 };
 
 export type Supplier = {

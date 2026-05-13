@@ -1,6 +1,6 @@
 import { db } from '@/database';
-import { ingredients, restockLogs, suppliers } from '@/database/schema';
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import { ingredientUnits, ingredients, restockLogs, suppliers } from '@/database/schema';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
@@ -39,12 +39,31 @@ export class InventorySqliteService {
       .limit(20)
       .all() as RestockLog[];
 
-    return { ingredients: ingredientsList, suppliers: suppliersList, restocks: restocksList };
+    const unitsList = db
+      .select({
+        id: ingredientUnits.id,
+        name: ingredientUnits.name,
+      })
+      .from(ingredientUnits)
+      .orderBy(asc(ingredientUnits.name))
+      .all() as InventoryUnit[];
+
+    return { ingredients: ingredientsList, suppliers: suppliersList, restocks: restocksList, units: unitsList };
   }
 
-  async addIngredient({ name, unit, quantity, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<string> {
+  unitExists(name: string): boolean {
+    const existing = db
+      .select({ id: ingredientUnits.id })
+      .from(ingredientUnits)
+      .where(eq(ingredientUnits.name, name))
+      .get();
+
+    return Boolean(existing);
+  }
+
+  async addIngredient({ name, unit, lowStockThreshold, supplierId }: AddIngredientPayload): Promise<string> {
     const [inserted] = db.insert(ingredients)
-      .values({ name, unit, quantity, lowStockThreshold, supplierId: supplierId ?? null })
+      .values({ name, unit, quantity: 0, lowStockThreshold, supplierId: supplierId ?? null })
       .returning({ id: ingredients.id })
       .all();
 
@@ -60,7 +79,6 @@ export class InventorySqliteService {
       .select({
         name: ingredients.name,
         unit: ingredients.unit,
-        quantity: ingredients.quantity,
         lowStockThreshold: ingredients.lowStockThreshold,
         supplierId: ingredients.supplierId,
       })
@@ -76,7 +94,6 @@ export class InventorySqliteService {
       .set({
         name: payload.name ?? existing.name,
         unit: payload.unit ?? existing.unit,
-        quantity: payload.quantity ?? existing.quantity,
         lowStockThreshold: payload.low_stock_threshold ?? existing.lowStockThreshold,
         supplierId: payload.supplier_id ?? existing.supplierId,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
@@ -93,6 +110,45 @@ export class InventorySqliteService {
       .all();
 
     return inserted?.id ?? null;
+  }
+
+  async addUnit({ name }: AddUnitPayload): Promise<InventoryUnit | null> {
+    const now = Math.floor(Date.now() / 1000);
+    const [inserted] = db.insert(ingredientUnits)
+      .values({ name, createdAt: now, updatedAt: now })
+      .onConflictDoNothing()
+      .returning({ id: ingredientUnits.id, name: ingredientUnits.name })
+      .all() as InventoryUnit[];
+
+    return inserted ?? null;
+  }
+
+  async deleteUnit({ id }: DeleteUnitPayload): Promise<'deleted' | 'in-use' | 'not-found'> {
+    const targetUnit = db
+      .select({ id: ingredientUnits.id, name: ingredientUnits.name })
+      .from(ingredientUnits)
+      .where(eq(ingredientUnits.id, id))
+      .get();
+
+    if (!targetUnit) {
+      return 'not-found';
+    }
+
+    const usage = db
+      .select({ id: ingredients.id })
+      .from(ingredients)
+      .where(eq(ingredients.unit, targetUnit.name))
+      .get();
+
+    if (usage) {
+      return 'in-use';
+    }
+
+    db.delete(ingredientUnits)
+      .where(eq(ingredientUnits.id, id))
+      .run();
+
+    return 'deleted';
   }
 
   async addRestock({ ingredientId, quantityAdded, cost, supplierId }: AddRestockPayload): Promise<string> {

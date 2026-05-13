@@ -1,18 +1,21 @@
 import { create } from 'zustand';
 
 import { inventoryService } from '@/services';
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 
 type InventoryState = {
   ingredients: Ingredient[];
   suppliers: Supplier[];
   restocks: RestockLog[];
+  units: InventoryUnit[];
   loading: boolean;
   hydrate: () => Promise<void>;
   addIngredient: (payload: AddIngredientPayload) => Promise<string>;
   updateIngredient: (payload: UpdateIngredientPayload) => Promise<void>;
   addSupplier: (payload: AddSupplierPayload) => Promise<void>;
+  addUnit: (payload: AddUnitPayload) => Promise<InventoryUnit | null>;
+  deleteUnit: (payload: DeleteUnitPayload) => Promise<string | null>;
   addRestock: (payload: AddRestockPayload) => Promise<void>;
   lowStockCount: () => number;
   getLowStockItems: (limit?: number) => Ingredient[];
@@ -22,23 +25,23 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   ingredients: [],
   suppliers: [],
   restocks: [],
+  units: [],
   loading: false,
 
   hydrate: async () => {
     set({ loading: true });
-    const { ingredients, suppliers, restocks } = await inventoryService.getHydrationData();
+    const { ingredients, suppliers, restocks, units } = await inventoryService.getHydrationData();
 
-    set({ ingredients, suppliers, restocks, loading: false });
+    set({ ingredients, suppliers, restocks, units, loading: false });
   },
 
   addIngredient: async ({
     name,
     unit,
-    quantity,
     lowStockThreshold,
     supplierId,
   }: AddIngredientPayload) => {
-    const ingredientId = await inventoryService.addIngredient({ name, unit, quantity, lowStockThreshold, supplierId });
+    const ingredientId = await inventoryService.addIngredient({ name, unit, lowStockThreshold, supplierId });
     await get().hydrate();
     return ingredientId;
   },
@@ -51,6 +54,18 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   addSupplier: async ({ name, phone, notes }: AddSupplierPayload) => {
     await inventoryService.addSupplier({ name, phone, notes });
     await get().hydrate();
+  },
+
+  addUnit: async ({ name }: AddUnitPayload) => {
+    const unit = await inventoryService.addUnit({ name });
+    await get().hydrate();
+    return unit;
+  },
+
+  deleteUnit: async ({ id }: DeleteUnitPayload) => {
+    const error = await inventoryService.deleteUnit({ id });
+    await get().hydrate();
+    return error;
   },
 
   addRestock: async ({

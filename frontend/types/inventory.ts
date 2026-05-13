@@ -1,4 +1,8 @@
 
+import type { IngredientUnit, Unit } from '@/types/types';
+
+export type InventoryUnit = IngredientUnit;
+
 export type RestockLog = {
   id: string;
   ingredient_name: string;
@@ -9,8 +13,7 @@ export type RestockLog = {
 
 export type AddIngredientPayload = {
   name: string;
-  unit: string;
-  quantity: number;
+  unit: Unit;
   lowStockThreshold: number;
   supplierId?: string;
 };
@@ -19,8 +22,7 @@ export type UpdateIngredientPayload = {
   id: string;
 } & Partial<{
   name: string;
-  unit: string;
-  quantity: number;
+  unit: Unit;
   low_stock_threshold: number;
   supplier_id: string | null;
 }>;
@@ -29,6 +31,14 @@ export type AddSupplierPayload = {
   name: string;
   phone?: string;
   notes?: string;
+};
+
+export type AddUnitPayload = {
+  name: string;
+};
+
+export type DeleteUnitPayload = {
+  id: string;
 };
 
 export type AddRestockPayload = {

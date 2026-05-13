@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -13,15 +14,40 @@ type ThemedSelectProps = {
   onValueChange: (value: string) => void;
   items: { label: string; value: string }[];
   placeholder?: string;
+  modalTitle?: string;
+  canItemAction?: (item: { label: string; value: string }) => boolean;
+  onItemAction?: (item: { label: string; value: string }) => void | Promise<void>;
+  onAddNew?: (name: string) => Promise<void> | void;
+  addNewPlaceholder?: string;
 };
 
-export function ThemedSelect({ label, value, onValueChange, items, placeholder }: ThemedSelectProps) {
+export function ThemedSelect({
+  label,
+  value,
+  onValueChange,
+  items,
+  placeholder,
+  modalTitle,
+  canItemAction,
+  onItemAction,
+  onAddNew,
+  addNewPlaceholder,
+}: ThemedSelectProps) {
   const palette = useAppColors();
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [showAddNew, setShowAddNew] = useState(false);
+  const [addNewText, setAddNewText] = useState('');
 
   const selectedItem = items.find((item) => item.value === value);
   const filteredItems = items.filter((item) => item.label.toLowerCase().includes(searchText.toLowerCase()));
+
+  function handleClose() {
+    setIsOpen(false);
+    setSearchText('');
+    setShowAddNew(false);
+    setAddNewText('');
+  }
 
   return (
     <>
@@ -35,10 +61,13 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
       </Pressable>
 
       <Modal visible={isOpen} transparent animationType="fade">
-        <Pressable style={styles.overlay} onPress={() => setIsOpen(false)}>
-          <View style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        <Pressable style={styles.overlay} onPress={handleClose}>
+          <View
+            style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }]}
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
-              {t('shared.select.ingredient')}
+              {modalTitle || label || t('shared.select.title')}
             </ThemedText>
 
             <ThemedInput
@@ -59,24 +88,74 @@ export function ThemedSelect({ label, value, onValueChange, items, placeholder }
                   ]}
                   onPress={() => {
                     onValueChange(item.value);
-                    setIsOpen(false);
-                    setSearchText('');
+                    handleClose();
                   }}>
-                  <ThemedText
-                    style={selectedItem?.value === item.value ? { color: palette.card, fontWeight: 'bold' } : {}}>
-                    {item.label}
-                  </ThemedText>
+                  <View style={styles.modalItemRow}>
+                    <ThemedText
+                      style={selectedItem?.value === item.value ? { color: palette.card, fontWeight: 'bold' } : {}}>
+                      {item.label}
+                    </ThemedText>
+                    {onItemAction && (canItemAction?.(item) ?? true) ? (
+                      <Pressable
+                        onPress={async (e) => {
+                          e.stopPropagation();
+                          await onItemAction(item);
+                        }}
+                        hitSlop={8}>
+                        <MaterialIcons name="delete" size={20} color="#ef4444" />
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </Pressable>
               ))}
             </ScrollView>
 
+            {onAddNew ? (
+              showAddNew ? (
+                <View style={[styles.addNewRow, { borderTopColor: palette.border }]}>
+                  <ThemedInput
+                    placeholder={addNewPlaceholder || t('shared.select.addNewPlaceholder')}
+                    value={addNewText}
+                    onChangeText={setAddNewText}
+                    style={styles.addNewInput}
+                    autoFocus
+                  />
+                  <Pressable
+                    style={[styles.addNewConfirm, { backgroundColor: palette.tint }]}
+                    onPress={async () => {
+                      const trimmed = addNewText.trim();
+                      if (!trimmed) return;
+                      await onAddNew(trimmed);
+                      setAddNewText('');
+                      setShowAddNew(false);
+                    }}>
+                    <MaterialIcons name="check" size={20} color="#fff" />
+                  </Pressable>
+                  <Pressable
+                    style={[styles.addNewCancel, { backgroundColor: palette.border }]}
+                    onPress={() => {
+                      setShowAddNew(false);
+                      setAddNewText('');
+                    }}>
+                    <MaterialIcons name="close" size={20} color={palette.text} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  style={[styles.addNewButton, { borderTopColor: palette.border }]}
+                  onPress={() => setShowAddNew(true)}>
+                  <MaterialIcons name="add" size={18} color={palette.tint} />
+                  <ThemedText style={[styles.addNewLabel, { color: palette.tint }]}>
+                    {t('shared.select.addNew')}
+                  </ThemedText>
+                </Pressable>
+              )
+            ) : null}
+
             <ThemedButton
               label={t('shared.close')}
               style={styles.closeButton}
-              onPress={() => {
-                setIsOpen(false);
-                setSearchText('');
-              }}
+              onPress={handleClose}
             />
           </View>
         </Pressable>
@@ -131,6 +210,49 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 6,
     borderBottomWidth: 1,
+  },
+  modalItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  addNewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    marginBottom: 8,
+  },
+  addNewLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addNewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    marginBottom: 8,
+  },
+  addNewInput: {
+    flex: 1,
+  },
+  addNewConfirm: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addNewCancel: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   closeButton: {
     width: '100%',

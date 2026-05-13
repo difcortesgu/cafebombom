@@ -8,7 +8,8 @@
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --watch .env --ext ts,env --exec \"npm run build && node dist/index.js\"",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "node scripts/migrate.cjs",
+    "db:migrate:drizzle-kit": "drizzle-kit migrate"
   },
   "keywords": [],
   "author": "",

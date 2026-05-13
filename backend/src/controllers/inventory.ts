@@ -14,15 +14,26 @@ export async function getHydrationData(req: Request, res: Response): Promise<voi
 }
 
 export async function addIngredient(req: Request, res: Response): Promise<void> {
-  const { name, unit, quantity, lowStockThreshold, supplierId } = req.body;
+  const { name, unit, lowStockThreshold, supplierId } = req.body;
 
-  if (!name || !unit || quantity == null || lowStockThreshold == null) {
-    res.status(400).json({ error: 'name, unit, quantity, and lowStockThreshold are required.' });
+  if (!name || !unit || lowStockThreshold == null) {
+    res.status(400).json({ error: 'name, unit, and lowStockThreshold are required.' });
+    return;
+  }
+
+  const normalizedUnit = String(unit).trim().toLowerCase();
+  if (!normalizedUnit) {
+    res.status(400).json({ error: 'unit is required.' });
+    return;
+  }
+
+  if (!inventoryService.unitExists(normalizedUnit)) {
+    res.status(400).json({ error: 'unit must exist in units catalog.' });
     return;
   }
 
   try {
-    const id = await inventoryService.addIngredient({ name, unit, quantity, lowStockThreshold, supplierId });
+    const id = await inventoryService.addIngredient({ name, unit: normalizedUnit, lowStockThreshold, supplierId });
     res.status(201).json({ id });
   } catch (error) {
     console.error('[inventory] addIngredient failed:', error);
@@ -32,10 +43,24 @@ export async function addIngredient(req: Request, res: Response): Promise<void> 
 
 export async function updateIngredient(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { name, unit, quantity, low_stock_threshold, supplier_id } = req.body;
+  const { name, unit, low_stock_threshold, supplier_id } = req.body;
+
+  let normalizedUnit: string | undefined;
+  if (unit !== undefined) {
+    normalizedUnit = String(unit).trim().toLowerCase();
+    if (!normalizedUnit) {
+      res.status(400).json({ error: 'unit cannot be empty.' });
+      return;
+    }
+
+    if (!inventoryService.unitExists(normalizedUnit)) {
+      res.status(400).json({ error: 'unit must exist in units catalog.' });
+      return;
+    }
+  }
 
   try {
-    await inventoryService.updateIngredient({ id, name, unit, quantity, low_stock_threshold, supplier_id });
+    await inventoryService.updateIngredient({ id, name, unit: normalizedUnit, low_stock_threshold, supplier_id });
     res.status(204).send();
   } catch (error) {
     console.error('[inventory] updateIngredient failed:', error);
@@ -61,6 +86,56 @@ export async function addSupplier(req: Request, res: Response): Promise<void> {
   } catch (error) {
     console.error('[inventory] addSupplier failed:', error);
     res.status(500).json({ error: 'Failed to create supplier.' });
+  }
+}
+
+export async function addUnit(req: Request, res: Response): Promise<void> {
+  const { name } = req.body;
+  const normalizedName = String(name ?? '').trim().toLowerCase();
+
+  if (!normalizedName) {
+    res.status(400).json({ error: 'name is required.' });
+    return;
+  }
+
+  try {
+    const unit = await inventoryService.addUnit({ name: normalizedName });
+    if (!unit) {
+      res.status(409).json({ error: 'A unit with that name already exists.' });
+      return;
+    }
+
+    res.status(201).json(unit);
+  } catch (error) {
+    console.error('[inventory] addUnit failed:', error);
+    res.status(500).json({ error: 'Failed to create unit.' });
+  }
+}
+
+export async function deleteUnit(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+
+  if (!id) {
+    res.status(400).json({ error: 'id is required.' });
+    return;
+  }
+
+  try {
+    const result = await inventoryService.deleteUnit({ id });
+    if (result === 'not-found') {
+      res.status(404).json({ error: 'Unit not found.' });
+      return;
+    }
+
+    if (result === 'in-use') {
+      res.status(409).json({ error: 'Cannot delete a unit that is already used by ingredients.' });
+      return;
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('[inventory] deleteUnit failed:', error);
+    res.status(500).json({ error: 'Failed to delete unit.' });
   }
 }
 

@@ -47,6 +47,15 @@ export const suppliers = sqliteTable('suppliers', {
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
 
+export const ingredientUnits = sqliteTable('ingredient_units', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  name: text('name').notNull().unique(),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+}, (t) => [
+  index('idx_ingredient_units_name').on(t.name),
+]);
+
 export const ingredients = sqliteTable('ingredients', {
   id: text('id').primaryKey().$defaultFn(() => uuidv4()),
   name: text('name').notNull().unique(),

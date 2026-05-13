@@ -18,7 +18,7 @@ export type SeedEmployeeRow = {
 
 export type SeedIngredientRow = {
   name: string;
-  unit: 'grams' | 'liters' | 'pieces';
+  unit: string;
   quantity: number;
   lowStockThreshold: number;
 };
@@ -173,15 +173,9 @@ const parseTableType = (value: unknown): 'dine-in' | 'to-go' | 'delivery' => {
   return 'dine-in';
 };
 
-const parseUnit = (value: unknown): 'grams' | 'liters' | 'pieces' => {
+const parseUnit = (value: unknown): string => {
   const normalized = normalizeText(value).toLowerCase();
-  if (normalized === 'liters' || normalized === 'liter') {
-    return 'liters';
-  }
-  if (normalized === 'pieces' || normalized === 'piece') {
-    return 'pieces';
-  }
-  return 'grams';
+  return normalized || 'unidad';
 };
 
 const parseScope = (value: unknown): 'product' | 'global' => {

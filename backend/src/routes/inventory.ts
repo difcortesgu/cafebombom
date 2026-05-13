@@ -2,6 +2,8 @@ import {
     addIngredient,
     addRestock,
     addSupplier,
+    addUnit,
+    deleteUnit,
     getHydrationData,
     updateIngredient,
 } from '@/controllers/inventory';
@@ -18,7 +20,7 @@ router.use(authMiddleware);
  * /api/inventory:
  *   get:
  *     tags: [Inventory]
- *     summary: Get hydration data (ingredients, suppliers, restocks)
+ *     summary: Get hydration data (ingredients, suppliers, restocks, units)
  *     responses:
  *       200:
  *         description: Full inventory hydration payload
@@ -37,11 +39,10 @@ router.get('/', getHydrationData);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, unit, quantity]
+ *             required: [name, unit, lowStockThreshold]
  *             properties:
  *               name: { type: string }
- *               unit: { type: string }
- *               quantity: { type: number }
+ *               unit: { type: string, description: Must exist in units catalog }
  *               lowStockThreshold: { type: number, nullable: true }
  *               supplierId: { type: string, nullable: true }
  *     responses:
@@ -77,8 +78,7 @@ router.post('/ingredients', requireRole('owner'), addIngredient);
  *             type: object
  *             properties:
  *               name: { type: string }
- *               unit: { type: string }
- *               quantity: { type: number }
+ *               unit: { type: string, description: Must exist in units catalog }
  *               lowStockThreshold: { type: number, nullable: true }
  *               supplierId: { type: string, nullable: true }
  *     responses:
@@ -119,6 +119,54 @@ router.put('/ingredients/:id', requireRole('owner'), updateIngredient);
  *         description: Forbidden
  */
 router.post('/suppliers', requireRole('owner'), addSupplier);
+
+/**
+ * @openapi
+ * /api/inventory/units:
+ *   post:
+ *     tags: [Inventory]
+ *     summary: Add a new ingredient unit option (owner only)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name: { type: string }
+ *     responses:
+ *       201:
+ *         description: Unit created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/IngredientUnit'
+ *       403:
+ *         description: Forbidden
+ */
+router.post('/units', requireRole('owner'), addUnit);
+
+/**
+ * @openapi
+ * /api/inventory/units/{id}:
+ *   delete:
+ *     tags: [Inventory]
+ *     summary: Delete an ingredient unit option (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Unit deleted
+ *       409:
+ *         description: Unit is in use by ingredients
+ *       403:
+ *         description: Forbidden
+ */
+router.delete('/units/:id', requireRole('owner'), deleteUnit);
 
 /**
  * @openapi

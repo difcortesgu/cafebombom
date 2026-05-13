@@ -101,6 +101,13 @@ const swaggerOptions: swaggerJsdoc.Options = {
             supplier_id: { type: 'string', nullable: true },
           },
         },
+        IngredientUnit: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+          },
+        },
         Supplier: {
           type: 'object',
           properties: {

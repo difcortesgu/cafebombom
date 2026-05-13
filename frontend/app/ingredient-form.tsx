@@ -1,11 +1,12 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
+import { ThemedSelect } from '@/components/ui/themed-select';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 
@@ -21,16 +22,20 @@ export default function IngredientFormScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const ingredientId = normalizeParam(params.id);
 
-  const { ingredients, hydrate: hydrateInventory, addIngredient, updateIngredient } = useInventoryStore();
+  const { ingredients, units, hydrate: hydrateInventory, addIngredient, addUnit, deleteUnit, updateIngredient } = useInventoryStore();
 
   const [message, setMessage] = useState<string>('');
   const [ingredientForm, setIngredientForm] = useState({
     id: null as string | null,
     name: '',
-    unit: 'pcs',
-    quantity: '0',
+    unit: '',
     lowStockThreshold: '5',
   });
+
+  const unitOptions = useMemo(
+    () => units.map((unit) => ({ value: unit.name, label: unit.name })),
+    [units],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -40,7 +45,7 @@ export default function IngredientFormScreen() {
 
   useEffect(() => {
     if (!ingredientId) {
-      setIngredientForm({ id: null, name: '', unit: 'pcs', quantity: '0', lowStockThreshold: '5' });
+      setIngredientForm({ id: null, name: '', unit: units[0]?.name ?? '', lowStockThreshold: '5' });
       return;
     }
 
@@ -53,10 +58,9 @@ export default function IngredientFormScreen() {
       id: ingredient.id,
       name: ingredient.name,
       unit: ingredient.unit,
-      quantity: String(ingredient.quantity),
       lowStockThreshold: String(ingredient.low_stock_threshold),
     });
-  }, [ingredientId, ingredients]);
+  }, [ingredientId, ingredients, units]);
 
   const submitIngredient = async () => {
     if (!ingredientForm.name.trim()) {
@@ -64,10 +68,14 @@ export default function IngredientFormScreen() {
       return;
     }
 
+    if (!ingredientForm.unit.trim()) {
+      setMessage(t('ingredientForm.error.unitRequired'));
+      return;
+    }
+
     const payload = {
       name: ingredientForm.name.trim(),
-      unit: ingredientForm.unit.trim() || 'pcs',
-      quantity: Number(ingredientForm.quantity || '0'),
+      unit: ingredientForm.unit,
       lowStockThreshold: Number(ingredientForm.lowStockThreshold || '0'),
     };
 
@@ -97,21 +105,49 @@ export default function IngredientFormScreen() {
           onChangeText={(value) => setIngredientForm((current) => ({ ...current, name: value }))}
           style={styles.input}
         />
-        <View style={styles.actionsRow}>
-          <ThemedInput
-            placeholder={t('ingredientForm.unit')}
-            value={ingredientForm.unit}
-            onChangeText={(value) => setIngredientForm((current) => ({ ...current, unit: value }))}
-            style={[styles.input, styles.halfWidth]}
-          />
-          <ThemedInput
-            placeholder={t('common.qtyShort')}
-            keyboardType="decimal-pad"
-            value={ingredientForm.quantity}
-            onChangeText={(value) => setIngredientForm((current) => ({ ...current, quantity: value }))}
-            style={[styles.input, styles.halfWidth]}
-          />
-        </View>
+        <ThemedSelect
+          value={ingredientForm.unit}
+          onValueChange={(value) => setIngredientForm((current) => ({ ...current, unit: value }))}
+          items={unitOptions}
+          placeholder={t('ingredientForm.unit')}
+          modalTitle={t('ingredientForm.unit')}
+          canItemAction={() => true}
+          onItemAction={async (item) => {
+            const target = units.find((unit) => unit.name === item.value);
+            if (!target) {
+              return;
+            }
+
+            const error = await deleteUnit({ id: target.id });
+            if (error) {
+              setMessage(error);
+              return;
+            }
+
+            if (ingredientForm.unit === item.value) {
+              const fallback = units.find((unit) => unit.id !== target.id)?.name ?? '';
+              setIngredientForm((current) => ({ ...current, unit: fallback }));
+            }
+            setMessage('');
+          }}
+          onAddNew={async (name) => {
+            const normalizedName = name.trim().toLowerCase();
+            if (!normalizedName) {
+              setMessage(t('ingredientForm.error.newUnitRequired'));
+              return;
+            }
+
+            const createdUnit = await addUnit({ name: normalizedName });
+            if (!createdUnit) {
+              setMessage(t('ingredientForm.error.unitAlreadyExists'));
+              return;
+            }
+
+            setIngredientForm((current) => ({ ...current, unit: createdUnit.name }));
+            setMessage('');
+          }}
+          addNewPlaceholder={t('ingredientForm.newUnitPlaceholder')}
+        />
         <ThemedInput
           placeholder={t('ingredientForm.lowStockThreshold')}
           keyboardType="decimal-pad"
@@ -147,9 +183,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  halfWidth: {
-    flex: 1,
-  },
   primaryButton: {
     paddingVertical: 10,
     paddingHorizontal: 14,
@@ -159,3 +192,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 });
+

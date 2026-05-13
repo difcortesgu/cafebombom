@@ -27,13 +27,9 @@ See the respective README in each folder for setup and usage instructions.
 ## Next Features To Implement
 
 - Mejorar la forma de hacer restock Que se registren en gastos
+
 - Mover el restock también para que se pueda hacer desde gastos
-
-- Si la cuenta se dividió, quiero después siempre poder imprimir los recibos parciales tal cual como se pagaron
-
-- Ajustar las unidades para que sean personalizables pero desde una lista predefinida
 
 - Cuando se haga un restock poder registrar el proveedor inline y que se guarde como un proveedor nuevo
 
 - Asociar por defecto el último proveedor usado para cada ingrediente en el restock
-
