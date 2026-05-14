@@ -8,6 +8,13 @@
       "when": 1778776248812,
       "tag": "0000_lucky_nuke",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1778780296475,
+      "tag": "0001_slow_dragon_lord",
+      "breakpoints": true
     }
   ]
 }

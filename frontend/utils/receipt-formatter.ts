@@ -81,13 +81,7 @@ function paymentMethodLabel(method: string | null): string {
   if (!method) {
     return '';
   }
-  if (method === 'card') {
-    return t('sales.payment.card');
-  }
-  if (method === 'transfer') {
-    return t('sales.payment.transfer');
-  }
-  return t('sales.payment.cash');
+  return method;
 }
 
 export function buildPrintableReceiptText(receipt: ReceiptData): string {

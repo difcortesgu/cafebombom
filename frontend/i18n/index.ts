@@ -655,6 +655,89 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'userManagement.action.reactivate': 'Reactivar',
     'userManagement.action.hardDelete': 'Borrar',
     'userManagement.action.hardDeleteA11y': 'Borrar',
+
+    // New role-based tab navigation keys
+    'nav.tab.catalog': 'Catálogo',
+    'nav.tab.operations': 'Operaciones',
+    'nav.tab.team': 'Equipo',
+    'nav.tab.appearance': 'Apariencia',
+    'nav.tab.cashRegister': 'Caja',
+    'nav.tab.restock': 'Inventario',
+    'nav.tab.expenses': 'Gastos',
+
+    // Catalog tab
+    'catalog.title': 'Catálogo',
+    'catalog.subtitle': 'Gestiona productos, ingredientes y proveedores.',
+
+    // Operations tab
+    'operations.title': 'Operaciones',
+    'operations.subtitle': 'Configura mesas, pagos, recargos y recibos.',
+    'operations.import': 'Importar',
+    'operations.importSubtitle': 'Importa datos desde Excel (proveedores, empleados, productos, mesas).',
+    'operations.importAction': 'Subir Excel',
+    'operations.downloadTemplate': 'Descargar plantilla',
+
+    // Team tab
+    'team.title': 'Equipo',
+    'team.subtitle': 'Gestiona usuarios, empleados y nómina.',
+    'team.tab.users': 'Usuarios',
+    'team.tab.employees': 'Empleados',
+    'team.tab.payroll': 'Nómina',
+    'team.noEmployees': 'No hay empleados registrados.',
+
+    // Appearance tab
+    'appearance.title': 'Apariencia',
+    'appearance.subtitle': 'Personaliza el tema y tu perfil.',
+
+    // Cash register tab
+    'cashRegister.title': 'Caja',
+    'cashRegister.subtitle': 'Sesión de caja del turno actual.',
+    'cashRegister.adjustments': 'Ajustes',
+    'cashRegister.noAdjustments': 'Sin ajustes registrados.',
+
+    // Restock tab
+    'restock.title': 'Inventario',
+    'restock.subtitle': 'Visualiza ingredientes y registra abastecimiento.',
+    'restock.action': 'Reabastecer',
+
+    // Expenses tab
+    'expenses.title': 'Gastos',
+    'expenses.subtitle': 'Registra gastos y nómina del turno.',
+
+    // Dashboard new keys
+    'dashboard.cashRegisterHistory': 'Historial de caja',
+    'dashboard.cashRegisterHistorySubtitle': 'Sesión activa y ajustes del turno.',
+    'dashboard.cashSession.open': 'Sesión abierta',
+    'dashboard.cashSession.closed': 'Cerrada a las',
+    'dashboard.adjustments': 'Ajustes de caja',
+    'dashboard.addAdjustment': 'Registrar ajuste',
+    'dashboard.adjustmentAmountPlaceholder': 'Monto (negativo para retiro)',
+    'dashboard.adjustmentReasonPlaceholder': 'Razón del ajuste',
+    'dashboard.adjustmentSave': 'Guardar ajuste',
+    'dashboard.adjustmentInvalid': 'Ingresa un monto válido y una razón.',
+    'dashboard.adjustmentSaved': 'Ajuste registrado.',
+    'dashboard.noCashSession': 'No hay sesión de caja abierta hoy.',
+
+    // Inventory status badges
+    'inventory.status.low': 'Stock bajo',
+    'inventory.status.critical': 'Crítico',
+    'inventory.ingredients.empty': 'No hay ingredientes registrados.',
+
+    // New employee / payroll inline form keys for team.tsx
+    'accounts.employees.namePlaceholder': 'Nombre del empleado',
+    'accounts.employees.ratePlaceholder': 'Tarifa (por hora o mensual)',
+    'accounts.employees.hourly': 'Por hora',
+    'accounts.employees.monthly': 'Mensual',
+    'accounts.employees.invalid': 'Ingresa un nombre y tarifa válidos.',
+    'accounts.employees.added': 'Empleado agregado.',
+    'accounts.payroll.amountPlaceholder': 'Monto de pago',
+    'accounts.payroll.invalid': 'Selecciona empleado, monto y método de pago válidos.',
+    'accounts.payroll.added': 'Pago registrado.',
+
+    // Inline expense / payroll feedback keys for expenses.tsx
+    'accountsForm.expense.required': 'Completa la categoría y un monto mayor que 0.',
+    'accountsForm.expense.saved': 'Gasto registrado.',
+    'accountsForm.payroll.saved': 'Pago de nómina registrado.',
   },
 };
 

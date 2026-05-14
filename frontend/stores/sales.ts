@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import type { AddItemToOrderPayload, CreateDiscountPayload, CreatePartialPaymentPayload, CreateSalePayload, DashboardSalesSummary, DashboardTrendBucket, RemoveItemFromOrderPayload, SaleItemDetail, SalePayment, SalePaymentBoard, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
-import type { Discount, PaymentMethod, Product, RestaurantTable, Sale, TableType } from '@/types/types';
+import type { Discount, Product, RestaurantTable, Sale, TableType } from '@/types/types';
 import { RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
 
 type SalesState = {
@@ -35,7 +35,7 @@ type SalesState = {
   createPartialPayment: (payload: CreatePartialPaymentPayload) => Promise<void>;
   sendToKitchen: (orderId: string) => Promise<void>;
   markOrderReady: (orderId: string) => Promise<void>;
-  markOrderPaid: (orderId: string, paymentMethod: PaymentMethod) => Promise<void>;
+  markOrderPaid: (orderId: string, paymentMethodId: string) => Promise<void>;
   addItemToOrder: (payload: AddItemToOrderPayload) => Promise<void>;
   removeItemFromOrder: (payload: RemoveItemFromOrderPayload) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
@@ -184,8 +184,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     await get().hydrate();
   },
 
-  markOrderPaid: async (orderId: string, paymentMethod: PaymentMethod) => {
-    await salesService.markOrderPaid(orderId, paymentMethod);
+  markOrderPaid: async (orderId: string, paymentMethodId: string) => {
+    await salesService.markOrderPaid(orderId, paymentMethodId);
     await get().hydrate();
   },
 

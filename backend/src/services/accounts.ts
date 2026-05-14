@@ -1,7 +1,7 @@
 import { db } from '@/database';
-import { cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary } from '@/types/accounts';
-import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
+import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary } from '@/types/accounts';
+import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { and, between, desc, gte, lte, sql } from 'drizzle-orm';
 
 export class AccountsSqliteService {
@@ -228,5 +228,36 @@ export class AccountsSqliteService {
       })
       .where(sql`${cashRegisterSessions.id} = ${sessionId}`)
       .run();
+  }
+
+  async addCashRegisterAdjustment({ sessionId, amount, reason, adjustedBy }: AddCashRegisterAdjustmentPayload): Promise<string> {
+    const [inserted] = db.insert(cashRegisterAdjustments)
+      .values({ sessionId, amount, reason, adjustedBy })
+      .returning({ id: cashRegisterAdjustments.id })
+      .all();
+
+    if (!inserted) {
+      throw new Error('Failed to create cash register adjustment.');
+    }
+
+    return inserted.id;
+  }
+
+  async getCashRegisterAdjustments(sessionId: string): Promise<CashRegisterAdjustment[]> {
+    const rows = db
+      .select({
+        id: cashRegisterAdjustments.id,
+        session_id: cashRegisterAdjustments.sessionId,
+        amount: cashRegisterAdjustments.amount,
+        reason: cashRegisterAdjustments.reason,
+        adjusted_by: cashRegisterAdjustments.adjustedBy,
+        created_at: cashRegisterAdjustments.createdAt,
+      })
+      .from(cashRegisterAdjustments)
+      .where(sql`${cashRegisterAdjustments.sessionId} = ${sessionId}`)
+      .orderBy(cashRegisterAdjustments.createdAt)
+      .all() as CashRegisterAdjustment[];
+
+    return rows;
   }
 }

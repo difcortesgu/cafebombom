@@ -199,6 +199,6 @@ router.delete('/units/:id', requireRole('owner'), deleteUnit);
  *       403:
  *         description: Forbidden
  */
-router.post('/restocks', requireRole('owner'), addRestock);
+router.post('/restocks', addRestock);
 
 export default router;

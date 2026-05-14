@@ -1,5 +1,5 @@
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload } from '@/types/accounts';
-import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload } from '@/types/accounts';
+import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { apiClient } from './api-client';
 
 export type AccountsHydrationData = {
@@ -72,5 +72,15 @@ export class AccountsService {
       incomeByMethod: [],
       expensesByMethod: [],
     };
+  }
+
+  async addCashRegisterAdjustment(payload: AddCashRegisterAdjustmentPayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/accounts/cash-register/adjustments', payload);
+    return response.id || '';
+  }
+
+  async getCashRegisterAdjustments(sessionId: string): Promise<CashRegisterAdjustment[]> {
+    const response = await apiClient.get<{ adjustments: CashRegisterAdjustment[] }>(`/accounts/cash-register/${sessionId}/adjustments`);
+    return response.adjustments || [];
   }
 }

@@ -11,6 +11,7 @@ import {
     setupReactivateUser,
     setupUpdateUser,
 } from '@/controllers/setup';
+import { authMiddleware } from '@/middleware/auth';
 import { bootstrapOrOwnerAuth } from '@/middleware/bootstrap';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
@@ -82,7 +83,10 @@ function importUploadMiddleware(req: Request, res: Response, next: NextFunction)
  */
 router.get('/status', getSetupStatus);
 
-// All setup routes are public during bootstrap, owner-auth after first owner exists
+// Receipt prefs are readable by any authenticated user (staff need them for the app)
+router.get('/receipt-prefs', authMiddleware, getReceiptPreferences);
+
+// All other setup routes are public during bootstrap, owner-auth after first owner exists
 router.use(bootstrapOrOwnerAuth);
 
 /**
@@ -117,7 +121,6 @@ router.use(bootstrapOrOwnerAuth);
  *       204:
  *         description: Saved
  */
-router.get('/receipt-prefs', getReceiptPreferences);
 router.put('/receipt-prefs', saveReceiptPreferences);
 
 /**

@@ -159,3 +159,38 @@ export async function closeCashRegister(req: Request, res: Response): Promise<vo
     res.status(500).json({ error: message });
   }
 }
+
+export async function addCashRegisterAdjustment(req: Request, res: Response): Promise<void> {
+  const { sessionId, amount, reason } = req.body;
+  const userId = (req as AuthenticatedRequest).auth.userId;
+
+  if (!sessionId || amount == null || !reason) {
+    res.status(400).json({ error: 'sessionId, amount, and reason are required.' });
+    return;
+  }
+
+  try {
+    const id = await accountsService.addCashRegisterAdjustment({ sessionId, amount, reason, adjustedBy: userId });
+    res.status(201).json({ id });
+  } catch (error) {
+    console.error('[accounts] addCashRegisterAdjustment failed:', error);
+    res.status(500).json({ error: 'Failed to create cash register adjustment.' });
+  }
+}
+
+export async function getCashRegisterAdjustments(req: Request, res: Response): Promise<void> {
+  const sessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
+
+  if (!sessionId) {
+    res.status(400).json({ error: 'sessionId is required.' });
+    return;
+  }
+
+  try {
+    const adjustments = await accountsService.getCashRegisterAdjustments(sessionId);
+    res.status(200).json({ adjustments });
+  } catch (error) {
+    console.error('[accounts] getCashRegisterAdjustments failed:', error);
+    res.status(500).json({ error: 'Failed to fetch cash register adjustments.' });
+  }
+}

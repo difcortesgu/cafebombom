@@ -117,6 +117,15 @@ export type CashRegisterSession = {
   closed_by: string | null;
 };
 
+export type CashRegisterAdjustment = {
+  id: string;
+  session_id: string;
+  amount: number;
+  reason: string;
+  adjusted_by: string;
+  created_at: number;
+};
+
 export type Employee = {
   id: string;
   name: string;

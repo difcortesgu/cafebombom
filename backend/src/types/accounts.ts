@@ -57,3 +57,10 @@ export type DailyCashRegisterSummary = {
   incomeByMethod: PaymentMethodAmountSummary[];
   expensesByMethod: PaymentMethodAmountSummary[];
 };
+
+export type AddCashRegisterAdjustmentPayload = {
+  sessionId: string;
+  amount: number;
+  reason: string;
+  adjustedBy: string;
+};

@@ -1,8 +1,10 @@
 import {
+    addCashRegisterAdjustment,
     addEmployee,
     addExpense,
     addPayroll,
     closeCashRegister,
+    getCashRegisterAdjustments,
     getExpensesTotal,
     getHydrationData,
     getTodayCashRegister,
@@ -29,7 +31,7 @@ router.use(authMiddleware);
  *       403:
  *         description: Forbidden
  */
-router.get('/', requireRole('owner'), getHydrationData);
+router.get('/', getHydrationData);
 
 /**
  * @openapi
@@ -43,11 +45,11 @@ router.get('/', requireRole('owner'), getHydrationData);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [category, amount, paymentMethod]
+ *             required: [category, amount, paymentMethodId]
  *             properties:
  *               category: { type: string }
  *               amount: { type: number }
- *               paymentMethod: { type: string, enum: [cash, card, transfer] }
+ *               paymentMethodId: { type: string }
  *               description: { type: string, nullable: true }
  *               dateUnix: { type: integer, nullable: true, description: "Unix timestamp; defaults to now" }
  *     responses:
@@ -59,10 +61,8 @@ router.get('/', requireRole('owner'), getHydrationData);
  *               type: object
  *               properties:
  *                 id: { type: string }
- *       403:
- *         description: Forbidden
  */
-router.post('/expenses', requireRole('owner'), addExpense);
+router.post('/expenses', addExpense);
 
 /**
  * @openapi
@@ -90,17 +90,15 @@ router.post('/expenses', requireRole('owner'), addExpense);
  *               type: object
  *               properties:
  *                 total: { type: number }
- *       403:
- *         description: Forbidden
  */
-router.get('/expenses/total', requireRole('owner'), getExpensesTotal);
+router.get('/expenses/total', getExpensesTotal);
 
 /**
  * @openapi
  * /api/accounts/employees:
  *   post:
  *     tags: [Accounts]
- *     summary: Add an employee
+ *     summary: Add an employee (owner only)
  *     requestBody:
  *       required: true
  *       content:
@@ -133,12 +131,13 @@ router.post('/employees', requireRole('owner'), addEmployee);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [employeeId, periodStart, periodEnd, amount]
+ *             required: [employeeId, periodStart, periodEnd, amount, paymentMethodId]
  *             properties:
  *               employeeId: { type: string }
  *               periodStart: { type: integer, description: "Unix timestamp" }
  *               periodEnd: { type: integer, description: "Unix timestamp" }
  *               amount: { type: number }
+ *               paymentMethodId: { type: string }
  *     responses:
  *       201:
  *         description: Payroll recorded
@@ -148,10 +147,8 @@ router.post('/employees', requireRole('owner'), addEmployee);
  *               type: object
  *               properties:
  *                 id: { type: string }
- *       403:
- *         description: Forbidden
  */
-router.post('/payroll', requireRole('owner'), addPayroll);
+router.post('/payroll', addPayroll);
 
 /**
  * @openapi
@@ -225,5 +222,55 @@ router.post('/cash-register/open', openCashRegister);
  *         description: Session not found or already closed
  */
 router.post('/cash-register/close', closeCashRegister);
+
+/**
+ * @openapi
+ * /api/accounts/cash-register/adjustments:
+ *   post:
+ *     tags: [Accounts]
+ *     summary: Create a cash register adjustment (owner only)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [sessionId, amount, reason]
+ *             properties:
+ *               sessionId: { type: string }
+ *               amount: { type: number }
+ *               reason: { type: string }
+ *     responses:
+ *       201:
+ *         description: Adjustment created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id: { type: string }
+ *       403:
+ *         description: Forbidden
+ */
+router.post('/cash-register/adjustments', requireRole('owner'), addCashRegisterAdjustment);
+
+/**
+ * @openapi
+ * /api/accounts/cash-register/{sessionId}/adjustments:
+ *   get:
+ *     tags: [Accounts]
+ *     summary: List adjustments for a cash register session (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of adjustments
+ *       403:
+ *         description: Forbidden
+ */
+router.get('/cash-register/:sessionId/adjustments', getCashRegisterAdjustments);
 
 export default router;

@@ -15,7 +15,7 @@ import type {
   UpdateDraftOrderPayload,
   UpdateTablePayload,
 } from '@/types/sales';
-import type { Discount, PaymentMethod, Product, RestaurantTable, Sale } from '@/types/types';
+import type { Discount, Product, RestaurantTable, Sale } from '@/types/types';
 import { apiClient } from './api-client';
 
 export type SalesHydrationData = {
@@ -151,8 +151,8 @@ export class SalesService {
     await apiClient.post(`/sales/${orderId}/mark-ready`, {});
   }
 
-  async markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void> {
-    await apiClient.post(`/sales/${orderId}/mark-paid`, { paymentMethod });
+  async markOrderPaid(orderId: string, paymentMethodId: string): Promise<void> {
+    await apiClient.post(`/sales/${orderId}/mark-paid`, { paymentMethodId });
   }
 
   async getSalePaymentBoard(orderId: string): Promise<SalePaymentBoard> {
@@ -167,7 +167,7 @@ export class SalesService {
 
   async createPartialPayment(payload: CreatePartialPaymentPayload): Promise<void> {
     await apiClient.post(`/sales/${payload.orderId}/partial-pay`, {
-      paymentMethod: payload.paymentMethod,
+      paymentMethodId: payload.paymentMethodId,
       lines: payload.lines,
     });
   }

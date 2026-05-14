@@ -8,10 +8,11 @@ import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
+import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
 import type { ReceiptPaperWidth } from '@/types/receipt';
 import type { SalePayment, SalePaymentBoard, SalePaymentBoardItem } from '@/types/sales';
-import type { PaymentMethod, Sale } from '@/types/types';
+import type { Sale } from '@/types/types';
 import { buildPartialReceiptData } from '@/utils/receipt';
 
 export type SplitPaymentBusiness = {
@@ -186,11 +187,12 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
     const palette = useAppColors();
     const isWeb = Platform.OS === 'web';
     const { getSalePaymentBoard, createPartialPayment } = useSalesStore();
+    const { methods } = usePaymentMethodsStore();
 
     const [board, setBoard] = useState<SalePaymentBoard | null>(null);
     const [boardLoading, setBoardLoading] = useState(false);
     const [selectedLines, setSelectedLines] = useState<Record<string, number>>({});
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+    const [paymentMethodId, setPaymentMethodId] = useState<string>('');
     const [confirmBusy, setConfirmBusy] = useState(false);
     const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
     const [printMessages, setPrintMessages] = useState<Record<string, string>>({});
@@ -207,7 +209,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         if (!visible || !sale) return;
         setBoard(null);
         setSelectedLines({});
-        setPaymentMethod(sale.payment_method ?? 'cash');
+        setPaymentMethodId(sale.payment_method ?? methods[0]?.id ?? '');
         setPrintingPaymentId(null);
         setPrintMessages({});
         setBoardLoading(true);
@@ -298,7 +300,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         const lines = selectedItems.map(({ boardItem, qty }) => ({ saleItemId: boardItem.sale_item_id, quantity: qty }));
         setConfirmBusy(true);
         try {
-            await createPartialPayment({ orderId: sale.id, paymentMethod, lines });
+            await createPartialPayment({ orderId: sale.id, paymentMethodId, lines });
             const newBoard = await getSalePaymentBoard(sale.id);
             setBoard(newBoard);
             setSelectedLines({});
@@ -347,11 +349,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         }
     };
 
-    const paymentMethodOptions = [
-        { label: t('sales.payment.cash'), value: 'cash' as PaymentMethod },
-        { label: t('sales.payment.card'), value: 'card' as PaymentMethod },
-        { label: t('sales.payment.transfer'), value: 'transfer' as PaymentMethod },
-    ];
+    const paymentMethodOptions = methods.map(m => ({ label: m.name, value: m.id }));
 
     const allPaid =
         !boardLoading && board !== null && board.pending.every((i) => i.quantity_pending === 0);
@@ -424,8 +422,8 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
                     </View>
                     <ThemedText style={styles.smallLabel}>{t('sales.paymentMethod')}</ThemedText>
                     <ThemedSelect
-                        value={paymentMethod}
-                        onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
+                        value={paymentMethodId}
+                        onValueChange={(v) => setPaymentMethodId(v)}
                         items={paymentMethodOptions}
                         placeholder={t('shared.select.placeholder')}
                     />

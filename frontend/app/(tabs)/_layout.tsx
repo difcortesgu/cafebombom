@@ -7,6 +7,7 @@ import { SetupScreen } from '@/components/setup-screen';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
@@ -34,6 +35,7 @@ export default function TabLayout() {
   } = useAuthStore();
   const { hydrate: hydrateInventory, lowStockCount } = useInventoryStore();
   const { hydrate: hydrateProducts } = useProductsStore();
+  const { hydrate: hydrateAccounts } = useAccountsStore();
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +58,12 @@ export default function TabLayout() {
 
     let cancelled = false;
 
-    void Promise.all([hydrateInventory(), hydrateProducts()]).finally(() => {
+    const tasks: Promise<unknown>[] = [hydrateInventory(), hydrateProducts()];
+    if (currentUser.role === 'staff') {
+      tasks.push(hydrateAccounts());
+    }
+
+    void Promise.all(tasks).finally(() => {
       if (!cancelled) {
         setHydratedUserId(currentUser.id);
       }
@@ -65,7 +72,7 @@ export default function TabLayout() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, hydrateInventory, hydrateProducts, hydratedUserId]);
+  }, [currentUser, hydrateAccounts, hydrateInventory, hydrateProducts, hydratedUserId]);
 
   useEffect(() => {
     if (currentUser) {
@@ -80,9 +87,9 @@ export default function TabLayout() {
 
   const visibleTabs = useMemo(() => {
     if (isOwner) {
-      return ['index', 'sales', 'inventory', 'accounts', 'settings'];
+      return ['dashboard', 'catalog', 'operations', 'team', 'appearance'];
     }
-    return ['sales', 'inventory'];
+    return ['sales', 'cash-register', 'restock', 'expenses', 'appearance'];
   }, [isOwner]);
 
   useEffect(() => {
@@ -132,6 +139,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      initialRouteName={isOwner ? 'dashboard' : 'sales'}
       screenOptions={{
         tabBarActiveTintColor: palette.tint,
         tabBarInactiveTintColor: palette.tabIconDefault,
@@ -142,14 +150,40 @@ export default function TabLayout() {
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
+      {/* ── Owner tabs ─────────────────────────────────────── */}
       <Tabs.Screen
-        name="index"
+        name="dashboard"
         options={{
-          href: visibleTabs.includes('index') ? undefined : null,
+          href: visibleTabs.includes('dashboard') ? undefined : null,
           title: t('nav.tab.dashboard'),
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="chart.bar.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="catalog"
+        options={{
+          href: visibleTabs.includes('catalog') ? undefined : null,
+          title: t('nav.tab.catalog'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="books.vertical.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="operations"
+        options={{
+          href: visibleTabs.includes('operations') ? undefined : null,
+          title: t('nav.tab.operations'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.2.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="team"
+        options={{
+          href: visibleTabs.includes('team') ? undefined : null,
+          title: t('nav.tab.team'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.2.fill" color={color} />,
+        }}
+      />
+      {/* ── Staff tabs ─────────────────────────────────────── */}
       <Tabs.Screen
         name="sales"
         options={{
@@ -159,44 +193,46 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="inventory"
+        name="cash-register"
         options={{
-          href: visibleTabs.includes('inventory') ? undefined : null,
-          title: t('nav.stack.inventory'),
+          href: visibleTabs.includes('cash-register') ? undefined : null,
+          title: t('nav.tab.cashRegister'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="dollarsign.circle.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="restock"
+        options={{
+          href: visibleTabs.includes('restock') ? undefined : null,
+          title: t('nav.tab.restock'),
           tabBarBadge: alertCount > 0 ? alertCount : undefined,
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="shippingbox.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="products"
+        name="expenses"
         options={{
-          href: null,
+          href: visibleTabs.includes('expenses') ? undefined : null,
+          title: t('nav.tab.expenses'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="arrow.down.circle.fill" color={color} />,
         }}
       />
+      {/* ── Shared tab ─────────────────────────────────────── */}
       <Tabs.Screen
-        name="tables"
+        name="appearance"
         options={{
-          href: null,
+          href: visibleTabs.includes('appearance') ? undefined : null,
+          title: t('nav.tab.appearance'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="paintbrush.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="accounts"
-        options={{
-          href: visibleTabs.includes('accounts') ? undefined : null,
-          title: t('nav.stack.accounts'),
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="dollarsign.circle.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: visibleTabs.includes('settings') ? undefined : null,
-          title: t('nav.tab.settings'),
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="gearshape.fill" color={color} />,
-        }}
-      />
+      {/* ── Legacy files (hidden) ──────────────────────────── */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+      <Tabs.Screen name="inventory" options={{ href: null }} />
+      <Tabs.Screen name="accounts" options={{ href: null }} />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="products" options={{ href: null }} />
+      <Tabs.Screen name="tables" options={{ href: null }} />
     </Tabs>
   );
 }

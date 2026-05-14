@@ -269,4 +269,15 @@ export const payrollEntries = sqliteTable('payroll_entries', {
   paymentMethodId: text('payment_method_id').notNull().references(() => paymentMethods.id),
 });
 
+export const cashRegisterAdjustments = sqliteTable('cash_register_adjustments', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  sessionId: text('session_id').notNull().references(() => cashRegisterSessions.id),
+  amount: real('amount').notNull(),
+  reason: text('reason').notNull(),
+  adjustedBy: text('adjusted_by').notNull().references(() => users.id),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+}, (t) => [
+  index('idx_cash_register_adjustments_session_id').on(t.sessionId),
+]);
+
 

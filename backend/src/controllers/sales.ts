@@ -1,6 +1,5 @@
 import { SalesSqliteService } from '@/services/sales';
 import type { DashboardTrendBucket } from '@/types/sales';
-import type { PaymentMethod } from '@/types/types';
 import type { Request, Response } from 'express';
 
 const salesService = new SalesSqliteService();
@@ -159,16 +158,15 @@ export async function markOrderReady(req: Request, res: Response): Promise<void>
 
 export async function markOrderPaid(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { paymentMethod } = req.body as { paymentMethod?: PaymentMethod };
+  const { paymentMethodId } = req.body as { paymentMethodId?: string };
 
-  const validMethods: PaymentMethod[] = ['cash', 'card', 'transfer'];
-  if (!paymentMethod || !validMethods.includes(paymentMethod)) {
-    res.status(400).json({ error: 'paymentMethod must be cash, card, or transfer.' });
+  if (!paymentMethodId) {
+    res.status(400).json({ error: 'paymentMethodId is required.' });
     return;
   }
 
   try {
-    await salesService.markOrderPaid(id, paymentMethod);
+    await salesService.markOrderPaid(id, paymentMethodId);
     res.status(204).send();
   } catch (error: any) {
     const msg = String(error?.message ?? '');

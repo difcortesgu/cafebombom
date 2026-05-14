@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 
 import { accountsService, salesService } from '@/services';
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary } from '@/types/accounts';
-import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary } from '@/types/accounts';
+import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 
 type AccountsState = {
   expenses: Expense[];
@@ -10,6 +10,7 @@ type AccountsState = {
   payroll: PayrollEntry[];
   cashRegisterToday: CashRegisterSession | null;
   cashRegisterSummaryToday: DailyCashRegisterSummary;
+  cashRegisterAdjustments: CashRegisterAdjustment[];
   loading: boolean;
   hydrate: () => Promise<void>;
   addExpense: (payload: AddExpensePayload) => Promise<void>;
@@ -18,6 +19,8 @@ type AccountsState = {
   getPnL: (payload: GetPnLPayload) => Promise<PnLSummary>;
   openCashRegister: (payload: OpenCashRegisterPayload) => Promise<void>;
   closeCashRegister: (payload: CloseCashRegisterPayload) => Promise<void>;
+  addCashRegisterAdjustment: (payload: AddCashRegisterAdjustmentPayload) => Promise<void>;
+  loadCashRegisterAdjustments: (sessionId: string) => Promise<void>;
 };
 
 export const useAccountsStore = create<AccountsState>((set, get) => ({
@@ -32,6 +35,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     incomeByMethod: [],
     expensesByMethod: [],
   },
+  cashRegisterAdjustments: [],
   loading: false,
 
   hydrate: async () => {
@@ -89,5 +93,17 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
   closeCashRegister: async (payload: CloseCashRegisterPayload) => {
     await accountsService.closeCashRegister(payload);
     await get().hydrate();
+  },
+
+  addCashRegisterAdjustment: async (payload: AddCashRegisterAdjustmentPayload) => {
+    await accountsService.addCashRegisterAdjustment(payload);
+    if (get().cashRegisterToday) {
+      await get().loadCashRegisterAdjustments(get().cashRegisterToday!.id);
+    }
+  },
+
+  loadCashRegisterAdjustments: async (sessionId: string) => {
+    const adjustments = await accountsService.getCashRegisterAdjustments(sessionId);
+    set({ cashRegisterAdjustments: adjustments });
   },
 }));

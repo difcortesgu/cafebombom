@@ -9,10 +9,11 @@ import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
+import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
 import type { ReceiptData, ReceiptPaperWidth } from '@/types/receipt';
 import type { SalePayment, SalePaymentBoard, SalePaymentBoardItem } from '@/types/sales';
-import type { PaymentMethod, Sale } from '@/types/types';
+import type { Sale } from '@/types/types';
 import { buildPartialReceiptData, buildReceiptData } from '@/utils/receipt';
 
 export type PaymentModalBusiness = {
@@ -33,11 +34,7 @@ export type SplitPaymentBusiness = PaymentModalBusiness;
 
 type PaymentMode = 'full' | 'by-items' | 'equal';
 
-const PAYMENT_METHOD_OPTIONS = (): { label: string; value: PaymentMethod }[] => [
-    { label: t('sales.payment.cash'), value: 'cash' },
-    { label: t('sales.payment.card'), value: 'card' },
-    { label: t('sales.payment.transfer'), value: 'transfer' },
-];
+
 
 // ─── By-items sub-components ─────────────────────────────────────────────────
 
@@ -199,10 +196,11 @@ type FullPaymentTabProps = {
 function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
+    const { methods } = usePaymentMethodsStore();
 
     const alreadyPaid = !!sale.paid_at;
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
-        (sale.payment_method as PaymentMethod | null) ?? 'cash',
+    const [paymentMethodId, setPaymentMethodId] = useState<string>(
+        sale.payment_method ?? (methods[0]?.id ?? ''),
     );
     const [confirmBusy, setConfirmBusy] = useState(false);
     const [confirmed, setConfirmed] = useState(alreadyPaid);
@@ -211,7 +209,7 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
     const [printBusy, setPrintBusy] = useState(false);
     const [printMessage, setPrintMessage] = useState<string | null>(null);
 
-    const loadReceipt = async (overrideMethod?: PaymentMethod) => {
+    const loadReceipt = async (overrideMethodId?: string) => {
         setReceiptLoading(true);
         setPrintMessage(null);
         try {
@@ -220,7 +218,8 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
                 salesService.getSalePricingSummary(sale.id),
             ]);
 
-            const effectiveMethod = overrideMethod ?? paymentMethod;
+            const effectiveId = overrideMethodId ?? paymentMethodId;
+            const effectiveMethod = methods.find(m => m.id === effectiveId)?.name ?? effectiveId;
             const pricingSummary = pricing ?? {
                 subtotal: items.reduce((s, i) => s + Number(i.line_subtotal ?? 0), 0),
                 item_discount_total: items.reduce((s, i) => s + Number(i.discount_amount ?? 0), 0),
@@ -270,9 +269,9 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
         if (confirmBusy || confirmed) return;
         setConfirmBusy(true);
         try {
-            await markOrderPaid(sale.id, paymentMethod);
+            await markOrderPaid(sale.id, paymentMethodId);
             setConfirmed(true);
-            await loadReceipt(paymentMethod);
+            await loadReceipt(paymentMethodId);
         } finally {
             setConfirmBusy(false);
         }
@@ -311,9 +310,9 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
                 <View style={fullStyles.paySection}>
                     <ThemedText style={fullStyles.label}>{t('sales.paymentMethod')}</ThemedText>
                     <ThemedSelect
-                        value={paymentMethod}
-                        onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-                        items={PAYMENT_METHOD_OPTIONS()}
+                        value={paymentMethodId}
+                        onValueChange={(v) => setPaymentMethodId(v)}
+                        items={methods.map(m => ({ label: m.name, value: m.id }))}
                         placeholder={t('shared.select.placeholder')}
                     />
                     <ThemedButton
@@ -355,10 +354,11 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
     const isWeb = Platform.OS === 'web';
     const { getSalePaymentBoard, createPartialPayment } = useSalesStore();
 
+    const { methods } = usePaymentMethodsStore();
     const [board, setBoard] = useState<SalePaymentBoard | null>(null);
     const [boardLoading, setBoardLoading] = useState(false);
     const [selectedLines, setSelectedLines] = useState<Record<string, number>>({});
-    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+    const [paymentMethodId, setPaymentMethodId] = useState<string>('');
     const [confirmBusy, setConfirmBusy] = useState(false);
     const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
     const [printMessages, setPrintMessages] = useState<Record<string, string>>({});
@@ -372,7 +372,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
     useEffect(() => {
         setBoard(null);
         setSelectedLines({});
-        setPaymentMethod(sale.payment_method ?? 'cash');
+        setPaymentMethodId(sale.payment_method ?? methods[0]?.id ?? '');
         setPrintingPaymentId(null);
         setPrintMessages({});
         setBoardLoading(true);
@@ -462,7 +462,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
         const lines = selectedItems.map(({ boardItem, qty }) => ({ saleItemId: boardItem.sale_item_id, quantity: qty }));
         setConfirmBusy(true);
         try {
-            await createPartialPayment({ orderId: sale.id, paymentMethod, lines });
+            await createPartialPayment({ orderId: sale.id, paymentMethodId, lines });
             const newBoard = await getSalePaymentBoard(sale.id);
             setBoard(newBoard);
             setSelectedLines({});
@@ -577,9 +577,9 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
                     </View>
                     <ThemedText style={byItemsStyles.smallLabel}>{t('sales.paymentMethod')}</ThemedText>
                     <ThemedSelect
-                        value={paymentMethod}
-                        onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-                        items={PAYMENT_METHOD_OPTIONS()}
+                        value={paymentMethodId}
+                        onValueChange={(v) => setPaymentMethodId(v)}
+                        items={methods.map(m => ({ label: m.name, value: m.id }))}
                         placeholder={t('shared.select.placeholder')}
                     />
                     <ThemedButton
@@ -647,7 +647,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
 // ─── Equal Split Tab ──────────────────────────────────────────────────────────
 
 type EqualPart = {
-    method: PaymentMethod;
+    method: string;
     confirmed: boolean;
 };
 
@@ -659,12 +659,13 @@ type EqualSplitTabProps = {
 function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
+    const { methods } = usePaymentMethodsStore();
 
     const alreadyPaid = !!sale.paid_at;
     const [numParts, setNumParts] = useState(2);
-    const [parts, setParts] = useState<EqualPart[]>([
-        { method: 'cash', confirmed: false },
-        { method: 'cash', confirmed: false },
+    const [parts, setParts] = useState<EqualPart[]>(() => [
+        { method: methods[0]?.id ?? '', confirmed: false },
+        { method: methods[0]?.id ?? '', confirmed: false },
     ]);
     const [finalizeBusy, setFinalizeBusy] = useState(false);
     const [finalized, setFinalized] = useState(alreadyPaid);
@@ -676,12 +677,12 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
     useEffect(() => {
         setParts((prev) => {
             const next = [...prev];
-            while (next.length < numParts) next.push({ method: 'cash', confirmed: false });
+            while (next.length < numParts) next.push({ method: methods[0]?.id ?? '', confirmed: false });
             return next.slice(0, numParts);
         });
     }, [numParts]);
 
-    const loadReceipt = async (method: PaymentMethod) => {
+    const loadReceipt = async (methodId: string) => {
         setReceiptLoading(true);
         setPrintMessage(null);
         try {
@@ -706,7 +707,7 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
                     created_at: Number(sale.created_at),
                     staff_name: sale.staff_name,
                     table_name: sale.table_name,
-                    payment_method: method,
+                    payment_method: methods.find(m => m.id === methodId)?.name ?? methodId,
                     status: sale.status,
                     paid_at: sale.paid_at ?? null,
                 },
@@ -731,7 +732,7 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
 
     useEffect(() => {
         if (alreadyPaid) {
-            void loadReceipt((sale.payment_method as PaymentMethod | null) ?? 'cash');
+            void loadReceipt(sale.payment_method ?? methods[0]?.id ?? '');
         }
     }, [sale.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -742,18 +743,18 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
         setParts((prev) => prev.map((p, i) => (i === idx ? { ...p, confirmed: true } : p)));
     };
 
-    const handleSetMethod = (idx: number, method: PaymentMethod) => {
+    const handleSetMethod = (idx: number, method: string) => {
         setParts((prev) => prev.map((p, i) => (i === idx ? { ...p, method } : p)));
     };
 
     const handleFinalize = async () => {
         if (finalizeBusy || !allConfirmed || finalized) return;
         setFinalizeBusy(true);
-        const dominantMethod = parts[0]?.method ?? 'cash';
+        const dominantMethodId = parts[0]?.method ?? (methods[0]?.id ?? '');
         try {
-            await markOrderPaid(sale.id, dominantMethod);
+            await markOrderPaid(sale.id, dominantMethodId);
             setFinalized(true);
-            await loadReceipt(dominantMethod);
+            await loadReceipt(dominantMethodId);
         } finally {
             setFinalizeBusy(false);
         }
@@ -833,8 +834,8 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
                         <View style={equalStyles.partActions}>
                             <ThemedSelect
                                 value={part.method}
-                                onValueChange={(v) => handleSetMethod(idx, v as PaymentMethod)}
-                                items={PAYMENT_METHOD_OPTIONS()}
+                                onValueChange={(v) => handleSetMethod(idx, v)}
+                                items={methods.map(m => ({ label: m.name, value: m.id }))}
                                 placeholder={t('shared.select.placeholder')}
                             />
                             <ThemedButton

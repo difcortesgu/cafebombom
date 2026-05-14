@@ -1,5 +1,5 @@
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
-import type { OrderStatus, PaymentMethod } from '@/types/types';
+import type { OrderStatus } from '@/types/types';
 
 export type ReceiptPaperWidth = 58 | 80;
 
@@ -60,7 +60,7 @@ export type ReceiptMetadata = {
   createdAt: number;
   paidAt: number | null;
   status: OrderStatus;
-  paymentMethod: PaymentMethod | null;
+  paymentMethod: string | null;
   tableName: string;
   staffName: string;
 };
@@ -91,7 +91,7 @@ export type BuildReceiptInput = {
     created_at: number;
     staff_name: string;
     table_name: string;
-    payment_method: PaymentMethod | null;
+    payment_method: string | null;
     status: OrderStatus;
     paid_at?: number | null;
   };
