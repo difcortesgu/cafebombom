@@ -5,11 +5,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
-import type { PaymentMethod } from '@/types/types';
+import { usePaymentMethodsStore } from '@/stores/payment-methods';
 
 type Section = 'suppliers' | 'restock';
 
@@ -40,6 +39,7 @@ export default function InventoryFormScreen() {
   const returnToRestock = returnSection === 'restock';
 
   const { suppliers, hydrate, addSupplier, addRestock, ingredients } = useInventoryStore();
+  const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
   const [message, setMessage] = useState('');
   const [supplierForm, setSupplierForm] = useState({ name: '', phone: '', notes: '' });
@@ -48,15 +48,39 @@ export default function InventoryFormScreen() {
     quantityAdded: normalizeParam(params.quantityAdded) || '1',
     cost: normalizeParam(params.cost) || '0',
     supplierId: normalizeParam(params.supplierId),
-    paymentMethod: 'cash' as PaymentMethod,
+    paymentMethodId: '',
   });
   const initialSupplierDefaultAppliedRef = useRef(false);
+  const paymentMethodInitializedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       void hydrate();
-    }, [hydrate]),
+      void hydratePaymentMethods();
+    }, [hydrate, hydratePaymentMethods]),
   );
+
+  useEffect(() => {
+    if (paymentMethodInitializedRef.current) {
+      return;
+    }
+
+    if (methods.length === 0) {
+      return;
+    }
+
+    paymentMethodInitializedRef.current = true;
+    setRestockForm((current) => {
+      if (current.paymentMethodId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        paymentMethodId: methods[0]?.id ?? '',
+      };
+    });
+  }, [methods]);
 
   useEffect(() => {
     setRestockForm((current) => {
@@ -227,24 +251,15 @@ export default function InventoryFormScreen() {
 
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
           <View style={styles.tabRow}>
-            <ThemedButton
-              variant={restockForm.paymentMethod === 'cash' ? 'primary' : 'secondary'}
-              style={styles.secondaryButton}
-              label={t('sales.payment.cash')}
-              onPress={() => setRestockForm((f) => ({ ...f, paymentMethod: 'cash' }))}
-            />
-            <ThemedButton
-              variant={restockForm.paymentMethod === 'card' ? 'primary' : 'secondary'}
-              style={styles.secondaryButton}
-              label={t('sales.payment.card')}
-              onPress={() => setRestockForm((f) => ({ ...f, paymentMethod: 'card' }))}
-            />
-            <ThemedButton
-              variant={restockForm.paymentMethod === 'transfer' ? 'primary' : 'secondary'}
-              style={styles.secondaryButton}
-              label={t('sales.payment.transfer')}
-              onPress={() => setRestockForm((f) => ({ ...f, paymentMethod: 'transfer' }))}
-            />
+            {methods.map((method) => (
+              <ThemedButton
+                key={method.id}
+                variant={restockForm.paymentMethodId === method.id ? 'primary' : 'secondary'}
+                style={styles.secondaryButton}
+                label={method.name}
+                onPress={() => setRestockForm((f) => ({ ...f, paymentMethodId: method.id }))}
+              />
+            ))}
           </View>
 
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplierOptional')}</ThemedText>
@@ -300,7 +315,7 @@ export default function InventoryFormScreen() {
                   quantityAdded: Number(restockForm.quantityAdded || '0'),
                   cost: Number(restockForm.cost || '0'),
                   supplierId: restockForm.supplierId || undefined,
-                  paymentMethod: restockForm.paymentMethod,
+                  paymentMethodId: restockForm.paymentMethodId,
                 });
 
                 router.back();

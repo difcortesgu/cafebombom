@@ -1,9 +1,23 @@
+CREATE TABLE `cash_register_sessions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`opening_amount` real NOT NULL,
+	`closing_amount` real,
+	`opening_notes` text,
+	`closing_notes` text,
+	`opened_at` integer NOT NULL,
+	`closed_at` integer,
+	`opened_by` text NOT NULL,
+	`closed_by` text,
+	FOREIGN KEY (`opened_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`closed_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `idx_cash_register_opened_at` ON `cash_register_sessions` (`opened_at`);--> statement-breakpoint
 CREATE TABLE `categories` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `categories_name_unique` ON `categories` (`name`);--> statement-breakpoint
@@ -19,7 +33,6 @@ CREATE TABLE `discounts` (
 	`is_active` integer DEFAULT true NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer,
 	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -30,8 +43,7 @@ CREATE TABLE `employees` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`salary_type` text NOT NULL,
-	`rate` real NOT NULL,
-	`synced_at` integer
+	`rate` real NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `employees_name_unique` ON `employees` (`name`);--> statement-breakpoint
@@ -42,11 +54,21 @@ CREATE TABLE `expenses` (
 	`amount` real NOT NULL,
 	`description` text,
 	`supplier_id` text,
-	`synced_at` integer,
-	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action
+	`payment_method_id` text NOT NULL,
+	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `idx_expenses_date` ON `expenses` (`date`);--> statement-breakpoint
+CREATE TABLE `ingredient_units` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `ingredient_units_name_unique` ON `ingredient_units` (`name`);--> statement-breakpoint
+CREATE INDEX `idx_ingredient_units_name` ON `ingredient_units` (`name`);--> statement-breakpoint
 CREATE TABLE `ingredients` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -56,22 +78,44 @@ CREATE TABLE `ingredients` (
 	`supplier_id` text,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer,
 	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `ingredients_name_unique` ON `ingredients` (`name`);--> statement-breakpoint
 CREATE INDEX `idx_ingredients_low_stock` ON `ingredients` (`quantity`,`low_stock_threshold`);--> statement-breakpoint
+CREATE TABLE `payment_methods` (
+	`id` text PRIMARY KEY NOT NULL,
+	`name` text NOT NULL,
+	`is_active` integer DEFAULT true NOT NULL,
+	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `payment_methods_name_unique` ON `payment_methods` (`name`);--> statement-breakpoint
 CREATE TABLE `payroll_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`employee_id` text NOT NULL,
 	`period_start` integer NOT NULL,
 	`period_end` integer NOT NULL,
 	`amount` real NOT NULL,
-	`synced_at` integer,
-	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action
+	`payment_method_id` text NOT NULL,
+	FOREIGN KEY (`employee_id`) REFERENCES `employees`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE TABLE `product_additional_ingredients` (
+	`id` text PRIMARY KEY NOT NULL,
+	`product_id` text NOT NULL,
+	`ingredient_id` text NOT NULL,
+	`quantity_used` real NOT NULL,
+	`additional_price` real DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `product_additional_ingredients_unique` ON `product_additional_ingredients` (`product_id`,`ingredient_id`);--> statement-breakpoint
 CREATE TABLE `product_ingredients` (
 	`id` text PRIMARY KEY NOT NULL,
 	`product_id` text NOT NULL,
@@ -79,7 +123,6 @@ CREATE TABLE `product_ingredients` (
 	`quantity_used` real NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer,
 	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients`(`id`) ON UPDATE no action ON DELETE no action
 );
@@ -94,7 +137,6 @@ CREATE TABLE `products` (
 	`is_active` integer DEFAULT true NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer,
 	FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -104,6 +146,7 @@ CREATE TABLE `receipt_preferences` (
 	`business_name` text DEFAULT 'CafeBomBom' NOT NULL,
 	`business_address` text DEFAULT '' NOT NULL,
 	`business_phone` text DEFAULT '' NOT NULL,
+	`business_nit` text DEFAULT '' NOT NULL,
 	`business_logo_uri` text,
 	`footer_message` text DEFAULT 'Gracias por tu compra' NOT NULL,
 	`paper_width` integer DEFAULT 80 NOT NULL,
@@ -116,8 +159,7 @@ CREATE TABLE `restaurant_tables` (
 	`name` text NOT NULL,
 	`table_type` text DEFAULT 'dine-in' NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `restaurant_tables_name_unique` ON `restaurant_tables` (`name`);--> statement-breakpoint
@@ -128,10 +170,11 @@ CREATE TABLE `restock_logs` (
 	`quantity_added` real NOT NULL,
 	`cost` real NOT NULL,
 	`supplier_id` text,
+	`payment_method_id` text,
 	`date` integer NOT NULL,
-	`synced_at` integer,
 	FOREIGN KEY (`ingredient_id`) REFERENCES `ingredients`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`supplier_id`) REFERENCES `suppliers`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `sale_items` (
@@ -140,6 +183,9 @@ CREATE TABLE `sale_items` (
 	`product_id` text NOT NULL,
 	`quantity` integer NOT NULL,
 	`quantity_paid` integer DEFAULT 0 NOT NULL,
+	`observation` text,
+	`removed_ingredient_ids` text DEFAULT '[]' NOT NULL,
+	`selected_additional_ingredients` text DEFAULT '[]' NOT NULL,
 	`unit_price` real NOT NULL,
 	`line_subtotal` real DEFAULT 0 NOT NULL,
 	`discount_name` text,
@@ -168,7 +214,7 @@ CREATE INDEX `idx_sale_payment_items_sale_item_id` ON `sale_payment_items` (`sal
 CREATE TABLE `sale_payments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`sale_id` text NOT NULL,
-	`payment_method` text NOT NULL,
+	`payment_method_id` text NOT NULL,
 	`subtotal` real DEFAULT 0 NOT NULL,
 	`item_discount_total` real DEFAULT 0 NOT NULL,
 	`global_discount_amount` real DEFAULT 0 NOT NULL,
@@ -176,8 +222,8 @@ CREATE TABLE `sale_payments` (
 	`total` real DEFAULT 0 NOT NULL,
 	`paid_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`created_by` text,
-	`synced_at` integer,
 	FOREIGN KEY (`sale_id`) REFERENCES `sales`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`created_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -188,7 +234,7 @@ CREATE TABLE `sales` (
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
 	`staff_id` text NOT NULL,
 	`table_id` text NOT NULL,
-	`payment_method` text,
+	`payment_method_id` text,
 	`subtotal` real DEFAULT 0 NOT NULL,
 	`item_discount_total` real DEFAULT 0 NOT NULL,
 	`order_discount_name` text,
@@ -202,9 +248,9 @@ CREATE TABLE `sales` (
 	`ready_at` integer,
 	`paid_at` integer,
 	`cancelled_at` integer,
-	`synced_at` integer,
 	FOREIGN KEY (`staff_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`table_id`) REFERENCES `restaurant_tables`(`id`) ON UPDATE no action ON DELETE restrict,
+	FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`discount_applied_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -225,8 +271,7 @@ CREATE TABLE `suppliers` (
 	`phone` text,
 	`notes` text,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `suppliers_name_unique` ON `suppliers` (`name`);--> statement-breakpoint
@@ -243,8 +288,7 @@ CREATE TABLE `users` (
 	`pin_hash` text NOT NULL,
 	`is_active` integer DEFAULT true NOT NULL,
 	`created_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL,
-	`synced_at` integer
+	`updated_at` integer DEFAULT (cast(strftime('%s', 'now') as int)) NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_name_unique` ON `users` (`name`);

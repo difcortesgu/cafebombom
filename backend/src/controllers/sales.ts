@@ -212,14 +212,13 @@ export async function getSalePayments(req: Request, res: Response): Promise<void
 
 export async function createPartialPayment(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { paymentMethod, lines } = req.body as {
-    paymentMethod?: PaymentMethod;
+  const { paymentMethodId, lines } = req.body as {
+    paymentMethodId?: string;
     lines?: Array<{ saleItemId?: string; quantity?: number }>;
   };
 
-  const validMethods: PaymentMethod[] = ['cash', 'card', 'transfer'];
-  if (!paymentMethod || !validMethods.includes(paymentMethod)) {
-    res.status(400).json({ error: 'paymentMethod must be cash, card, or transfer.' });
+  if (!paymentMethodId) {
+    res.status(400).json({ error: 'paymentMethodId is required.' });
     return;
   }
 
@@ -231,7 +230,7 @@ export async function createPartialPayment(req: Request, res: Response): Promise
   try {
     await salesService.createPartialPayment({
       orderId: id,
-      paymentMethod,
+      paymentMethodId,
       lines: lines.map((line) => ({
         saleItemId: String(line.saleItemId ?? ''),
         quantity: Number(line.quantity ?? 0),

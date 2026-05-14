@@ -17,20 +17,15 @@ export async function getHydrationData(req: Request, res: Response): Promise<voi
 }
 
 export async function addExpense(req: Request, res: Response): Promise<void> {
-  const { category, amount, description, dateUnix, paymentMethod } = req.body;
+  const { category, amount, description, dateUnix, paymentMethodId } = req.body;
 
-  if (!category || amount == null || !paymentMethod) {
-    res.status(400).json({ error: 'category, amount, and paymentMethod are required.' });
-    return;
-  }
-
-  if (paymentMethod !== 'cash' && paymentMethod !== 'card' && paymentMethod !== 'transfer') {
-    res.status(400).json({ error: 'paymentMethod must be cash, card, or transfer.' });
+  if (!category || amount == null || !paymentMethodId) {
+    res.status(400).json({ error: 'category, amount, and paymentMethodId are required.' });
     return;
   }
 
   try {
-    const id = await accountsService.addExpense({ category, amount, description, dateUnix, paymentMethod });
+    const id = await accountsService.addExpense({ category, amount, description, dateUnix, paymentMethodId });
     res.status(201).json({ id });
   } catch (error) {
     console.error('[accounts] addExpense failed:', error);
@@ -65,20 +60,15 @@ export async function addEmployee(req: Request, res: Response): Promise<void> {
 }
 
 export async function addPayroll(req: Request, res: Response): Promise<void> {
-  const { employeeId, periodStart, periodEnd, amount, paymentMethod } = req.body;
+  const { employeeId, periodStart, periodEnd, amount, paymentMethodId } = req.body;
 
-  if (!employeeId || periodStart == null || periodEnd == null || amount == null || !paymentMethod) {
-    res.status(400).json({ error: 'employeeId, periodStart, periodEnd, amount, and paymentMethod are required.' });
-    return;
-  }
-
-  if (paymentMethod !== 'cash' && paymentMethod !== 'card' && paymentMethod !== 'transfer') {
-    res.status(400).json({ error: 'paymentMethod must be cash, card, or transfer.' });
+  if (!employeeId || periodStart == null || periodEnd == null || amount == null || !paymentMethodId) {
+    res.status(400).json({ error: 'employeeId, periodStart, periodEnd, amount, and paymentMethodId are required.' });
     return;
   }
 
   try {
-    const id = await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethod });
+    const id = await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethodId });
     res.status(201).json({ id });
   } catch (error) {
     console.error('[accounts] addPayroll failed:', error);

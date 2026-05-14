@@ -9,6 +9,7 @@ import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
 import inventoryRouter from './routes/inventory';
+import paymentMethodsRouter from './routes/payment-methods';
 import productsRouter from './routes/products';
 import salesRouter from './routes/sales';
 import setupRouter from './routes/setup';
@@ -184,6 +185,7 @@ app.use('/api/products', productsRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
+app.use('/api/payment-methods', paymentMethodsRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);

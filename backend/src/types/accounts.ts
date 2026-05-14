@@ -1,11 +1,10 @@
-import type { PaymentMethod } from '@/types/types';
 
 export type AddExpensePayload = {
   category: string;
   amount: number;
   description?: string;
   dateUnix?: number;
-  paymentMethod: PaymentMethod;
+  paymentMethodId: string;
 };
 
 export type OpenCashRegisterPayload = {
@@ -32,7 +31,7 @@ export type AddPayrollPayload = {
   periodStart: number;
   periodEnd: number;
   amount: number;
-  paymentMethod: PaymentMethod;
+  paymentMethodId: string;
 };
 
 export type GetPnLPayload = {

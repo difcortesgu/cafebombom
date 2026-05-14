@@ -5,19 +5,24 @@ Archivo principal: `import-template-v2.xlsx`
 ## Hojas incluidas
 
 1. README
-2. suppliers
-3. employees
-4. categories
-5. ingredients
-6. products
-7. product_ingredients
-8. product_additional_ingredients
-9. restaurant_tables
-10. discounts
-11. surcharges
-12. receipt_preferences
+2. payment_methods
+3. suppliers
+4. employees
+5. categories
+6. ingredients
+7. products
+8. product_ingredients
+9. product_additional_ingredients
+10. restaurant_tables
+11. discounts
+12. surcharges
+13. receipt_preferences
 
 ## Encabezados por hoja
+
+### payment_methods
+- name
+- isActive
 
 ### suppliers
 - name

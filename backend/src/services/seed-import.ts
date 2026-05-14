@@ -21,6 +21,11 @@ export type SeedEmployeeRow = SeedBaseRow & {
     rate: number;
 };
 
+export type SeedPaymentMethodRow = SeedBaseRow & {
+    name: string;
+    isActive: boolean;
+};
+
 export type SeedIngredientRow = SeedBaseRow & {
     name: string;
     unit: string;
@@ -83,6 +88,7 @@ export type SeedReceiptPreferencesRow = SeedBaseRow & {
 };
 
 export type ParsedSeedData = {
+    paymentMethods: SeedPaymentMethodRow[];
     providers: SeedProviderRow[];
     employees: SeedEmployeeRow[];
     categories: SeedCategoryRow[];
@@ -97,6 +103,7 @@ export type ParsedSeedData = {
 };
 
 const SHEET_ALIASES: Record<keyof ParsedSeedData, string[]> = {
+    paymentMethods: ['payment_methods', 'paymentmethods', 'payment_methods_config', 'paymentmethodsconfig'],
     providers: ['providers', 'provider', 'suppliers', 'supplier'],
     employees: ['employees', 'employee', 'staff'],
     categories: ['categories', 'category'],
@@ -297,6 +304,19 @@ export function parseSeedWorkbook(content: Uint8Array): ParsedSeedData {
         }
 
         return { rowNumber: row.rowNumber, name };
+    });
+
+    const paymentMethods = read('paymentMethods', (row) => {
+        const name = normalizeText(row.data.name);
+        if (!name) {
+            return null;
+        }
+
+        return {
+            rowNumber: row.rowNumber,
+            name,
+            isActive: toBool(row.data.isactive ?? row.data.active, true),
+        };
     });
 
     const providers = read('providers', (row) => {
@@ -511,6 +531,7 @@ export function parseSeedWorkbook(content: Uint8Array): ParsedSeedData {
     });
 
     const rowsRead = [
+        paymentMethods.length,
         providers.length,
         employees.length,
         categories.length,
@@ -535,6 +556,7 @@ export function parseSeedWorkbook(content: Uint8Array): ParsedSeedData {
     }
 
     return {
+        paymentMethods,
         providers,
         employees,
         categories,

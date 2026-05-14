@@ -140,20 +140,15 @@ export async function deleteUnit(req: Request, res: Response): Promise<void> {
 }
 
 export async function addRestock(req: Request, res: Response): Promise<void> {
-  const { ingredientId, quantityAdded, cost, supplierId, paymentMethod } = req.body;
+  const { ingredientId, quantityAdded, cost, supplierId, paymentMethodId } = req.body;
 
-  if (!ingredientId || quantityAdded == null || cost == null || !paymentMethod) {
-    res.status(400).json({ error: 'ingredientId, quantityAdded, cost, and paymentMethod are required.' });
-    return;
-  }
-
-  if (paymentMethod !== 'cash' && paymentMethod !== 'card' && paymentMethod !== 'transfer') {
-    res.status(400).json({ error: 'paymentMethod must be cash, card, or transfer.' });
+  if (!ingredientId || quantityAdded == null || cost == null || !paymentMethodId) {
+    res.status(400).json({ error: 'ingredientId, quantityAdded, cost, and paymentMethodId are required.' });
     return;
   }
 
   try {
-    const id = await inventoryService.addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethod });
+    const id = await inventoryService.addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethodId });
     res.status(201).json({ id });
   } catch (error) {
     console.error('[inventory] addRestock failed:', error);

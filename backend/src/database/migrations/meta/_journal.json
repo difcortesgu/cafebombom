@@ -5,50 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1778281838910,
-      "tag": "0000_daily_stone_men",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1778285125633,
-      "tag": "0001_cultured_patriot",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1780000000000,
-      "tag": "0002_handy_recipe_customizations",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1780000001000,
-      "tag": "0003_solid_product_additional_ingredients",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1780000002000,
-      "tag": "0004_lucky_sale_item_observations",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1780000003000,
-      "tag": "0005_dynamic_ingredient_units",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1780000004000,
-      "tag": "0006_cash_register_and_expense_payment_method",
+      "when": 1778776248812,
+      "tag": "0000_lucky_nuke",
       "breakpoints": true
     }
   ]

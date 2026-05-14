@@ -22,7 +22,7 @@ import type {
   UpdateDraftOrderPayload,
   UpdateTablePayload,
 } from '@/types/sales';
-import type { Discount, PaymentMethod, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '@/types/types';
+import type { Discount, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '@/types/types';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 
 function roundMoney(value: number): number {
@@ -262,7 +262,7 @@ export class SalesSqliteService {
         created_at: sales.createdAt,
         staff_name: users.name,
         table_name: restaurantTables.name,
-        payment_method: sales.paymentMethod,
+        payment_method: sales.paymentMethodId,
         total: sales.total,
         status: sales.status,
         ready_at: sales.readyAt,
@@ -736,7 +736,7 @@ export class SalesSqliteService {
         id: sales.id,
         created_at: sales.createdAt,
         total: sales.total,
-        payment_method: sales.paymentMethod,
+        payment_method: sales.paymentMethodId,
         status: sales.status,
       })
       .from(sales)
@@ -766,7 +766,7 @@ export class SalesSqliteService {
     const paymentEvents = db
       .select({
         sale_id: salePayments.saleId,
-        method: salePayments.paymentMethod,
+        method: salePayments.paymentMethodId,
         total: salePayments.total,
       })
       .from(salePayments)
@@ -778,7 +778,7 @@ export class SalesSqliteService {
           inArray(sales.status, RECOGNIZED_REVENUE_STATUSES),
         ),
       )
-      .all() as Array<{ sale_id: string; method: PaymentMethod; total: number }>;
+      .all() as Array<{ sale_id: string; method: string | null; total: number }>;
 
     return buildDashboardSalesSummary({
       sales: salesList,
@@ -945,7 +945,7 @@ export class SalesSqliteService {
       .select({
         id: salePayments.id,
         sale_id: salePayments.saleId,
-        payment_method: salePayments.paymentMethod,
+        payment_method: salePayments.paymentMethodId,
         subtotal: salePayments.subtotal,
         item_discount_total: salePayments.itemDiscountTotal,
         global_discount_amount: salePayments.globalDiscountAmount,
@@ -1224,7 +1224,7 @@ export class SalesSqliteService {
         .insert(salePayments)
         .values({
           saleId: payload.orderId,
-          paymentMethod: payload.paymentMethod,
+          paymentMethodId: payload.paymentMethodId,
           subtotal: selectedSubtotal,
           itemDiscountTotal: selectedItemDiscountTotal,
           globalDiscountAmount: finalGlobalDiscountAmount,
@@ -1273,7 +1273,7 @@ export class SalesSqliteService {
       tx.update(sales)
         .set({
           paidAt: hasPending ? null : now,
-          paymentMethod: hasPending ? null : payload.paymentMethod,
+          paymentMethodId: hasPending ? null : payload.paymentMethodId,
         })
         .where(eq(sales.id, payload.orderId))
         .run();
@@ -1282,7 +1282,7 @@ export class SalesSqliteService {
     await this.autoCompleteIfReady(payload.orderId);
   }
 
-  async markOrderPaid(orderId: string, paymentMethod: PaymentMethod): Promise<void> {
+  async markOrderPaid(orderId: string, paymentMethodId: string): Promise<void> {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
@@ -1314,7 +1314,7 @@ export class SalesSqliteService {
 
     await this.createPartialPayment({
       orderId,
-      paymentMethod,
+      paymentMethodId,
       lines: pendingLines,
     });
   }

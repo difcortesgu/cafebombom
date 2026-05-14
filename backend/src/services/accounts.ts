@@ -13,7 +13,7 @@ export class AccountsSqliteService {
         category: expenses.category,
         amount: expenses.amount,
         description: expenses.description,
-        payment_method: expenses.paymentMethod,
+        payment_method: expenses.paymentMethodId,
       })
       .from(expenses)
       .orderBy(desc(expenses.date))
@@ -38,7 +38,7 @@ export class AccountsSqliteService {
         period_start: payrollEntries.periodStart,
         period_end: payrollEntries.periodEnd,
         amount: payrollEntries.amount,
-        payment_method: payrollEntries.paymentMethod,
+        payment_method: payrollEntries.paymentMethodId,
       })
       .from(payrollEntries)
       .orderBy(desc(payrollEntries.id))
@@ -55,10 +55,10 @@ export class AccountsSqliteService {
     };
   }
 
-  async addExpense({ category, amount, description, dateUnix, paymentMethod }: AddExpensePayload): Promise<string> {
+  async addExpense({ category, amount, description, dateUnix, paymentMethodId }: AddExpensePayload): Promise<string> {
     const date = dateUnix ?? Math.floor(Date.now() / 1000);
     const [inserted] = db.insert(expenses)
-      .values({ date, category, amount, description: description ?? null, paymentMethod })
+      .values({ date, category, amount, description: description ?? null, paymentMethodId })
       .returning({ id: expenses.id })
       .all();
 
@@ -79,9 +79,9 @@ export class AccountsSqliteService {
     return inserted?.id ?? null;
   }
 
-  async addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethod }: AddPayrollPayload): Promise<string> {
+  async addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethodId }: AddPayrollPayload): Promise<string> {
     const [inserted] = db.insert(payrollEntries)
-      .values({ employeeId, periodStart, periodEnd, amount, paymentMethod })
+      .values({ employeeId, periodStart, periodEnd, amount, paymentMethodId })
       .returning({ id: payrollEntries.id })
       .all();
 

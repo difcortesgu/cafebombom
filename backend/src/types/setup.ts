@@ -5,6 +5,7 @@ export type SeedImportEntitySummary = {
 };
 
 export type SeedImportSummary = {
+  paymentMethods: SeedImportEntitySummary;
   suppliers: SeedImportEntitySummary;
   employees: SeedImportEntitySummary;
   categories: SeedImportEntitySummary;

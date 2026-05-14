@@ -65,11 +65,9 @@ export function ThemedSelect({
       </Pressable>
 
       <Modal visible={isOpen} transparent animationType="fade">
-        <Pressable style={styles.overlay} onPress={handleClose}>
-          <View
-            style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }]}
-            onStartShouldSetResponder={() => true}
-            onTouchEnd={(e) => e.stopPropagation()}>
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <View style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <ThemedText type="subtitle" style={styles.modalTitle}>
               {modalTitle || label || t('shared.select.title')}
             </ThemedText>
@@ -176,7 +174,7 @@ export function ThemedSelect({
               onPress={handleClose}
             />
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </>
   );

@@ -5,6 +5,7 @@ import {
   employees,
   ingredients,
   ingredientUnits,
+  paymentMethods,
   productAdditionalIngredients,
   productIngredients,
   products,
@@ -37,6 +38,7 @@ const emptyEntitySummary = (): SeedImportEntitySummary => ({
 });
 
 const emptySummary = (): SeedImportSummary => ({
+  paymentMethods: emptyEntitySummary(),
   suppliers: emptyEntitySummary(),
   employees: emptyEntitySummary(),
   categories: emptyEntitySummary(),
@@ -127,6 +129,32 @@ export class SetupSqliteService {
 
     try {
       db.transaction((tx) => {
+        for (const row of data.paymentMethods) {
+          const existing = tx
+            .select({ id: paymentMethods.id, isActive: paymentMethods.isActive })
+            .from(paymentMethods)
+            .where(eq(paymentMethods.name, row.name))
+            .get();
+
+          if (!existing) {
+            tx.insert(paymentMethods).values({ name: row.name, isActive: row.isActive }).run();
+            summary.paymentMethods.inserted += 1;
+            continue;
+          }
+
+          if (Boolean(existing.isActive) === row.isActive) {
+            summary.paymentMethods.skipped += 1;
+            continue;
+          }
+
+          tx
+            .update(paymentMethods)
+            .set({ isActive: row.isActive })
+            .where(eq(paymentMethods.id, existing.id))
+            .run();
+          summary.paymentMethods.updated += 1;
+        }
+
         for (const row of data.providers) {
           const existing = tx.select({ id: suppliers.id, phone: suppliers.phone, notes: suppliers.notes }).from(suppliers).where(eq(suppliers.name, row.name)).get();
 

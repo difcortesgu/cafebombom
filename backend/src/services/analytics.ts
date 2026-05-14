@@ -12,7 +12,7 @@ type DashboardSaleRecord = {
   id: string;
   created_at: number;
   total: number;
-  payment_method: PaymentMethod | null;
+  payment_method: string | null;
   status: OrderStatus;
 };
 
@@ -26,7 +26,7 @@ type DashboardSaleItemRecord = {
 
 type DashboardPaymentEventRecord = {
   sale_id: string;
-  method: PaymentMethod;
+  method: string | null;
   total: number;
 };
 
@@ -100,9 +100,7 @@ export function buildDashboardSalesSummary({
   const statusCounts = createStatusCounts();
   const trend = buildTrendBuckets(startUnix, endUnix, bucket);
   const trendIndexByBucketStart = new Map<number, number>(trend.map((item, index) => [item.bucket_start, index]));
-  const paymentMap = new Map<PaymentMethod, DashboardPaymentBreakdown>(
-    PAYMENT_METHODS.map((method) => [method, { method, total: 0, count: 0 }]),
-  );
+  const paymentMap = new Map<string | null, DashboardPaymentBreakdown>();
   const productMap = new Map<string, DashboardTopProduct>();
   const realizedSaleIds = new Set<string>();
 
@@ -137,9 +135,14 @@ export function buildDashboardSalesSummary({
         continue;
       }
 
-      const payment = paymentMap.get(paymentEvent.method);
-      if (!payment) {
+      if (!paymentEvent.method) {
         continue;
+      }
+
+      let payment = paymentMap.get(paymentEvent.method);
+      if (!payment) {
+        payment = { method: paymentEvent.method as any, total: 0, count: 0 };
+        paymentMap.set(paymentEvent.method, payment);
       }
 
       payment.total += Number(paymentEvent.total);
@@ -151,9 +154,10 @@ export function buildDashboardSalesSummary({
         continue;
       }
 
-      const payment = paymentMap.get(sale.payment_method);
+      let payment = paymentMap.get(sale.payment_method);
       if (!payment) {
-        continue;
+        payment = { method: sale.payment_method as any, total: 0, count: 0 };
+        paymentMap.set(sale.payment_method, payment);
       }
 
       payment.total += Number(sale.total);
@@ -187,7 +191,7 @@ export function buildDashboardSalesSummary({
     salesCount,
     averageOrderValue: salesCount > 0 ? revenue / salesCount : 0,
     statusCounts,
-    paymentBreakdown: PAYMENT_METHODS.map((method) => paymentMap.get(method) ?? { method, total: 0, count: 0 }),
+    paymentBreakdown: [...paymentMap.values()].sort((left, right) => right.total - left.total),
     topProducts: [...productMap.values()]
       .sort((left, right) => right.quantity - left.quantity || right.revenue - left.revenue)
       .slice(0, 5),

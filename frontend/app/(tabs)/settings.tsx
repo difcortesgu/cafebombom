@@ -9,6 +9,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PaymentMethodsManager } from '@/components/payment-methods-manager';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
@@ -1036,6 +1037,10 @@ export default function SettingsScreen() {
           <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">{t('settings.app.title')}</ThemedText>
             <ThemedText>{t('settings.app.version')}: {Constants.expoConfig?.version ?? '1.0.0'}</ThemedText>
+          </ThemedCard>
+
+          <ThemedCard style={styles.card}>
+            <PaymentMethodsManager compact />
           </ThemedCard>
         </>
       ) : null}

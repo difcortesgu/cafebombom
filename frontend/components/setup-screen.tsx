@@ -363,6 +363,8 @@ export function SetupScreen({
                     const importResult = await setupService.importSeedFromExcel(new Uint8Array(buffer));
                     setImportMessage(
                       t('setup.import.success', {
+                        paymentMethods:
+                          importResult.summary.paymentMethods.inserted + importResult.summary.paymentMethods.updated,
                         categories: importResult.summary.categories.inserted + importResult.summary.categories.updated,
                         ingredients: importResult.summary.ingredients.inserted + importResult.summary.ingredients.updated,
                         products: importResult.summary.products.inserted + importResult.summary.products.updated,

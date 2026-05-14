@@ -38,6 +38,14 @@ export const receiptPreferences = sqliteTable('receipt_preferences', {
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
 
+export const paymentMethods = sqliteTable('payment_methods', {
+  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  name: text('name').notNull().unique(),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+});
+
 export const suppliers = sqliteTable('suppliers', {
   id: text('id').primaryKey().$defaultFn(() => uuidv4()),
   name: text('name').notNull().unique(),
@@ -142,7 +150,7 @@ export const sales = sqliteTable('sales', {
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   staffId: text('staff_id').notNull().references(() => users.id),
   tableId: text('table_id').notNull().references(() => restaurantTables.id, { onDelete: 'restrict' }),
-  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }),
+  paymentMethodId: text('payment_method_id').references(() => paymentMethods.id),
   subtotal: real('subtotal').notNull().default(0),
   itemDiscountTotal: real('item_discount_total').notNull().default(0),
   orderDiscountName: text('order_discount_name'),
@@ -182,7 +190,7 @@ export const saleItems = sqliteTable('sale_items', {
 export const salePayments = sqliteTable('sale_payments', {
   id: text('id').primaryKey().$defaultFn(() => uuidv4()),
   saleId: text('sale_id').notNull().references(() => sales.id),
-  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull(),
+  paymentMethodId: text('payment_method_id').notNull().references(() => paymentMethods.id),
   subtotal: real('subtotal').notNull().default(0),
   itemDiscountTotal: real('item_discount_total').notNull().default(0),
   globalDiscountAmount: real('global_discount_amount').notNull().default(0),
@@ -215,6 +223,7 @@ export const restockLogs = sqliteTable('restock_logs', {
   quantityAdded: real('quantity_added').notNull(),
   cost: real('cost').notNull(),
   supplierId: text('supplier_id').references(() => suppliers.id),
+  paymentMethodId: text('payment_method_id').references(() => paymentMethods.id),
   date: integer('date').notNull(),
 });
 
@@ -225,7 +234,7 @@ export const expenses = sqliteTable('expenses', {
   amount: real('amount').notNull(),
   description: text('description'),
   supplierId: text('supplier_id').references(() => suppliers.id),
-  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull().default('cash'),
+  paymentMethodId: text('payment_method_id').notNull().references(() => paymentMethods.id),
 }, (t) => [
   index('idx_expenses_date').on(t.date),
 ]);
@@ -257,7 +266,7 @@ export const payrollEntries = sqliteTable('payroll_entries', {
   periodStart: integer('period_start').notNull(),
   periodEnd: integer('period_end').notNull(),
   amount: real('amount').notNull(),
-  paymentMethod: text('payment_method', { enum: ['cash', 'card', 'transfer'] }).notNull().default('cash'),
+  paymentMethodId: text('payment_method_id').notNull().references(() => paymentMethods.id),
 });
 
 

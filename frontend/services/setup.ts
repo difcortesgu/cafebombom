@@ -7,6 +7,7 @@ export type SeedImportEntitySummary = {
 };
 
 export type SeedImportSummary = {
+  paymentMethods: SeedImportEntitySummary;
   suppliers: SeedImportEntitySummary;
   employees: SeedImportEntitySummary;
   categories: SeedImportEntitySummary;
@@ -43,6 +44,7 @@ const emptyEntitySummary = (): SeedImportEntitySummary => ({
 });
 
 const emptySeedImportSummary = (): SeedImportSummary => ({
+  paymentMethods: emptyEntitySummary(),
   suppliers: emptyEntitySummary(),
   employees: emptyEntitySummary(),
   categories: emptyEntitySummary(),

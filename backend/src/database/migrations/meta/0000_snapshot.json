@@ -1,9 +1,117 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "06135253-67c8-410d-a7e7-c36d1a16e53e",
+  "id": "7ec738ed-e9dd-4c62-a956-2c71ca627ad8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "cash_register_sessions": {
+      "name": "cash_register_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "opening_amount": {
+          "name": "opening_amount",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "closing_amount": {
+          "name": "closing_amount",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "opening_notes": {
+          "name": "opening_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "closing_notes": {
+          "name": "closing_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "opened_by": {
+          "name": "opened_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "closed_by": {
+          "name": "closed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_cash_register_opened_at": {
+          "name": "idx_cash_register_opened_at",
+          "columns": [
+            "opened_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "cash_register_sessions_opened_by_users_id_fk": {
+          "name": "cash_register_sessions_opened_by_users_id_fk",
+          "tableFrom": "cash_register_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "opened_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "cash_register_sessions_closed_by_users_id_fk": {
+          "name": "cash_register_sessions_closed_by_users_id_fk",
+          "tableFrom": "cash_register_sessions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "closed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "categories": {
       "name": "categories",
       "columns": {
@@ -36,13 +144,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -142,13 +243,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -223,13 +317,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -291,11 +378,11 @@
           "notNull": false,
           "autoincrement": false
         },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
+        "payment_method_id": {
+          "name": "payment_method_id",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
@@ -321,8 +408,76 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "expenses_payment_method_id_payment_methods_id_fk": {
+          "name": "expenses_payment_method_id_payment_methods_id_fk",
+          "tableFrom": "expenses",
+          "tableTo": "payment_methods",
+          "columnsFrom": [
+            "payment_method_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "ingredient_units": {
+      "name": "ingredient_units",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(strftime('%s', 'now') as int))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(strftime('%s', 'now') as int))"
+        }
+      },
+      "indexes": {
+        "ingredient_units_name_unique": {
+          "name": "ingredient_units_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        },
+        "idx_ingredient_units_name": {
+          "name": "idx_ingredient_units_name",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -389,13 +544,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -430,6 +578,62 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "payment_methods": {
+      "name": "payment_methods",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(strftime('%s', 'now') as int))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(strftime('%s', 'now') as int))"
+        }
+      },
+      "indexes": {
+        "payment_methods_name_unique": {
+          "name": "payment_methods_name_unique",
+          "columns": [
+            "name"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -472,11 +676,11 @@
           "notNull": true,
           "autoincrement": false
         },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
+        "payment_method_id": {
+          "name": "payment_method_id",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
@@ -488,6 +692,117 @@
           "tableTo": "employees",
           "columnsFrom": [
             "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "payroll_entries_payment_method_id_payment_methods_id_fk": {
+          "name": "payroll_entries_payment_method_id_payment_methods_id_fk",
+          "tableFrom": "payroll_entries",
+          "tableTo": "payment_methods",
+          "columnsFrom": [
+            "payment_method_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "product_additional_ingredients": {
+      "name": "product_additional_ingredients",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ingredient_id": {
+          "name": "ingredient_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity_used": {
+          "name": "quantity_used",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "additional_price": {
+          "name": "additional_price",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(strftime('%s', 'now') as int))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(strftime('%s', 'now') as int))"
+        }
+      },
+      "indexes": {
+        "product_additional_ingredients_unique": {
+          "name": "product_additional_ingredients_unique",
+          "columns": [
+            "product_id",
+            "ingredient_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "product_additional_ingredients_product_id_products_id_fk": {
+          "name": "product_additional_ingredients_product_id_products_id_fk",
+          "tableFrom": "product_additional_ingredients",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "product_additional_ingredients_ingredient_id_ingredients_id_fk": {
+          "name": "product_additional_ingredients_ingredient_id_ingredients_id_fk",
+          "tableFrom": "product_additional_ingredients",
+          "tableTo": "ingredients",
+          "columnsFrom": [
+            "ingredient_id"
           ],
           "columnsTo": [
             "id"
@@ -546,13 +861,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -658,13 +966,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -723,6 +1024,14 @@
         },
         "business_phone": {
           "name": "business_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "business_nit": {
+          "name": "business_nit",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -815,13 +1124,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -883,18 +1185,18 @@
           "notNull": false,
           "autoincrement": false
         },
+        "payment_method_id": {
+          "name": "payment_method_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "date": {
           "name": "date",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         }
       },
@@ -919,6 +1221,19 @@
           "tableTo": "suppliers",
           "columnsFrom": [
             "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "restock_logs_payment_method_id_payment_methods_id_fk": {
+          "name": "restock_logs_payment_method_id_payment_methods_id_fk",
+          "tableFrom": "restock_logs",
+          "tableTo": "payment_methods",
+          "columnsFrom": [
+            "payment_method_id"
           ],
           "columnsTo": [
             "id"
@@ -969,6 +1284,29 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
+        },
+        "observation": {
+          "name": "observation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "removed_ingredient_ids": {
+          "name": "removed_ingredient_ids",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "selected_additional_ingredients": {
+          "name": "selected_additional_ingredients",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "unit_price": {
           "name": "unit_price",
@@ -1174,8 +1512,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "payment_method": {
-          "name": "payment_method",
+        "payment_method_id": {
+          "name": "payment_method_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1235,13 +1573,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1267,6 +1598,19 @@
           "tableTo": "sales",
           "columnsFrom": [
             "sale_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sale_payments_payment_method_id_payment_methods_id_fk": {
+          "name": "sale_payments_payment_method_id_payment_methods_id_fk",
+          "tableFrom": "sale_payments",
+          "tableTo": "payment_methods",
+          "columnsFrom": [
+            "payment_method_id"
           ],
           "columnsTo": [
             "id"
@@ -1324,8 +1668,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "payment_method": {
-          "name": "payment_method",
+        "payment_method_id": {
+          "name": "payment_method_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -1425,13 +1769,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1482,6 +1819,19 @@
             "id"
           ],
           "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "sales_payment_method_id_payment_methods_id_fk": {
+          "name": "sales_payment_method_id_payment_methods_id_fk",
+          "tableFrom": "sales",
+          "tableTo": "payment_methods",
+          "columnsFrom": [
+            "payment_method_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "sales_discount_applied_by_users_id_fk": {
@@ -1601,13 +1951,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1711,13 +2054,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(cast(strftime('%s', 'now') as int))"
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {

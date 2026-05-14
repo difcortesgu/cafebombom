@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -25,6 +25,7 @@ export default function IngredientFormScreen() {
   const { ingredients, units, hydrate: hydrateInventory, addIngredient, addUnit, deleteUnit, updateIngredient } = useInventoryStore();
 
   const [message, setMessage] = useState<string>('');
+  const initializedCreateFormRef = useRef(false);
   const [ingredientForm, setIngredientForm] = useState({
     id: null as string | null,
     name: '',
@@ -45,9 +46,23 @@ export default function IngredientFormScreen() {
 
   useEffect(() => {
     if (!ingredientId) {
-      setIngredientForm({ id: null, name: '', unit: units[0]?.name ?? '', lowStockThreshold: '5' });
+      if (!initializedCreateFormRef.current) {
+        setIngredientForm({ id: null, name: '', unit: units[0]?.name ?? '', lowStockThreshold: '5' });
+        initializedCreateFormRef.current = true;
+        return;
+      }
+
+      setIngredientForm((current) => {
+        if (current.unit || !units[0]?.name) {
+          return current;
+        }
+
+        return { ...current, unit: units[0].name };
+      });
       return;
     }
+
+    initializedCreateFormRef.current = false;
 
     const ingredient = ingredients.find((item) => item.id === ingredientId);
     if (!ingredient) {

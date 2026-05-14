@@ -1,1 +1,0 @@
-ALTER TABLE `sale_items` ADD `observation` text;

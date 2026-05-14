@@ -133,7 +133,7 @@ export type PartialPaymentLineInput = {
 
 export type CreatePartialPaymentPayload = {
   orderId: string;
-  paymentMethod: PaymentMethod;
+  paymentMethodId: string;
   lines: PartialPaymentLineInput[];
   paidBy?: string | null;
 };

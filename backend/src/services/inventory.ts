@@ -151,7 +151,7 @@ export class InventorySqliteService {
     return 'deleted';
   }
 
-  async addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethod }: AddRestockPayload): Promise<string> {
+  async addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethodId }: AddRestockPayload): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
 
     const ingredient = db
@@ -161,7 +161,7 @@ export class InventorySqliteService {
       .get();
 
     const [inserted] = db.insert(restockLogs)
-      .values({ ingredientId, quantityAdded, cost, supplierId: supplierId ?? null, date: now })
+      .values({ ingredientId, quantityAdded, cost, supplierId: supplierId ?? null, paymentMethodId, date: now })
       .returning({ id: restockLogs.id })
       .all();
 
@@ -194,7 +194,7 @@ export class InventorySqliteService {
         amount: cost,
         description: ingredient ? `${ingredient.name} (${quantityAdded} ${ingredient.unit})` : null,
         supplierId: supplierId ?? null,
-        paymentMethod,
+        paymentMethodId,
       })
       .run();
 
