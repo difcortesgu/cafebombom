@@ -1,4 +1,4 @@
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, OpenCashRegisterPayload } from '@/types/accounts';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload } from '@/types/accounts';
 import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { apiClient } from './api-client';
 
@@ -7,6 +7,7 @@ export type AccountsHydrationData = {
   employees: Employee[];
   payroll: PayrollEntry[];
   cashRegisterToday: CashRegisterSession | null;
+  cashRegisterSummaryToday: DailyCashRegisterSummary;
 };
 
 export class AccountsService {
@@ -17,6 +18,13 @@ export class AccountsService {
       employees: [],
       payroll: [],
       cashRegisterToday: null,
+      cashRegisterSummaryToday: {
+        incomeTotal: 0,
+        expensesTotal: 0,
+        net: 0,
+        incomeByMethod: [],
+        expensesByMethod: [],
+      },
     };
   }
 
@@ -53,5 +61,16 @@ export class AccountsService {
 
   async closeCashRegister(payload: CloseCashRegisterPayload): Promise<void> {
     await apiClient.post<{ ok: boolean }>('/accounts/cash-register/close', payload);
+  }
+
+  async getTodayCashRegisterSummary(): Promise<DailyCashRegisterSummary> {
+    const response = await apiClient.get<{ summary: DailyCashRegisterSummary }>('/accounts/cash-register/summary/today');
+    return response.summary || {
+      incomeTotal: 0,
+      expensesTotal: 0,
+      net: 0,
+      incomeByMethod: [],
+      expensesByMethod: [],
+    };
   }
 }

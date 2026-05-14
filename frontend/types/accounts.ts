@@ -44,3 +44,16 @@ export type PnLSummary = {
   expenses: number;
   net: number;
 };
+
+export type PaymentMethodAmountSummary = {
+  payment_method_id: string;
+  total: number;
+};
+
+export type DailyCashRegisterSummary = {
+  incomeTotal: number;
+  expensesTotal: number;
+  net: number;
+  incomeByMethod: PaymentMethodAmountSummary[];
+  expensesByMethod: PaymentMethodAmountSummary[];
+};

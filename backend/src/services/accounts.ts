@@ -1,6 +1,6 @@
 import { db } from '@/database';
-import { cashRegisterSessions, employees, expenses, payrollEntries } from '@/database/schema';
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, OpenCashRegisterPayload } from '@/types/accounts';
+import { cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary } from '@/types/accounts';
 import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { and, between, desc, gte, lte, sql } from 'drizzle-orm';
 
@@ -46,12 +46,63 @@ export class AccountsSqliteService {
       .all() as PayrollEntry[];
 
     const todayCashRegister = await this.getTodayCashRegister();
+    const cashRegisterSummaryToday = await this.getTodayCashRegisterSummary();
 
     return {
       expenses: expensesList,
       employees: employeesList,
       payroll: payrollList,
       cashRegisterToday: todayCashRegister,
+      cashRegisterSummaryToday,
+    };
+  }
+
+  async getTodayCashRegisterSummary(): Promise<DailyCashRegisterSummary> {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const startUnix = Math.floor(startOfDay.getTime() / 1000);
+    const endUnix = Math.floor(endOfDay.getTime() / 1000);
+
+    const incomeRows = db
+      .select({
+        payment_method_id: salePayments.paymentMethodId,
+        total: sql<number>`COALESCE(SUM(${salePayments.total}), 0)`,
+      })
+      .from(salePayments)
+      .where(and(gte(salePayments.paidAt, startUnix), lte(salePayments.paidAt, endUnix)))
+      .groupBy(salePayments.paymentMethodId)
+      .all() as Array<{ payment_method_id: string; total: number }>;
+
+    const expenseRows = db
+      .select({
+        payment_method_id: expenses.paymentMethodId,
+        total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
+      })
+      .from(expenses)
+      .where(and(gte(expenses.date, startUnix), lte(expenses.date, endUnix)))
+      .groupBy(expenses.paymentMethodId)
+      .all() as Array<{ payment_method_id: string; total: number }>;
+
+    const incomeByMethod: PaymentMethodAmountSummary[] = incomeRows.map((row) => ({
+      payment_method_id: row.payment_method_id,
+      total: Number(row.total ?? 0),
+    }));
+
+    const expensesByMethod: PaymentMethodAmountSummary[] = expenseRows.map((row) => ({
+      payment_method_id: row.payment_method_id,
+      total: Number(row.total ?? 0),
+    }));
+
+    const incomeTotal = incomeByMethod.reduce((sum, row) => sum + row.total, 0);
+    const expensesTotal = expensesByMethod.reduce((sum, row) => sum + row.total, 0);
+
+    return {
+      incomeTotal,
+      expensesTotal,
+      net: incomeTotal - expensesTotal,
+      incomeByMethod,
+      expensesByMethod,
     };
   }
 
@@ -130,7 +181,7 @@ export class AccountsSqliteService {
 
   async openCashRegister({ openingAmount, notes, userId }: OpenCashRegisterPayload): Promise<string> {
     const existing = await this.getTodayCashRegister();
-    if (existing) {
+    if (existing && !existing.closed_at) {
       throw new Error('A cash register session is already open for today.');
     }
 

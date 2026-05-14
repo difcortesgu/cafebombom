@@ -104,6 +104,16 @@ export async function getTodayCashRegister(req: Request, res: Response): Promise
   }
 }
 
+export async function getTodayCashRegisterSummary(req: Request, res: Response): Promise<void> {
+  try {
+    const summary = await accountsService.getTodayCashRegisterSummary();
+    res.status(200).json({ summary });
+  } catch (error) {
+    console.error('[accounts] getTodayCashRegisterSummary failed:', error);
+    res.status(500).json({ error: 'Failed to fetch cash register summary.' });
+  }
+}
+
 export async function openCashRegister(req: Request, res: Response): Promise<void> {
   const { openingAmount, notes } = req.body;
   const userId = (req as AuthenticatedRequest).auth.userId;

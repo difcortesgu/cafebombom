@@ -6,6 +6,7 @@ import {
     getExpensesTotal,
     getHydrationData,
     getTodayCashRegister,
+    getTodayCashRegisterSummary,
     openCashRegister,
 } from '@/controllers/accounts';
 import { authMiddleware, requireRole } from '@/middleware/auth';
@@ -163,6 +164,18 @@ router.post('/payroll', requireRole('owner'), addPayroll);
  *         description: Today's cash register session or null
  */
 router.get('/cash-register/today', getTodayCashRegister);
+
+/**
+ * @openapi
+ * /api/accounts/cash-register/summary/today:
+ *   get:
+ *     tags: [Accounts]
+ *     summary: Get today's income and expenses grouped by payment method
+ *     responses:
+ *       200:
+ *         description: Daily cash register summary
+ */
+router.get('/cash-register/summary/today', getTodayCashRegisterSummary);
 
 /**
  * @openapi

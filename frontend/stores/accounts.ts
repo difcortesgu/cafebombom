@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { accountsService, salesService } from '@/services';
-import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, GetPnLPayload, OpenCashRegisterPayload, PnLSummary } from '@/types/accounts';
+import type { AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary } from '@/types/accounts';
 import type { CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 
 type AccountsState = {
@@ -9,6 +9,7 @@ type AccountsState = {
   employees: Employee[];
   payroll: PayrollEntry[];
   cashRegisterToday: CashRegisterSession | null;
+  cashRegisterSummaryToday: DailyCashRegisterSummary;
   loading: boolean;
   hydrate: () => Promise<void>;
   addExpense: (payload: AddExpensePayload) => Promise<void>;
@@ -24,12 +25,19 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
   employees: [],
   payroll: [],
   cashRegisterToday: null,
+  cashRegisterSummaryToday: {
+    incomeTotal: 0,
+    expensesTotal: 0,
+    net: 0,
+    incomeByMethod: [],
+    expensesByMethod: [],
+  },
   loading: false,
 
   hydrate: async () => {
     set({ loading: true });
-    const { expenses, employees, payroll, cashRegisterToday } = await accountsService.getHydrationData();
-    set({ expenses, employees, payroll, cashRegisterToday, loading: false });
+    const { expenses, employees, payroll, cashRegisterToday, cashRegisterSummaryToday } = await accountsService.getHydrationData();
+    set({ expenses, employees, payroll, cashRegisterToday, cashRegisterSummaryToday, loading: false });
   },
 
   addExpense: async ({
