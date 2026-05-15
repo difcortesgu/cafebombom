@@ -1,0 +1,364 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    useWindowDimensions,
+    View,
+} from 'react-native';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedButton } from '@/components/ui/themed-button';
+import { ThemedInput } from '@/components/ui/themed-input';
+import { useAppColors } from '@/hooks/use-theme-color';
+import { t } from '@/i18n';
+import { useAccountsStore } from '@/stores/accounts';
+import { usePaymentMethodsStore } from '@/stores/payment-methods';
+
+type PayrollPanelProps = {
+    visible: boolean;
+    onClose: () => void;
+    onExited: () => void;
+};
+
+type PayrollForm = {
+    employeeId: string;
+    amount: string;
+    paymentMethodId: string;
+};
+
+const DEFAULT_FORM: PayrollForm = {
+    employeeId: '',
+    amount: '',
+    paymentMethodId: '',
+};
+
+export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) {
+    const palette = useAppColors();
+    const { width: screenWidth } = useWindowDimensions();
+    const panelWidth = Math.floor(screenWidth / 3);
+
+    const slideAnim = useRef(new Animated.Value(panelWidth)).current;
+    const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+    const { employees, addPayroll } = useAccountsStore();
+    const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
+
+    const [form, setForm] = useState<PayrollForm>(DEFAULT_FORM);
+    const [message, setMessage] = useState('');
+    const paymentInitRef = useRef(false);
+    const employeeInitRef = useRef(false);
+    const prevVisibleRef = useRef(false);
+
+    useEffect(() => {
+        const wasVisible = prevVisibleRef.current;
+        prevVisibleRef.current = visible;
+
+        if (visible && !wasVisible) {
+            void hydratePaymentMethods();
+            paymentInitRef.current = false;
+            employeeInitRef.current = false;
+            setForm(DEFAULT_FORM);
+            setMessage('');
+
+            slideAnim.setValue(panelWidth);
+            backdropOpacity.setValue(0);
+            Animated.parallel([
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    tension: 80,
+                    friction: 12,
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        } else if (!visible && wasVisible) {
+            Animated.parallel([
+                Animated.timing(slideAnim, {
+                    toValue: panelWidth,
+                    duration: 220,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(backdropOpacity, {
+                    toValue: 0,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+            ]).start(({ finished }) => {
+                if (finished) onExited();
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [visible]);
+
+    useEffect(() => {
+        if (paymentInitRef.current || methods.length === 0 || !visible) return;
+        paymentInitRef.current = true;
+        setForm((f) => {
+            if (f.paymentMethodId) return f;
+            return { ...f, paymentMethodId: methods[0]?.id ?? '' };
+        });
+    }, [methods, visible]);
+
+    useEffect(() => {
+        if (employeeInitRef.current || employees.length === 0 || !visible) return;
+        employeeInitRef.current = true;
+        setForm((f) => {
+            if (f.employeeId) return f;
+            return { ...f, employeeId: employees[0]?.id ?? '' };
+        });
+    }, [employees, visible]);
+
+    async function handleSave() {
+        const amount = Number(form.amount);
+        if (!form.employeeId || !Number.isFinite(amount) || amount <= 0 || !form.paymentMethodId) {
+            setMessage(t('accountsForm.payroll.required'));
+            return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        await addPayroll({
+            employeeId: form.employeeId,
+            periodStart: now,
+            periodEnd: now,
+            amount,
+            paymentMethodId: form.paymentMethodId,
+        });
+        onClose();
+    }
+
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+            <Animated.View
+                style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
+                pointerEvents="box-none"
+            >
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+            </Animated.View>
+
+            <Animated.View
+                style={[
+                    styles.panel,
+                    {
+                        width: panelWidth,
+                        backgroundColor: palette.background,
+                        borderLeftColor: palette.border,
+                        transform: [{ translateX: slideAnim }],
+                    },
+                ]}
+            >
+                <View style={[styles.header, { borderBottomColor: palette.border }]}>
+                    <View style={styles.headerTitle}>
+                        <Ionicons name="people-outline" size={20} color={palette.tint} />
+                        <ThemedText type="subtitle">{t('accounts.payroll.add')}</ThemedText>
+                    </View>
+                    <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+                        <Ionicons name="close" size={22} color={palette.text} />
+                    </Pressable>
+                </View>
+
+                <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
+                    {message ? (
+                        <View
+                            style={[
+                                styles.messageBanner,
+                                { backgroundColor: palette.danger + '22', borderColor: palette.danger + '44' },
+                            ]}
+                        >
+                            <ThemedText style={{ color: palette.danger, fontSize: 13 }}>{message}</ThemedText>
+                        </View>
+                    ) : null}
+
+                    <View style={styles.fieldGroup}>
+                        <View style={styles.labelRow}>
+                            <Ionicons name="person-outline" size={14} color={palette.mutedText} />
+                            <ThemedText style={styles.smallText}>{t('accountsForm.payroll.employee')}</ThemedText>
+                        </View>
+                        {employees.length === 0 ? (
+                            <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{t('team.noEmployees')}</ThemedText>
+                        ) : (
+                            <View style={styles.chipRow}>
+                                {employees.map((employee) => (
+                                    <Pressable
+                                        key={employee.id}
+                                        style={[
+                                            styles.chip,
+                                            { borderColor: palette.border },
+                                            form.employeeId === employee.id && {
+                                                backgroundColor: palette.accent,
+                                                borderColor: palette.accent,
+                                            },
+                                        ]}
+                                        onPress={() => setForm((f) => ({ ...f, employeeId: employee.id }))}
+                                    >
+                                        <ThemedText
+                                            style={[
+                                                styles.chipLabel,
+                                                form.employeeId === employee.id && { color: palette.text },
+                                            ]}
+                                        >
+                                            {employee.name}
+                                        </ThemedText>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <View style={styles.labelRow}>
+                            <Ionicons name="cash-outline" size={14} color={palette.mutedText} />
+                            <ThemedText style={styles.smallText}>{t('accountsForm.payroll.amount')}</ThemedText>
+                        </View>
+                        <ThemedInput
+                            value={form.amount}
+                            keyboardType="decimal-pad"
+                            placeholder={t('accountsForm.payroll.amount')}
+                            onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                            style={styles.input}
+                        />
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <View style={styles.labelRow}>
+                            <Ionicons name="card-outline" size={14} color={palette.mutedText} />
+                            <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
+                        </View>
+                        <View style={styles.chipRow}>
+                            {methods.map((method) => (
+                                <Pressable
+                                    key={method.id}
+                                    style={[
+                                        styles.chip,
+                                        { borderColor: palette.border },
+                                        form.paymentMethodId === method.id && {
+                                            backgroundColor: palette.accent,
+                                            borderColor: palette.accent,
+                                        },
+                                    ]}
+                                    onPress={() => setForm((f) => ({ ...f, paymentMethodId: method.id }))}
+                                >
+                                    <Ionicons
+                                        name={method.icon as any}
+                                        size={16}
+                                        color={form.paymentMethodId === method.id ? palette.text : palette.mutedText}
+                                    />
+                                    <ThemedText
+                                        style={[
+                                            styles.chipLabel,
+                                            form.paymentMethodId === method.id && { color: palette.text },
+                                        ]}
+                                    >
+                                        {method.name}
+                                    </ThemedText>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
+                </ScrollView>
+
+                <View style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
+                    <ThemedButton
+                        style={styles.saveButton}
+                        icon="checkmark-circle"
+                        label={t('accountsForm.payroll.save')}
+                        onPress={handleSave}
+                    />
+                    <ThemedButton
+                        variant="secondary"
+                        icon="arrow-back"
+                        label={t('common.back')}
+                        onPress={onClose}
+                    />
+                </View>
+            </Animated.View>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    backdrop: {
+        backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    panel: {
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        borderLeftWidth: 1,
+        overflow: 'hidden',
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+    },
+    headerTitle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    closeButton: {
+        padding: 4,
+    },
+    formContent: {
+        padding: 16,
+        gap: 16,
+    },
+    messageBanner: {
+        padding: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    fieldGroup: {
+        gap: 6,
+    },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    smallText: {
+        fontSize: 13,
+        opacity: 0.9,
+    },
+    input: {
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+    },
+    chipRow: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+    chipLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    footer: {
+        flexDirection: 'row',
+        gap: 8,
+        padding: 12,
+        borderTopWidth: 1,
+    },
+    saveButton: {
+        flex: 1,
+    },
+});

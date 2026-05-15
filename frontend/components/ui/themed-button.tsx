@@ -1,7 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppColors } from '@/hooks/use-theme-color';
 
 type ThemedButtonVariant = 'primary' | 'secondary';
@@ -41,7 +41,7 @@ export function ThemedButton({
       {...props}>
       {icon ? (
         <View style={styles.iconContainer}>
-          <IconSymbol name={icon as any} size={20} color={textColor} />
+          <Ionicons name={icon as any} size={20} color={textColor} />
           {label && (
             <ThemedText
               style={[

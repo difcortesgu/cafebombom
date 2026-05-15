@@ -46,6 +46,7 @@ export type PnLSummary = {
 export type PaymentMethodAmountSummary = {
   payment_method_id: string;
   total: number;
+  count: number;
 };
 
 export type DailyCashRegisterSummary = {

@@ -68,30 +68,34 @@ export class AccountsSqliteService {
       .select({
         payment_method_id: salePayments.paymentMethodId,
         total: sql<number>`COALESCE(SUM(${salePayments.total}), 0)`,
+        count: sql<number>`COUNT(*)`,
       })
       .from(salePayments)
       .where(and(gte(salePayments.paidAt, startUnix), lte(salePayments.paidAt, endUnix)))
       .groupBy(salePayments.paymentMethodId)
-      .all() as Array<{ payment_method_id: string; total: number }>;
+      .all() as Array<{ payment_method_id: string; total: number; count: number }>;
 
     const expenseRows = db
       .select({
         payment_method_id: expenses.paymentMethodId,
         total: sql<number>`COALESCE(SUM(${expenses.amount}), 0)`,
+        count: sql<number>`COUNT(*)`,
       })
       .from(expenses)
       .where(and(gte(expenses.date, startUnix), lte(expenses.date, endUnix)))
       .groupBy(expenses.paymentMethodId)
-      .all() as Array<{ payment_method_id: string; total: number }>;
+      .all() as Array<{ payment_method_id: string; total: number; count: number }>;
 
     const incomeByMethod: PaymentMethodAmountSummary[] = incomeRows.map((row) => ({
       payment_method_id: row.payment_method_id,
       total: Number(row.total ?? 0),
+      count: Number(row.count ?? 0),
     }));
 
     const expensesByMethod: PaymentMethodAmountSummary[] = expenseRows.map((row) => ({
       payment_method_id: row.payment_method_id,
       total: Number(row.total ?? 0),
+      count: Number(row.count ?? 0),
     }));
 
     const incomeTotal = incomeByMethod.reduce((sum, row) => sum + row.total, 0);

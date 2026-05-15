@@ -168,19 +168,35 @@ export default function InventoryFormScreen() {
 
       {!isRestockSection ? (
         <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">{t('inventoryForm.suppliers.title')}</ThemedText>
+          <View style={styles.labelWithIcon}>
+            <Ionicons name="business-outline" size={18} color={palette.tint} />
+            <ThemedText type="subtitle">{t('inventoryForm.suppliers.title')}</ThemedText>
+          </View>
           <View style={isWide ? styles.twoColumnRow : styles.stackRow}>
             <View style={styles.flexItem}>
-              <ThemedInput placeholder={t('inventoryForm.suppliers.name')} value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
+              <View style={styles.labelWithIcon}>
+                <Ionicons name="document-outline" size={14} color={palette.mutedText} />
+                <ThemedText style={styles.smallText}>{t('inventoryForm.suppliers.name')}</ThemedText>
+              </View>
+              <ThemedInput value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
             </View>
             <View style={styles.flexItem}>
-              <ThemedInput placeholder={t('inventoryForm.suppliers.phone')} value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
+              <View style={styles.labelWithIcon}>
+                <Ionicons name="call-outline" size={14} color={palette.mutedText} />
+                <ThemedText style={styles.smallText}>{t('inventoryForm.suppliers.phone')}</ThemedText>
+              </View>
+              <ThemedInput value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
             </View>
           </View>
-          <ThemedInput placeholder={t('inventoryForm.suppliers.notes')} value={supplierForm.notes} onChangeText={(value) => setSupplierForm((f) => ({ ...f, notes: value }))} style={styles.input} />
+          <View style={styles.labelWithIcon}>
+            <Ionicons name="document-text-outline" size={14} color={palette.mutedText} />
+            <ThemedText style={styles.smallText}>{t('inventoryForm.suppliers.notes')}</ThemedText>
+          </View>
+          <ThemedInput value={supplierForm.notes} onChangeText={(value) => setSupplierForm((f) => ({ ...f, notes: value }))} style={styles.input} />
           <View style={styles.actionsRow}>
             <ThemedButton
               style={styles.primaryButton}
+              icon="checkmark-circle"
               label={t('inventoryForm.suppliers.save')}
               onPress={async () => {
                 if (!supplierForm.name.trim()) {
@@ -214,6 +230,7 @@ export default function InventoryFormScreen() {
             <ThemedButton
               variant="secondary"
               style={styles.secondaryButton}
+              icon="arrow-back"
               label={t('common.back')}
               onPress={() => {
                 if (returnToRestock) {
@@ -239,8 +256,14 @@ export default function InventoryFormScreen() {
 
       {isRestockSection ? (
         <ThemedCard style={styles.card}>
-          <ThemedText type="subtitle">{t('inventoryForm.restock.title')}</ThemedText>
-          <ThemedText style={styles.smallText}>{t('inventoryForm.restock.ingredient')}</ThemedText>
+          <View style={styles.labelWithIcon}>
+            <Ionicons name="git-branch-outline" size={18} color={palette.tint} />
+            <ThemedText type="subtitle">{t('inventoryForm.restock.title')}</ThemedText>
+          </View>
+          <View style={styles.labelWithIcon}>
+            <Ionicons name="leaf-outline" size={14} color={palette.mutedText} />
+            <ThemedText style={styles.smallText}>{t('inventoryForm.restock.ingredient')}</ThemedText>
+          </View>
           <View style={styles.tabRow}>
             {ingredients.map((ingredient) => (
               <ThemedButton
@@ -260,14 +283,25 @@ export default function InventoryFormScreen() {
 
           <View style={isWide ? styles.twoColumnRow : styles.stackRow}>
             <View style={styles.flexItem}>
-              <ThemedInput placeholder={t('inventoryForm.restock.quantity')} keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
+              <View style={styles.labelWithIcon}>
+                <Ionicons name="layers-outline" size={14} color={palette.mutedText} />
+                <ThemedText style={styles.smallText}>{t('inventoryForm.restock.quantity')}</ThemedText>
+              </View>
+              <ThemedInput keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
             </View>
             <View style={styles.flexItem}>
-              <ThemedInput placeholder={t('inventoryForm.restock.cost')} keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
+              <View style={styles.labelWithIcon}>
+                <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
+                <ThemedText style={styles.smallText}>{t('inventoryForm.restock.cost')}</ThemedText>
+              </View>
+              <ThemedInput keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
             </View>
           </View>
 
-          <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
+          <View style={styles.labelWithIcon}>
+            <Ionicons name="card-outline" size={14} color={palette.mutedText} />
+            <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
+          </View>
           <View style={styles.tabRow}>
             {methods.map((method) => (
               <Pressable
@@ -291,18 +325,31 @@ export default function InventoryFormScreen() {
             ))}
           </View>
 
-          <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplierOptional')}</ThemedText>
+          <View style={styles.labelWithIcon}>
+            <Ionicons name="storefront-outline" size={14} color={palette.mutedText} />
+            <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplierOptional')}</ThemedText>
+          </View>
           <View style={styles.tabRow}>
-            <ThemedButton
-              variant={!restockForm.supplierId ? 'primary' : 'secondary'}
-              style={styles.secondaryButton}
-              label={t('inventoryForm.restock.noSupplier')}
-              onPress={() => setRestockForm((f) => ({ ...f, supplierId: '' }))}
-            />
-            <ThemedButton
-              variant="secondary"
-              style={styles.secondaryButton}
-              label={t('inventory.suppliers.add')}
+            {suppliers.map((supplier) => (
+              <Pressable
+                key={supplier.id}
+                style={[
+                  styles.supplierChip,
+                  { borderColor: palette.border },
+                  restockForm.supplierId === supplier.id && { backgroundColor: palette.accent, borderColor: palette.accent },
+                ]}
+                onPress={() => setRestockForm((f) => ({ ...f, supplierId: f.supplierId === supplier.id ? '' : supplier.id }))}
+              >
+                <ThemedText style={[styles.supplierChipLabel, restockForm.supplierId === supplier.id && { color: palette.text }]}>
+                  {supplier.name}
+                </ThemedText>
+              </Pressable>
+            ))}
+            <Pressable
+              style={[
+                styles.supplierChip,
+                { borderColor: palette.border },
+              ]}
               onPress={() => {
                 router.replace({
                   pathname: '/inventory-form',
@@ -316,22 +363,23 @@ export default function InventoryFormScreen() {
                   },
                 });
               }}
-            />
-            {suppliers.map((supplier) => (
-              <ThemedButton
-                key={supplier.id}
-                variant={restockForm.supplierId === supplier.id ? 'primary' : 'secondary'}
-                style={styles.secondaryButton}
-                label={supplier.name}
-                onPress={() => setRestockForm((f) => ({ ...f, supplierId: supplier.id }))}
+            >
+              <Ionicons
+                name="add-outline"
+                size={18}
+                color={palette.mutedText}
               />
-            ))}
+              <ThemedText style={styles.supplierChipLabel}>
+                {t('inventory.suppliers.add')}
+              </ThemedText>
+            </Pressable>
           </View>
           {selectedSupplier ? <ThemedText style={styles.smallText}>{t('inventoryForm.restock.supplier')}: {selectedSupplier.name}</ThemedText> : null}
 
           <View style={styles.actionsRow}>
             <ThemedButton
               style={styles.primaryButton}
+              icon="checkmark-circle"
               label={t('inventoryForm.restock.save')}
               onPress={async () => {
                 if (!restockForm.ingredientId) {
@@ -350,7 +398,7 @@ export default function InventoryFormScreen() {
                 router.back();
               }}
             />
-            <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
+            <ThemedButton variant="secondary" style={styles.secondaryButton} icon="arrow-back" label={t('common.back')} onPress={() => router.back()} />
           </View>
         </ThemedCard>
       ) : null}
@@ -408,5 +456,23 @@ const styles = StyleSheet.create({
   paymentChipLabel: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  supplierChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  supplierChipLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  labelWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });

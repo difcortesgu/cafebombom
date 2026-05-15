@@ -68,6 +68,8 @@ export default function RootLayout() {
         <Stack.Screen name="ingredient-form" options={{ title: t('nav.stack.ingredient') }} />
         <Stack.Screen name="table-form" options={{ title: t('nav.stack.table') }} />
         <Stack.Screen name="inventory-form" options={{ title: t('nav.stack.inventory') }} />
+        <Stack.Screen name="expense-form" options={{ title: t('nav.stack.expense') }} />
+        <Stack.Screen name="payroll-form" options={{ title: t('nav.stack.payroll') }} />
         <Stack.Screen name="sale-form" options={{ title: t('nav.stack.sale') }} />
       </Stack>
       <StatusBar style="auto" />

@@ -9,6 +9,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'nav.stack.table': 'Mesa',
     'nav.stack.inventory': 'Inventario',
     'nav.stack.accounts': 'Cuentas',
+    'nav.stack.expense': 'Nuevo gasto',
+    'nav.stack.payroll': 'Nuevo pago de nómina',
     'nav.stack.sale': 'Venta',
     'nav.tab.dashboard': 'Panel',
     'nav.tab.sales': 'Ventas',
@@ -448,6 +450,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'accountsForm.caja.noExpensesToday': 'No hay gastos registrados hoy.',
     'accountsForm.caja.openAmountRequired': 'El monto de apertura es obligatorio.',
     'accountsForm.caja.closeAmountRequired': 'El monto de cierre es obligatorio.',
+    'accountsForm.caja.expectedCashLabel': 'Esperado en caja',
 
     // Inventory form
     'inventoryForm.title': 'Formulario de inventario',
