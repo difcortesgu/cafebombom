@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -53,20 +54,6 @@ export default function ExpensesScreen() {
 
         setPayrollForm((current) => (current.employeeId ? current : { ...current, employeeId: employees[0]!.id }));
     }, [employees]);
-
-    const paymentIcon = (methodName: string) => {
-        const normalized = methodName.trim().toLowerCase();
-        if (normalized.includes('efect') || normalized.includes('cash')) {
-            return 'banknote.fill';
-        }
-        if (normalized.includes('tarjeta') || normalized.includes('card')) {
-            return 'creditcard.fill';
-        }
-        if (normalized.includes('transfer')) {
-            return 'building.columns.fill';
-        }
-        return 'wallet.pass.fill';
-    };
 
     return (
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -168,8 +155,8 @@ export default function ExpensesScreen() {
                                         ]}
                                         onPress={() => setExpenseForm((f) => ({ ...f, paymentMethodId: method.id }))}
                                     >
-                                        <IconSymbol
-                                            name={paymentIcon(method.name)}
+                                        <Ionicons
+                                            name={method.icon as any}
                                             size={18}
                                             color={expenseForm.paymentMethodId === method.id ? palette.text : palette.mutedText}
                                         />
@@ -285,8 +272,8 @@ export default function ExpensesScreen() {
                                                 ]}
                                                 onPress={() => setPayrollForm((f) => ({ ...f, paymentMethodId: method.id }))}
                                             >
-                                                <IconSymbol
-                                                    name={paymentIcon(method.name)}
+                                                <Ionicons
+                                                    name={method.icon as any}
                                                     size={18}
                                                     color={payrollForm.paymentMethodId === method.id ? palette.text : palette.mutedText}
                                                 />

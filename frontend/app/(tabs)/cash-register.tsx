@@ -2,6 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { PaymentMethodDisplay } from '@/components/payment-method-display';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
@@ -28,17 +29,6 @@ export default function CashRegisterScreen() {
 
     const [cajaForm, setCajaForm] = useState({ amount: '0', notes: '' });
     const [message, setMessage] = useState('');
-
-    const paymentMethodNameById = useMemo(() => {
-        const map = new Map<string, string>();
-        for (const method of methods) {
-            map.set(method.id, method.name);
-        }
-        map.set('cash', t('sales.payment.cash'));
-        map.set('card', t('sales.payment.card'));
-        map.set('transfer', t('sales.payment.transfer'));
-        return map;
-    }, [methods]);
 
     const incomeByMethod = useMemo(
         () => [...cashRegisterSummaryToday.incomeByMethod].sort((a, b) => b.total - a.total),
@@ -86,7 +76,11 @@ export default function CashRegisterScreen() {
                 ) : (
                     incomeByMethod.map((row) => (
                         <View key={`income-${row.payment_method_id}`} style={[styles.listItem, { borderColor: palette.border }]}>
-                            <ThemedText type="defaultSemiBold">{paymentMethodNameById.get(row.payment_method_id) ?? row.payment_method_id}</ThemedText>
+                            <PaymentMethodDisplay
+                                methodId={row.payment_method_id}
+                                size="small"
+                                containerStyle={{ gap: 6 }}
+                            />
                             <ThemedText>${row.total.toFixed(2)}</ThemedText>
                         </View>
                     ))
@@ -98,7 +92,11 @@ export default function CashRegisterScreen() {
                 ) : (
                     expensesByMethod.map((row) => (
                         <View key={`expense-${row.payment_method_id}`} style={[styles.listItem, { borderColor: palette.border }]}>
-                            <ThemedText type="defaultSemiBold">{paymentMethodNameById.get(row.payment_method_id) ?? row.payment_method_id}</ThemedText>
+                            <PaymentMethodDisplay
+                                methodId={row.payment_method_id}
+                                size="small"
+                                containerStyle={{ gap: 6 }}
+                            />
                             <ThemedText>${row.total.toFixed(2)}</ThemedText>
                         </View>
                     ))

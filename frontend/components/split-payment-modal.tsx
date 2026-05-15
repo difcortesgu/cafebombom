@@ -1,10 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PaymentMethodBadge } from '@/components/payment-method-display';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
@@ -134,12 +135,6 @@ type PaidPaymentCardProps = {
 
 function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: PaidPaymentCardProps) {
     const palette = useAppColors();
-    const methodLabel =
-        payment.payment_method === 'card'
-            ? t('sales.payment.card')
-            : payment.payment_method === 'transfer'
-                ? t('sales.payment.transfer')
-                : t('sales.payment.cash');
 
     return (
         <View style={[styles.paidCard, { borderColor: palette.border }]}>
@@ -147,9 +142,10 @@ function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: P
                 <ThemedText type="defaultSemiBold" style={styles.paidTitle}>
                     {t('sales.splitPayment.payment')} {index + 1}
                 </ThemedText>
-                <View style={[styles.methodBadge, { backgroundColor: palette.tint }]}>
-                    <ThemedText style={[styles.methodBadgeText, { color: palette.card }]}>{methodLabel}</ThemedText>
-                </View>
+                <PaymentMethodBadge
+                    methodId={payment.payment_method}
+                    containerStyle={styles.methodBadge}
+                />
             </View>
             {payment.lines.map((line) => (
                 <View key={line.payment_item_id} style={styles.paidLine}>
@@ -189,6 +185,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
     const { getSalePaymentBoard, createPartialPayment } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
     const activeMethods = methods.filter((m) => m.is_active);
+    const displayMethods = activeMethods.length > 0 ? activeMethods : methods;
 
     const [board, setBoard] = useState<SalePaymentBoard | null>(null);
     const [boardLoading, setBoardLoading] = useState(false);
@@ -210,7 +207,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         if (!visible || !sale) return;
         setBoard(null);
         setSelectedLines({});
-        setPaymentMethodId(sale.payment_method ?? activeMethods[0]?.id ?? '');
+        setPaymentMethodId(sale.payment_method ?? displayMethods[0]?.id ?? '');
         setPrintingPaymentId(null);
         setPrintMessages({});
         setBoardLoading(true);
@@ -218,14 +215,14 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
             .then((b) => setBoard(b))
             .catch(() => { })
             .finally(() => setBoardLoading(false));
-    }, [visible, sale?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [sale.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        const hasSelected = activeMethods.some((m) => m.id === paymentMethodId);
+        const hasSelected = displayMethods.some((m) => m.id === paymentMethodId);
         if (!hasSelected) {
-            setPaymentMethodId(activeMethods[0]?.id ?? '');
+            setPaymentMethodId(displayMethods[0]?.id ?? '');
         }
-    }, [activeMethods, paymentMethodId]);
+    }, [displayMethods, paymentMethodId]);
 
     // Register drop zone on col2 (web only, stable effect)
     useEffect(() => {
@@ -429,12 +426,28 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
                         <ThemedText type="defaultSemiBold">${selectedTotal.toFixed(2)}</ThemedText>
                     </View>
                     <ThemedText style={styles.smallLabel}>{t('sales.paymentMethod')}</ThemedText>
-                    <ThemedSelect
-                        value={paymentMethodId}
-                        onValueChange={(v) => setPaymentMethodId(v)}
-                        items={paymentMethodOptions}
-                        placeholder={t('shared.select.placeholder')}
-                    />
+                    <View style={styles.paymentMethodsRow}>
+                        {displayMethods.map((method) => (
+                            <Pressable
+                                key={method.id}
+                                style={[
+                                    styles.paymentChip,
+                                    { borderColor: palette.border },
+                                    paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                ]}
+                                onPress={() => setPaymentMethodId(method.id)}
+                            >
+                                <Ionicons
+                                    name={method.icon as any}
+                                    size={16}
+                                    color={paymentMethodId === method.id ? palette.text : palette.mutedText}
+                                />
+                                <ThemedText style={[styles.paymentChipLabel, paymentMethodId === method.id && { color: palette.text }]}>
+                                    {method.name}
+                                </ThemedText>
+                            </Pressable>
+                        ))}
+                    </View>
                     <ThemedButton
                         label={confirmBusy ? t('sales.splitPayment.confirmingPartial') : t('sales.splitPayment.confirmPartial')}
                         disabled={confirmBusy || selectedItems.length === 0 || !paymentMethodId}
@@ -670,5 +683,23 @@ const styles = StyleSheet.create({
     paidPrintMessage: {
         fontSize: 12,
         opacity: 0.8,
+    },
+    paymentMethodsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    paymentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+    paymentChipLabel: {
+        fontSize: 13,
+        fontWeight: '500',
     },
 });

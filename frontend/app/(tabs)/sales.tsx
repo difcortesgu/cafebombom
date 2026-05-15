@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PaymentMethodDisplay } from '@/components/payment-method-display';
 import { PaymentModal } from '@/components/payment-modal';
 import { ReceiptPreview } from '@/components/receipt-preview';
 import { SaleCanvasCard, type CanvasCardAction } from '@/components/sale-canvas-card';
@@ -12,6 +13,7 @@ import { ThemedCard } from '@/components/ui/themed-card';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
+import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
@@ -102,17 +104,12 @@ function getReceiptSurchargeBreakdown(
   return [{ label: t('sales.surcharge.generic'), description: t('tables.type.dineIn'), amount: totalSurcharge }];
 }
 
-function formatPaymentMethod(method: string | null | undefined) {
-  if (method === 'card') {
-    return t('sales.payment.card');
-  }
-  if (method === 'transfer') {
-    return t('sales.payment.transfer');
-  }
-  if (!method) {
+function formatPaymentMethod(methodId: string | null | undefined, methods: { id: string; name: string }[]) {
+  if (!methodId) {
     return '';
   }
-  return t('sales.payment.cash');
+
+  return methods.find((method) => method.id === methodId)?.name ?? methodId;
 }
 
 function formatStatusLabel(status: OrderStatus) {
@@ -186,6 +183,7 @@ function getTransitionAction(from: OrderStatus, to: OrderStatus): 'sendToKitchen
 export default function SalesScreen() {
   const palette = useAppColors();
   const router = useRouter();
+  const { methods } = usePaymentMethodsStore();
   const {
     hydrate,
     sales,
@@ -519,7 +517,7 @@ export default function SalesScreen() {
         tableName={sale.table_name}
         productSummary={saleProductsById[sale.id] || t('sales.loadingProducts')}
         total={Number(sale.total)}
-        paymentLabel={formatPaymentMethod(sale.payment_method)}
+        paymentLabel={formatPaymentMethod(sale.payment_method, methods)}
         isPaid={Boolean(sale.paid_at)}
         staffName={sale.staff_name}
         statusLabel={statusLabel}
@@ -558,7 +556,16 @@ export default function SalesScreen() {
                 <ThemedText style={styles.detailMeta}>
                   {detailSale.table_name}
                   {detailSale.paid_at && ' · Pagado'}
-                  {!detailSale.paid_at && detailSale.payment_method && ' · ' + formatPaymentMethod(detailSale.payment_method)}
+                  {!detailSale.paid_at && detailSale.payment_method && (
+                    <>
+                      {' · '}
+                      <PaymentMethodDisplay
+                        methodId={detailSale.payment_method}
+                        size="small"
+                        showIcon={false}
+                      />
+                    </>
+                  )}
                   {' · ' + detailSale.staff_name}
                 </ThemedText>
                 <ThemedText style={styles.detailMeta}>

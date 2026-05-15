@@ -1,11 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PaymentMethodBadge } from '@/components/payment-method-display';
 import { ReceiptPreview } from '@/components/receipt-preview';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
@@ -144,12 +145,6 @@ type PaidPaymentCardProps = {
 
 function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: PaidPaymentCardProps) {
     const palette = useAppColors();
-    const methodLabel =
-        payment.payment_method === 'card'
-            ? t('sales.payment.card')
-            : payment.payment_method === 'transfer'
-                ? t('sales.payment.transfer')
-                : t('sales.payment.cash');
 
     return (
         <View style={[byItemsStyles.paidCard, { borderColor: palette.border }]}>
@@ -157,9 +152,10 @@ function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: P
                 <ThemedText type="defaultSemiBold" style={byItemsStyles.paidTitle}>
                     {t('sales.splitPayment.payment')} {index + 1}
                 </ThemedText>
-                <View style={[byItemsStyles.methodBadge, { backgroundColor: palette.tint }]}>
-                    <ThemedText style={[byItemsStyles.methodBadgeText, { color: palette.card }]}>{methodLabel}</ThemedText>
-                </View>
+                <PaymentMethodBadge
+                    methodId={payment.payment_method}
+                    containerStyle={byItemsStyles.methodBadge}
+                />
             </View>
             {payment.lines.map((line) => (
                 <View key={line.payment_item_id} style={byItemsStyles.paidLine}>
@@ -198,10 +194,11 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
     const activeMethods = methods.filter((m) => m.is_active);
+    const displayMethods = activeMethods.length > 0 ? activeMethods : methods;
 
     const alreadyPaid = !!sale.paid_at;
     const [paymentMethodId, setPaymentMethodId] = useState<string>(
-        sale.payment_method ?? (activeMethods[0]?.id ?? ''),
+        sale.payment_method ?? (displayMethods[0]?.id ?? ''),
     );
     const [confirmBusy, setConfirmBusy] = useState(false);
     const [confirmed, setConfirmed] = useState(alreadyPaid);
@@ -263,11 +260,11 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
     };
 
     useEffect(() => {
-        const hasSelected = activeMethods.some((m) => m.id === paymentMethodId);
+        const hasSelected = displayMethods.some((m) => m.id === paymentMethodId);
         if (!hasSelected) {
-            setPaymentMethodId(activeMethods[0]?.id ?? '');
+            setPaymentMethodId(displayMethods[0]?.id ?? '');
         }
-    }, [activeMethods, paymentMethodId]);
+    }, [displayMethods, paymentMethodId]);
 
     useEffect(() => {
         void loadReceipt();
@@ -317,12 +314,28 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
             {!receiptLoading && !confirmed && (
                 <View style={fullStyles.paySection}>
                     <ThemedText style={fullStyles.label}>{t('sales.paymentMethod')}</ThemedText>
-                    <ThemedSelect
-                        value={paymentMethodId}
-                        onValueChange={(v) => setPaymentMethodId(v)}
-                        items={activeMethods.map((m) => ({ label: m.name, value: m.id }))}
-                        placeholder={t('shared.select.placeholder')}
-                    />
+                    <View style={fullStyles.paymentMethodsRow}>
+                        {displayMethods.map((method) => (
+                            <Pressable
+                                key={method.id}
+                                style={[
+                                    fullStyles.paymentChip,
+                                    { borderColor: palette.border },
+                                    paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                ]}
+                                onPress={() => setPaymentMethodId(method.id)}
+                            >
+                                <Ionicons
+                                    name={method.icon as any}
+                                    size={18}
+                                    color={paymentMethodId === method.id ? palette.text : palette.mutedText}
+                                />
+                                <ThemedText style={[fullStyles.paymentChipLabel, paymentMethodId === method.id && { color: palette.text }]}>
+                                    {method.name}
+                                </ThemedText>
+                            </Pressable>
+                        ))}
+                    </View>
                     <ThemedButton
                         label={confirmBusy ? t('sales.payment.confirming') : t('sales.payment.confirmFull')}
                         disabled={confirmBusy || !paymentMethodId}
@@ -364,6 +377,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
 
     const { methods } = usePaymentMethodsStore();
     const activeMethods = methods.filter((m) => m.is_active);
+    const displayMethods = activeMethods.length > 0 ? activeMethods : methods;
     const [board, setBoard] = useState<SalePaymentBoard | null>(null);
     const [boardLoading, setBoardLoading] = useState(false);
     const [selectedLines, setSelectedLines] = useState<Record<string, number>>({});
@@ -381,7 +395,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
     useEffect(() => {
         setBoard(null);
         setSelectedLines({});
-        setPaymentMethodId(sale.payment_method ?? activeMethods[0]?.id ?? '');
+        setPaymentMethodId(sale.payment_method ?? displayMethods[0]?.id ?? '');
         setPrintingPaymentId(null);
         setPrintMessages({});
         setBoardLoading(true);
@@ -392,7 +406,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
     }, [sale.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        const hasSelected = activeMethods.some((m) => m.id === paymentMethodId);
+        const hasSelected = displayMethods.some((m) => m.id === paymentMethodId);
         if (!hasSelected) {
             setPaymentMethodId(activeMethods[0]?.id ?? '');
         }
@@ -592,12 +606,28 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
                         <ThemedText type="defaultSemiBold">${selectedTotal.toFixed(2)}</ThemedText>
                     </View>
                     <ThemedText style={byItemsStyles.smallLabel}>{t('sales.paymentMethod')}</ThemedText>
-                    <ThemedSelect
-                        value={paymentMethodId}
-                        onValueChange={(v) => setPaymentMethodId(v)}
-                        items={activeMethods.map((m) => ({ label: m.name, value: m.id }))}
-                        placeholder={t('shared.select.placeholder')}
-                    />
+                    <View style={byItemsStyles.paymentMethodsRow}>
+                        {displayMethods.map((method) => (
+                            <Pressable
+                                key={method.id}
+                                style={[
+                                    byItemsStyles.paymentChip,
+                                    { borderColor: palette.border },
+                                    paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                ]}
+                                onPress={() => setPaymentMethodId(method.id)}
+                            >
+                                <Ionicons
+                                    name={method.icon as any}
+                                    size={16}
+                                    color={paymentMethodId === method.id ? palette.text : palette.mutedText}
+                                />
+                                <ThemedText style={[byItemsStyles.paymentChipLabel, paymentMethodId === method.id && { color: palette.text }]}>
+                                    {method.name}
+                                </ThemedText>
+                            </Pressable>
+                        ))}
+                    </View>
                     <ThemedButton
                         label={confirmBusy ? t('sales.splitPayment.confirmingPartial') : t('sales.splitPayment.confirmPartial')}
                         disabled={confirmBusy || selectedItems.length === 0 || !paymentMethodId}
@@ -677,12 +707,13 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
     const activeMethods = methods.filter((m) => m.is_active);
+    const displayMethods = activeMethods.length > 0 ? activeMethods : methods;
 
     const alreadyPaid = !!sale.paid_at;
     const [numParts, setNumParts] = useState(2);
     const [parts, setParts] = useState<EqualPart[]>(() => [
-        { method: activeMethods[0]?.id ?? '', confirmed: false },
-        { method: activeMethods[0]?.id ?? '', confirmed: false },
+        { method: displayMethods[0]?.id ?? '', confirmed: false },
+        { method: displayMethods[0]?.id ?? '', confirmed: false },
     ]);
     const [finalizeBusy, setFinalizeBusy] = useState(false);
     const [finalized, setFinalized] = useState(alreadyPaid);
@@ -695,14 +726,14 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
         setParts((prev) => {
             const next = [...prev];
             while (next.length < numParts) {
-                next.push({ method: activeMethods[0]?.id ?? '', confirmed: false });
+                next.push({ method: displayMethods[0]?.id ?? '', confirmed: false });
             }
 
             return next.slice(0, numParts).map((part) => (
-                part.method ? part : { ...part, method: activeMethods[0]?.id ?? '' }
+                part.method ? part : { ...part, method: displayMethods[0]?.id ?? '' }
             ));
         });
-    }, [activeMethods, numParts]);
+    }, [displayMethods, numParts]);
 
     const loadReceipt = async (methodId: string) => {
         setReceiptLoading(true);
@@ -854,12 +885,28 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
                         </ThemedText>
                     ) : (
                         <View style={equalStyles.partActions}>
-                            <ThemedSelect
-                                value={part.method}
-                                onValueChange={(v) => handleSetMethod(idx, v)}
-                                items={activeMethods.map((m) => ({ label: m.name, value: m.id }))}
-                                placeholder={t('shared.select.placeholder')}
-                            />
+                            <View style={equalStyles.paymentMethodsRow}>
+                                {displayMethods.map((method) => (
+                                    <Pressable
+                                        key={method.id}
+                                        style={[
+                                            equalStyles.paymentChip,
+                                            { borderColor: palette.border },
+                                            part.method === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                        ]}
+                                        onPress={() => handleSetMethod(idx, method.id)}
+                                    >
+                                        <Ionicons
+                                            name={method.icon as any}
+                                            size={16}
+                                            color={part.method === method.id ? palette.text : palette.mutedText}
+                                        />
+                                        <ThemedText style={[equalStyles.paymentChipLabel, part.method === method.id && { color: palette.text }]}>
+                                            {method.name}
+                                        </ThemedText>
+                                    </Pressable>
+                                ))}
+                            </View>
                             <ThemedButton
                                 label={t('sales.payment.equal.confirmPart')}
                                 onPress={() => handleConfirmPart(idx)}
@@ -1081,6 +1128,24 @@ const fullStyles = StyleSheet.create({
         fontSize: 12,
         opacity: 0.8,
     },
+    paymentMethodsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    paymentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+    paymentChipLabel: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
 });
 
 const equalStyles = StyleSheet.create({
@@ -1138,6 +1203,24 @@ const equalStyles = StyleSheet.create({
     confirmedLabel: {
         fontSize: 13,
         fontWeight: '600',
+    },
+    paymentMethodsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    paymentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+    paymentChipLabel: {
+        fontSize: 13,
+        fontWeight: '500',
     },
 });
 
@@ -1281,5 +1364,23 @@ const byItemsStyles = StyleSheet.create({
     paidPrintMessage: {
         fontSize: 12,
         opacity: 0.8,
+    },
+    paymentMethodsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    paymentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+    paymentChipLabel: {
+        fontSize: 13,
+        fontWeight: '500',
     },
 });

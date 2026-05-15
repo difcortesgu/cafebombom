@@ -1,12 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
@@ -25,6 +27,7 @@ function normalizeParam(value?: string | string[]): string {
 
 export default function InventoryFormScreen() {
   const router = useRouter();
+  const palette = useAppColors();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const params = useLocalSearchParams<{
@@ -267,13 +270,24 @@ export default function InventoryFormScreen() {
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
           <View style={styles.tabRow}>
             {methods.map((method) => (
-              <ThemedButton
+              <Pressable
                 key={method.id}
-                variant={restockForm.paymentMethodId === method.id ? 'primary' : 'secondary'}
-                style={styles.secondaryButton}
-                label={method.name}
+                style={[
+                  styles.paymentChip,
+                  { borderColor: palette.border },
+                  restockForm.paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
+                ]}
                 onPress={() => setRestockForm((f) => ({ ...f, paymentMethodId: method.id }))}
-              />
+              >
+                <Ionicons
+                  name={method.icon as any}
+                  size={18}
+                  color={restockForm.paymentMethodId === method.id ? palette.text : palette.mutedText}
+                />
+                <ThemedText style={[styles.paymentChipLabel, restockForm.paymentMethodId === method.id && { color: palette.text }]}>
+                  {method.name}
+                </ThemedText>
+              </Pressable>
             ))}
           </View>
 
@@ -381,5 +395,18 @@ const styles = StyleSheet.create({
   smallText: {
     opacity: 0.9,
     fontSize: 13,
+  },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  paymentChipLabel: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

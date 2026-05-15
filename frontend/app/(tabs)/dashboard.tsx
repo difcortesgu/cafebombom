@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 
+import { PaymentMethodDisplay } from '@/components/payment-method-display';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
@@ -44,12 +45,6 @@ function formatTrendLabel(bucketStart: number, bucket: DashboardTrendBucket, ran
     if (bucket === 'hour') return `${String(date.getHours()).padStart(2, '0')}:00`;
     if (rangeKey === 'week') return new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(date).replace('.', '');
     return `${date.getDate()}`;
-}
-
-function formatPaymentMethodLabel(method: 'cash' | 'card' | 'transfer') {
-    if (method === 'card') return t('sales.payment.card');
-    if (method === 'transfer') return t('sales.payment.transfer');
-    return t('sales.payment.cash');
 }
 
 export default function DashboardScreen() {
@@ -376,7 +371,11 @@ export default function DashboardScreen() {
                         dashboardSummary.paymentBreakdown.map((item) => (
                             <View key={item.method} style={styles.paymentRow}>
                                 <View style={styles.rowBetween}>
-                                    <ThemedText type="defaultSemiBold">{formatPaymentMethodLabel(item.method)}</ThemedText>
+                                    <PaymentMethodDisplay
+                                        methodId={item.method}
+                                        size="small"
+                                        containerStyle={{ gap: 6 }}
+                                    />
                                     <ThemedText>{formatCurrency(item.total)}</ThemedText>
                                 </View>
                                 <View style={[styles.progressTrack, { backgroundColor: palette.border }]}>
