@@ -12,7 +12,6 @@ import { ThemedCard } from '@/components/ui/themed-card';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
-import { useAuthStore } from '@/stores/auth';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
@@ -187,7 +186,6 @@ function getTransitionAction(from: OrderStatus, to: OrderStatus): 'sendToKitchen
 export default function SalesScreen() {
   const palette = useAppColors();
   const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
   const {
     hydrate,
     sales,
@@ -728,7 +726,6 @@ export default function SalesScreen() {
           <ThemedText type="title">{t('sales.title')}</ThemedText>
           <View style={styles.headerActions}>
             <ThemedButton label={t('sales.newSale')} onPress={() => router.push('/sale-form')} />
-            <ThemedButton variant="secondary" style={styles.logoutButton} label={t('sales.logout')} onPress={logout} />
           </View>
         </View>
         <ScrollView
@@ -773,7 +770,6 @@ export default function SalesScreen() {
 
       <View style={styles.headerActions}>
         <ThemedButton label={t('sales.newSale')} onPress={() => router.push('/sale-form')} />
-        <ThemedButton variant="secondary" style={styles.logoutButton} label={t('sales.logout')} onPress={logout} />
       </View>
 
       {LANE_CONFIG.map(({ status, defaultExpanded }) => {
@@ -844,9 +840,6 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 8,
-  },
-  logoutButton: {
-    paddingVertical: 10,
   },
   emptyText: {
     textAlign: 'center',

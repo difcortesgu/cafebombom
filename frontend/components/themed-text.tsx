@@ -38,23 +38,25 @@ const styles = StyleSheet.create({
   default: {
     fontSize: 16,
     lineHeight: 24,
+    fontFamily: 'Poppins_400Regular',
   },
   defaultSemiBold: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
+    fontFamily: 'Poppins_700Bold',
+    lineHeight: 40,
   },
   subtitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins_700Bold',
   },
   link: {
     lineHeight: 30,
     fontSize: 16,
+    fontFamily: 'Poppins_400Regular',
   },
 });

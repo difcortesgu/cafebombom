@@ -1,8 +1,9 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -78,7 +79,7 @@ export default function TableFormScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FormScreen>
       <ThemedText type="title">{tableId ? t('tableForm.editTitle') : t('tableForm.createTitle')}</ThemedText>
 
       {message ? (
@@ -110,15 +111,11 @@ export default function TableFormScreen() {
           <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
         </View>
       </ThemedCard>
-    </ScrollView>
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    gap: 12,
-  },
   card: {
     gap: 10,
   },

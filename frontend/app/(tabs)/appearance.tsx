@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { THEME_OPTIONS } from '@/constants/theme';
@@ -18,7 +17,6 @@ export default function AppearanceScreen() {
         currentUser,
         updateCurrentUserProfile,
         loading: authLoading,
-        logout,
     } = useAuthStore();
 
     const {
@@ -143,11 +141,6 @@ export default function AppearanceScreen() {
                         );
                     })}
                 </View>
-            </ThemedCard>
-
-            <ThemedCard style={styles.card}>
-                <ThemedText type="subtitle">{t('settings.session.title')}</ThemedText>
-                <ThemedButton label={t('settings.session.logout')} onPress={logout} />
             </ThemedCard>
         </ScrollView>
     );

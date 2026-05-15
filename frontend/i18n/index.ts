@@ -51,6 +51,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'sales.error.cancelInvalidStatus': "No se puede cancelar una orden con estado '{status}'",
 
     // Theme options
+    'theme.teal-modern.name': 'Teal moderno',
+    'theme.teal-modern.description': 'Paleta teal fresca y moderna inspirada en dashboards de diseño limpio.',
     'theme.cafe-classic.name': 'Cafe clasico',
     'theme.cafe-classic.description': 'Tonos calidos de caramelo y espresso para una interfaz POS acogedora.',
     'theme.quiet-luxury.name': 'Lujo sereno',

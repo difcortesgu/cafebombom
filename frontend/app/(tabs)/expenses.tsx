@@ -1,10 +1,10 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedButton } from '@/components/ui/themed-button';
-import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -20,7 +20,7 @@ export default function ExpensesScreen() {
     const [section, setSection] = useState<Section>('expenses');
 
     const { hydrate, expenses, employees, payroll, addExpense, addPayroll } = useAccountsStore();
-    const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
+    const { hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
     const [expenseForm, setExpenseForm] = useState({ category: 'Insumos', amount: '', description: '', paymentMethod: 'cash' as PaymentMethod });
     const [expenseMessage, setExpenseMessage] = useState<string | null>(null);
@@ -38,174 +38,291 @@ export default function ExpensesScreen() {
         }, [hydrate, hydratePaymentMethods]),
     );
 
-    return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <ThemedText type="title">{t('expenses.title')}</ThemedText>
-            <ThemedText>{t('expenses.subtitle')}</ThemedText>
+    const paymentMethods: PaymentMethod[] = ['cash', 'card', 'transfer'];
+    const paymentLabel = (m: PaymentMethod) =>
+        m === 'cash' ? t('sales.payment.cash') : m === 'card' ? t('sales.payment.card') : t('sales.payment.transfer');
+    const paymentIcon = (m: PaymentMethod) =>
+        m === 'cash' ? 'banknote.fill' : m === 'card' ? 'creditcard.fill' : 'building.columns.fill';
 
-            <View style={styles.tabRow}>
+    return (
+        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+            {/* Header */}
+            <View style={styles.header}>
+                <ThemedText type="title" style={styles.title}>{t('expenses.title')}</ThemedText>
+                <ThemedText style={[styles.subtitle, { color: palette.mutedText }]}>{t('expenses.subtitle')}</ThemedText>
+            </View>
+
+            {/* KPI Card */}
+            <View style={[styles.kpiCard, { backgroundColor: palette.tint }]}>
+                <View style={styles.kpiRow}>
+                    <View style={styles.kpiLeft}>
+                        <ThemedText style={styles.kpiLabel}>{t('accounts.expenses.today')}</ThemedText>
+                        <ThemedText style={styles.kpiAmount}>${todayExpenses.toFixed(2)}</ThemedText>
+                        <ThemedText style={styles.kpiSub}>
+                            {expenses.length} {expenses.length === 1 ? 'registro' : 'registros'}
+                        </ThemedText>
+                    </View>
+                    <View style={styles.kpiIconBox}>
+                        <IconSymbol name="receipt.fill" size={32} color="rgba(255,255,255,0.55)" />
+                    </View>
+                </View>
+            </View>
+
+            {/* Segmented Tabs */}
+            <View style={[styles.tabContainer, { backgroundColor: palette.card, borderColor: palette.border }]}>
                 {(['expenses', 'payroll'] as Section[]).map((item) => (
-                    <ThemedChip
+                    <Pressable
                         key={item}
-                        style={styles.sectionButton}
-                        label={item === 'expenses' ? t('accounts.tab.expenses') : t('accounts.tab.payroll')}
-                        active={section === item}
+                        style={[
+                            styles.tabItem,
+                            section === item
+                                ? { backgroundColor: palette.tint + '28' }
+                                : null,
+                        ]}
                         onPress={() => setSection(item)}
-                    />
+                    >
+                        <View style={styles.tabInner}>
+                            <IconSymbol
+                                name={item === 'expenses' ? 'arrow.down.circle.fill' : 'person.2.fill'}
+                                size={16}
+                                color={section === item ? palette.tint : palette.mutedText}
+                            />
+                            <ThemedText
+                                style={[
+                                    styles.tabLabel,
+                                    { color: section === item ? palette.tint : palette.mutedText },
+                                ]}
+                            >
+                                {item === 'expenses' ? t('accounts.tab.expenses') : t('accounts.tab.payroll')}
+                            </ThemedText>
+                        </View>
+                    </Pressable>
                 ))}
             </View>
 
             {section === 'expenses' ? (
-                <ThemedCard style={styles.card}>
-                    <ThemedText type="subtitle">{t('accounts.expenses.recent')}</ThemedText>
-                    <ThemedText type="defaultSemiBold">{t('accounts.expenses.today')}: ${todayExpenses.toFixed(2)}</ThemedText>
-
-                    <ThemedInput
-                        value={expenseForm.category}
-                        placeholder={t('accountsForm.expense.category')}
-                        onChangeText={(val) => setExpenseForm((prev) => ({ ...prev, category: val }))}
-                    />
-                    <ThemedInput
-                        value={expenseForm.amount}
-                        keyboardType="decimal-pad"
-                        placeholder={t('accountsForm.expense.amount')}
-                        onChangeText={(val) => setExpenseForm((prev) => ({ ...prev, amount: val }))}
-                    />
-                    <ThemedInput
-                        value={expenseForm.description}
-                        placeholder={t('accountsForm.expense.description')}
-                        onChangeText={(val) => setExpenseForm((prev) => ({ ...prev, description: val }))}
-                    />
-                    <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
-                    <View style={styles.row}>
-                        <ThemedChip
-                            style={styles.switchButton}
-                            label={t('sales.payment.cash')}
-                            active={expenseForm.paymentMethod === 'cash'}
-                            onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: 'cash' }))}
-                        />
-                        <ThemedChip
-                            style={styles.switchButton}
-                            label={t('sales.payment.card')}
-                            active={expenseForm.paymentMethod === 'card'}
-                            onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: 'card' }))}
-                        />
-                        <ThemedChip
-                            style={styles.switchButton}
-                            label={t('sales.payment.transfer')}
-                            active={expenseForm.paymentMethod === 'transfer'}
-                            onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: 'transfer' }))}
-                        />
-                    </View>
-                    <ThemedButton
-                        label={t('accountsForm.expense.save')}
-                        onPress={async () => {
-                            const amount = Number(expenseForm.amount);
-                            if (!expenseForm.category.trim() || !Number.isFinite(amount) || amount <= 0) {
-                                setExpenseMessage(t('accountsForm.expense.required'));
-                                return;
-                            }
-                            await addExpense({
-                                category: expenseForm.category.trim(),
-                                amount,
-                                description: expenseForm.description,
-                                paymentMethod: expenseForm.paymentMethod,
-                            });
-                            setExpenseForm((prev) => ({ ...prev, amount: '', description: '' }));
-                            setExpenseMessage(t('accountsForm.expense.saved'));
-                        }}
-                    />
-                    {expenseMessage ? <ThemedText style={styles.smallText}>{expenseMessage}</ThemedText> : null}
-
-                    {expenses.map((expense) => (
-                        <View key={expense.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                            <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
-                            <ThemedText>${Number(expense.amount).toFixed(2)}</ThemedText>
-                            <ThemedText style={styles.smallText}>{expense.description || t('accounts.expenses.noDescription')}</ThemedText>
+                <View style={styles.section}>
+                    {/* Form */}
+                    <View style={[styles.formCard, { backgroundColor: palette.card }]}>
+                        <View style={styles.sectionHeader}>
+                            <IconSymbol name="tag.fill" size={18} color={palette.tint} />
+                            <ThemedText type="subtitle" style={styles.sectionTitle}>{t('accounts.expenses.recent')}</ThemedText>
                         </View>
-                    ))}
-                </ThemedCard>
+
+                        <ThemedInput
+                            label="Categoría"
+                            value={expenseForm.category}
+                            placeholder={t('accountsForm.expense.category')}
+                            onChangeText={(val) => setExpenseForm((prev) => ({ ...prev, category: val }))}
+                        />
+                        <ThemedInput
+                            label="Monto"
+                            value={expenseForm.amount}
+                            keyboardType="decimal-pad"
+                            placeholder={t('accountsForm.expense.amount')}
+                            onChangeText={(val) => setExpenseForm((prev) => ({ ...prev, amount: val }))}
+                        />
+                        <ThemedInput
+                            label="Descripción"
+                            value={expenseForm.description}
+                            placeholder={t('accountsForm.expense.description')}
+                            onChangeText={(val) => setExpenseForm((prev) => ({ ...prev, description: val }))}
+                        />
+
+                        <View style={styles.paymentSection}>
+                            <ThemedText style={[styles.fieldLabel, { color: palette.mutedText }]}>
+                                {t('accountsForm.expense.paymentMethod')}
+                            </ThemedText>
+                            <View style={styles.paymentRow}>
+                                {paymentMethods.map((method) => (
+                                    <Pressable
+                                        key={method}
+                                        style={[
+                                            styles.paymentChip,
+                                            { borderColor: palette.border },
+                                            expenseForm.paymentMethod === method && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                        ]}
+                                        onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: method }))}
+                                    >
+                                        <IconSymbol
+                                            name={paymentIcon(method)}
+                                            size={18}
+                                            color={expenseForm.paymentMethod === method ? palette.text : palette.mutedText}
+                                        />
+                                        <ThemedText style={[styles.paymentChipLabel, expenseForm.paymentMethod === method && { color: palette.text }]}>
+                                            {paymentLabel(method)}
+                                        </ThemedText>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        </View>
+
+                        <ThemedButton
+                            label={t('accountsForm.expense.save')}
+                            icon="checkmark.circle.fill"
+                            style={styles.saveButton}
+                            onPress={async () => {
+                                const amount = Number(expenseForm.amount);
+                                if (!expenseForm.category.trim() || !Number.isFinite(amount) || amount <= 0) {
+                                    setExpenseMessage(t('accountsForm.expense.required'));
+                                    return;
+                                }
+                                await addExpense({
+                                    category: expenseForm.category.trim(),
+                                    amount,
+                                    description: expenseForm.description,
+                                    paymentMethod: expenseForm.paymentMethod,
+                                });
+                                setExpenseForm((prev) => ({ ...prev, amount: '', description: '' }));
+                                setExpenseMessage(t('accountsForm.expense.saved'));
+                            }}
+                        />
+                        {expenseMessage ? (
+                            <ThemedText style={[styles.message, { color: palette.success }]}>{expenseMessage}</ThemedText>
+                        ) : null}
+                    </View>
+
+                    {/* Expense list */}
+                    {expenses.length > 0 && (
+                        <View style={styles.listSection}>
+                            <View style={styles.sectionHeader}>
+                                <IconSymbol name="receipt.fill" size={16} color={palette.mutedText} />
+                                <ThemedText style={[styles.listSectionTitle, { color: palette.mutedText }]}>Registros del día</ThemedText>
+                            </View>
+                            {expenses.map((expense) => (
+                                <View key={expense.id} style={[styles.listItem, { backgroundColor: palette.card }]}>
+                                    <View style={[styles.listItemIcon, { backgroundColor: palette.tint + '22' }]}>
+                                        <IconSymbol name="tag.fill" size={20} color={palette.tint} />
+                                    </View>
+                                    <View style={styles.listItemInfo}>
+                                        <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
+                                        <ThemedText style={[styles.listItemSub, { color: palette.mutedText }]}>
+                                            {expense.description || t('accounts.expenses.noDescription')}
+                                        </ThemedText>
+                                    </View>
+                                    <ThemedText style={[styles.listItemAmount, { color: palette.tint }]}>
+                                        ${Number(expense.amount).toFixed(2)}
+                                    </ThemedText>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </View>
             ) : null}
 
             {section === 'payroll' ? (
-                <ThemedCard style={styles.card}>
-                    <ThemedText type="subtitle">{t('accounts.payroll.recent')}</ThemedText>
-                    <ThemedText style={styles.smallText}>{t('accounts.payroll.subtitle')}</ThemedText>
-
-                    {employees.length === 0 ? (
-                        <ThemedText style={styles.smallText}>{t('team.noEmployees')}</ThemedText>
-                    ) : (
-                        <>
-                            <ThemedText style={styles.smallText}>{t('accountsForm.payroll.employee')}</ThemedText>
-                            <View style={styles.tabRow}>
-                                {employees.map((employee) => (
-                                    <ThemedChip
-                                        key={employee.id}
-                                        style={styles.switchButton}
-                                        label={employee.name}
-                                        active={payrollForm.employeeId === employee.id}
-                                        onPress={() => setPayrollForm((f) => ({ ...f, employeeId: employee.id }))}
-                                    />
-                                ))}
-                            </View>
-                            <ThemedInput
-                                value={payrollForm.amount}
-                                keyboardType="decimal-pad"
-                                placeholder={t('accountsForm.payroll.amount')}
-                                onChangeText={(val) => setPayrollForm((prev) => ({ ...prev, amount: val }))}
-                            />
-                            <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
-                            <View style={styles.row}>
-                                <ThemedChip
-                                    style={styles.switchButton}
-                                    label={t('sales.payment.cash')}
-                                    active={payrollForm.paymentMethod === 'cash'}
-                                    onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: 'cash' }))}
-                                />
-                                <ThemedChip
-                                    style={styles.switchButton}
-                                    label={t('sales.payment.card')}
-                                    active={payrollForm.paymentMethod === 'card'}
-                                    onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: 'card' }))}
-                                />
-                                <ThemedChip
-                                    style={styles.switchButton}
-                                    label={t('sales.payment.transfer')}
-                                    active={payrollForm.paymentMethod === 'transfer'}
-                                    onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: 'transfer' }))}
-                                />
-                            </View>
-                            <ThemedButton
-                                label={t('accountsForm.payroll.save')}
-                                onPress={async () => {
-                                    const amount = Number(payrollForm.amount);
-                                    if (!payrollForm.employeeId || !Number.isFinite(amount) || amount <= 0) {
-                                        setPayrollMessage(t('accountsForm.payroll.required'));
-                                        return;
-                                    }
-                                    const now = Math.floor(Date.now() / 1000);
-                                    await addPayroll({
-                                        employeeId: payrollForm.employeeId,
-                                        periodStart: now,
-                                        periodEnd: now,
-                                        amount,
-                                        paymentMethod: payrollForm.paymentMethod,
-                                    });
-                                    setPayrollForm((prev) => ({ ...prev, amount: '' }));
-                                    setPayrollMessage(t('accountsForm.payroll.saved'));
-                                }}
-                            />
-                            {payrollMessage ? <ThemedText style={styles.smallText}>{payrollMessage}</ThemedText> : null}
-                        </>
-                    )}
-
-                    {payroll.map((entry) => (
-                        <View key={entry.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                            <ThemedText type="defaultSemiBold">{employees.find((emp) => emp.id === entry.employee_id)?.name ?? `${t('accounts.payroll.employeePrefix')} #${entry.employee_id}`}</ThemedText>
-                            <ThemedText>${Number(entry.amount).toFixed(2)}</ThemedText>
+                <View style={styles.section}>
+                    <View style={[styles.formCard, { backgroundColor: palette.card }]}>
+                        <View style={styles.sectionHeader}>
+                            <IconSymbol name="person.2.fill" size={18} color={palette.tint} />
+                            <ThemedText type="subtitle" style={styles.sectionTitle}>{t('accounts.payroll.recent')}</ThemedText>
                         </View>
-                    ))}
-                </ThemedCard>
+                        <ThemedText style={[styles.subtitle, { color: palette.mutedText }]}>{t('accounts.payroll.subtitle')}</ThemedText>
+
+                        {employees.length === 0 ? (
+                            <ThemedText style={{ color: palette.mutedText }}>{t('team.noEmployees')}</ThemedText>
+                        ) : (
+                            <>
+                                <ThemedText style={[styles.fieldLabel, { color: palette.mutedText }]}>
+                                    {t('accountsForm.payroll.employee')}
+                                </ThemedText>
+                                <View style={styles.chipRow}>
+                                    {employees.map((employee) => (
+                                        <ThemedChip
+                                            key={employee.id}
+                                            label={employee.name}
+                                            active={payrollForm.employeeId === employee.id}
+                                            onPress={() => setPayrollForm((f) => ({ ...f, employeeId: employee.id }))}
+                                        />
+                                    ))}
+                                </View>
+                                <ThemedInput
+                                    label="Monto"
+                                    value={payrollForm.amount}
+                                    keyboardType="decimal-pad"
+                                    placeholder={t('accountsForm.payroll.amount')}
+                                    onChangeText={(val) => setPayrollForm((prev) => ({ ...prev, amount: val }))}
+                                />
+                                <View style={styles.paymentSection}>
+                                    <ThemedText style={[styles.fieldLabel, { color: palette.mutedText }]}>
+                                        {t('accountsForm.expense.paymentMethod')}
+                                    </ThemedText>
+                                    <View style={styles.paymentRow}>
+                                        {paymentMethods.map((method) => (
+                                            <Pressable
+                                                key={method}
+                                                style={[
+                                                    styles.paymentChip,
+                                                    { borderColor: palette.border },
+                                                    payrollForm.paymentMethod === method && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                                ]}
+                                                onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: method }))}
+                                            >
+                                                <IconSymbol
+                                                    name={paymentIcon(method)}
+                                                    size={18}
+                                                    color={payrollForm.paymentMethod === method ? palette.text : palette.mutedText}
+                                                />
+                                                <ThemedText style={[styles.paymentChipLabel, payrollForm.paymentMethod === method && { color: palette.text }]}>
+                                                    {paymentLabel(method)}
+                                                </ThemedText>
+                                            </Pressable>
+                                        ))}
+                                    </View>
+                                </View>
+                                <ThemedButton
+                                    label={t('accountsForm.payroll.save')}
+                                    icon="checkmark.circle.fill"
+                                    style={styles.saveButton}
+                                    onPress={async () => {
+                                        const amount = Number(payrollForm.amount);
+                                        if (!payrollForm.employeeId || !Number.isFinite(amount) || amount <= 0) {
+                                            setPayrollMessage(t('accountsForm.payroll.required'));
+                                            return;
+                                        }
+                                        const now = Math.floor(Date.now() / 1000);
+                                        await addPayroll({
+                                            employeeId: payrollForm.employeeId,
+                                            periodStart: now,
+                                            periodEnd: now,
+                                            amount,
+                                            paymentMethod: payrollForm.paymentMethod,
+                                        });
+                                        setPayrollForm((prev) => ({ ...prev, amount: '' }));
+                                        setPayrollMessage(t('accountsForm.payroll.saved'));
+                                    }}
+                                />
+                                {payrollMessage ? (
+                                    <ThemedText style={[styles.message, { color: palette.success }]}>{payrollMessage}</ThemedText>
+                                ) : null}
+                            </>
+                        )}
+                    </View>
+
+                    {payroll.length > 0 && (
+                        <View style={styles.listSection}>
+                            <View style={styles.sectionHeader}>
+                                <IconSymbol name="receipt.fill" size={16} color={palette.mutedText} />
+                                <ThemedText style={[styles.listSectionTitle, { color: palette.mutedText }]}>Registros del día</ThemedText>
+                            </View>
+                            {payroll.map((entry) => (
+                                <View key={entry.id} style={[styles.listItem, { backgroundColor: palette.card }]}>
+                                    <View style={[styles.listItemIcon, { backgroundColor: palette.accent + '22' }]}>
+                                        <IconSymbol name="person.fill" size={20} color={palette.accent} />
+                                    </View>
+                                    <View style={styles.listItemInfo}>
+                                        <ThemedText type="defaultSemiBold">
+                                            {employees.find((emp) => emp.id === entry.employee_id)?.name ?? `${t('accounts.payroll.employeePrefix')} #${entry.employee_id}`}
+                                        </ThemedText>
+                                    </View>
+                                    <ThemedText style={[styles.listItemAmount, { color: palette.accent }]}>
+                                        ${Number(entry.amount).toFixed(2)}
+                                    </ThemedText>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </View>
             ) : null}
         </ScrollView>
     );
@@ -213,36 +330,182 @@ export default function ExpensesScreen() {
 
 const styles = StyleSheet.create({
     container: {
-        padding: 16,
+        padding: 20,
+        gap: 16,
+        paddingBottom: 40,
+    },
+    header: {
+        gap: 4,
+    },
+    title: {
+        fontSize: 28,
+        fontWeight: '800',
+    },
+    subtitle: {
+        fontSize: 14,
+    },
+    kpiCard: {
+        borderRadius: 20,
+        padding: 24,
+        gap: 2,
+    },
+    kpiRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+    },
+    kpiLeft: {
+        gap: 2,
+    },
+    kpiIconBox: {
+        padding: 4,
+    },
+    kpiLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.75)',
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+    },
+    kpiAmount: {
+        fontSize: 40,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        lineHeight: 48,
+    },
+    kpiSub: {
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.65)',
+        marginTop: 4,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 4,
+        gap: 4,
+    },
+    tabItem: {
+        flex: 1,
+        borderRadius: 12,
+        paddingVertical: 10,
+        alignItems: 'center',
+    },
+    tabInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    tabLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        textTransform: 'capitalize',
+    },
+    section: {
         gap: 12,
     },
-    card: {
-        gap: 10,
+    formCard: {
+        borderRadius: 20,
+        padding: 20,
+        gap: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
     },
-    tabRow: {
+    sectionTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        marginBottom: 2,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    listSectionTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    fieldLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    paymentSection: {
+        gap: 8,
+    },
+    paymentRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    paymentChip: {
+        flex: 1,
+        borderWidth: 1.5,
+        borderRadius: 12,
+        paddingVertical: 10,
+        alignItems: 'center',
+        gap: 4,
+    },
+    paymentChipLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    saveButton: {
+        alignSelf: 'flex-end',
+        borderRadius: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        marginTop: 4,
+    },
+    message: {
+        fontSize: 13,
+        textAlign: 'center',
+    },
+    chipRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
     },
-    sectionButton: {
-        borderRadius: 10,
-    },
-    row: {
-        flexDirection: 'row',
+    listSection: {
         gap: 8,
     },
-    switchButton: {
-        flex: 1,
-        borderRadius: 10,
-    },
-    smallText: {
-        fontSize: 13,
-        opacity: 0.9,
-    },
     listItem: {
-        borderWidth: 1,
-        borderRadius: 10,
-        padding: 10,
-        gap: 4,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 16,
+        padding: 14,
+        gap: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    listItemIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    listItemIconText: {
+        fontSize: 18,
+        fontWeight: '800',
+    },
+    listItemInfo: {
+        flex: 1,
+        gap: 2,
+    },
+    listItemSub: {
+        fontSize: 12,
+    },
+    listItemAmount: {
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

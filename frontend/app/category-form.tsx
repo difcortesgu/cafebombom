@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -32,7 +33,7 @@ export default function CategoryFormScreen() {
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
+        <FormScreen>
             <ThemedText type="title">{t('categoryForm.title')}</ThemedText>
 
             {message ? (
@@ -53,15 +54,11 @@ export default function CategoryFormScreen() {
                     <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
                 </View>
             </ThemedCard>
-        </ScrollView>
+        </FormScreen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        padding: 16,
-        gap: 12,
-    },
     messageCard: {
         padding: 12,
     },

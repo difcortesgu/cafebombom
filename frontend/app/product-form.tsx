@@ -1,10 +1,11 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DateInput } from '@/components/ui/date-input';
+import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedChip } from '@/components/ui/themed-chip';
@@ -47,6 +48,8 @@ type PendingCategorySelection = {
 export default function ProductFormScreen() {
   const palette = useAppColors();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWideLayout = width >= 1000;
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const productId = normalizeParam(params.id);
 
@@ -364,7 +367,7 @@ export default function ProductFormScreen() {
   }, [categories, pendingCategorySelection]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FormScreen contentStyle={styles.screenContent}>
       <ThemedText type="title">{productForm.id ? t('productForm.title.edit') : t('productForm.title.create')}</ThemedText>
 
       {message ? (
@@ -446,215 +449,227 @@ export default function ProductFormScreen() {
 
       {!productForm.id ? (
         <ThemedCard style={styles.card}>
-          <ThemedText style={styles.label}>{t('productForm.recipeRequiredTitle')}</ThemedText>
-          <ThemedText style={styles.smallText}>{t('productForm.recipeRequiredHelp')}</ThemedText>
-          {productRecipeItems.map((item, index) => {
-            const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
-            const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
-            return (
-              <View key={index} style={styles.recipeControlsRow}>
-                <View style={styles.recipeSelectWrapper}>
-                  <ThemedSelect
-                    placeholder={t('productForm.selectIngredient')}
-                    value={item.ingredientId}
-                    items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
-                    onValueChange={(value) => updateProductRecipeItem(index, value, undefined)}
-                    onAddNewPress={() => startCreateIngredientForItem('recipe', index)}
-                    addNewLabel={t('products.ingredients.add')}
-                  />
-                </View>
-                <View style={styles.recipeInputWrapper}>
-                  <ThemedInput
-                    placeholder={t('common.qtyShort')}
-                    keyboardType="decimal-pad"
-                    value={item.quantityUsed}
-                    onChangeText={(value) => updateProductRecipeItem(index, undefined, value)}
-                    style={styles.compactInput}
-                  />
-                </View>
-                <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductRecipeItem(index)} />
-              </View>
-            );
-          })}
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+          <View style={isWideLayout ? styles.sectionColumns : styles.sectionStack}>
+            <View style={styles.sectionColumn}>
+              <ThemedText style={styles.label}>{t('productForm.recipeRequiredTitle')}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('productForm.recipeRequiredHelp')}</ThemedText>
+              {productRecipeItems.map((item, index) => {
+                const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
+                const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
+                return (
+                  <View key={index} style={styles.recipeControlsRow}>
+                    <View style={styles.recipeSelectWrapper}>
+                      <ThemedSelect
+                        placeholder={t('productForm.selectIngredient')}
+                        value={item.ingredientId}
+                        items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
+                        onValueChange={(value) => updateProductRecipeItem(index, value, undefined)}
+                        onAddNewPress={() => startCreateIngredientForItem('recipe', index)}
+                        addNewLabel={t('products.ingredients.add')}
+                      />
+                    </View>
+                    <View style={styles.recipeInputWrapper}>
+                      <ThemedInput
+                        placeholder={t('common.qtyShort')}
+                        keyboardType="decimal-pad"
+                        value={item.quantityUsed}
+                        onChangeText={(value) => updateProductRecipeItem(index, undefined, value)}
+                        style={styles.compactInput}
+                      />
+                    </View>
+                    <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductRecipeItem(index)} />
+                  </View>
+                );
+              })}
+              <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+            </View>
 
-          <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
-          <ThemedText style={styles.smallText}>{t('productForm.additionalHelp')}</ThemedText>
-          {productAdditionalItems.map((item, index) => {
-            const addedIngredientIds = productAdditionalItems.map((i) => i.ingredientId).filter((id) => id);
-            const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
-            return (
-              <View key={`new-additional-${index}`} style={styles.recipeControlsRow}>
-                <View style={styles.recipeSelectWrapper}>
-                  <ThemedSelect
-                    placeholder={t('productForm.selectIngredient')}
-                    value={item.ingredientId}
-                    items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
-                    onValueChange={(value) => updateProductAdditionalItem(index, value, undefined, undefined)}
-                    onAddNewPress={() => startCreateIngredientForItem('additional', index)}
-                    addNewLabel={t('products.ingredients.add')}
-                  />
-                </View>
-                <View style={styles.recipeInputWrapper}>
-                  <ThemedInput
-                    placeholder={t('common.qtyShort')}
-                    keyboardType="decimal-pad"
-                    value={item.quantityUsed}
-                    onChangeText={(value) => updateProductAdditionalItem(index, undefined, value, undefined)}
-                    style={styles.compactInput}
-                  />
-                </View>
-                <View style={styles.recipeInputWrapper}>
-                  <ThemedInput
-                    placeholder={t('productForm.additionalPrice')}
-                    keyboardType="decimal-pad"
-                    value={item.additionalPrice}
-                    onChangeText={(value) => updateProductAdditionalItem(index, undefined, undefined, value)}
-                    style={styles.compactInput}
-                  />
-                </View>
-                <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductAdditionalItem(index)} />
-              </View>
-            );
-          })}
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+            <View style={styles.sectionColumn}>
+              <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
+              <ThemedText style={styles.smallText}>{t('productForm.additionalHelp')}</ThemedText>
+              {productAdditionalItems.map((item, index) => {
+                const addedIngredientIds = productAdditionalItems.map((i) => i.ingredientId).filter((id) => id);
+                const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
+                return (
+                  <View key={`new-additional-${index}`} style={styles.recipeControlsRow}>
+                    <View style={styles.recipeSelectWrapper}>
+                      <ThemedSelect
+                        placeholder={t('productForm.selectIngredient')}
+                        value={item.ingredientId}
+                        items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
+                        onValueChange={(value) => updateProductAdditionalItem(index, value, undefined, undefined)}
+                        onAddNewPress={() => startCreateIngredientForItem('additional', index)}
+                        addNewLabel={t('products.ingredients.add')}
+                      />
+                    </View>
+                    <View style={styles.recipeInputWrapper}>
+                      <ThemedInput
+                        placeholder={t('common.qtyShort')}
+                        keyboardType="decimal-pad"
+                        value={item.quantityUsed}
+                        onChangeText={(value) => updateProductAdditionalItem(index, undefined, value, undefined)}
+                        style={styles.compactInput}
+                      />
+                    </View>
+                    <View style={styles.recipeInputWrapper}>
+                      <ThemedInput
+                        placeholder={t('productForm.additionalPrice')}
+                        keyboardType="decimal-pad"
+                        value={item.additionalPrice}
+                        onChangeText={(value) => updateProductAdditionalItem(index, undefined, undefined, value)}
+                        style={styles.compactInput}
+                      />
+                    </View>
+                    <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductAdditionalItem(index)} />
+                  </View>
+                );
+              })}
+              <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+            </View>
+          </View>
         </ThemedCard>
       ) : (
         <ThemedCard style={styles.card}>
-          <ThemedText style={styles.label}>{t('productForm.recipeTitle')}</ThemedText>
-          {editingProductRecipes.length === 0 ? (
-            <ThemedText style={styles.smallText}>{t('productForm.noDirectIngredients')}</ThemedText>
-          ) : (
-            editingProductRecipes.map((link) => (
-              <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                <View style={styles.listTextWrap}>
-                  <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
-                  <ThemedText style={styles.smallText}>{link.quantityUsed} {t('productForm.perUnit')}</ThemedText>
-                </View>
-                <ThemedButton
-                  variant="secondary"
-                  style={styles.secondaryButton}
-                  icon="trash.fill"
-                  onPress={async () => {
-                    if (editingProductRecipes.length <= 1) {
-                      setMessage(t('productForm.error.keepOneIngredient'));
-                      return;
-                    }
-                    await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
-                    setMessage(t('productForm.recipeLinkRemoved'));
-                  }}
-                />
-              </View>
-            ))
-          )}
-
-          <ThemedText style={styles.label}>{t('productForm.addRecipeIngredients')}</ThemedText>
-          {productRecipeItems.length === 0 ? (
-            <ThemedText style={styles.smallText}>{t('productForm.addRecipeHelp')}</ThemedText>
-          ) : (
-            productRecipeItems.map((item, index) => {
-              const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
-              const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
-              return (
-                <View key={index} style={styles.recipeControlsRow}>
-                  <View style={styles.recipeSelectWrapper}>
-                    <ThemedSelect
-                      placeholder={t('productForm.selectIngredient')}
-                      value={item.ingredientId}
-                      items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
-                      onValueChange={(value) => updateProductRecipeItem(index, value, undefined)}
-                      onAddNewPress={() => startCreateIngredientForItem('recipe', index)}
-                      addNewLabel={t('products.ingredients.add')}
+          <View style={isWideLayout ? styles.sectionColumns : styles.sectionStack}>
+            <View style={styles.sectionColumn}>
+              <ThemedText style={styles.label}>{t('productForm.recipeTitle')}</ThemedText>
+              {editingProductRecipes.length === 0 ? (
+                <ThemedText style={styles.smallText}>{t('productForm.noDirectIngredients')}</ThemedText>
+              ) : (
+                editingProductRecipes.map((link) => (
+                  <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
+                    <View style={styles.listTextWrap}>
+                      <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
+                      <ThemedText style={styles.smallText}>{link.quantityUsed} {t('productForm.perUnit')}</ThemedText>
+                    </View>
+                    <ThemedButton
+                      variant="secondary"
+                      style={styles.secondaryButton}
+                      icon="trash.fill"
+                      onPress={async () => {
+                        if (editingProductRecipes.length <= 1) {
+                          setMessage(t('productForm.error.keepOneIngredient'));
+                          return;
+                        }
+                        await removeProductIngredient({ productId: link.productId, ingredientId: link.ingredientId });
+                        setMessage(t('productForm.recipeLinkRemoved'));
+                      }}
                     />
                   </View>
-                  <View style={styles.recipeInputWrapper}>
-                    <ThemedInput
-                      placeholder={t('common.qtyShort')}
-                      keyboardType="decimal-pad"
-                      value={item.quantityUsed}
-                      onChangeText={(value) => updateProductRecipeItem(index, undefined, value)}
-                      style={styles.compactInput}
+                ))
+              )}
+
+              <ThemedText style={styles.label}>{t('productForm.addRecipeIngredients')}</ThemedText>
+              {productRecipeItems.length === 0 ? (
+                <ThemedText style={styles.smallText}>{t('productForm.addRecipeHelp')}</ThemedText>
+              ) : (
+                productRecipeItems.map((item, index) => {
+                  const addedIngredientIds = productRecipeItems.map((i) => i.ingredientId).filter((id) => id);
+                  const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
+                  return (
+                    <View key={index} style={styles.recipeControlsRow}>
+                      <View style={styles.recipeSelectWrapper}>
+                        <ThemedSelect
+                          placeholder={t('productForm.selectIngredient')}
+                          value={item.ingredientId}
+                          items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
+                          onValueChange={(value) => updateProductRecipeItem(index, value, undefined)}
+                          onAddNewPress={() => startCreateIngredientForItem('recipe', index)}
+                          addNewLabel={t('products.ingredients.add')}
+                        />
+                      </View>
+                      <View style={styles.recipeInputWrapper}>
+                        <ThemedInput
+                          placeholder={t('common.qtyShort')}
+                          keyboardType="decimal-pad"
+                          value={item.quantityUsed}
+                          onChangeText={(value) => updateProductRecipeItem(index, undefined, value)}
+                          style={styles.compactInput}
+                        />
+                      </View>
+                      <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductRecipeItem(index)} />
+                    </View>
+                  );
+                })
+              )}
+
+              <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
+              <ThemedButton style={styles.primaryButton} label={t('productForm.saveRecipeItems')} onPress={saveProductRecipe} />
+            </View>
+
+            <View style={styles.sectionColumn}>
+              <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
+              {editingProductAdditionalIngredients.length === 0 ? (
+                <ThemedText style={styles.smallText}>{t('productForm.noAdditionalIngredients')}</ThemedText>
+              ) : (
+                editingProductAdditionalIngredients.map((link) => (
+                  <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
+                    <View style={styles.listTextWrap}>
+                      <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
+                      <ThemedText style={styles.smallText}>
+                        {link.quantityUsed} {t('productForm.perUnit')} · +${link.additionalPrice.toFixed(2)}
+                      </ThemedText>
+                    </View>
+                    <ThemedButton
+                      variant="secondary"
+                      style={styles.secondaryButton}
+                      icon="trash.fill"
+                      onPress={async () => {
+                        await removeProductAdditionalIngredient({ productId: link.productId, ingredientId: link.ingredientId });
+                        setMessage(t('productForm.additionalLinkRemoved'));
+                      }}
                     />
                   </View>
-                  <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductRecipeItem(index)} />
-                </View>
-              );
-            })
-          )}
+                ))
+              )}
 
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addIngredient')} onPress={() => addProductRecipeItem('', '')} />
-          <ThemedButton style={styles.primaryButton} label={t('productForm.saveRecipeItems')} onPress={saveProductRecipe} />
+              <ThemedText style={styles.label}>{t('productForm.addAdditionalIngredients')}</ThemedText>
+              {productAdditionalItems.length === 0 ? (
+                <ThemedText style={styles.smallText}>{t('productForm.addAdditionalHelp')}</ThemedText>
+              ) : (
+                productAdditionalItems.map((item, index) => {
+                  const addedIngredientIds = productAdditionalItems.map((i) => i.ingredientId).filter((id) => id);
+                  const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
+                  return (
+                    <View key={`edit-additional-${index}`} style={styles.recipeControlsRow}>
+                      <View style={styles.recipeSelectWrapper}>
+                        <ThemedSelect
+                          placeholder={t('productForm.selectIngredient')}
+                          value={item.ingredientId}
+                          items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
+                          onValueChange={(value) => updateProductAdditionalItem(index, value, undefined, undefined)}
+                          onAddNewPress={() => startCreateIngredientForItem('additional', index)}
+                          addNewLabel={t('products.ingredients.add')}
+                        />
+                      </View>
+                      <View style={styles.recipeInputWrapper}>
+                        <ThemedInput
+                          placeholder={t('common.qtyShort')}
+                          keyboardType="decimal-pad"
+                          value={item.quantityUsed}
+                          onChangeText={(value) => updateProductAdditionalItem(index, undefined, value, undefined)}
+                          style={styles.compactInput}
+                        />
+                      </View>
+                      <View style={styles.recipeInputWrapper}>
+                        <ThemedInput
+                          placeholder={t('productForm.additionalPrice')}
+                          keyboardType="decimal-pad"
+                          value={item.additionalPrice}
+                          onChangeText={(value) => updateProductAdditionalItem(index, undefined, undefined, value)}
+                          style={styles.compactInput}
+                        />
+                      </View>
+                      <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductAdditionalItem(index)} />
+                    </View>
+                  );
+                })
+              )}
 
-          <ThemedText style={styles.label}>{t('productForm.additionalTitle')}</ThemedText>
-          {editingProductAdditionalIngredients.length === 0 ? (
-            <ThemedText style={styles.smallText}>{t('productForm.noAdditionalIngredients')}</ThemedText>
-          ) : (
-            editingProductAdditionalIngredients.map((link) => (
-              <View key={link.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                <View style={styles.listTextWrap}>
-                  <ThemedText type="defaultSemiBold">{link.ingredientName}</ThemedText>
-                  <ThemedText style={styles.smallText}>
-                    {link.quantityUsed} {t('productForm.perUnit')} · +${link.additionalPrice.toFixed(2)}
-                  </ThemedText>
-                </View>
-                <ThemedButton
-                  variant="secondary"
-                  style={styles.secondaryButton}
-                  icon="trash.fill"
-                  onPress={async () => {
-                    await removeProductAdditionalIngredient({ productId: link.productId, ingredientId: link.ingredientId });
-                    setMessage(t('productForm.additionalLinkRemoved'));
-                  }}
-                />
-              </View>
-            ))
-          )}
-
-          <ThemedText style={styles.label}>{t('productForm.addAdditionalIngredients')}</ThemedText>
-          {productAdditionalItems.length === 0 ? (
-            <ThemedText style={styles.smallText}>{t('productForm.addAdditionalHelp')}</ThemedText>
-          ) : (
-            productAdditionalItems.map((item, index) => {
-              const addedIngredientIds = productAdditionalItems.map((i) => i.ingredientId).filter((id) => id);
-              const availableIngredients = ingredients.filter((ing) => !addedIngredientIds.includes(ing.id) || ing.id === item.ingredientId);
-              return (
-                <View key={`edit-additional-${index}`} style={styles.recipeControlsRow}>
-                  <View style={styles.recipeSelectWrapper}>
-                    <ThemedSelect
-                      placeholder={t('productForm.selectIngredient')}
-                      value={item.ingredientId}
-                      items={availableIngredients.map((ing) => ({ label: ing.name, value: ing.id }))}
-                      onValueChange={(value) => updateProductAdditionalItem(index, value, undefined, undefined)}
-                      onAddNewPress={() => startCreateIngredientForItem('additional', index)}
-                      addNewLabel={t('products.ingredients.add')}
-                    />
-                  </View>
-                  <View style={styles.recipeInputWrapper}>
-                    <ThemedInput
-                      placeholder={t('common.qtyShort')}
-                      keyboardType="decimal-pad"
-                      value={item.quantityUsed}
-                      onChangeText={(value) => updateProductAdditionalItem(index, undefined, value, undefined)}
-                      style={styles.compactInput}
-                    />
-                  </View>
-                  <View style={styles.recipeInputWrapper}>
-                    <ThemedInput
-                      placeholder={t('productForm.additionalPrice')}
-                      keyboardType="decimal-pad"
-                      value={item.additionalPrice}
-                      onChangeText={(value) => updateProductAdditionalItem(index, undefined, undefined, value)}
-                      style={styles.compactInput}
-                    />
-                  </View>
-                  <ThemedButton variant="secondary" style={styles.secondaryButton} icon="trash.fill" onPress={() => removeProductAdditionalItem(index)} />
-                </View>
-              );
-            })
-          )}
-
-          <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
-          <ThemedButton style={styles.primaryButton} label={t('productForm.saveAdditionalItems')} onPress={saveProductAdditionalIngredients} />
+              <ThemedButton variant="secondary" style={styles.primaryButton} label={t('productForm.addAdditionalIngredient')} onPress={() => addProductAdditionalItem('', '', '')} />
+              <ThemedButton style={styles.primaryButton} label={t('productForm.saveAdditionalItems')} onPress={saveProductAdditionalIngredients} />
+            </View>
+          </View>
         </ThemedCard>
       )}
 
@@ -741,13 +756,13 @@ export default function ProductFormScreen() {
           ))}
         </ThemedCard>
       ) : null}
-    </ScrollView>
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
+  screenContent: {
+    maxWidth: '100%',
     gap: 12,
   },
   messageCard: {
@@ -755,6 +770,19 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: 10,
+  },
+  sectionColumns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  sectionStack: {
+    gap: 12,
+  },
+  sectionColumn: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
   },
   input: {
     paddingHorizontal: 12,

@@ -1,8 +1,9 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -24,6 +25,8 @@ function normalizeParam(value?: string | string[]): string {
 
 export default function InventoryFormScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 768;
   const params = useLocalSearchParams<{
     section?: string | string[];
     returnSection?: string | string[];
@@ -152,7 +155,7 @@ export default function InventoryFormScreen() {
   );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <FormScreen>
       <ThemedText type="title">{t('inventoryForm.title')}</ThemedText>
       {message ? (
         <ThemedCard style={styles.card}>
@@ -163,8 +166,14 @@ export default function InventoryFormScreen() {
       {!isRestockSection ? (
         <ThemedCard style={styles.card}>
           <ThemedText type="subtitle">{t('inventoryForm.suppliers.title')}</ThemedText>
-          <ThemedInput placeholder={t('inventoryForm.suppliers.name')} value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
-          <ThemedInput placeholder={t('inventoryForm.suppliers.phone')} value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
+          <View style={isWide ? styles.twoColumnRow : styles.stackRow}>
+            <View style={styles.flexItem}>
+              <ThemedInput placeholder={t('inventoryForm.suppliers.name')} value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
+            </View>
+            <View style={styles.flexItem}>
+              <ThemedInput placeholder={t('inventoryForm.suppliers.phone')} value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
+            </View>
+          </View>
           <ThemedInput placeholder={t('inventoryForm.suppliers.notes')} value={supplierForm.notes} onChangeText={(value) => setSupplierForm((f) => ({ ...f, notes: value }))} style={styles.input} />
           <View style={styles.actionsRow}>
             <ThemedButton
@@ -246,8 +255,14 @@ export default function InventoryFormScreen() {
           </View>
           {selectedIngredient ? <ThemedText style={styles.smallText}>{t('inventoryForm.restock.selected')}: {selectedIngredient.name}</ThemedText> : <ThemedText style={styles.smallText}>{t('inventoryForm.restock.selectPrompt')}</ThemedText>}
 
-          <ThemedInput placeholder={t('inventoryForm.restock.quantity')} keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
-          <ThemedInput placeholder={t('inventoryForm.restock.cost')} keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
+          <View style={isWide ? styles.twoColumnRow : styles.stackRow}>
+            <View style={styles.flexItem}>
+              <ThemedInput placeholder={t('inventoryForm.restock.quantity')} keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
+            </View>
+            <View style={styles.flexItem}>
+              <ThemedInput placeholder={t('inventoryForm.restock.cost')} keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
+            </View>
+          </View>
 
           <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
           <View style={styles.tabRow}>
@@ -325,22 +340,28 @@ export default function InventoryFormScreen() {
           </View>
         </ThemedCard>
       ) : null}
-    </ScrollView>
+    </FormScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    gap: 12,
+  card: {
+    gap: 10,
+  },
+  twoColumnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stackRow: {
+    gap: 8,
+  },
+  flexItem: {
+    flex: 1,
   },
   tabRow: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
-  },
-  card: {
-    gap: 10,
   },
   input: {
     paddingHorizontal: 10,

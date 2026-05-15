@@ -25,10 +25,10 @@ export function ThemedChip({
 
   const activeStyle =
     tone === 'accent'
-      ? { backgroundColor: palette.accent, borderColor: palette.tint }
-      : { backgroundColor: palette.tint, borderColor: palette.tint };
+      ? { backgroundColor: palette.accent, borderColor: palette.accent }
+      : { backgroundColor: palette.tint + '28', borderColor: palette.tint };
 
-  const activeTextColor = tone === 'accent' ? palette.background : palette.card;
+  const activeTextColor = tone === 'accent' ? palette.text : palette.tint;
 
   return (
     <Pressable

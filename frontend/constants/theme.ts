@@ -36,6 +36,48 @@ export type AppThemeDefinition = {
 
 export const APP_THEMES = [
   {
+    id: 'teal-modern',
+    nameKey: 'theme.teal-modern.name',
+    descriptionKey: 'theme.teal-modern.description',
+    preview: ['#14B8A6', '#F0FDF9', '#F5C842', '#0F2C29'],
+    colors: {
+      light: {
+        text: '#0F2C29',
+        mutedText: '#4A7A74',
+        background: '#F0FAFA',
+        tint: '#14B8A6',
+        icon: '#2D6B64',
+        tabIconDefault: '#4A7A74',
+        tabIconSelected: '#14B8A6',
+        card: '#FFFFFF',
+        border: '#C2E5DF',
+        inputBackground: '#FFFFFF',
+        placeholder: '#6BA09A',
+        accent: '#F5C842',
+        success: '#10A87A',
+        warning: '#E89820',
+        danger: '#E05252',
+      },
+      dark: {
+        text: '#DFF5F2',
+        mutedText: '#7EC8C0',
+        background: '#0A1F1C',
+        tint: '#2DD4BF',
+        icon: '#A8DAD5',
+        tabIconDefault: '#7EC8C0',
+        tabIconSelected: '#2DD4BF',
+        card: '#0F2E29',
+        border: '#1E5049',
+        inputBackground: '#132C28',
+        placeholder: '#5FA8A0',
+        accent: '#F5C842',
+        success: '#34D399',
+        warning: '#FBBF24',
+        danger: '#F87171',
+      },
+    },
+  },
+  {
     id: 'cafe-classic',
     nameKey: 'theme.cafe-classic.name',
     descriptionKey: 'theme.cafe-classic.description',
@@ -165,7 +207,7 @@ export const APP_THEMES = [
 
 export type AppThemeId = (typeof APP_THEMES)[number]['id'];
 
-const DEFAULT_THEME_ID: AppThemeId = 'cafe-classic';
+const DEFAULT_THEME_ID: AppThemeId = 'teal-modern';
 
 export const DEFAULT_THEME = APP_THEMES.find((theme) => theme.id === DEFAULT_THEME_ID) ?? APP_THEMES[0];
 
