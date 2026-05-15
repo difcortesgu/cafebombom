@@ -197,10 +197,11 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
+    const activeMethods = methods.filter((m) => m.is_active);
 
     const alreadyPaid = !!sale.paid_at;
     const [paymentMethodId, setPaymentMethodId] = useState<string>(
-        sale.payment_method ?? (methods[0]?.id ?? ''),
+        sale.payment_method ?? (activeMethods[0]?.id ?? ''),
     );
     const [confirmBusy, setConfirmBusy] = useState(false);
     const [confirmed, setConfirmed] = useState(alreadyPaid);
@@ -262,6 +263,13 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
     };
 
     useEffect(() => {
+        const hasSelected = activeMethods.some((m) => m.id === paymentMethodId);
+        if (!hasSelected) {
+            setPaymentMethodId(activeMethods[0]?.id ?? '');
+        }
+    }, [activeMethods, paymentMethodId]);
+
+    useEffect(() => {
         void loadReceipt();
     }, [sale.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -312,12 +320,12 @@ function FullPaymentTab({ sale, business }: FullPaymentTabProps) {
                     <ThemedSelect
                         value={paymentMethodId}
                         onValueChange={(v) => setPaymentMethodId(v)}
-                        items={methods.map(m => ({ label: m.name, value: m.id }))}
+                        items={activeMethods.map((m) => ({ label: m.name, value: m.id }))}
                         placeholder={t('shared.select.placeholder')}
                     />
                     <ThemedButton
                         label={confirmBusy ? t('sales.payment.confirming') : t('sales.payment.confirmFull')}
-                        disabled={confirmBusy}
+                        disabled={confirmBusy || !paymentMethodId}
                         onPress={() => void handleConfirm()}
                     />
                 </View>
@@ -355,6 +363,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
     const { getSalePaymentBoard, createPartialPayment } = useSalesStore();
 
     const { methods } = usePaymentMethodsStore();
+    const activeMethods = methods.filter((m) => m.is_active);
     const [board, setBoard] = useState<SalePaymentBoard | null>(null);
     const [boardLoading, setBoardLoading] = useState(false);
     const [selectedLines, setSelectedLines] = useState<Record<string, number>>({});
@@ -372,7 +381,7 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
     useEffect(() => {
         setBoard(null);
         setSelectedLines({});
-        setPaymentMethodId(sale.payment_method ?? methods[0]?.id ?? '');
+        setPaymentMethodId(sale.payment_method ?? activeMethods[0]?.id ?? '');
         setPrintingPaymentId(null);
         setPrintMessages({});
         setBoardLoading(true);
@@ -381,6 +390,13 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
             .catch(() => { })
             .finally(() => setBoardLoading(false));
     }, [sale.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        const hasSelected = activeMethods.some((m) => m.id === paymentMethodId);
+        if (!hasSelected) {
+            setPaymentMethodId(activeMethods[0]?.id ?? '');
+        }
+    }, [activeMethods, paymentMethodId]);
 
     useEffect(() => {
         if (Platform.OS !== 'web') return;
@@ -579,12 +595,12 @@ function ByItemsTab({ sale, business }: ByItemsTabProps) {
                     <ThemedSelect
                         value={paymentMethodId}
                         onValueChange={(v) => setPaymentMethodId(v)}
-                        items={methods.map(m => ({ label: m.name, value: m.id }))}
+                        items={activeMethods.map((m) => ({ label: m.name, value: m.id }))}
                         placeholder={t('shared.select.placeholder')}
                     />
                     <ThemedButton
                         label={confirmBusy ? t('sales.splitPayment.confirmingPartial') : t('sales.splitPayment.confirmPartial')}
-                        disabled={confirmBusy || selectedItems.length === 0}
+                        disabled={confirmBusy || selectedItems.length === 0 || !paymentMethodId}
                         onPress={() => void handleConfirm()}
                     />
                 </View>
@@ -660,12 +676,13 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
+    const activeMethods = methods.filter((m) => m.is_active);
 
     const alreadyPaid = !!sale.paid_at;
     const [numParts, setNumParts] = useState(2);
     const [parts, setParts] = useState<EqualPart[]>(() => [
-        { method: methods[0]?.id ?? '', confirmed: false },
-        { method: methods[0]?.id ?? '', confirmed: false },
+        { method: activeMethods[0]?.id ?? '', confirmed: false },
+        { method: activeMethods[0]?.id ?? '', confirmed: false },
     ]);
     const [finalizeBusy, setFinalizeBusy] = useState(false);
     const [finalized, setFinalized] = useState(alreadyPaid);
@@ -677,10 +694,15 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
     useEffect(() => {
         setParts((prev) => {
             const next = [...prev];
-            while (next.length < numParts) next.push({ method: methods[0]?.id ?? '', confirmed: false });
-            return next.slice(0, numParts);
+            while (next.length < numParts) {
+                next.push({ method: activeMethods[0]?.id ?? '', confirmed: false });
+            }
+
+            return next.slice(0, numParts).map((part) => (
+                part.method ? part : { ...part, method: activeMethods[0]?.id ?? '' }
+            ));
         });
-    }, [numParts]);
+    }, [activeMethods, numParts]);
 
     const loadReceipt = async (methodId: string) => {
         setReceiptLoading(true);
@@ -732,7 +754,7 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
 
     useEffect(() => {
         if (alreadyPaid) {
-            void loadReceipt(sale.payment_method ?? methods[0]?.id ?? '');
+            void loadReceipt(sale.payment_method ?? activeMethods[0]?.id ?? '');
         }
     }, [sale.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -750,7 +772,7 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
     const handleFinalize = async () => {
         if (finalizeBusy || !allConfirmed || finalized) return;
         setFinalizeBusy(true);
-        const dominantMethodId = parts[0]?.method ?? (methods[0]?.id ?? '');
+        const dominantMethodId = parts[0]?.method ?? (activeMethods[0]?.id ?? '');
         try {
             await markOrderPaid(sale.id, dominantMethodId);
             setFinalized(true);
@@ -835,7 +857,7 @@ function EqualSplitTab({ sale, business }: EqualSplitTabProps) {
                             <ThemedSelect
                                 value={part.method}
                                 onValueChange={(v) => handleSetMethod(idx, v)}
-                                items={methods.map(m => ({ label: m.name, value: m.id }))}
+                                items={activeMethods.map((m) => ({ label: m.name, value: m.id }))}
                                 placeholder={t('shared.select.placeholder')}
                             />
                             <ThemedButton

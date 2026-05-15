@@ -41,6 +41,7 @@ export const receiptPreferences = sqliteTable('receipt_preferences', {
 export const paymentMethods = sqliteTable('payment_methods', {
   id: text('id').primaryKey().$defaultFn(() => uuidv4()),
   name: text('name').notNull().unique(),
+  icon: text('icon').notNull().default('wallet'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),

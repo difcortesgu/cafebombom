@@ -188,6 +188,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
     const isWeb = Platform.OS === 'web';
     const { getSalePaymentBoard, createPartialPayment } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
+    const activeMethods = methods.filter((m) => m.is_active);
 
     const [board, setBoard] = useState<SalePaymentBoard | null>(null);
     const [boardLoading, setBoardLoading] = useState(false);
@@ -209,7 +210,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         if (!visible || !sale) return;
         setBoard(null);
         setSelectedLines({});
-        setPaymentMethodId(sale.payment_method ?? methods[0]?.id ?? '');
+        setPaymentMethodId(sale.payment_method ?? activeMethods[0]?.id ?? '');
         setPrintingPaymentId(null);
         setPrintMessages({});
         setBoardLoading(true);
@@ -218,6 +219,13 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
             .catch(() => { })
             .finally(() => setBoardLoading(false));
     }, [visible, sale?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        const hasSelected = activeMethods.some((m) => m.id === paymentMethodId);
+        if (!hasSelected) {
+            setPaymentMethodId(activeMethods[0]?.id ?? '');
+        }
+    }, [activeMethods, paymentMethodId]);
 
     // Register drop zone on col2 (web only, stable effect)
     useEffect(() => {
@@ -349,7 +357,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         }
     };
 
-    const paymentMethodOptions = methods.map(m => ({ label: m.name, value: m.id }));
+    const paymentMethodOptions = activeMethods.map((m) => ({ label: m.name, value: m.id }));
 
     const allPaid =
         !boardLoading && board !== null && board.pending.every((i) => i.quantity_pending === 0);
@@ -429,7 +437,7 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
                     />
                     <ThemedButton
                         label={confirmBusy ? t('sales.splitPayment.confirmingPartial') : t('sales.splitPayment.confirmPartial')}
-                        disabled={confirmBusy || selectedItems.length === 0}
+                        disabled={confirmBusy || selectedItems.length === 0 || !paymentMethodId}
                         onPress={() => void handleConfirm()}
                     />
                 </View>

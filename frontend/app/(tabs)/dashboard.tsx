@@ -11,7 +11,6 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
-import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useSalesStore } from '@/stores/sales';
 import type { DashboardRangeKey, DashboardSalesSummary, DashboardTrendBucket } from '@/types/sales';
@@ -56,7 +55,6 @@ function formatPaymentMethodLabel(method: 'cash' | 'card' | 'transfer') {
 export default function DashboardScreen() {
     const router = useRouter();
     const palette = useAppColors();
-    const currentUser = useAuthStore((state) => state.currentUser);
     const {
         getPnL,
         cashRegisterToday,

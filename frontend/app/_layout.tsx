@@ -38,10 +38,6 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  if (!fontsLoaded) {
-    return null;
-  }
-
   const navigationTheme = useMemo(() => {
     const base = mode === 'dark' ? DarkTheme : DefaultTheme;
 
@@ -58,6 +54,10 @@ export default function RootLayout() {
       },
     };
   }, [mode, palette]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <ThemeProvider value={navigationTheme}>

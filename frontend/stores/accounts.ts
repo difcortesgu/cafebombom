@@ -49,9 +49,9 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     amount,
     description,
     dateUnix,
-    paymentMethod,
+    paymentMethodId,
   }: AddExpensePayload) => {
-    await accountsService.addExpense({ category, amount, description, dateUnix, paymentMethod });
+    await accountsService.addExpense({ category, amount, description, dateUnix, paymentMethodId });
     await get().hydrate();
   },
 
@@ -69,9 +69,9 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     periodStart,
     periodEnd,
     amount,
-    paymentMethod,
+    paymentMethodId,
   }: AddPayrollPayload) => {
-    await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethod });
+    await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethodId });
     await get().hydrate();
   },
 

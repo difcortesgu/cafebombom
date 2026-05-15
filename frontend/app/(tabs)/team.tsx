@@ -252,7 +252,7 @@ export default function TeamScreen() {
                                         periodStart: now,
                                         periodEnd: now,
                                         amount,
-                                        paymentMethod: payrollForm.paymentMethodId as never,
+                                        paymentMethodId: payrollForm.paymentMethodId,
                                     });
                                     setPayrollForm((prev) => ({ ...prev, amount: '' }));
                                     setPayrollMessage(t('accounts.payroll.added'));

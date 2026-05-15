@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,7 +11,6 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
-import type { PaymentMethod } from '@/types/types';
 
 type Section = 'expenses' | 'payroll';
 
@@ -20,11 +19,11 @@ export default function ExpensesScreen() {
     const [section, setSection] = useState<Section>('expenses');
 
     const { hydrate, expenses, employees, payroll, addExpense, addPayroll } = useAccountsStore();
-    const { hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
+    const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
-    const [expenseForm, setExpenseForm] = useState({ category: 'Insumos', amount: '', description: '', paymentMethod: 'cash' as PaymentMethod });
+    const [expenseForm, setExpenseForm] = useState({ category: 'Insumos', amount: '', description: '', paymentMethodId: '' });
     const [expenseMessage, setExpenseMessage] = useState<string | null>(null);
-    const [payrollForm, setPayrollForm] = useState({ employeeId: '', amount: '', paymentMethod: 'cash' as PaymentMethod });
+    const [payrollForm, setPayrollForm] = useState({ employeeId: '', amount: '', paymentMethodId: '' });
     const [payrollMessage, setPayrollMessage] = useState<string | null>(null);
 
     const todayExpenses = useMemo(
@@ -38,11 +37,36 @@ export default function ExpensesScreen() {
         }, [hydrate, hydratePaymentMethods]),
     );
 
-    const paymentMethods: PaymentMethod[] = ['cash', 'card', 'transfer'];
-    const paymentLabel = (m: PaymentMethod) =>
-        m === 'cash' ? t('sales.payment.cash') : m === 'card' ? t('sales.payment.card') : t('sales.payment.transfer');
-    const paymentIcon = (m: PaymentMethod) =>
-        m === 'cash' ? 'banknote.fill' : m === 'card' ? 'creditcard.fill' : 'building.columns.fill';
+    useEffect(() => {
+        if (methods.length === 0) {
+            return;
+        }
+
+        setExpenseForm((current) => (current.paymentMethodId ? current : { ...current, paymentMethodId: methods[0]!.id }));
+        setPayrollForm((current) => (current.paymentMethodId ? current : { ...current, paymentMethodId: methods[0]!.id }));
+    }, [methods]);
+
+    useEffect(() => {
+        if (employees.length === 0) {
+            return;
+        }
+
+        setPayrollForm((current) => (current.employeeId ? current : { ...current, employeeId: employees[0]!.id }));
+    }, [employees]);
+
+    const paymentIcon = (methodName: string) => {
+        const normalized = methodName.trim().toLowerCase();
+        if (normalized.includes('efect') || normalized.includes('cash')) {
+            return 'banknote.fill';
+        }
+        if (normalized.includes('tarjeta') || normalized.includes('card')) {
+            return 'creditcard.fill';
+        }
+        if (normalized.includes('transfer')) {
+            return 'building.columns.fill';
+        }
+        return 'wallet.pass.fill';
+    };
 
     return (
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -134,27 +158,30 @@ export default function ExpensesScreen() {
                                 {t('accountsForm.expense.paymentMethod')}
                             </ThemedText>
                             <View style={styles.paymentRow}>
-                                {paymentMethods.map((method) => (
+                                {methods.map((method) => (
                                     <Pressable
-                                        key={method}
+                                        key={method.id}
                                         style={[
                                             styles.paymentChip,
                                             { borderColor: palette.border },
-                                            expenseForm.paymentMethod === method && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                            expenseForm.paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
                                         ]}
-                                        onPress={() => setExpenseForm((f) => ({ ...f, paymentMethod: method }))}
+                                        onPress={() => setExpenseForm((f) => ({ ...f, paymentMethodId: method.id }))}
                                     >
                                         <IconSymbol
-                                            name={paymentIcon(method)}
+                                            name={paymentIcon(method.name)}
                                             size={18}
-                                            color={expenseForm.paymentMethod === method ? palette.text : palette.mutedText}
+                                            color={expenseForm.paymentMethodId === method.id ? palette.text : palette.mutedText}
                                         />
-                                        <ThemedText style={[styles.paymentChipLabel, expenseForm.paymentMethod === method && { color: palette.text }]}>
-                                            {paymentLabel(method)}
+                                        <ThemedText style={[styles.paymentChipLabel, expenseForm.paymentMethodId === method.id && { color: palette.text }]}>
+                                            {method.name}
                                         </ThemedText>
                                     </Pressable>
                                 ))}
                             </View>
+                            {methods.length === 0 ? (
+                                <ThemedText style={[styles.helperText, { color: palette.mutedText }]}>{t('settings.paymentMethods.empty')}</ThemedText>
+                            ) : null}
                         </View>
 
                         <ThemedButton
@@ -163,7 +190,7 @@ export default function ExpensesScreen() {
                             style={styles.saveButton}
                             onPress={async () => {
                                 const amount = Number(expenseForm.amount);
-                                if (!expenseForm.category.trim() || !Number.isFinite(amount) || amount <= 0) {
+                                if (!expenseForm.category.trim() || !Number.isFinite(amount) || amount <= 0 || !expenseForm.paymentMethodId) {
                                     setExpenseMessage(t('accountsForm.expense.required'));
                                     return;
                                 }
@@ -171,7 +198,7 @@ export default function ExpensesScreen() {
                                     category: expenseForm.category.trim(),
                                     amount,
                                     description: expenseForm.description,
-                                    paymentMethod: expenseForm.paymentMethod,
+                                    paymentMethodId: expenseForm.paymentMethodId,
                                 });
                                 setExpenseForm((prev) => ({ ...prev, amount: '', description: '' }));
                                 setExpenseMessage(t('accountsForm.expense.saved'));
@@ -248,27 +275,30 @@ export default function ExpensesScreen() {
                                         {t('accountsForm.expense.paymentMethod')}
                                     </ThemedText>
                                     <View style={styles.paymentRow}>
-                                        {paymentMethods.map((method) => (
+                                        {methods.map((method) => (
                                             <Pressable
-                                                key={method}
+                                                key={method.id}
                                                 style={[
                                                     styles.paymentChip,
                                                     { borderColor: palette.border },
-                                                    payrollForm.paymentMethod === method && { backgroundColor: palette.accent, borderColor: palette.accent },
+                                                    payrollForm.paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
                                                 ]}
-                                                onPress={() => setPayrollForm((f) => ({ ...f, paymentMethod: method }))}
+                                                onPress={() => setPayrollForm((f) => ({ ...f, paymentMethodId: method.id }))}
                                             >
                                                 <IconSymbol
-                                                    name={paymentIcon(method)}
+                                                    name={paymentIcon(method.name)}
                                                     size={18}
-                                                    color={payrollForm.paymentMethod === method ? palette.text : palette.mutedText}
+                                                    color={payrollForm.paymentMethodId === method.id ? palette.text : palette.mutedText}
                                                 />
-                                                <ThemedText style={[styles.paymentChipLabel, payrollForm.paymentMethod === method && { color: palette.text }]}>
-                                                    {paymentLabel(method)}
+                                                <ThemedText style={[styles.paymentChipLabel, payrollForm.paymentMethodId === method.id && { color: palette.text }]}>
+                                                    {method.name}
                                                 </ThemedText>
                                             </Pressable>
                                         ))}
                                     </View>
+                                    {methods.length === 0 ? (
+                                        <ThemedText style={[styles.helperText, { color: palette.mutedText }]}>{t('settings.paymentMethods.empty')}</ThemedText>
+                                    ) : null}
                                 </View>
                                 <ThemedButton
                                     label={t('accountsForm.payroll.save')}
@@ -276,7 +306,7 @@ export default function ExpensesScreen() {
                                     style={styles.saveButton}
                                     onPress={async () => {
                                         const amount = Number(payrollForm.amount);
-                                        if (!payrollForm.employeeId || !Number.isFinite(amount) || amount <= 0) {
+                                        if (!payrollForm.employeeId || !Number.isFinite(amount) || amount <= 0 || !payrollForm.paymentMethodId) {
                                             setPayrollMessage(t('accountsForm.payroll.required'));
                                             return;
                                         }
@@ -286,7 +316,7 @@ export default function ExpensesScreen() {
                                             periodStart: now,
                                             periodEnd: now,
                                             amount,
-                                            paymentMethod: payrollForm.paymentMethod,
+                                            paymentMethodId: payrollForm.paymentMethodId,
                                         });
                                         setPayrollForm((prev) => ({ ...prev, amount: '' }));
                                         setPayrollMessage(t('accountsForm.payroll.saved'));
@@ -441,13 +471,17 @@ const styles = StyleSheet.create({
     },
     paymentRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 8,
     },
+    helperText: {
+        fontSize: 13,
+    },
     paymentChip: {
-        flex: 1,
         borderWidth: 1.5,
         borderRadius: 12,
         paddingVertical: 10,
+        paddingHorizontal: 14,
         alignItems: 'center',
         gap: 4,
     },

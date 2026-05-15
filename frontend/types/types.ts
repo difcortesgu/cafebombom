@@ -102,7 +102,7 @@ export type Expense = {
   category: string;
   amount: number;
   description: string | null;
-  payment_method: PaymentMethod;
+  payment_method: string;
 };
 
 export type CashRegisterSession = {
@@ -139,5 +139,5 @@ export type PayrollEntry = {
   period_start: number;
   period_end: number;
   amount: number;
-  payment_method: PaymentMethod;
+  payment_method: string;
 };

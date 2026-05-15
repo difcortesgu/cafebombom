@@ -9,6 +9,7 @@ export class PaymentMethodsSqliteService {
             .select({
                 id: paymentMethods.id,
                 name: paymentMethods.name,
+                icon: paymentMethods.icon,
                 is_active: paymentMethods.isActive,
                 created_at: paymentMethods.createdAt,
                 updated_at: paymentMethods.updatedAt,
@@ -24,6 +25,7 @@ export class PaymentMethodsSqliteService {
             .select({
                 id: paymentMethods.id,
                 name: paymentMethods.name,
+                icon: paymentMethods.icon,
                 is_active: paymentMethods.isActive,
                 created_at: paymentMethods.createdAt,
                 updated_at: paymentMethods.updatedAt,
@@ -40,6 +42,7 @@ export class PaymentMethodsSqliteService {
             .select({
                 id: paymentMethods.id,
                 name: paymentMethods.name,
+                icon: paymentMethods.icon,
                 is_active: paymentMethods.isActive,
                 created_at: paymentMethods.createdAt,
                 updated_at: paymentMethods.updatedAt,
@@ -50,21 +53,22 @@ export class PaymentMethodsSqliteService {
         return result ?? null;
     }
 
-    async create(name: string): Promise<string> {
+    async create(name: string, icon: string = 'wallet'): Promise<string> {
         const result = db
             .insert(paymentMethods)
-            .values({ name })
+            .values({ name, icon })
             .returning({ id: paymentMethods.id })
             .get();
         return result.id;
     }
 
-    async update(id: string, name: string, isActive: boolean): Promise<boolean> {
+    async update(id: string, name: string, isActive: boolean, icon?: string): Promise<boolean> {
         const result = db
             .update(paymentMethods)
             .set({
                 name,
                 isActive,
+                ...(icon && { icon }),
                 updatedAt: Math.floor(Date.now() / 1000),
             })
             .where(eq(paymentMethods.id, id))
@@ -89,9 +93,9 @@ export class PaymentMethodsSqliteService {
         if (existing && (existing.count as number) === 0) {
             db.insert(paymentMethods)
                 .values([
-                    { name: 'Efectivo' },
-                    { name: 'Tarjeta' },
-                    { name: 'Transferencia' },
+                    { name: 'Efectivo', icon: 'wallet' },
+                    { name: 'Tarjeta', icon: 'card' },
+                    { name: 'Transferencia', icon: 'swap-horizontal' },
                 ])
                 .run();
         }

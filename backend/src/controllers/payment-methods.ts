@@ -45,16 +45,18 @@ export async function getPaymentMethodById(req: Request, res: Response): Promise
 }
 
 export async function createPaymentMethod(req: Request, res: Response): Promise<void> {
-    const { name } = req.body;
+    const { name, icon } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
         res.status(400).json({ error: 'name is required.' });
         return;
     }
 
+    const iconValue = icon && typeof icon === 'string' ? icon.trim() : 'wallet';
+
     try {
-        const id = await paymentMethodsService.create(name.trim());
-        res.status(201).json({ id, name: name.trim(), is_active: true });
+        const id = await paymentMethodsService.create(name.trim(), iconValue);
+        res.status(201).json({ id, name: name.trim(), icon: iconValue, is_active: true });
     } catch (error) {
         console.error('[payment-methods] createPaymentMethod failed:', error);
         if ((error as any)?.message?.includes('unique')) {
@@ -67,7 +69,7 @@ export async function createPaymentMethod(req: Request, res: Response): Promise<
 
 export async function updatePaymentMethod(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
-    const { name, isActive } = req.body;
+    const { name, isActive, icon } = req.body;
 
     if (!id || typeof id !== 'string') {
         res.status(400).json({ error: 'id is required.' });
@@ -85,7 +87,7 @@ export async function updatePaymentMethod(req: Request, res: Response): Promise<
     }
 
     try {
-        const updated = await paymentMethodsService.update(id, name.trim(), isActive);
+        const updated = await paymentMethodsService.update(id, name.trim(), isActive, icon);
         if (!updated) {
             res.status(404).json({ error: 'Payment method not found.' });
             return;

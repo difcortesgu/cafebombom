@@ -32,9 +32,9 @@ export class PaymentMethodsService {
         }
     }
 
-    async create(name: string): Promise<string | null> {
+    async create(name: string, icon: string = 'wallet'): Promise<string | null> {
         try {
-            const response = await apiClient.post<{ id: string }>('/payment-methods', { name });
+            const response = await apiClient.post<{ id: string }>('/payment-methods', { name, icon });
             return response.id || null;
         } catch (error) {
             console.error('Failed to create payment method:', error);
@@ -42,9 +42,9 @@ export class PaymentMethodsService {
         }
     }
 
-    async update(id: string, name: string, isActive: boolean): Promise<boolean> {
+    async update(id: string, name: string, isActive: boolean, icon?: string): Promise<boolean> {
         try {
-            await apiClient.put(`/payment-methods/${id}`, { name, isActive });
+            await apiClient.put(`/payment-methods/${id}`, { name, isActive, ...(icon && { icon }) });
             return true;
         } catch (error) {
             console.error('Failed to update payment method:', error);

@@ -1,0 +1,1 @@
+ALTER TABLE `payment_methods` ADD `icon` text DEFAULT 'wallet' NOT NULL;

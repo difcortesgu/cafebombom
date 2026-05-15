@@ -270,6 +270,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'common.required': 'Campo requerido',
     'common.error': 'Hubo un error',
     'common.delete': 'Eliminar',
+    'common.enable': 'Habilitar',
+    'common.disable': 'Deshabilitar',
     'common.close': 'Cerrar',
     'app.name': 'CafeBomBom',
 
