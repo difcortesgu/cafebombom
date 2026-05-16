@@ -89,6 +89,24 @@ export async function addSupplier(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function updateSupplier(req: Request, res: Response): Promise<void> {
+  const id = req.params.id as string;
+  const { name, phone, notes } = req.body;
+
+  if (!id) {
+    res.status(400).json({ error: 'id is required.' });
+    return;
+  }
+
+  try {
+    await inventoryService.updateSupplier({ id, name, phone, notes });
+    res.status(204).end();
+  } catch (error) {
+    console.error('[inventory] updateSupplier failed:', error);
+    res.status(500).json({ error: 'Failed to update supplier.' });
+  }
+}
+
 export async function addUnit(req: Request, res: Response): Promise<void> {
   const { name } = req.body;
   const normalizedName = String(name ?? '').trim().toLowerCase();

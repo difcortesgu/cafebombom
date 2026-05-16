@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { inventoryService } from '@/services';
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload, UpdateSupplierPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 
 type InventoryState = {
@@ -14,6 +14,7 @@ type InventoryState = {
   addIngredient: (payload: AddIngredientPayload) => Promise<string>;
   updateIngredient: (payload: UpdateIngredientPayload) => Promise<void>;
   addSupplier: (payload: AddSupplierPayload) => Promise<string | null>;
+  updateSupplier: (payload: UpdateSupplierPayload) => Promise<void>;
   addUnit: (payload: AddUnitPayload) => Promise<InventoryUnit | null>;
   deleteUnit: (payload: DeleteUnitPayload) => Promise<string | null>;
   addRestock: (payload: AddRestockPayload) => Promise<void>;
@@ -55,6 +56,11 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const supplierId = await inventoryService.addSupplier({ name, phone, notes });
     await get().hydrate();
     return supplierId;
+  },
+
+  updateSupplier: async (payload: UpdateSupplierPayload) => {
+    await inventoryService.updateSupplier(payload);
+    await get().hydrate();
   },
 
   addUnit: async ({ name }: AddUnitPayload) => {

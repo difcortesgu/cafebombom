@@ -33,6 +33,14 @@ export type AddSupplierPayload = {
   notes?: string;
 };
 
+export type UpdateSupplierPayload = {
+  id: string;
+} & Partial<{
+  name: string;
+  phone: string | null;
+  notes: string | null;
+}>;
+
 export type AddUnitPayload = {
   name: string;
 };

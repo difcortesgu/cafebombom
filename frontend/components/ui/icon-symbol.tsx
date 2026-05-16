@@ -38,6 +38,8 @@ const MAPPING = {
   'building.columns.fill': 'account-balance',
   'receipt.fill': 'receipt-long',
   'tag.fill': 'sell',
+  'books.vertical.fill': 'library-books',
+  'paintbrush.fill': 'brush',
 } as IconMapping;
 export function IconSymbol({
   name,

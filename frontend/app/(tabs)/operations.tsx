@@ -7,6 +7,8 @@ import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+
+import { DateInput } from '@/components/ui/date-input';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PaymentMethodsManager } from '@/components/payment-methods-manager';
@@ -41,7 +43,7 @@ export default function OperationsScreen() {
         deleteTable,
     } = useSalesStore();
     const hydrateInventory = useInventoryStore((state) => state.hydrate);
-    const hydrateProducts = useProductsStore((state) => state.hydrate);
+    const { hydrate: hydrateProducts, products } = useProductsStore();
     const {
         deliverySurcharge,
         toGoSurcharge,
@@ -71,6 +73,13 @@ export default function OperationsScreen() {
     const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
     const [discountValue, setDiscountValue] = useState('0');
     const [discountMessage, setDiscountMessage] = useState<string | null>(null);
+    const [productDiscountProductId, setProductDiscountProductId] = useState<string | null>(null);
+    const [productDiscountName, setProductDiscountName] = useState('');
+    const [productDiscountType, setProductDiscountType] = useState<'percentage' | 'fixed'>('percentage');
+    const [productDiscountValue, setProductDiscountValue] = useState('0');
+    const [productDiscountStartsAt, setProductDiscountStartsAt] = useState<number | null>(() => Math.floor(Date.now() / 1000));
+    const [productDiscountEndsAt, setProductDiscountEndsAt] = useState<number | null>(null);
+    const [productDiscountMessage, setProductDiscountMessage] = useState<string | null>(null);
     const [businessNameInput, setBusinessNameInput] = useState(businessName);
     const [businessAddressInput, setBusinessAddressInput] = useState(businessAddress);
     const [businessPhoneInput, setBusinessPhoneInput] = useState(businessPhone);
@@ -91,6 +100,13 @@ export default function OperationsScreen() {
     const [importIssues, setImportIssues] = useState<string[]>([]);
 
     const globalDiscounts = discounts.filter((discount) => discount.scope === 'global');
+    const productDiscounts = discounts.filter((discount) => discount.scope === 'product');
+
+    const formatDiscountDate = (unix: number | null): string => {
+        if (!unix) return t('productForm.discounts.open');
+        const date = new Date(unix * 1000);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
 
     useEffect(() => {
         void hydrateFromDb();
@@ -98,8 +114,8 @@ export default function OperationsScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            void hydrateSales();
-        }, [hydrateSales]),
+            void Promise.all([hydrateSales(), hydrateProducts()]);
+        }, [hydrateSales, hydrateProducts]),
     );
 
     useEffect(() => { setDeliveryInput(deliverySurcharge.toFixed(2)); }, [deliverySurcharge]);
@@ -535,6 +551,105 @@ export default function OperationsScreen() {
                             </View>
                         </View>
                     ))}
+
+                    <View style={[styles.sectionDivider, { borderTopColor: palette.border }]} />
+                    <ThemedText type="defaultSemiBold" style={styles.discountSubtitle}>{t('products.discounts.productSection')}</ThemedText>
+                    <ThemedText style={styles.muted}>{t('products.discounts.productSubtitle')}</ThemedText>
+                    <ThemedSelect
+                        value={productDiscountProductId ?? ''}
+                        onValueChange={(v) => setProductDiscountProductId(v || null)}
+                        items={products.map((p) => ({ label: p.name, value: p.id }))}
+                        placeholder={t('products.discounts.selectProduct')}
+                        modalTitle={t('products.discounts.selectProduct')}
+                    />
+                    <ThemedInput value={productDiscountName} onChangeText={setProductDiscountName} placeholder={t('products.discounts.namePlaceholder')} />
+                    <ThemedSelect
+                        value={productDiscountType}
+                        onValueChange={(value) => setProductDiscountType(value as 'percentage' | 'fixed')}
+                        items={[
+                            { label: t('products.discounts.typePercentage'), value: 'percentage' },
+                            { label: t('products.discounts.typeFixed'), value: 'fixed' },
+                        ]}
+                    />
+                    <ThemedInput
+                        value={productDiscountValue}
+                        onChangeText={setProductDiscountValue}
+                        keyboardType="decimal-pad"
+                        placeholder={t('products.discounts.valuePlaceholder')}
+                    />
+                    <View style={styles.dateRow}>
+                        <View style={styles.dateField}>
+                            <DateInput value={productDiscountStartsAt} onChangeValue={setProductDiscountStartsAt} placeholder={t('productForm.discounts.startDate')} />
+                        </View>
+                        <View style={styles.dateField}>
+                            <DateInput value={productDiscountEndsAt} onChangeValue={setProductDiscountEndsAt} endOfDay placeholder={t('productForm.discounts.endDate')} />
+                        </View>
+                    </View>
+                    <ThemedButton
+                        label={t('products.discounts.createProduct')}
+                        onPress={async () => {
+                            const value = Number(productDiscountValue);
+                            if (!productDiscountProductId || !productDiscountName.trim() || !productDiscountStartsAt || !Number.isFinite(value) || value <= 0) {
+                                setProductDiscountMessage(t('products.discounts.productInvalid'));
+                                return;
+                            }
+                            await createDiscount({
+                                name: productDiscountName.trim(),
+                                scope: 'product',
+                                productId: productDiscountProductId,
+                                type: productDiscountType,
+                                value,
+                                startsAt: productDiscountStartsAt,
+                                endsAt: productDiscountEndsAt,
+                                isActive: true,
+                            });
+                            setProductDiscountProductId(null);
+                            setProductDiscountName('');
+                            setProductDiscountType('percentage');
+                            setProductDiscountValue('0');
+                            setProductDiscountStartsAt(Math.floor(Date.now() / 1000));
+                            setProductDiscountEndsAt(null);
+                            setProductDiscountMessage(t('products.discounts.created'));
+                        }}
+                    />
+                    {productDiscountMessage ? <ThemedText style={styles.muted}>{productDiscountMessage}</ThemedText> : null}
+                    {productDiscounts.map((discount) => {
+                        const productName = products.find((p) => p.id === discount.productId)?.name ?? discount.productId;
+                        return (
+                            <View key={discount.id} style={[styles.tableRow, { borderColor: palette.border }]}>
+                                <View style={styles.tableTextWrap}>
+                                    <ThemedText type="defaultSemiBold">{discount.name}</ThemedText>
+                                    <ThemedText style={styles.muted}>
+                                        {productName} · {discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`} · {formatDiscountDate(discount.startsAt)} {t('productForm.discounts.to')} {formatDiscountDate(discount.endsAt)} · {discount.isActive ? t('products.discounts.active') : t('products.discounts.inactive')}
+                                    </ThemedText>
+                                </View>
+                                <View style={styles.rowActions}>
+                                    <ThemedButton
+                                        variant="secondary"
+                                        style={styles.smallButton}
+                                        label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
+                                        onPress={() => void updateDiscount({
+                                            id: discount.id,
+                                            name: discount.name,
+                                            scope: 'product',
+                                            productId: discount.productId,
+                                            type: discount.type,
+                                            value: discount.value,
+                                            startsAt: discount.startsAt,
+                                            endsAt: discount.endsAt,
+                                            isActive: !discount.isActive,
+                                        })}
+                                    />
+                                    <ThemedButton
+                                        variant="secondary"
+                                        style={styles.smallButton}
+                                        label={t('products.discounts.delete')}
+                                        onPress={() => void deleteDiscount(discount.id)}
+                                    />
+                                </View>
+                            </View>
+                        );
+                    })}
                 </ThemedCard>
             ) : null}
 
@@ -697,6 +812,22 @@ const styles = StyleSheet.create({
     smallButton: {
         paddingVertical: 7,
         paddingHorizontal: 10,
+    },
+    sectionDivider: {
+        borderTopWidth: 1,
+        marginTop: 4,
+        marginBottom: 4,
+    },
+    discountSubtitle: {
+        fontSize: 14,
+        marginTop: 4,
+    },
+    dateRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    dateField: {
+        flex: 1,
     },
     logoPreview: {
         width: '100%',

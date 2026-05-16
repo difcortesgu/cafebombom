@@ -6,6 +6,7 @@ import {
     deleteUnit,
     getHydrationData,
     updateIngredient,
+    updateSupplier,
 } from '@/controllers/inventory';
 import { authMiddleware, requireRole } from '@/middleware/auth';
 import { Router } from 'express';
@@ -119,6 +120,35 @@ router.put('/ingredients/:id', requireRole('owner'), updateIngredient);
  *         description: Forbidden
  */
 router.post('/suppliers', requireRole('owner'), addSupplier);
+
+/**
+ * @openapi
+ * /api/inventory/suppliers/{id}:
+ *   put:
+ *     tags: [Inventory]
+ *     summary: Update a supplier (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               phone: { type: string, nullable: true }
+ *               notes: { type: string, nullable: true }
+ *     responses:
+ *       204:
+ *         description: Updated
+ *       403:
+ *         description: Forbidden
+ */
+router.put('/suppliers/:id', requireRole('owner'), updateSupplier);
 
 /**
  * @openapi

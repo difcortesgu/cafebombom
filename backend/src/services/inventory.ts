@@ -1,6 +1,6 @@
 import { db } from '@/database';
 import { expenses, ingredientUnits, ingredients, restockLogs, suppliers } from '@/database/schema';
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload, UpdateSupplierPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
@@ -110,6 +110,25 @@ export class InventorySqliteService {
       .all();
 
     return inserted?.id ?? null;
+  }
+
+  async updateSupplier({ id, name, phone, notes }: UpdateSupplierPayload): Promise<void> {
+    const existing = db
+      .select({ name: suppliers.name, phone: suppliers.phone, notes: suppliers.notes })
+      .from(suppliers)
+      .where(eq(suppliers.id, id))
+      .get();
+
+    if (!existing) return;
+
+    db.update(suppliers)
+      .set({
+        name: name ?? existing.name,
+        phone: phone !== undefined ? phone : existing.phone,
+        notes: notes !== undefined ? notes : existing.notes,
+      })
+      .where(eq(suppliers.id, id))
+      .run();
   }
 
   async addUnit({ name }: AddUnitPayload): Promise<InventoryUnit | null> {

@@ -1,4 +1,4 @@
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload } from '@/types/inventory';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload, UpdateSupplierPayload } from '@/types/inventory';
 import type { Ingredient, Supplier } from '@/types/types';
 import { apiClient } from './api-client';
 
@@ -36,6 +36,10 @@ export class InventoryService {
     } catch {
       return null;
     }
+  }
+
+  async updateSupplier(payload: UpdateSupplierPayload): Promise<void> {
+    await apiClient.put(`/inventory/suppliers/${payload.id}`, payload);
   }
 
   async addRestock(payload: AddRestockPayload): Promise<string> {
