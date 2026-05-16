@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
@@ -79,7 +80,10 @@ export function SaleStatusLane({
   }, [isValidDropTarget]);
 
   const content = count === 0 && emptyMessage ? (
-    <ThemedText style={styles.emptyText}>{emptyMessage}</ThemedText>
+    <View style={styles.emptyState}>
+      <Ionicons name="tray-outline" size={28} color={palette.mutedText} style={styles.emptyIcon} />
+      <ThemedText style={[styles.emptyText, { color: palette.mutedText }]}>{emptyMessage}</ThemedText>
+    </View>
   ) : (
     children
   );
@@ -89,7 +93,8 @@ export function SaleStatusLane({
       ref={laneRef}
       style={[
         styles.lane,
-        isValidDropTarget && { borderColor: toneColor, borderWidth: 1.5, borderRadius: 12 },
+        { backgroundColor: `${palette.border}28`, borderRadius: 12 },
+        isValidDropTarget && { borderColor: toneColor, borderWidth: 1.5 },
         dragOver && isValidDropTarget && { backgroundColor: `${toneColor}18` },
         style,
       ]}
@@ -134,7 +139,16 @@ export function SaleStatusLane({
 const styles = StyleSheet.create({
   lane: {
     gap: 6,
-    padding: 4,
+    padding: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 6,
+  },
+  emptyIcon: {
+    opacity: 0.5,
   },
   header: {
     flexDirection: 'row',
@@ -179,7 +193,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    opacity: 0.6,
-    paddingLeft: 18,
+    textAlign: 'center',
   },
 });

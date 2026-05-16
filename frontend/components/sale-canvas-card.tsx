@@ -7,21 +7,21 @@ import { useAppColors } from '@/hooks/use-theme-color';
 
 export type CanvasCardAction = {
   label: string;
+  icon?: string;
   variant?: 'primary' | 'secondary';
   onPress: () => void;
   disabled?: boolean;
 };
 
+export type ProductItem = { name: string; qty: number };
+
 type SaleCanvasCardProps = {
   orderId: string;
   tableName: string;
-  productSummary: string;
+  productItems: ProductItem[] | undefined;
   total: number;
-  paymentLabel: string | null;
   isPaid: boolean;
   staffName: string;
-  statusLabel: string;
-  statusTone: { backgroundColor: string; color: string; borderColor: string };
   actions: CanvasCardAction[];
   onPress: () => void;
   draggable?: boolean;
@@ -34,13 +34,10 @@ type SaleCanvasCardProps = {
 export function SaleCanvasCard({
   orderId,
   tableName,
-  productSummary,
+  productItems,
   total,
-  paymentLabel,
   isPaid,
   staffName,
-  statusLabel,
-  statusTone,
   actions,
   onPress,
   draggable = false,
@@ -79,6 +76,9 @@ export function SaleCanvasCard({
     };
   }, [orderId, draggable, onDragStartProp, onDragEndProp]);
 
+  const visibleItems = productItems?.slice(0, 3) ?? [];
+  const hiddenCount = (productItems?.length ?? 0) - visibleItems.length;
+
   return (
     <Pressable
       ref={cardRef}
@@ -86,50 +86,57 @@ export function SaleCanvasCard({
       onPress={onPress}
       onLongPress={onLongPress}
     >
+      {/* Header: order id · table */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <ThemedText style={styles.orderId}>#{orderId.slice(0, 6)}</ThemedText>
-          <ThemedText style={styles.dot}>·</ThemedText>
-          <ThemedText style={styles.tableName}>{tableName}</ThemedText>
-        </View>
-        <View style={[styles.badge, statusTone]}>
-          <ThemedText style={[styles.badgeText, { color: statusTone.color }]}>
-            {statusLabel}
-          </ThemedText>
-        </View>
+        <ThemedText style={[styles.orderId, { color: palette.mutedText }]}>#{orderId.slice(0, 6)}</ThemedText>
+        <ThemedText style={styles.dot}>·</ThemedText>
+        <ThemedText style={styles.tableName} numberOfLines={1}>{tableName}</ThemedText>
       </View>
 
-      <ThemedText type="defaultSemiBold" numberOfLines={2}>
-        {productSummary}
-      </ThemedText>
+      {/* Product list */}
+      {productItems === undefined ? (
+        <ThemedText style={[styles.productMuted, { color: palette.mutedText }]}>Cargando...</ThemedText>
+      ) : productItems.length === 0 ? (
+        <ThemedText style={[styles.productMuted, { color: palette.mutedText }]}>Sin productos</ThemedText>
+      ) : (
+        <View style={styles.productList}>
+          {visibleItems.map((item, i) => (
+            <View key={i} style={styles.productRow}>
+              <ThemedText style={[styles.productQty, { color: palette.tint }]}>{item.qty}x</ThemedText>
+              <ThemedText style={styles.productName} numberOfLines={1}>{item.name}</ThemedText>
+            </View>
+          ))}
+          {hiddenCount > 0 && (
+            <ThemedText style={[styles.productMuted, { color: palette.mutedText }]}>+{hiddenCount} más</ThemedText>
+          )}
+        </View>
+      )}
 
+      {/* Meta: price (left) · staff name (right) */}
       <View style={styles.meta}>
-        <ThemedText style={styles.total}>${total.toFixed(2)}</ThemedText>
-        <ThemedText style={styles.metaSep}>·</ThemedText>
-        {isPaid ? (
-          <View style={[styles.paidBadge, { backgroundColor: '#16a34a' }]}>
-            <ThemedText style={[styles.paidBadgeText, { color: '#ffffff' }]}>
-              Pagado
-            </ThemedText>
-          </View>
-        ) : null}
-        {paymentLabel && !isPaid ? (
-          <>
-            <ThemedText style={styles.metaText}>{paymentLabel}</ThemedText>
-            <ThemedText style={styles.metaSep}>·</ThemedText>
-          </>
-        ) : null}
-        <ThemedText style={styles.metaText}>{staffName}</ThemedText>
+        <View style={styles.metaLeft}>
+          <ThemedText style={styles.total}>${total.toFixed(2)}</ThemedText>
+          {isPaid && (
+            <View style={[styles.paidBadge, { backgroundColor: '#16a34a' }]}>
+              <ThemedText style={styles.paidBadgeText}>Pagado</ThemedText>
+            </View>
+          )}
+        </View>
+        <ThemedText style={[styles.staffName, { color: palette.mutedText }]} numberOfLines={1}>
+          {staffName}
+        </ThemedText>
       </View>
 
+      {/* Actions */}
       {actions.length > 0 && (
         <View style={styles.actions}>
           {actions.map((action) => (
             <ThemedButton
               key={action.label}
               label={action.label}
+              icon={action.icon}
               variant={action.variant ?? 'primary'}
-              style={styles.actionBtn}
+              style={[styles.actionBtn, actions.length === 2 && styles.actionBtnHalf]}
               onPress={action.onPress}
               disabled={action.disabled}
             />
@@ -149,55 +156,56 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flexShrink: 1,
   },
   orderId: {
-    fontSize: 13,
-    opacity: 0.7,
+    fontSize: 12,
   },
   dot: {
-    fontSize: 13,
-    opacity: 0.5,
+    fontSize: 12,
+    opacity: 0.4,
   },
   tableName: {
     fontSize: 13,
     fontWeight: '600',
+    flexShrink: 1,
   },
-  badge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  productList: {
+    gap: 2,
   },
-  badgeText: {
-    fontSize: 11,
+  productRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  productQty: {
+    fontSize: 13,
     fontWeight: '700',
-    textTransform: 'capitalize',
+    minWidth: 24,
+  },
+  productName: {
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  productMuted: {
+    fontSize: 12,
+    fontStyle: 'italic',
   },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  metaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   total: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  metaSep: {
-    fontSize: 12,
-    opacity: 0.4,
-  },
-  metaText: {
-    fontSize: 12,
-    opacity: 0.7,
+    fontSize: 14,
+    fontWeight: '700',
   },
   paidBadge: {
     borderRadius: 4,
@@ -207,6 +215,13 @@ const styles = StyleSheet.create({
   paidBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#ffffff',
+  },
+  staffName: {
+    fontSize: 12,
+    flexShrink: 1,
+    maxWidth: '50%',
+    textAlign: 'right',
   },
   actions: {
     flexDirection: 'row',
@@ -217,6 +232,11 @@ const styles = StyleSheet.create({
   actionBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
+    flexShrink: 1,
+  },
+  actionBtnHalf: {
+    flexBasis: '48%',
+    maxWidth: '48%',
   },
   dragging: {
     opacity: 0.4,

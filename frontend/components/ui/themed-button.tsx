@@ -34,7 +34,7 @@ export function ThemedButton({
         styles.base,
         isPrimary
           ? { backgroundColor: palette.tint }
-          : { borderColor: palette.border, borderWidth: 1, backgroundColor: 'transparent' },
+          : { backgroundColor: palette.inputBackground },
         isIconOnly && styles.iconOnlyBase,
         style,
       ]}

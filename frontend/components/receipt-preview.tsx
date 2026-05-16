@@ -118,9 +118,7 @@ export function ReceiptPreview({ receipt }: ReceiptPreviewProps) {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    maxHeight: 480,
-  },
+  scroll: {},
   scrollContent: {
     alignItems: 'center',
     paddingVertical: 8,
