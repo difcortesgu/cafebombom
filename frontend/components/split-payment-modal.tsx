@@ -354,8 +354,6 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
         }
     };
 
-    const paymentMethodOptions = activeMethods.map((m) => ({ label: m.name, value: m.id }));
-
     const allPaid =
         !boardLoading && board !== null && board.pending.every((i) => i.quantity_pending === 0);
 

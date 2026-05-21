@@ -100,7 +100,7 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
 
             <View style={styles.fieldGroup}>
                 <View style={styles.labelRow}>
-                    <Ionicons name="tag-outline" size={14} color={palette.mutedText} />
+                    <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
                     <ThemedText style={styles.smallText}>{t('accountsForm.expense.category')}</ThemedText>
                 </View>
                 <ThemedInput

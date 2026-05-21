@@ -14,12 +14,14 @@ import {
 import { PaymentMethodBadge } from '@/components/payment-method-display';
 import { ReceiptPreview } from '@/components/receipt-preview';
 import { ThemedText } from '@/components/themed-text';
+import { SlidePanelShell } from '@/components/ui/slide-panel';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { printService, salesService } from '@/services';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
+import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData, ReceiptPaperWidth } from '@/types/receipt';
 import type { SaleItemDetail, SalePayment, SalePaymentBoard, SalePaymentBoardItem, SalePricingSummary } from '@/types/sales';
 import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
@@ -304,7 +306,7 @@ function FullPaymentTab({ sale, business, onPaymentComplete }: FullPaymentTabPro
                 setPricing(loadedPricing ?? buildFallbackPricingSummary(sale, loadedItems));
             })
             .finally(() => setLoading(false));
-    }, [sale.id]);
+    }, [sale]);
 
     const handleConfirm = async () => {
         if (confirmBusy || alreadyPaid) return;
@@ -338,12 +340,12 @@ function FullPaymentTab({ sale, business, onPaymentComplete }: FullPaymentTabPro
                                         {t('sales.items')}
                                     </ThemedText>
                                     {items.map((item) => (
-                                        <View key={item.sale_item_id} style={[fullStyles.itemRow, { borderColor: palette.border }]}>
+                                        <View key={item.id} style={[fullStyles.itemRow, { borderColor: palette.border }]}>
                                             <View style={fullStyles.itemInfo}>
                                                 <ThemedText style={fullStyles.itemName}>{item.product_name}</ThemedText>
                                                 <ThemedText style={fullStyles.itemMeta}>x{item.quantity}</ThemedText>
                                             </View>
-                                            <ThemedText style={fullStyles.itemPrice}>${Number(item.line_total_total ?? 0).toFixed(2)}</ThemedText>
+                                            <ThemedText style={fullStyles.itemPrice}>${Number(item.final_line_total ?? 0).toFixed(2)}</ThemedText>
                                         </View>
                                     ))}
                                 </View>
@@ -473,9 +475,9 @@ function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProps) {
     useEffect(() => {
         const hasSelected = displayMethods.some((m) => m.id === paymentMethodId);
         if (!hasSelected) {
-            setPaymentMethodId(activeMethods[0]?.id ?? '');
+            setPaymentMethodId(displayMethods[0]?.id ?? '');
         }
-    }, [activeMethods, paymentMethodId]);
+    }, [displayMethods, paymentMethodId]);
 
     const pendingItems = board?.pending ?? [];
 
@@ -750,7 +752,7 @@ function EqualSplitTab({ sale, business, onPaymentComplete }: EqualSplitTabProps
         salesService.getSalePricingSummary(sale.id)
             .then(p => setPricing(p ?? buildFallbackPricingSummary(sale, [])))
             .catch(() => { });
-    }, [sale.id]);
+    }, [sale]);
     const [finalizeBusy, setFinalizeBusy] = useState(false);
     const [finalized, setFinalized] = useState(alreadyPaid);
 
@@ -953,11 +955,10 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
     const palette = useAppColors();
     const { width: screenWidth } = useWindowDimensions();
     const panelWidth = Math.min(Math.floor(screenWidth * 0.42), 520);
+    const toGoSurcharge = useSettingsStore((state) => state.toGoSurcharge);
 
-    const { tables, toGoSurcharge, sendToKitchen, markOrderReady, cancelOrder } = useSalesStore();
+    const { tables, sendToKitchen, markOrderReady, cancelOrder } = useSalesStore();
 
-    const slideAnim = useRef(new Animated.Value(panelWidth)).current;
-    const backdropOpacity = useRef(new Animated.Value(0)).current;
     const viewOffset = useRef(new Animated.Value(0)).current;
     const prevVisibleRef = useRef(false);
 
@@ -973,7 +974,6 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
 
     const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
     const [receiptVariants, setReceiptVariants] = useState<ReceiptVariant[]>([]);
-    const [selectedReceiptVariantId, setSelectedReceiptVariantId] = useState<string>('full');
     const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
     const [receiptLoading, setReceiptLoading] = useState(false);
     const [printingBusy, setPrintingBusy] = useState(false);
@@ -983,7 +983,6 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
     const resetReceipt = () => {
         setReceiptData(null);
         setReceiptVariants([]);
-        setSelectedReceiptVariantId('full');
         setReceiptMessage(null);
         setReceiptLoading(false);
         setPrintingBusy(false);
@@ -1088,24 +1087,18 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
         }
     };
 
-    const handleSelectReceiptVariant = (variantId: string) => {
-        setSelectedReceiptVariantId(variantId);
-        const variant = receiptVariants.find((entry) => entry.id === variantId);
-        setReceiptData(variant?.receipt ?? null);
-    };
-
     const handlePrintReceipt = async (targetReceipt?: ReceiptData) => {
         const toPrint = targetReceipt ?? receiptData;
         if (!toPrint) return;
         setPrintingBusy(true);
         try {
             await printService.printReceipt(toPrint, {
-                name: business.printerDeviceName,
-                address: business.printerDeviceAddress,
+                name: business.printerDeviceName ?? undefined,
+                address: business.printerDeviceAddress ?? undefined,
             });
             const status = await printService.getStatus({
-                name: business.printerDeviceName,
-                address: business.printerDeviceAddress,
+                name: business.printerDeviceName ?? undefined,
+                address: business.printerDeviceAddress ?? undefined,
             });
             if (status.mode === 'native-pending') {
                 setReceiptMessage(t('sales.receipt.pendingAdapter'));
@@ -1119,6 +1112,13 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
         }
     };
 
+    const handleExited = () => {
+        resetReceipt();
+        setDetailItems([]);
+        setDetailPricing(null);
+        onExited();
+    };
+
     useEffect(() => {
         const wasVisible = prevVisibleRef.current;
         prevVisibleRef.current = visible;
@@ -1130,42 +1130,6 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
             setMenuVisible(false);
             viewOffset.setValue(0);
             void loadDetailData(sale);
-
-            slideAnim.setValue(panelWidth);
-            backdropOpacity.setValue(0);
-            Animated.parallel([
-                Animated.spring(slideAnim, {
-                    toValue: 0,
-                    useNativeDriver: true,
-                    tension: 80,
-                    friction: 12,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 1,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        } else if (!visible && wasVisible) {
-            Animated.parallel([
-                Animated.timing(slideAnim, {
-                    toValue: panelWidth,
-                    duration: 220,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start(({ finished }) => {
-                if (finished) {
-                    resetReceipt();
-                    setDetailItems([]);
-                    setDetailPricing(null);
-                    onExited();
-                }
-            });
         }
     }, [visible, panelWidth, sale]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1228,7 +1192,7 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
     const statusTone = getStatusTone(sale.status, palette);
     const detailTotal = Number(detailPricing?.total ?? sale.total ?? 0);
 
-    const getPrimaryActionIcon = (status: OrderStatus): string => {
+    const getPrimaryActionIcon = (status: OrderStatus): keyof typeof Ionicons.glyphMap => {
         if (status === 'draft') return 'flame-outline';
         if (status === 'in-progress') return 'checkmark-circle-outline';
         if (status === 'ready') return 'card-outline';
@@ -1268,308 +1232,296 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
     const isCompleted = sale.status === 'completed';
 
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-            <Animated.View
-                style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
-                pointerEvents="box-none"
-            >
-                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-            </Animated.View>
-
-            <Animated.View
-                style={[
-                    styles.panel,
-                    {
-                        width: panelWidth,
-                        backgroundColor: palette.background,
-                        borderLeftColor: palette.border,
-                        transform: [{ translateX: slideAnim }],
-                    },
-                ]}
-            >
-                <Animated.View style={[styles.viewContainer, { transform: [{ translateX: viewOffset }] }]}>
-                    {activeView === 'detail' && (
-                        <>
-                            <View style={[styles.header, { borderBottomColor: palette.border }]}>
-                                <View style={styles.headerLeft}>
-                                    <ThemedText type="subtitle">#{sale.id.slice(0, 6)}</ThemedText>
-                                    <View style={[styles.statusBadge, statusTone]}>
-                                        <ThemedText style={[styles.statusBadgeText, { color: statusTone.color }]}>
-                                            {formatStatusLabel(sale.status)}
-                                        </ThemedText>
-                                    </View>
+        <SlidePanelShell
+            visible={visible}
+            onClose={onClose}
+            onExited={handleExited}
+            width={panelWidth}
+            backdropStyle={styles.backdrop}
+            panelStyle={styles.panel}
+        >
+            <Animated.View style={[styles.viewContainer, { transform: [{ translateX: viewOffset }] }]}>
+                {activeView === 'detail' && (
+                    <>
+                        <View style={[styles.header, { borderBottomColor: palette.border }]}>
+                            <View style={styles.headerLeft}>
+                                <ThemedText type="subtitle">#{sale.id.slice(0, 6)}</ThemedText>
+                                <View style={[styles.statusBadge, statusTone]}>
+                                    <ThemedText style={[styles.statusBadgeText, { color: statusTone.color }]}>
+                                        {formatStatusLabel(sale.status)}
+                                    </ThemedText>
                                 </View>
-                                <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
-                                    <Ionicons name="close" size={22} color={palette.text} />
-                                </Pressable>
+                            </View>
+                            <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+                                <Ionicons name="close" size={22} color={palette.text} />
+                            </Pressable>
+                        </View>
+
+                        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+                            <ThemedText style={styles.metaText}>
+                                {sale.table_name} · {sale.staff_name} · {new Date(Number(sale.created_at) * 1000).toLocaleString()}
+                            </ThemedText>
+
+                            {detailLoading ? (
+                                <ThemedText style={styles.smallText}>{t('sales.loadingProducts')}</ThemedText>
+                            ) : (
+                                <>
+                                    <View style={[styles.section, { borderColor: palette.border }]}>
+                                        {detailItems.map((item) => (
+                                            <View key={item.id} style={styles.detailRow}>
+                                                <ThemedText style={styles.detailRowLabel}>
+                                                    {item.product_name} x{item.quantity}
+                                                </ThemedText>
+                                                <ThemedText style={styles.detailRowValue}>
+                                                    ${Number(item.final_line_total).toFixed(2)}
+                                                </ThemedText>
+                                            </View>
+                                        ))}
+                                    </View>
+
+                                    {detailPricing && (
+                                        <View style={[styles.section, { borderColor: palette.border }]}>
+                                            <View style={styles.detailRow}>
+                                                <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.subtotal')}</ThemedText>
+                                                <ThemedText style={styles.detailRowValue}>${Number(detailPricing.subtotal).toFixed(2)}</ThemedText>
+                                            </View>
+                                            {Number(detailPricing.item_discount_total) > 0 && (
+                                                <View style={styles.detailRow}>
+                                                    <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
+                                                    <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
+                                                        -${Number(detailPricing.item_discount_total).toFixed(2)}
+                                                    </ThemedText>
+                                                </View>
+                                            )}
+                                            {Number(detailPricing.global_discount_amount) > 0 && (
+                                                <View style={styles.detailRow}>
+                                                    <ThemedText style={styles.detailRowLabel}>
+                                                        {detailPricing.global_discount_name ?? t('sales.pricing.globalDiscount')}
+                                                    </ThemedText>
+                                                    <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
+                                                        -${Number(detailPricing.global_discount_amount).toFixed(2)}
+                                                    </ThemedText>
+                                                </View>
+                                            )}
+                                            {getSaleSurchargeLines(detailPricing, sale.table_name, tables, toGoSurcharge).map((line) => (
+                                                <ThemedText key={line} style={styles.detailRowLabel}>{line}</ThemedText>
+                                            ))}
+                                            <View style={[styles.detailRow, styles.totalRow, { borderTopColor: palette.border }]}>
+                                                <ThemedText type="defaultSemiBold">{t('sales.pricing.finalTotal')}</ThemedText>
+                                                <ThemedText type="defaultSemiBold">${Number(detailPricing.total).toFixed(2)}</ThemedText>
+                                            </View>
+                                        </View>
+                                    )}
+                                </>
+                            )}
+                        </ScrollView>
+
+                        <View style={[styles.footer, { borderTopColor: palette.border }]}>
+                            <View style={styles.footerTotal}>
+                                <ThemedText style={styles.totalLabel}>{t('sales.pricing.finalTotal')}</ThemedText>
+                                <ThemedText style={styles.totalValue}>${detailTotal.toFixed(2)}</ThemedText>
                             </View>
 
-                            <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-                                <ThemedText style={styles.metaText}>
-                                    {sale.table_name} · {sale.staff_name} · {new Date(Number(sale.created_at) * 1000).toLocaleString()}
-                                </ThemedText>
-
-                                {detailLoading ? (
-                                    <ThemedText style={styles.smallText}>{t('sales.loadingProducts')}</ThemedText>
-                                ) : (
+                            <View style={styles.footerActions}>
+                                {!isFinalState ? (
                                     <>
-                                        <View style={[styles.section, { borderColor: palette.border }]}>
-                                            {detailItems.map((item) => (
-                                                <View key={item.id} style={styles.detailRow}>
-                                                    <ThemedText style={styles.detailRowLabel}>
-                                                        {item.product_name} x{item.quantity}
-                                                    </ThemedText>
-                                                    <ThemedText style={styles.detailRowValue}>
-                                                        ${Number(item.final_line_total).toFixed(2)}
-                                                    </ThemedText>
-                                                </View>
-                                            ))}
-                                        </View>
+                                        {detailPrimaryAction.visible && (
+                                            <Pressable
+                                                style={[styles.actionButton, styles.actionButtonPrimary, { borderColor: palette.tint, backgroundColor: palette.tint, opacity: actionBusy ? 0.6 : 1 }]}
+                                                onPress={detailPrimaryAction.onPress}
+                                            >
+                                                <Ionicons
+                                                    name={getPrimaryActionIcon(sale.status)}
+                                                    size={18}
+                                                    color={palette.card}
+                                                />
+                                                <ThemedText style={[styles.actionButtonLabel, { color: palette.card }]}>{detailPrimaryAction.label}</ThemedText>
+                                            </Pressable>
+                                        )}
 
-                                        {detailPricing && (
-                                            <View style={[styles.section, { borderColor: palette.border }]}>
-                                                <View style={styles.detailRow}>
-                                                    <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.subtotal')}</ThemedText>
-                                                    <ThemedText style={styles.detailRowValue}>${Number(detailPricing.subtotal).toFixed(2)}</ThemedText>
-                                                </View>
-                                                {Number(detailPricing.item_discount_total) > 0 && (
-                                                    <View style={styles.detailRow}>
-                                                        <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
-                                                        <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
-                                                            -${Number(detailPricing.item_discount_total).toFixed(2)}
-                                                        </ThemedText>
-                                                    </View>
-                                                )}
-                                                {Number(detailPricing.global_discount_amount) > 0 && (
-                                                    <View style={styles.detailRow}>
-                                                        <ThemedText style={styles.detailRowLabel}>
-                                                            {detailPricing.global_discount_name ?? t('sales.pricing.globalDiscount')}
-                                                        </ThemedText>
-                                                        <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
-                                                            -${Number(detailPricing.global_discount_amount).toFixed(2)}
-                                                        </ThemedText>
-                                                    </View>
-                                                )}
-                                                {getSaleSurchargeLines(detailPricing, sale.table_name, tables, toGoSurcharge).map((line) => (
-                                                    <ThemedText key={line} style={styles.detailRowLabel}>{line}</ThemedText>
-                                                ))}
-                                                <View style={[styles.detailRow, styles.totalRow, { borderTopColor: palette.border }]}>
-                                                    <ThemedText type="defaultSemiBold">{t('sales.pricing.finalTotal')}</ThemedText>
-                                                    <ThemedText type="defaultSemiBold">${Number(detailPricing.total).toFixed(2)}</ThemedText>
-                                                </View>
+                                        {!sale.paid_at && sale.status !== 'ready' && (
+                                            <Pressable
+                                                style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, opacity: actionBusy ? 0.6 : 1 }]}
+                                                onPress={() => !actionBusy && navigateTo('payment', 'forward')}
+                                            >
+                                                <Ionicons name="card-outline" size={18} color={palette.mutedText} />
+                                                <ThemedText style={[styles.actionButtonLabel, { color: palette.mutedText }]}>{t('sales.action.payNow')}</ThemedText>
+                                            </Pressable>
+                                        )}
+
+                                        {!sale.paid_at && (
+                                            <Pressable
+                                                style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}
+                                                onPress={() => router.push(`/sale-form?orderId=${sale.id}`)}
+                                                accessibilityLabel="editar cuenta"
+                                                accessibilityHint="editar cuenta"
+                                                {...(Platform.OS === 'web' ? { title: 'editar cuenta' } : {})}
+                                            >
+                                                <Ionicons name="create-outline" size={18} color={palette.mutedText} />
+                                            </Pressable>
+                                        )}
+
+                                        <Pressable
+                                            style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}
+                                            onPress={() => setMenuVisible((prev) => !prev)}
+                                        >
+                                            <Ionicons name="ellipsis-vertical" size={18} color={palette.mutedText} />
+                                        </Pressable>
+
+                                        {menuVisible && (
+                                            <View style={[styles.menu, { borderColor: palette.border, backgroundColor: palette.card }]}>
+                                                <Pressable
+                                                    style={styles.menuItem}
+                                                    onPress={() => {
+                                                        setMenuVisible(false);
+                                                        void runStatusAction(async () => {
+                                                            await cancelOrder(sale.id);
+                                                            onClose();
+                                                        });
+                                                    }}
+                                                >
+                                                    <Ionicons name="close-circle-outline" size={16} color={palette.danger} />
+                                                    <ThemedText style={[styles.menuItemText, { color: palette.danger }]}>{t('sales.action.cancel')}</ThemedText>
+                                                </Pressable>
+                                                <Pressable
+                                                    style={styles.menuItem}
+                                                    onPress={() => {
+                                                        setMenuVisible(false);
+                                                        setReceiptFromPayment(false);
+                                                        void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
+                                                    }}
+                                                >
+                                                    <Ionicons name="receipt-outline" size={16} color={palette.tint} />
+                                                    <ThemedText style={[styles.menuItemText, { color: palette.tint }]}>{t('sales.action.previewReceipt')}</ThemedText>
+                                                </Pressable>
                                             </View>
                                         )}
                                     </>
-                                )}
-                            </ScrollView>
-
-                            <View style={[styles.footer, { borderTopColor: palette.border }]}>
-                                <View style={styles.footerTotal}>
-                                    <ThemedText style={styles.totalLabel}>{t('sales.pricing.finalTotal')}</ThemedText>
-                                    <ThemedText style={styles.totalValue}>${detailTotal.toFixed(2)}</ThemedText>
-                                </View>
-
-                                <View style={styles.footerActions}>
-                                    {!isFinalState ? (
-                                        <>
-                                            {detailPrimaryAction.visible && (
-                                                <Pressable
-                                                    style={[styles.actionButton, styles.actionButtonPrimary, { borderColor: palette.tint, backgroundColor: palette.tint, opacity: actionBusy ? 0.6 : 1 }]}
-                                                    onPress={detailPrimaryAction.onPress}
-                                                >
-                                                    <Ionicons
-                                                        name={getPrimaryActionIcon(sale.status)}
-                                                        size={18}
-                                                        color={palette.card}
-                                                    />
-                                                    <ThemedText style={[styles.actionButtonLabel, { color: palette.card }]}>{detailPrimaryAction.label}</ThemedText>
-                                                </Pressable>
-                                            )}
-
-                                            {!sale.paid_at && sale.status !== 'ready' && (
-                                                <Pressable
-                                                    style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, opacity: actionBusy ? 0.6 : 1 }]}
-                                                    onPress={() => !actionBusy && navigateTo('payment', 'forward')}
-                                                >
-                                                    <Ionicons name="card-outline" size={18} color={palette.mutedText} />
-                                                    <ThemedText style={[styles.actionButtonLabel, { color: palette.mutedText }]}>{t('sales.action.payNow')}</ThemedText>
-                                                </Pressable>
-                                            )}
-
-                                            {!sale.paid_at && (
-                                                <Pressable
-                                                    style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}
-                                                    onPress={() => router.push(`/sale-form?orderId=${sale.id}`)}
-                                                    accessibilityLabel="editar cuenta"
-                                                    accessibilityHint="editar cuenta"
-                                                    {...(Platform.OS === 'web' ? { title: 'editar cuenta' } : {})}
-                                                >
-                                                    <Ionicons name="create-outline" size={18} color={palette.mutedText} />
-                                                </Pressable>
-                                            )}
-
-                                            <Pressable
-                                                style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}
-                                                onPress={() => setMenuVisible((prev) => !prev)}
-                                            >
-                                                <Ionicons name="ellipsis-vertical" size={18} color={palette.mutedText} />
-                                            </Pressable>
-
-                                            {menuVisible && (
-                                                <View style={[styles.menu, { borderColor: palette.border, backgroundColor: palette.card }]}>
-                                                    <Pressable
-                                                        style={styles.menuItem}
-                                                        onPress={() => {
-                                                            setMenuVisible(false);
-                                                            void runStatusAction(async () => {
-                                                                await cancelOrder(sale.id);
-                                                                onClose();
-                                                            });
-                                                        }}
-                                                    >
-                                                        <Ionicons name="close-circle-outline" size={16} color={palette.danger} />
-                                                        <ThemedText style={[styles.menuItemText, { color: palette.danger }]}>{t('sales.action.cancel')}</ThemedText>
-                                                    </Pressable>
-                                                    <Pressable
-                                                        style={styles.menuItem}
-                                                        onPress={() => {
-                                                            setMenuVisible(false);
-                                                            setReceiptFromPayment(false);
-                                                            void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
-                                                        }}
-                                                    >
-                                                        <Ionicons name="receipt-outline" size={16} color={palette.tint} />
-                                                        <ThemedText style={[styles.menuItemText, { color: palette.tint }]}>{t('sales.action.previewReceipt')}</ThemedText>
-                                                    </Pressable>
-                                                </View>
-                                            )}
-                                        </>
-                                    ) : isCompleted ? (
-                                        <Pressable
-                                            style={[styles.actionButton, styles.actionButtonPrimary, { borderColor: palette.tint, backgroundColor: palette.tint, flex: 1 }]}
-                                            onPress={() => {
-                                                setReceiptFromPayment(false);
-                                                void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
-                                            }}
-                                        >
-                                            <Ionicons name="receipt-outline" size={18} color={palette.card} />
-                                            <ThemedText style={[styles.actionButtonLabel, { color: palette.card }]}>{t('sales.action.previewReceipt')}</ThemedText>
-                                        </Pressable>
-                                    ) : null}
-                                </View>
+                                ) : isCompleted ? (
+                                    <Pressable
+                                        style={[styles.actionButton, styles.actionButtonPrimary, { borderColor: palette.tint, backgroundColor: palette.tint, flex: 1 }]}
+                                        onPress={() => {
+                                            setReceiptFromPayment(false);
+                                            void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
+                                        }}
+                                    >
+                                        <Ionicons name="receipt-outline" size={18} color={palette.card} />
+                                        <ThemedText style={[styles.actionButtonLabel, { color: palette.card }]}>{t('sales.action.previewReceipt')}</ThemedText>
+                                    </Pressable>
+                                ) : null}
                             </View>
-                        </>
-                    )}
+                        </View>
+                    </>
+                )}
 
-                    {activeView === 'payment' && (
-                        <>
-                            <View style={[styles.header, { borderBottomColor: palette.border }]}>
-                                <Pressable style={styles.backButton} onPress={() => navigateTo('detail', 'back')}>
-                                    <ThemedText type="defaultSemiBold">{`< ${t('common.back')}`}</ThemedText>
-                                </Pressable>
-                                <ThemedText type="subtitle">{`${t('sales.action.payNow')} - ${sale.table_name}`}</ThemedText>
-                                <View style={styles.headerRightSpacer} />
-                            </View>
+                {activeView === 'payment' && (
+                    <>
+                        <View style={[styles.header, { borderBottomColor: palette.border }]}>
+                            <Pressable style={styles.backButton} onPress={() => navigateTo('detail', 'back')}>
+                                <ThemedText type="defaultSemiBold">{`< ${t('common.back')}`}</ThemedText>
+                            </Pressable>
+                            <ThemedText type="subtitle">{`${t('sales.action.payNow')} - ${sale.table_name}`}</ThemedText>
+                            <View style={styles.headerRightSpacer} />
+                        </View>
 
-                            <View style={[styles.modeTabs, { borderBottomColor: palette.border }]}>
-                                <ModeTab label={t('sales.payment.modeFull')} active={mode === 'full'} onPress={() => setMode('full')} />
-                                <ModeTab label={t('sales.payment.modeByItems')} active={mode === 'by-items'} onPress={() => setMode('by-items')} />
-                                <ModeTab label={t('sales.payment.modeEqual')} active={mode === 'equal'} onPress={() => setMode('equal')} />
-                            </View>
+                        <View style={[styles.modeTabs, { borderBottomColor: palette.border }]}>
+                            <ModeTab label={t('sales.payment.modeFull')} active={mode === 'full'} onPress={() => setMode('full')} />
+                            <ModeTab label={t('sales.payment.modeByItems')} active={mode === 'by-items'} onPress={() => setMode('by-items')} />
+                            <ModeTab label={t('sales.payment.modeEqual')} active={mode === 'equal'} onPress={() => setMode('equal')} />
+                        </View>
 
-                            <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-                                {mode === 'full' && (
-                                    <FullPaymentTab key={`full-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
-                                )}
-                                {mode === 'by-items' && (
-                                    <ByItemsTab key={`by-items-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
-                                )}
-                                {mode === 'equal' && (
-                                    <EqualSplitTab key={`equal-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
-                                )}
-                            </ScrollView>
-                        </>
-                    )}
+                        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+                            {mode === 'full' && (
+                                <FullPaymentTab key={`full-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
+                            )}
+                            {mode === 'by-items' && (
+                                <ByItemsTab key={`by-items-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
+                            )}
+                            {mode === 'equal' && (
+                                <EqualSplitTab key={`equal-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
+                            )}
+                        </ScrollView>
+                    </>
+                )}
 
-                    {activeView === 'receipt' && (
-                        <>
-                            <View style={[styles.header, { borderBottomColor: palette.border }]}>
-                                <Pressable
-                                    style={styles.backButton}
-                                    onPress={() => {
-                                        if (receiptFromPayment) {
-                                            onClose();
-                                            return;
-                                        }
-                                        navigateTo('detail', 'back');
-                                    }}
-                                >
-                                    <ThemedText type="defaultSemiBold">{receiptFromPayment ? '< Cerrar' : `< ${t('common.back')}`}</ThemedText>
-                                </Pressable>
-                                <ThemedText type="subtitle">{`${t('sales.receipt.title')} #${sale.id.slice(0, 6)}`}</ThemedText>
-                                <View style={styles.headerRightSpacer} />
-                            </View>
+                {activeView === 'receipt' && (
+                    <>
+                        <View style={[styles.header, { borderBottomColor: palette.border }]}>
+                            <Pressable
+                                style={styles.backButton}
+                                onPress={() => {
+                                    if (receiptFromPayment) {
+                                        onClose();
+                                        return;
+                                    }
+                                    navigateTo('detail', 'back');
+                                }}
+                            >
+                                <ThemedText type="defaultSemiBold">{receiptFromPayment ? '< Cerrar' : `< ${t('common.back')}`}</ThemedText>
+                            </Pressable>
+                            <ThemedText type="subtitle">{`${t('sales.receipt.title')} #${sale.id.slice(0, 6)}`}</ThemedText>
+                            <View style={styles.headerRightSpacer} />
+                        </View>
 
-                            <View style={styles.receiptBodyContainer}>
-                                <ScrollView style={styles.body} contentContainerStyle={styles.receiptPaperContainer} showsVerticalScrollIndicator={false}>
-                                    {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
+                        <View style={styles.receiptBodyContainer}>
+                            <ScrollView style={styles.body} contentContainerStyle={styles.receiptPaperContainer} showsVerticalScrollIndicator={false}>
+                                {receiptLoading ? <ThemedText style={styles.smallText}>{t('sales.receipt.loading')}</ThemedText> : null}
 
-                                    {!receiptLoading && receiptVariants.length > 1
-                                        ? receiptVariants.filter((v) => v.id !== 'full').map((variant) => (
-                                            <View key={variant.id} style={styles.partialReceiptBlock}>
-                                                <View style={styles.partialReceiptHeader}>
-                                                    <ThemedText style={styles.partialReceiptLabel}>{variant.label}</ThemedText>
-                                                    <ThemedButton
-                                                        label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
-                                                        disabled={printingBusy || receiptLoading}
-                                                        style={styles.partialPrintButton}
-                                                        onPress={() => void handlePrintReceipt(variant.receipt)}
-                                                    />
-                                                </View>
-                                                <View style={styles.receiptPaper}>
-                                                    <ReceiptPreview receipt={variant.receipt} />
-                                                    <View style={styles.receiptPaperTear}>
-                                                        {Array.from({ length: 24 }).map((_, index) => (
-                                                            <View key={index} style={styles.tearTooth} />
-                                                        ))}
-                                                    </View>
+                                {!receiptLoading && receiptVariants.length > 1
+                                    ? receiptVariants.filter((v) => v.id !== 'full').map((variant) => (
+                                        <View key={variant.id} style={styles.partialReceiptBlock}>
+                                            <View style={styles.partialReceiptHeader}>
+                                                <ThemedText style={styles.partialReceiptLabel}>{variant.label}</ThemedText>
+                                                <ThemedButton
+                                                    label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
+                                                    disabled={printingBusy || receiptLoading}
+                                                    style={styles.partialPrintButton}
+                                                    onPress={() => void handlePrintReceipt(variant.receipt)}
+                                                />
+                                            </View>
+                                            <View style={styles.receiptPaper}>
+                                                <ReceiptPreview receipt={variant.receipt} />
+                                                <View style={styles.receiptPaperTear}>
+                                                    {Array.from({ length: 24 }).map((_, index) => (
+                                                        <View key={index} style={styles.tearTooth} />
+                                                    ))}
                                                 </View>
                                             </View>
-                                        ))
-                                        : !receiptLoading
-                                            ? (
-                                                <View style={styles.receiptPaper}>
-                                                    {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
-                                                    <View style={styles.receiptPaperTear}>
-                                                        {Array.from({ length: 24 }).map((_, index) => (
-                                                            <View key={index} style={styles.tearTooth} />
-                                                        ))}
-                                                    </View>
+                                        </View>
+                                    ))
+                                    : !receiptLoading
+                                        ? (
+                                            <View style={styles.receiptPaper}>
+                                                {receiptData ? <ReceiptPreview receipt={receiptData} /> : null}
+                                                <View style={styles.receiptPaperTear}>
+                                                    {Array.from({ length: 24 }).map((_, index) => (
+                                                        <View key={index} style={styles.tearTooth} />
+                                                    ))}
                                                 </View>
-                                            )
-                                            : null
-                                    }
+                                            </View>
+                                        )
+                                        : null
+                                }
 
-                                    {receiptMessage ? (
-                                        <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText>
-                                    ) : null}
-                                </ScrollView>
+                                {receiptMessage ? (
+                                    <ThemedText style={[styles.smallText, { color: palette.danger }]}>{receiptMessage}</ThemedText>
+                                ) : null}
+                            </ScrollView>
+                        </View>
+
+                        {receiptVariants.length <= 1 ? (
+                            <View style={[styles.footer, { borderTopColor: palette.border }]}>
+                                <ThemedButton
+                                    label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
+                                    disabled={!receiptData || printingBusy || receiptLoading}
+                                    onPress={() => void handlePrintReceipt()}
+                                />
                             </View>
-
-                            {receiptVariants.length <= 1 ? (
-                                <View style={[styles.footer, { borderTopColor: palette.border }]}>
-                                    <ThemedButton
-                                        label={printingBusy ? `${t('sales.action.printReceipt')}...` : t('sales.action.printReceipt')}
-                                        disabled={!receiptData || printingBusy || receiptLoading}
-                                        onPress={() => void handlePrintReceipt()}
-                                    />
-                                </View>
-                            ) : null}
-                        </>
-                    )}
-                </Animated.View>
+                        ) : null}
+                    </>
+                )}
             </Animated.View>
-        </View>
+        </SlidePanelShell>
     );
 }
 
@@ -1578,10 +1530,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.38)',
     },
     panel: {
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
         borderLeftWidth: StyleSheet.hairlineWidth,
     },
     viewContainer: {

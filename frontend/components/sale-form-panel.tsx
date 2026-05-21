@@ -326,21 +326,6 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         });
     };
 
-    const decrementProductInCatalog = (productId: string) => {
-        setCart((prev) => {
-            const preferred = prev.find((item) =>
-                item.productId === productId &&
-                !item.observation &&
-                item.removedIngredientIds.length === 0 &&
-                item.additionalIngredients.length === 0,
-            ) ?? prev.find((item) => item.productId === productId);
-            if (!preferred) return prev;
-            return prev
-                .map((item) => item.id === preferred.id ? { ...item, quantity: Math.max(0, item.quantity - 1) } : item)
-                .filter((item) => item.quantity > 0);
-        });
-    };
-
     const getProductTotalQuantity = (productId: string): number =>
         cart.filter((item) => item.productId === productId).reduce((sum, item) => sum + item.quantity, 0);
 

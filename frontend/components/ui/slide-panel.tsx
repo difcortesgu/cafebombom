@@ -14,6 +14,16 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { useAppColors } from '@/hooks/use-theme-color';
 
+type SlidePanelShellProps = {
+    visible: boolean;
+    onClose: () => void;
+    onExited: () => void;
+    children: ReactNode;
+    width?: number;
+    backdropStyle?: StyleProp<ViewStyle>;
+    panelStyle?: StyleProp<ViewStyle>;
+};
+
 type SlidePanelProps = {
     visible: boolean;
     title: string;
@@ -26,17 +36,15 @@ type SlidePanelProps = {
     contentContainerStyle?: StyleProp<ViewStyle>;
 };
 
-export function SlidePanel({
+export function SlidePanelShell({
     visible,
-    title,
-    icon,
     onClose,
     onExited,
     children,
-    footer,
     width,
-    contentContainerStyle,
-}: SlidePanelProps) {
+    backdropStyle,
+    panelStyle,
+}: SlidePanelShellProps) {
     const palette = useAppColors();
     const { width: screenWidth } = useWindowDimensions();
     const panelWidth = width ?? Math.floor(screenWidth / 3);
@@ -86,7 +94,7 @@ export function SlidePanel({
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
             <Animated.View
-                style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
+                style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle, { opacity: backdropOpacity }]}
                 pointerEvents="box-none"
             >
                 <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -101,29 +109,50 @@ export function SlidePanel({
                         borderLeftColor: palette.border,
                         transform: [{ translateX: slideAnim }],
                     },
+                    panelStyle,
                 ]}
             >
-                <View style={[styles.header, { borderBottomColor: palette.border }]}>
-                    <View style={styles.headerTitle}>
-                        <Ionicons name={icon as any} size={20} color={palette.tint} />
-                        <ThemedText type="subtitle">{title}</ThemedText>
-                    </View>
-                    <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
-                        <Ionicons name="close" size={22} color={palette.text} />
-                    </Pressable>
-                </View>
-
-                <ScrollView contentContainerStyle={[styles.formContent, contentContainerStyle]} keyboardShouldPersistTaps="handled">
-                    {children}
-                </ScrollView>
-
-                {footer ? (
-                    <View style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
-                        {footer}
-                    </View>
-                ) : null}
+                {children}
             </Animated.View>
         </View>
+    );
+}
+
+export function SlidePanel({
+    visible,
+    title,
+    icon,
+    onClose,
+    onExited,
+    children,
+    footer,
+    width,
+    contentContainerStyle,
+}: SlidePanelProps) {
+    const palette = useAppColors();
+
+    return (
+        <SlidePanelShell visible={visible} onClose={onClose} onExited={onExited} width={width}>
+            <View style={[styles.header, { borderBottomColor: palette.border }]}>
+                <View style={styles.headerTitle}>
+                    <Ionicons name={icon as any} size={20} color={palette.tint} />
+                    <ThemedText type="subtitle">{title}</ThemedText>
+                </View>
+                <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+                    <Ionicons name="close" size={22} color={palette.text} />
+                </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={[styles.formContent, contentContainerStyle]} keyboardShouldPersistTaps="handled">
+                {children}
+            </ScrollView>
+
+            {footer ? (
+                <View style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
+                    {footer}
+                </View>
+            ) : null}
+        </SlidePanelShell>
     );
 }
 
