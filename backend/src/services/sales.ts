@@ -23,49 +23,9 @@ import type {
   UpdateTablePayload,
 } from '@/types/sales';
 import type { Discount, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '@/types/types';
+import { AppError } from '@/utils/errors';
+import { allocateProportionally, clampQuantity, normalizeObservation, roundMoney } from '@/utils/math';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
-
-function roundMoney(value: number): number {
-  return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
-}
-
-function clampQuantity(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.floor(value));
-}
-
-function normalizeObservation(raw: unknown): string | null {
-  if (typeof raw !== 'string') {
-    return null;
-  }
-
-  const value = raw.trim();
-  return value.length > 0 ? value : null;
-}
-
-function allocateProportionally(total: number, weights: number[]): number[] {
-  const safeTotal = roundMoney(total);
-  if (safeTotal <= 0 || weights.length === 0) {
-    return weights.map(() => 0);
-  }
-
-  const safeWeights = weights.map((weight) => Math.max(0, Number(weight) || 0));
-  const weightSum = safeWeights.reduce((sum, value) => sum + value, 0);
-  if (weightSum <= 0) {
-    const evenShare = roundMoney(safeTotal / safeWeights.length);
-    const result = safeWeights.map(() => evenShare);
-    const currentSum = roundMoney(result.reduce((sum, value) => sum + value, 0));
-    result[result.length - 1] = roundMoney(result[result.length - 1] + (safeTotal - currentSum));
-    return result;
-  }
-
-  const provisional = safeWeights.map((weight) => roundMoney((safeTotal * weight) / weightSum));
-  const provisionalSum = roundMoney(provisional.reduce((sum, value) => sum + value, 0));
-  provisional[provisional.length - 1] = roundMoney(provisional[provisional.length - 1] + (safeTotal - provisionalSum));
-  return provisional;
-}
 
 export class SalesSqliteService {
   private normalizeRemovedIngredientIds(raw: unknown): string[] {
@@ -174,7 +134,7 @@ export class SalesSqliteService {
     for (const item of items) {
       const productPrice = productMap.get(item.productId);
       if (productPrice == null) {
-        throw new Error(salesErrorMessage('productNotFound', { productId: item.productId }));
+        throw new AppError(salesErrorMessage('productNotFound', { productId: item.productId }));
       }
 
       const quantity = clampQuantity(Number(item.quantity));
@@ -422,7 +382,7 @@ export class SalesSqliteService {
     } catch (err: any) {
       const msg = String(err?.message ?? '');
       if (msg.includes('FOREIGN KEY constraint failed')) {
-        throw new Error(salesErrorMessage('tableHasLinkedSales'));
+        throw new AppError(salesErrorMessage('tableHasLinkedSales'));
       }
       throw err;
     }
@@ -512,11 +472,11 @@ export class SalesSqliteService {
       .get();
 
     if (!existingOrder) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (existingOrder.status !== 'draft') {
-      throw new Error(salesErrorMessage('onlyDraftEditable'));
+      throw new AppError(salesErrorMessage('onlyDraftEditable'));
     }
 
     const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
@@ -895,11 +855,11 @@ export class SalesSqliteService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(salesErrorMessage('sendToKitchenInvalidStatus', { status: order.status }));
+      throw new AppError(salesErrorMessage('sendToKitchenInvalidStatus', { status: order.status }));
     }
 
     db.update(sales)
@@ -920,11 +880,11 @@ export class SalesSqliteService {
       .get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (order.status !== 'in-progress') {
-      throw new Error(salesErrorMessage('markReadyInvalidStatus', { status: order.status }));
+      throw new AppError(salesErrorMessage('markReadyInvalidStatus', { status: order.status }));
     }
 
     const readyAt = Math.floor(Date.now() / 1000);
@@ -1018,7 +978,7 @@ export class SalesSqliteService {
       .get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     const pending = db
@@ -1081,11 +1041,11 @@ export class SalesSqliteService {
       .get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId: payload.orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId: payload.orderId }));
     }
 
     if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
-      throw new Error(salesErrorMessage('markPaidInvalidStatus', { status: order.status }));
+      throw new AppError(salesErrorMessage('markPaidInvalidStatus', { status: order.status }));
     }
 
     const lineSelectionMap = new Map<string, number>();
@@ -1098,7 +1058,7 @@ export class SalesSqliteService {
     }
 
     if (lineSelectionMap.size === 0) {
-      throw new Error('Debe seleccionar al menos un item para pagar.');
+      throw new AppError('Debe seleccionar al menos un item para pagar.');
     }
 
     const items = db
@@ -1138,7 +1098,7 @@ export class SalesSqliteService {
       const quantityPending = Math.max(0, quantity - quantityPaid);
 
       if (selectedQuantity > quantityPending) {
-        throw new Error(`La cantidad seleccionada excede el pendiente para el item ${item.id}.`);
+        throw new AppError(`La cantidad seleccionada excede el pendiente para el item ${item.id}.`);
       }
 
       selected.push({
@@ -1155,7 +1115,7 @@ export class SalesSqliteService {
     }
 
     if (selected.length === 0) {
-      throw new Error('Debe seleccionar al menos un item valido para pagar.');
+      throw new AppError('Debe seleccionar al menos un item valido para pagar.');
     }
 
     const selectedLineSnapshots = selected.map((item) => {
@@ -1214,7 +1174,7 @@ export class SalesSqliteService {
       finalSurchargeAmount = roundMoney(finalSurchargeAmount + delta);
       paymentTotal = roundMoney(Math.max(0, selectedDiscountedSubtotal - finalGlobalDiscountAmount + finalSurchargeAmount));
     } else if (paymentTotal > remainingDue) {
-      throw new Error('El pago parcial excede el saldo pendiente de la orden.');
+      throw new AppError('El pago parcial excede el saldo pendiente de la orden.');
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -1237,7 +1197,7 @@ export class SalesSqliteService {
         .all();
 
       if (!insertedPayment) {
-        throw new Error('No se pudo crear el pago parcial.');
+        throw new AppError('No se pudo crear el pago parcial.');
       }
 
       for (const line of selectedLineSnapshots) {
@@ -1286,11 +1246,11 @@ export class SalesSqliteService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (!['draft', 'in-progress', 'ready'].includes(order.status)) {
-      throw new Error(salesErrorMessage('markPaidInvalidStatus', { status: order.status }));
+      throw new AppError(salesErrorMessage('markPaidInvalidStatus', { status: order.status }));
     }
 
     const pendingLines = db
@@ -1342,16 +1302,16 @@ export class SalesSqliteService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(salesErrorMessage('addItemsDraftOnly', { status: order.status }));
+      throw new AppError(salesErrorMessage('addItemsDraftOnly', { status: order.status }));
     }
 
     const [resolvedItem] = await this.resolveSaleItems([item]);
     if (!resolvedItem) {
-      throw new Error(salesErrorMessage('productNotFound', { productId: item.productId }));
+      throw new AppError(salesErrorMessage('productNotFound', { productId: item.productId }));
     }
 
     const lineSubtotal = resolvedItem.unitPrice * resolvedItem.quantity;
@@ -1401,11 +1361,11 @@ export class SalesSqliteService {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (order.status !== 'draft') {
-      throw new Error(salesErrorMessage('removeItemsDraftOnly', { status: order.status }));
+      throw new AppError(salesErrorMessage('removeItemsDraftOnly', { status: order.status }));
     }
 
     db.delete(saleItems).where(eq(saleItems.id, saleItemId)).run();
@@ -1436,11 +1396,11 @@ export class SalesSqliteService {
       .get();
 
     if (!order) {
-      throw new Error(salesErrorMessage('orderNotFound', { orderId }));
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
     if (order.status === 'completed' || order.status === 'cancelled') {
-      throw new Error(salesErrorMessage('cancelInvalidStatus', { status: order.status }));
+      throw new AppError(salesErrorMessage('cancelInvalidStatus', { status: order.status }));
     }
 
     const cancelledAt = Math.floor(Date.now() / 1000);

@@ -1,80 +1,76 @@
-import { InventorySqliteService } from '@/services/inventory';
+import { inventoryService } from '@/services';
+import { handleControllerError } from '@/utils/errors';
+import {
+  validateAddIngredient,
+  validateAddRestock,
+  validateAddSupplier,
+  validateAddUnit,
+  validateDeleteUnit,
+  validateUpdateIngredient,
+  validateUpdateSupplier,
+} from '@/validators/inventory';
 import type { Request, Response } from 'express';
 
-const inventoryService = new InventorySqliteService();
 
 export async function getHydrationData(req: Request, res: Response): Promise<void> {
   try {
     const data = await inventoryService.getHydrationData();
     res.status(200).json(data);
   } catch (error) {
-    console.error('[inventory] getHydrationData failed:', error);
-    res.status(500).json({ error: 'Failed to fetch inventory data.' });
+    handleControllerError(error, res, { label: '[inventory] getHydrationData', fallbackMessage: 'Failed to fetch inventory data.' });
   }
 }
 
 export async function addIngredient(req: Request, res: Response): Promise<void> {
-  const { name, unit, lowStockThreshold, supplierId } = req.body;
-
-  if (!name || !unit || lowStockThreshold == null) {
-    res.status(400).json({ error: 'name, unit, and lowStockThreshold are required.' });
+  const v = validateAddIngredient(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name, unit, lowStockThreshold, supplierId } = v.data;
 
-  const normalizedUnit = String(unit).trim().toLowerCase();
-  if (!normalizedUnit) {
-    res.status(400).json({ error: 'unit is required.' });
-    return;
-  }
-
-  if (!inventoryService.unitExists(normalizedUnit)) {
+  if (!inventoryService.unitExists(unit)) {
     res.status(400).json({ error: 'unit must exist in units catalog.' });
     return;
   }
 
   try {
-    const id = await inventoryService.addIngredient({ name, unit: normalizedUnit, lowStockThreshold, supplierId });
+    const id = await inventoryService.addIngredient({ name, unit, lowStockThreshold, supplierId });
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[inventory] addIngredient failed:', error);
-    res.status(500).json({ error: 'Failed to create ingredient.' });
+    handleControllerError(error, res, { label: '[inventory] addIngredient', fallbackMessage: 'Failed to create ingredient.' });
   }
 }
 
 export async function updateIngredient(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { name, unit, low_stock_threshold, supplier_id } = req.body;
+  const v = validateUpdateIngredient(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
+    return;
+  }
+  const { name, unit, low_stock_threshold, supplier_id } = v.data;
 
-  let normalizedUnit: string | undefined;
-  if (unit !== undefined) {
-    normalizedUnit = String(unit).trim().toLowerCase();
-    if (!normalizedUnit) {
-      res.status(400).json({ error: 'unit cannot be empty.' });
-      return;
-    }
-
-    if (!inventoryService.unitExists(normalizedUnit)) {
-      res.status(400).json({ error: 'unit must exist in units catalog.' });
-      return;
-    }
+  if (unit !== undefined && !inventoryService.unitExists(unit)) {
+    res.status(400).json({ error: 'unit must exist in units catalog.' });
+    return;
   }
 
   try {
-    await inventoryService.updateIngredient({ id, name, unit: normalizedUnit, low_stock_threshold, supplier_id });
+    await inventoryService.updateIngredient({ id, name, unit, low_stock_threshold, supplier_id });
     res.status(204).send();
   } catch (error) {
-    console.error('[inventory] updateIngredient failed:', error);
-    res.status(500).json({ error: 'Failed to update ingredient.' });
+    handleControllerError(error, res, { label: '[inventory] updateIngredient', fallbackMessage: 'Failed to update ingredient.' });
   }
 }
 
 export async function addSupplier(req: Request, res: Response): Promise<void> {
-  const { name, phone, notes } = req.body;
-
-  if (!name) {
-    res.status(400).json({ error: 'name is required.' });
+  const v = validateAddSupplier(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name, phone, notes } = v.data;
 
   try {
     const id = await inventoryService.addSupplier({ name, phone, notes });
@@ -84,40 +80,36 @@ export async function addSupplier(req: Request, res: Response): Promise<void> {
     }
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[inventory] addSupplier failed:', error);
-    res.status(500).json({ error: 'Failed to create supplier.' });
+    handleControllerError(error, res, { label: '[inventory] addSupplier', fallbackMessage: 'Failed to create supplier.' });
   }
 }
 
 export async function updateSupplier(req: Request, res: Response): Promise<void> {
-  const id = req.params.id as string;
-  const { name, phone, notes } = req.body;
-
-  if (!id) {
-    res.status(400).json({ error: 'id is required.' });
+  const v = validateUpdateSupplier(req.params as Record<string, unknown>, req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { id, name, phone, notes } = v.data;
 
   try {
     await inventoryService.updateSupplier({ id, name, phone, notes });
     res.status(204).end();
   } catch (error) {
-    console.error('[inventory] updateSupplier failed:', error);
-    res.status(500).json({ error: 'Failed to update supplier.' });
+    handleControllerError(error, res, { label: '[inventory] updateSupplier', fallbackMessage: 'Failed to update supplier.' });
   }
 }
 
 export async function addUnit(req: Request, res: Response): Promise<void> {
-  const { name } = req.body;
-  const normalizedName = String(name ?? '').trim().toLowerCase();
-
-  if (!normalizedName) {
-    res.status(400).json({ error: 'name is required.' });
+  const v = validateAddUnit(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name } = v.data;
 
   try {
-    const unit = await inventoryService.addUnit({ name: normalizedName });
+    const unit = await inventoryService.addUnit({ name });
     if (!unit) {
       res.status(409).json({ error: 'A unit with that name already exists.' });
       return;
@@ -125,18 +117,17 @@ export async function addUnit(req: Request, res: Response): Promise<void> {
 
     res.status(201).json(unit);
   } catch (error) {
-    console.error('[inventory] addUnit failed:', error);
-    res.status(500).json({ error: 'Failed to create unit.' });
+    handleControllerError(error, res, { label: '[inventory] addUnit', fallbackMessage: 'Failed to create unit.' });
   }
 }
 
 export async function deleteUnit(req: Request, res: Response): Promise<void> {
-  const { id } = req.params as Record<string, string>;
-
-  if (!id) {
-    res.status(400).json({ error: 'id is required.' });
+  const v = validateDeleteUnit(req.params as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { id } = v.data;
 
   try {
     const result = await inventoryService.deleteUnit({ id });
@@ -152,24 +143,22 @@ export async function deleteUnit(req: Request, res: Response): Promise<void> {
 
     res.status(204).send();
   } catch (error) {
-    console.error('[inventory] deleteUnit failed:', error);
-    res.status(500).json({ error: 'Failed to delete unit.' });
+    handleControllerError(error, res, { label: '[inventory] deleteUnit', fallbackMessage: 'Failed to delete unit.' });
   }
 }
 
 export async function addRestock(req: Request, res: Response): Promise<void> {
-  const { ingredientId, quantityAdded, cost, supplierId, paymentMethodId } = req.body;
-
-  if (!ingredientId || quantityAdded == null || cost == null || !paymentMethodId) {
-    res.status(400).json({ error: 'ingredientId, quantityAdded, cost, and paymentMethodId are required.' });
+  const v = validateAddRestock(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { ingredientId, quantityAdded, cost, supplierId, paymentMethodId } = v.data;
 
   try {
     const id = await inventoryService.addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethodId });
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[inventory] addRestock failed:', error);
-    res.status(500).json({ error: 'Failed to create restock entry.' });
+    handleControllerError(error, res, { label: '[inventory] addRestock', fallbackMessage: 'Failed to create restock entry.' });
   }
 }

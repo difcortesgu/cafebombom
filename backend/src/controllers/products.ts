@@ -1,28 +1,30 @@
-import { ProductsSqliteService } from '@/services/products';
-import type { ProductRecipeInput } from '@/types/products';
+import { productsService } from '@/services';
+import { handleControllerError } from '@/utils/errors';
+import {
+  validateAddCategory,
+  validateCreateProduct,
+  validateSetAdditionalIngredient,
+  validateSetIngredient,
+} from '@/validators/products';
 import type { Request, Response } from 'express';
 
-const productsService = new ProductsSqliteService();
 
 export async function getHydrationData(req: Request, res: Response): Promise<void> {
   try {
     const data = await productsService.getHydrationData();
     res.status(200).json(data);
   } catch (error) {
-    console.error('[products] getHydrationData failed:', error);
-    res.status(500).json({ error: 'Failed to fetch products data.' });
+    handleControllerError(error, res, { label: '[products] getHydrationData', fallbackMessage: 'Failed to fetch products data.' });
   }
 }
 
 export async function createProduct(req: Request, res: Response): Promise<void> {
-  const { name, categoryId, price, imageUri, recipe, additionalIngredients } = req.body;
-
-  if (!name || price == null || !Array.isArray(recipe) || recipe.length === 0) {
-    res.status(400).json({ error: 'name, price, and recipe (non-empty array) are required.' });
+  const v = validateCreateProduct(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
-
-  const typedRecipe = recipe as [ProductRecipeInput, ...ProductRecipeInput[]];
+  const { name, categoryId, price, imageUri, recipe, additionalIngredients } = v.data;
 
   try {
     const id = await productsService.createProduct({
@@ -30,8 +32,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       categoryId,
       price,
       imageUri,
-      recipe: typedRecipe,
-      additionalIngredients: Array.isArray(additionalIngredients) ? additionalIngredients : [],
+      recipe,
+      additionalIngredients,
     });
     if (!id) {
       res.status(422).json({ error: 'Could not create product. Recipe may have no valid items.' });
@@ -39,18 +41,17 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     }
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[products] createProduct failed:', error);
-    res.status(500).json({ error: 'Failed to create product.' });
+    handleControllerError(error, res, { label: '[products] createProduct', fallbackMessage: 'Failed to create product.' });
   }
 }
 
 export async function addCategory(req: Request, res: Response): Promise<void> {
-  const { name } = req.body;
-
-  if (!name) {
-    res.status(400).json({ error: 'name is required.' });
+  const v = validateAddCategory(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name } = v.data;
 
   try {
     const id = await productsService.addCategory({ name });
@@ -58,11 +59,9 @@ export async function addCategory(req: Request, res: Response): Promise<void> {
       res.status(409).json({ error: 'A category with that name already exists.' });
       return;
     }
-
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[products] addCategory failed:', error);
-    res.status(500).json({ error: 'Failed to create category.' });
+    handleControllerError(error, res, { label: '[products] addCategory', fallbackMessage: 'Failed to create category.' });
   }
 }
 
@@ -74,26 +73,24 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     await productsService.updateProduct({ id, name, categoryId, price, imageUri, isActive });
     res.status(204).send();
   } catch (error) {
-    console.error('[products] updateProduct failed:', error);
-    res.status(500).json({ error: 'Failed to update product.' });
+    handleControllerError(error, res, { label: '[products] updateProduct', fallbackMessage: 'Failed to update product.' });
   }
 }
 
 export async function setProductIngredient(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { ingredientId, quantityUsed } = req.body;
-
-  if (!ingredientId || quantityUsed == null) {
-    res.status(400).json({ error: 'ingredientId and quantityUsed are required.' });
+  const v = validateSetIngredient(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { ingredientId, quantityUsed } = v.data;
 
   try {
     await productsService.setProductIngredient({ productId: id, ingredientId, quantityUsed });
     res.status(204).send();
   } catch (error) {
-    console.error('[products] setProductIngredient failed:', error);
-    res.status(500).json({ error: 'Failed to set product ingredient.' });
+    handleControllerError(error, res, { label: '[products] setProductIngredient', fallbackMessage: 'Failed to set product ingredient.' });
   }
 }
 
@@ -104,19 +101,21 @@ export async function removeProductIngredient(req: Request, res: Response): Prom
     await productsService.removeProductIngredient({ productId: id, ingredientId });
     res.status(204).send();
   } catch (error) {
-    console.error('[products] removeProductIngredient failed:', error);
-    res.status(500).json({ error: 'Failed to remove product ingredient.' });
+    handleControllerError(error, res, { label: '[products] removeProductIngredient', fallbackMessage: 'Failed to remove product ingredient.' });
   }
 }
 
 export async function setProductAdditionalIngredient(req: Request, res: Response): Promise<void> {
   const { id, ingredientId } = req.params as Record<string, string>;
-  const { quantityUsed, additionalPrice } = req.body;
-
-  if (!ingredientId || quantityUsed == null || additionalPrice == null) {
-    res.status(400).json({ error: 'ingredientId, quantityUsed, and additionalPrice are required.' });
+  const v = validateSetAdditionalIngredient(
+    req.params as Record<string, unknown>,
+    req.body as Record<string, unknown>,
+  );
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { quantityUsed, additionalPrice } = v.data;
 
   try {
     await productsService.setProductAdditionalIngredient({
@@ -127,8 +126,7 @@ export async function setProductAdditionalIngredient(req: Request, res: Response
     });
     res.status(204).send();
   } catch (error) {
-    console.error('[products] setProductAdditionalIngredient failed:', error);
-    res.status(500).json({ error: 'Failed to set product additional ingredient.' });
+    handleControllerError(error, res, { label: '[products] setProductAdditionalIngredient', fallbackMessage: 'Failed to set product additional ingredient.' });
   }
 }
 
@@ -139,7 +137,6 @@ export async function removeProductAdditionalIngredient(req: Request, res: Respo
     await productsService.removeProductAdditionalIngredient({ productId: id, ingredientId });
     res.status(204).send();
   } catch (error) {
-    console.error('[products] removeProductAdditionalIngredient failed:', error);
-    res.status(500).json({ error: 'Failed to remove product additional ingredient.' });
+    handleControllerError(error, res, { label: '[products] removeProductAdditionalIngredient', fallbackMessage: 'Failed to remove product additional ingredient.' });
   }
 }

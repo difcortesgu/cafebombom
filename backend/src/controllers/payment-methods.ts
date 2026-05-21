@@ -1,7 +1,5 @@
-import { PaymentMethodsSqliteService } from '@/services/payment-methods';
+import { paymentMethodsService } from '@/services';
 import type { Request, Response } from 'express';
-
-const paymentMethodsService = new PaymentMethodsSqliteService();
 
 export async function getAllPaymentMethods(req: Request, res: Response): Promise<void> {
     try {

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PaymentMethodBadge } from '@/components/payment-method-display';
+import { PendingPaymentItemRow, SelectedPaymentItemRow } from '@/components/payment-split-rows';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
@@ -14,6 +15,14 @@ import { useSalesStore } from '@/stores/sales';
 import type { ReceiptPaperWidth } from '@/types/receipt';
 import type { SalePayment, SalePaymentBoard, SalePaymentBoardItem } from '@/types/sales';
 import type { Sale } from '@/types/types';
+import {
+    addSelectedLine,
+    adjustSelectedLine,
+    buildSelectedItems,
+    computeSelectedTotal,
+    getAvailableQty,
+    removeSelectedLine,
+} from '@/utils/payment-allocation';
 import { buildPartialReceiptData } from '@/utils/receipt';
 
 export type SplitPaymentBusiness = {
@@ -28,102 +37,6 @@ export type SplitPaymentBusiness = {
     printerDeviceName: string | null;
     printerDeviceAddress: string | null;
 };
-
-type PendingItemRowProps = {
-    item: SalePaymentBoardItem;
-    availableQty: number;
-    isWeb: boolean;
-    onAdd: () => void;
-    onAddAll: () => void;
-    onDragStart: (itemId: string) => void;
-    onDragEnd: () => void;
-};
-
-function PendingItemRow({ item, availableQty, isWeb, onAdd, onAddAll, onDragStart, onDragEnd }: PendingItemRowProps) {
-    const palette = useAppColors();
-    const ref = useRef<View>(null);
-
-    useEffect(() => {
-        if (!isWeb) return;
-        const el = ref.current as unknown as HTMLElement | null;
-        if (!el) return;
-
-        el.draggable = availableQty > 0;
-        el.style.cursor = availableQty > 0 ? 'grab' : 'default';
-
-        const handleDragStart = (e: DragEvent) => {
-            e.dataTransfer?.setData('application/x-payment-item-id', item.sale_item_id);
-            if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
-            onDragStart(item.sale_item_id);
-        };
-        const handleDragEnd = () => onDragEnd();
-
-        el.addEventListener('dragstart', handleDragStart);
-        el.addEventListener('dragend', handleDragEnd);
-        return () => {
-            el.removeEventListener('dragstart', handleDragStart);
-            el.removeEventListener('dragend', handleDragEnd);
-        };
-    }, [item.sale_item_id, availableQty, isWeb, onDragStart, onDragEnd]);
-
-    const unitTotal = item.quantity_total > 0 ? item.line_total_total / item.quantity_total : 0;
-    const dimmed = availableQty <= 0;
-
-    return (
-        <Pressable
-            ref={ref}
-            onPress={availableQty > 0 ? onAdd : undefined}
-            style={[styles.itemRow, { borderColor: palette.border, opacity: dimmed ? 0.4 : 1 }]}
-        >
-            <View style={styles.itemInfo}>
-                <ThemedText style={styles.itemName}>{item.product_name}</ThemedText>
-                <ThemedText style={styles.itemMeta}>
-                    x{availableQty} · ${unitTotal.toFixed(2)} c/u
-                </ThemedText>
-            </View>
-            {!isWeb && availableQty > 0 && (
-                <View style={styles.itemActions}>
-                    <ThemedButton label="+" style={styles.smallBtn} onPress={onAdd} />
-                    {availableQty > 1 && (
-                        <ThemedButton
-                            label={t('sales.splitPayment.addAll')}
-                            variant="secondary"
-                            style={styles.smallBtn}
-                            onPress={onAddAll}
-                        />
-                    )}
-                </View>
-            )}
-        </Pressable>
-    );
-}
-
-type SelectedItemRowProps = {
-    item: SalePaymentBoardItem;
-    qty: number;
-    onRemove: () => void;
-    onAdjust: (delta: number) => void;
-};
-
-function SelectedItemRow({ item, qty, onRemove, onAdjust }: SelectedItemRowProps) {
-    const palette = useAppColors();
-    const unitTotal = item.quantity_total > 0 ? item.line_total_total / item.quantity_total : 0;
-
-    return (
-        <View style={[styles.itemRow, { borderColor: palette.border }]}>
-            <View style={styles.itemInfo}>
-                <ThemedText style={styles.itemName}>{item.product_name}</ThemedText>
-                <ThemedText style={styles.itemMeta}>${(unitTotal * qty).toFixed(2)}</ThemedText>
-            </View>
-            <View style={styles.itemActions}>
-                <ThemedButton label="-" style={styles.smallBtn} onPress={() => onAdjust(-1)} disabled={qty <= 1} />
-                <ThemedText style={styles.qtyLabel}>{qty}</ThemedText>
-                <ThemedButton label="+" style={styles.smallBtn} onPress={() => onAdjust(1)} disabled={qty >= item.quantity_pending} />
-                <ThemedButton label="✕" variant="secondary" style={styles.smallBtn} onPress={onRemove} />
-            </View>
-        </View>
-    );
-}
 
 type PaidPaymentCardProps = {
     payment: SalePayment;
@@ -260,44 +173,20 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
 
     const pendingItems = board?.pending ?? [];
 
-    const getAvailableQty = (item: SalePaymentBoardItem) =>
-        Math.max(0, item.quantity_pending - (selectedLines[item.sale_item_id] ?? 0));
+    const selectedItems = buildSelectedItems(selectedLines, pendingItems);
 
-    const selectedItems = Object.entries(selectedLines)
-        .filter(([, qty]) => qty > 0)
-        .map(([saleItemId, qty]) => {
-            const boardItem = pendingItems.find((i) => i.sale_item_id === saleItemId);
-            return boardItem ? { boardItem, qty } : null;
-        })
-        .filter((x): x is { boardItem: SalePaymentBoardItem; qty: number } => x !== null);
-
-    const selectedTotal = selectedItems.reduce((sum, { boardItem, qty }) => {
-        const unit = boardItem.quantity_total > 0 ? boardItem.line_total_total / boardItem.quantity_total : 0;
-        return sum + unit * qty;
-    }, 0);
+    const selectedTotal = computeSelectedTotal(selectedItems);
 
     const handleAddItem = (item: SalePaymentBoardItem, qty = 1) => {
-        const available = getAvailableQty(item);
-        const toAdd = Math.min(qty, available);
-        if (toAdd <= 0) return;
-        setSelectedLines((prev) => ({ ...prev, [item.sale_item_id]: (prev[item.sale_item_id] ?? 0) + toAdd }));
+        setSelectedLines((prev) => addSelectedLine(prev, item, qty));
     };
 
     const handleRemoveSelected = (saleItemId: string) => {
-        setSelectedLines((prev) => {
-            const next = { ...prev };
-            delete next[saleItemId];
-            return next;
-        });
+        setSelectedLines((prev) => removeSelectedLine(prev, saleItemId));
     };
 
     const handleAdjustSelectedQty = (saleItemId: string, delta: number) => {
-        setSelectedLines((prev) => {
-            const boardItem = pendingItems.find((i) => i.sale_item_id === saleItemId);
-            if (!boardItem) return prev;
-            const next = Math.min(Math.max(1, (prev[saleItemId] ?? 1) + delta), boardItem.quantity_pending);
-            return { ...prev, [saleItemId]: next };
-        });
+        setSelectedLines((prev) => adjustSelectedLine(prev, pendingItems, saleItemId, delta));
     };
 
     const handleConfirm = async () => {
@@ -375,15 +264,17 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
                     </ThemedText>
                 )}
             {pendingItems.map((item) => (
-                <PendingItemRow
+                <PendingPaymentItemRow
                     key={item.sale_item_id}
                     item={item}
-                    availableQty={getAvailableQty(item)}
+                    availableQty={getAvailableQty(item, selectedLines)}
+                    rowStyles={styles}
                     isWeb={isWeb}
                     onAdd={() => handleAddItem(item)}
                     onAddAll={() => handleAddItem(item, item.quantity_pending)}
                     onDragStart={(id) => setDraggingItemId(id)}
                     onDragEnd={() => setDraggingItemId(null)}
+                    showButtonsOnWeb={false}
                 />
             ))}
         </View>
@@ -409,10 +300,11 @@ export function SplitPaymentModal({ visible, sale, onClose, business }: Props) {
                 <ThemedText style={styles.dimText}>{t('sales.splitPayment.noSelected')}</ThemedText>
             )}
             {selectedItems.map(({ boardItem, qty }) => (
-                <SelectedItemRow
+                <SelectedPaymentItemRow
                     key={boardItem.sale_item_id}
                     item={boardItem}
                     qty={qty}
+                    rowStyles={styles}
                     onRemove={() => handleRemoveSelected(boardItem.sale_item_id)}
                     onAdjust={(delta) => handleAdjustSelectedQty(boardItem.sale_item_id, delta)}
                 />

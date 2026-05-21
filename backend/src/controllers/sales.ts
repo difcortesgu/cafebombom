@@ -1,26 +1,35 @@
-import { SalesSqliteService } from '@/services/sales';
-import type { DashboardTrendBucket } from '@/types/sales';
+import { salesService } from '@/services';
+import { handleControllerError } from '@/utils/errors';
+import {
+  validateAddItem,
+  validateDashboardQuery,
+  validateDateRange,
+  validateDiscount,
+  validateMarkPaid,
+  validateOrderPayload,
+  validatePartialPayment,
+  validateSurchargeConfig,
+  validateTablePayload,
+} from '@/validators/sales';
 import type { Request, Response } from 'express';
 
-const salesService = new SalesSqliteService();
 
 export async function getHydrationData(req: Request, res: Response): Promise<void> {
   try {
     const data = await salesService.getHydrationData();
     res.status(200).json(data);
   } catch (error) {
-    console.error('[sales] getHydrationData failed:', error);
-    res.status(500).json({ error: 'Failed to fetch sales data.' });
+    handleControllerError(error, res, { label: '[sales] getHydrationData', fallbackMessage: 'Failed to fetch sales data.' });
   }
 }
 
 export async function createSale(req: Request, res: Response): Promise<void> {
-  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = req.body;
-
-  if (!staffId || !Array.isArray(items) || items.length === 0 || !tableId) {
-    res.status(400).json({ error: 'staffId, items (non-empty), and tableId are required.' });
+  const v = validateOrderPayload(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = v.data;
 
   try {
     const id = await salesService.createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge });
@@ -30,31 +39,24 @@ export async function createSale(req: Request, res: Response): Promise<void> {
     }
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[sales] createSale failed:', error);
-    res.status(500).json({ error: 'Failed to create sale.' });
+    handleControllerError(error, res, { label: '[sales] createSale', fallbackMessage: 'Failed to create sale.' });
   }
 }
 
 export async function updateDraftOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = req.body;
-
-  if (!staffId || !Array.isArray(items) || items.length === 0 || !tableId) {
-    res.status(400).json({ error: 'staffId, items (non-empty), and tableId are required.' });
+  const v = validateOrderPayload(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = v.data;
 
   try {
     await salesService.updateDraftOrder({ orderId: id, staffId, items, tableId, globalDiscountId, orderTypeSurcharge });
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('draft')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] updateDraftOrder failed:', error);
-    res.status(500).json({ error: 'Failed to update order.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] updateDraftOrder', fallbackMessage: 'Failed to update order.' });
   }
 }
 
@@ -64,31 +66,24 @@ export async function getSaleItems(req: Request, res: Response): Promise<void> {
     const items = await salesService.getSaleItems(id);
     res.status(200).json({ items });
   } catch (error) {
-    console.error('[sales] getSaleItems failed:', error);
-    res.status(500).json({ error: 'Failed to fetch sale items.' });
+    handleControllerError(error, res, { label: '[sales] getSaleItems', fallbackMessage: 'Failed to fetch sale items.' });
   }
 }
 
 export async function addItemToOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { item } = req.body;
-
-  if (!item || !item.productId || item.quantity == null) {
-    res.status(400).json({ error: 'item with productId and quantity is required.' });
+  const v = validateAddItem(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { item } = v.data;
 
   try {
     const itemId = await salesService.addItemToOrder({ orderId: id, item });
     res.status(201).json({ id: itemId });
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('draft')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] addItemToOrder failed:', error);
-    res.status(500).json({ error: 'Failed to add item to order.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] addItemToOrder', fallbackMessage: 'Failed to add item to order.' });
   }
 }
 
@@ -98,14 +93,8 @@ export async function removeItemFromOrder(req: Request, res: Response): Promise<
   try {
     await salesService.removeItemFromOrder({ orderId: id, saleItemId: itemId });
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('draft') || msg.includes('last item')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] removeItemFromOrder failed:', error);
-    res.status(500).json({ error: 'Failed to remove item from order.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] removeItemFromOrder', fallbackMessage: 'Failed to remove item from order.' });
   }
 }
 
@@ -119,8 +108,7 @@ export async function getSalePricingSummary(req: Request, res: Response): Promis
     }
     res.status(200).json(summary);
   } catch (error) {
-    console.error('[sales] getSalePricingSummary failed:', error);
-    res.status(500).json({ error: 'Failed to fetch pricing summary.' });
+    handleControllerError(error, res, { label: '[sales] getSalePricingSummary', fallbackMessage: 'Failed to fetch pricing summary.' });
   }
 }
 
@@ -129,14 +117,8 @@ export async function sendToKitchen(req: Request, res: Response): Promise<void> 
   try {
     await salesService.sendToKitchen(id);
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('status')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] sendToKitchen failed:', error);
-    res.status(500).json({ error: 'Failed to send order to kitchen.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] sendToKitchen', fallbackMessage: 'Failed to send order to kitchen.' });
   }
 }
 
@@ -145,37 +127,25 @@ export async function markOrderReady(req: Request, res: Response): Promise<void>
   try {
     await salesService.markOrderReady(id);
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('status')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] markOrderReady failed:', error);
-    res.status(500).json({ error: 'Failed to mark order as ready.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] markOrderReady', fallbackMessage: 'Failed to mark order as ready.' });
   }
 }
 
 export async function markOrderPaid(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { paymentMethodId } = req.body as { paymentMethodId?: string };
-
-  if (!paymentMethodId) {
-    res.status(400).json({ error: 'paymentMethodId is required.' });
+  const v = validateMarkPaid(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { paymentMethodId } = v.data;
 
   try {
     await salesService.markOrderPaid(id, paymentMethodId);
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('status')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] markOrderPaid failed:', error);
-    res.status(500).json({ error: 'Failed to mark order as paid.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] markOrderPaid', fallbackMessage: 'Failed to mark order as paid.' });
   }
 }
 
@@ -185,14 +155,8 @@ export async function getSalePaymentBoard(req: Request, res: Response): Promise<
   try {
     const board = await salesService.getSalePaymentBoard(id);
     res.status(200).json(board);
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('orden') || msg.includes('order')) {
-      res.status(404).json({ error: msg });
-      return;
-    }
-    console.error('[sales] getSalePaymentBoard failed:', error);
-    res.status(500).json({ error: 'Failed to fetch sale payment board.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] getSalePaymentBoard', fallbackMessage: 'Failed to fetch sale payment board.' });
   }
 }
 
@@ -203,47 +167,29 @@ export async function getSalePayments(req: Request, res: Response): Promise<void
     const payments = await salesService.getSalePayments(id);
     res.status(200).json({ payments });
   } catch (error) {
-    console.error('[sales] getSalePayments failed:', error);
-    res.status(500).json({ error: 'Failed to fetch sale payments.' });
+    handleControllerError(error, res, { label: '[sales] getSalePayments', fallbackMessage: 'Failed to fetch sale payments.' });
   }
 }
 
 export async function createPartialPayment(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { paymentMethodId, lines } = req.body as {
-    paymentMethodId?: string;
-    lines?: Array<{ saleItemId?: string; quantity?: number }>;
-  };
-
-  if (!paymentMethodId) {
-    res.status(400).json({ error: 'paymentMethodId is required.' });
+  const v = validatePartialPayment(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
-
-  if (!Array.isArray(lines) || lines.length === 0) {
-    res.status(400).json({ error: 'lines must be a non-empty array.' });
-    return;
-  }
+  const { paymentMethodId, lines } = v.data;
 
   try {
     await salesService.createPartialPayment({
       orderId: id,
       paymentMethodId,
-      lines: lines.map((line) => ({
-        saleItemId: String(line.saleItemId ?? ''),
-        quantity: Number(line.quantity ?? 0),
-      })),
+      lines,
       paidBy: req.auth?.userId ?? null,
     });
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('pendiente') || msg.includes('Debe seleccionar') || msg.includes('excede') || msg.includes('status')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] createPartialPayment failed:', error);
-    res.status(500).json({ error: 'Failed to create partial payment.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] createPartialPayment', fallbackMessage: 'Failed to create partial payment.' });
   }
 }
 
@@ -252,14 +198,8 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
   try {
     await salesService.cancelOrder(id);
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('not found') || msg.includes('status')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] cancelOrder failed:', error);
-    res.status(500).json({ error: 'Failed to cancel order.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] cancelOrder', fallbackMessage: 'Failed to cancel order.' });
   }
 }
 
@@ -270,43 +210,40 @@ export async function getDiscounts(req: Request, res: Response): Promise<void> {
     const data = await salesService.getDiscounts();
     res.status(200).json(data);
   } catch (error) {
-    console.error('[sales] getDiscounts failed:', error);
-    res.status(500).json({ error: 'Failed to fetch discounts.' });
+    handleControllerError(error, res, { label: '[sales] getDiscounts', fallbackMessage: 'Failed to fetch discounts.' });
   }
 }
 
 export async function createDiscount(req: Request, res: Response): Promise<void> {
-  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = req.body;
-
-  if (!name || !scope || !type || value == null || isActive == null) {
-    res.status(400).json({ error: 'name, scope, type, value, and isActive are required.' });
+  const v = validateDiscount(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = v.data;
 
   try {
     const id = await salesService.createDiscount({ name, scope, productId, type, value, startsAt, endsAt, isActive });
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[sales] createDiscount failed:', error);
-    res.status(500).json({ error: 'Failed to create discount.' });
+    handleControllerError(error, res, { label: '[sales] createDiscount', fallbackMessage: 'Failed to create discount.' });
   }
 }
 
 export async function updateDiscount(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = req.body;
-
-  if (!name || !scope || !type || value == null || isActive == null) {
-    res.status(400).json({ error: 'name, scope, type, value, and isActive are required.' });
+  const v = validateDiscount(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = v.data;
 
   try {
     await salesService.updateDiscount({ id, name, scope, productId, type, value, startsAt, endsAt, isActive });
     res.status(204).send();
   } catch (error) {
-    console.error('[sales] updateDiscount failed:', error);
-    res.status(500).json({ error: 'Failed to update discount.' });
+    handleControllerError(error, res, { label: '[sales] updateDiscount', fallbackMessage: 'Failed to update discount.' });
   }
 }
 
@@ -316,8 +253,7 @@ export async function deleteDiscount(req: Request, res: Response): Promise<void>
     await salesService.deleteDiscount(id);
     res.status(204).send();
   } catch (error) {
-    console.error('[sales] deleteDiscount failed:', error);
-    res.status(500).json({ error: 'Failed to delete discount.' });
+    handleControllerError(error, res, { label: '[sales] deleteDiscount', fallbackMessage: 'Failed to delete discount.' });
   }
 }
 
@@ -328,18 +264,17 @@ export async function getTables(req: Request, res: Response): Promise<void> {
     const data = await salesService.getTables();
     res.status(200).json(data);
   } catch (error) {
-    console.error('[sales] getTables failed:', error);
-    res.status(500).json({ error: 'Failed to fetch tables.' });
+    handleControllerError(error, res, { label: '[sales] getTables', fallbackMessage: 'Failed to fetch tables.' });
   }
 }
 
 export async function createTable(req: Request, res: Response): Promise<void> {
-  const { name, tableType } = req.body;
-
-  if (!name || !tableType) {
-    res.status(400).json({ error: 'name and tableType are required.' });
+  const v = validateTablePayload(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name, tableType } = v.data;
 
   try {
     const id = await salesService.createTable({ name, tableType });
@@ -349,26 +284,24 @@ export async function createTable(req: Request, res: Response): Promise<void> {
     }
     res.status(201).json({ id });
   } catch (error) {
-    console.error('[sales] createTable failed:', error);
-    res.status(500).json({ error: 'Failed to create table.' });
+    handleControllerError(error, res, { label: '[sales] createTable', fallbackMessage: 'Failed to create table.' });
   }
 }
 
 export async function updateTable(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { name, tableType } = req.body;
-
-  if (!name || !tableType) {
-    res.status(400).json({ error: 'name and tableType are required.' });
+  const v = validateTablePayload(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { name, tableType } = v.data;
 
   try {
     await salesService.updateTable({ id, name, tableType });
     res.status(204).send();
   } catch (error) {
-    console.error('[sales] updateTable failed:', error);
-    res.status(500).json({ error: 'Failed to update table.' });
+    handleControllerError(error, res, { label: '[sales] updateTable', fallbackMessage: 'Failed to update table.' });
   }
 }
 
@@ -377,14 +310,8 @@ export async function deleteTable(req: Request, res: Response): Promise<void> {
   try {
     await salesService.deleteTable(id);
     res.status(204).send();
-  } catch (error: any) {
-    const msg = String(error?.message ?? '');
-    if (msg.includes('linked sales')) {
-      res.status(422).json({ error: msg });
-      return;
-    }
-    console.error('[sales] deleteTable failed:', error);
-    res.status(500).json({ error: 'Failed to delete table.' });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[sales] deleteTable', fallbackMessage: 'Failed to delete table.' });
   }
 }
 
@@ -395,70 +322,57 @@ export async function getSurchargeConfig(req: Request, res: Response): Promise<v
     const config = await salesService.getOrderTypeSurchargeConfig();
     res.status(200).json(config);
   } catch (error) {
-    console.error('[sales] getSurchargeConfig failed:', error);
-    res.status(500).json({ error: 'Failed to fetch surcharge config.' });
+    handleControllerError(error, res, { label: '[sales] getSurchargeConfig', fallbackMessage: 'Failed to fetch surcharge config.' });
   }
 }
 
 export async function saveSurchargeConfig(req: Request, res: Response): Promise<void> {
-  const { toGoSurcharge, deliverySurcharge } = req.body;
-
-  if (toGoSurcharge == null || deliverySurcharge == null) {
-    res.status(400).json({ error: 'toGoSurcharge and deliverySurcharge are required.' });
+  const v = validateSurchargeConfig(req.body as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { toGoSurcharge, deliverySurcharge } = v.data;
 
   try {
     await salesService.saveOrderTypeSurchargeConfig({ toGoSurcharge, deliverySurcharge });
     res.status(204).send();
   } catch (error) {
-    console.error('[sales] saveSurchargeConfig failed:', error);
-    res.status(500).json({ error: 'Failed to save surcharge config.' });
+    handleControllerError(error, res, { label: '[sales] saveSurchargeConfig', fallbackMessage: 'Failed to save surcharge config.' });
   }
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 
 export async function getDashboardSummary(req: Request, res: Response): Promise<void> {
-  const start = Number(req.query.start);
-  const end = Number(req.query.end);
-  const bucket = (req.query.bucket as DashboardTrendBucket) ?? 'day';
-
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
-    res.status(400).json({ error: 'start and end are required unix timestamps with start < end.' });
+  const v = validateDashboardQuery(req.query as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
-
-  const validBuckets: DashboardTrendBucket[] = ['hour', 'day'];
-  if (!validBuckets.includes(bucket)) {
-    res.status(400).json({ error: 'bucket must be hour or day.' });
-    return;
-  }
+  const { start, end, bucket } = v.data;
 
   try {
     const summary = await salesService.getDashboardSummary(start, end, bucket);
     res.status(200).json(summary);
   } catch (error) {
-    console.error('[sales] getDashboardSummary failed:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard summary.' });
+    handleControllerError(error, res, { label: '[sales] getDashboardSummary', fallbackMessage: 'Failed to fetch dashboard summary.' });
   }
 }
 
 export async function getRevenueInRange(req: Request, res: Response): Promise<void> {
-  const start = Number(req.query.start);
-  const end = Number(req.query.end);
-
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
-    res.status(400).json({ error: 'start and end are required unix timestamps with start < end.' });
+  const v = validateDateRange(req.query as Record<string, unknown>);
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
     return;
   }
+  const { start, end } = v.data;
 
   try {
     const revenue = await salesService.getRevenueInRange(start, end);
     res.status(200).json({ revenue });
   } catch (error) {
-    console.error('[sales] getRevenueInRange failed:', error);
-    res.status(500).json({ error: 'Failed to fetch revenue.' });
+    handleControllerError(error, res, { label: '[sales] getRevenueInRange', fallbackMessage: 'Failed to fetch revenue.' });
   }
 }
 
@@ -468,7 +382,6 @@ export async function getTopSelling(req: Request, res: Response): Promise<void> 
     const data = await salesService.getTopSelling(limit);
     res.status(200).json(data);
   } catch (error) {
-    console.error('[sales] getTopSelling failed:', error);
-    res.status(500).json({ error: 'Failed to fetch top-selling products.' });
+    handleControllerError(error, res, { label: '[sales] getTopSelling', fallbackMessage: 'Failed to fetch top-selling products.' });
   }
 }

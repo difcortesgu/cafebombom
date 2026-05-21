@@ -1,7 +1,5 @@
-import { UsersSqliteService } from '@/services/users';
+import { usersService } from '@/services';
 import type { Request, Response } from 'express';
-
-const usersService = new UsersSqliteService();
 
 export async function getActiveUsers(req: Request, res: Response): Promise<void> {
   try {

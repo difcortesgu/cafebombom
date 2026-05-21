@@ -1,5 +1,5 @@
 import { type Href, Slot, usePathname, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -13,9 +13,11 @@ import {
 import { LoginScreen } from '@/components/login-screen';
 import { SetupScreen } from '@/components/setup-screen';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useBootHydration } from '@/hooks/use-boot-hydration';
+import { useRoleRouter } from '@/hooks/use-role-router';
+import { useSidebarAnimation } from '@/hooks/use-sidebar-animation';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
@@ -50,15 +52,12 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
 
   const [setupMode, setSetupMode] = useState(false);
-  const [bootHydrated, setBootHydrated] = useState(false);
-  const [hydratedUserId, setHydratedUserId] = useState<string | null>(null);
   const isMobileLayout = width < MOBILE_BREAKPOINT;
-  const canHoverSidebar = Platform.OS === 'web' && !isMobileLayout;
-  const [expanded, setExpanded] = useState(!canHoverSidebar);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const sidebarWidth = useRef(new Animated.Value(canHoverSidebar ? COLLAPSED_WIDTH : EXPANDED_WIDTH)).current;
-  const drawerProgress = useRef(new Animated.Value(0)).current;
-  const labelReveal = useRef(new Animated.Value(canHoverSidebar ? 0 : 1)).current;
+
+  const { bootHydrated } = useBootHydration();
+  const { expanded, setExpanded, drawerOpen, setDrawerOpen, sidebarWidth, drawerProgress, labelReveal, canHoverSidebar } =
+    useSidebarAnimation({ isMobileLayout });
+  useRoleRouter();
 
   const {
     users,
@@ -78,51 +77,6 @@ export default function TabLayout() {
   } = useAuthStore();
   const { hydrate: hydrateInventory, lowStockCount } = useInventoryStore();
   const { hydrate: hydrateProducts } = useProductsStore();
-  const { hydrate: hydrateAccounts } = useAccountsStore();
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void hydrateAuth().finally(() => {
-      if (!cancelled) {
-        setBootHydrated(true);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrateAuth]);
-
-  useEffect(() => {
-    if (!currentUser || hydratedUserId === currentUser.id) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const tasks: Promise<unknown>[] = [hydrateInventory(), hydrateProducts()];
-    if (currentUser.role === 'staff') {
-      tasks.push(hydrateAccounts());
-    }
-
-    void Promise.all(tasks).finally(() => {
-      if (!cancelled) {
-        setHydratedUserId(currentUser.id);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUser, hydrateAccounts, hydrateInventory, hydrateProducts, hydratedUserId]);
-
-  useEffect(() => {
-    if (currentUser) {
-      return;
-    }
-    setHydratedUserId(null);
-  }, [currentUser]);
 
   const isOwner = currentUser?.role === 'owner';
   const alertCount = lowStockCount();
@@ -139,7 +93,6 @@ export default function TabLayout() {
     if (!bootHydrated) {
       return;
     }
-
     if (!loading && !setupMode && isSetupDone === false) {
       setSetupMode(true);
     }
@@ -147,59 +100,6 @@ export default function TabLayout() {
       setSetupMode(false);
     }
   }, [bootHydrated, loading, setupMode, isSetupDone]);
-
-  useEffect(() => {
-    setExpanded(!canHoverSidebar);
-  }, [canHoverSidebar]);
-
-  useEffect(() => {
-    Animated.timing(sidebarWidth, {
-      toValue: canHoverSidebar ? (expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH) : EXPANDED_WIDTH,
-      duration: 180,
-      useNativeDriver: false,
-    }).start();
-  }, [canHoverSidebar, expanded, sidebarWidth]);
-
-  useEffect(() => {
-    Animated.timing(labelReveal, {
-      toValue: canHoverSidebar ? (expanded ? 1 : 0) : 1,
-      duration: 170,
-      useNativeDriver: false,
-    }).start();
-  }, [canHoverSidebar, expanded, labelReveal]);
-
-  useEffect(() => {
-    if (!isMobileLayout && drawerOpen) {
-      setDrawerOpen(false);
-    }
-  }, [drawerOpen, isMobileLayout]);
-
-  useEffect(() => {
-    Animated.timing(drawerProgress, {
-      toValue: drawerOpen ? 1 : 0,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  }, [drawerOpen, drawerProgress]);
-
-  useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
-
-    const ownerRoutes = new Set(['dashboard', 'catalog', 'operations', 'team']);
-    const staffRoutes = new Set(['sales', 'cash-register', 'restock', 'expenses']);
-    const currentRoute = pathname.replace(/^\//, '').split('/')[0] ?? '';
-
-    if (currentUser.role === 'owner' && staffRoutes.has(currentRoute)) {
-      router.replace('/dashboard');
-      return;
-    }
-
-    if (currentUser.role !== 'owner' && ownerRoutes.has(currentRoute)) {
-      router.replace('/sales');
-    }
-  }, [currentUser, pathname, router]);
 
   const activeRoute = pathname.replace(/^\//, '').split('/')[0] ?? '';
 

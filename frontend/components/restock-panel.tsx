@@ -1,13 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
+import { PaymentMethodChipSelector } from '@/components/ui/payment-method-chip-selector';
 import { SlidePanel } from '@/components/ui/slide-panel';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
+import { useFormPanel } from '@/hooks/use-form-panel';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
@@ -34,37 +36,25 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
     const { suppliers, hydrate, addRestock, addSupplier, ingredients } = useInventoryStore();
     const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
-    const [form, setForm] = useState<RestockForm>({
-        ingredientId,
-        quantityAdded: '1',
-        cost: '0',
-        supplierId: '',
-        paymentMethodId: '',
-    });
-    const [message, setMessage] = useState('');
     const paymentInitRef = useRef(false);
-    const prevVisibleRef = useRef(false);
-
-    useEffect(() => {
-        const wasVisible = prevVisibleRef.current;
-        prevVisibleRef.current = visible;
-
-        if (visible && !wasVisible) {
-            void hydrate();
-            void hydratePaymentMethods();
-            paymentInitRef.current = false;
-
+    const { form, setForm, message, setMessage } = useFormPanel<RestockForm>({
+        visible,
+        createDefaultForm: () => {
             const ingredient = ingredients.find((i) => i.id === ingredientId);
-            setForm({
+            return {
                 ingredientId,
                 quantityAdded: '1',
                 cost: '0',
                 supplierId: ingredient?.supplier_id ?? '',
                 paymentMethodId: '',
-            });
-            setMessage('');
-        }
-    }, [hydrate, hydratePaymentMethods, ingredientId, ingredients, visible]);
+            };
+        },
+        onOpen: () => {
+            paymentInitRef.current = false;
+            void hydrate();
+            void hydratePaymentMethods();
+        },
+    });
 
     useEffect(() => {
         if (paymentInitRef.current || methods.length === 0 || !visible) return;
@@ -73,7 +63,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
             if (f.paymentMethodId) return f;
             return { ...f, paymentMethodId: methods[0]?.id ?? '' };
         });
-    }, [methods, visible]);
+    }, [methods, setForm, visible]);
 
     useEffect(() => {
         if (!visible) return;
@@ -82,7 +72,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
             if (!ingredient?.supplier_id || f.supplierId) return f;
             return { ...f, supplierId: ingredient.supplier_id };
         });
-    }, [ingredients, visible]);
+    }, [ingredients, setForm, visible]);
 
     const ingredientItems = useMemo(
         () => ingredients.map((i) => ({ label: i.name, value: i.id })),
@@ -184,36 +174,11 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                     <Ionicons name="card-outline" size={14} color={palette.mutedText} />
                     <ThemedText style={styles.smallText}>{t('inventoryForm.restock.paymentMethod')}</ThemedText>
                 </View>
-                <View style={styles.chipRow}>
-                    {methods.map((method) => (
-                        <Pressable
-                            key={method.id}
-                            style={[
-                                styles.chip,
-                                { borderColor: palette.border },
-                                form.paymentMethodId === method.id && {
-                                    backgroundColor: palette.accent,
-                                    borderColor: palette.accent,
-                                },
-                            ]}
-                            onPress={() => setForm((f) => ({ ...f, paymentMethodId: method.id }))}
-                        >
-                            <Ionicons
-                                name={method.icon as any}
-                                size={16}
-                                color={form.paymentMethodId === method.id ? palette.text : palette.mutedText}
-                            />
-                            <ThemedText
-                                style={[
-                                    styles.chipLabel,
-                                    form.paymentMethodId === method.id && { color: palette.text },
-                                ]}
-                            >
-                                {method.name}
-                            </ThemedText>
-                        </Pressable>
-                    ))}
-                </View>
+                <PaymentMethodChipSelector
+                    methods={methods}
+                    selectedId={form.paymentMethodId}
+                    onSelect={(id) => setForm((f) => ({ ...f, paymentMethodId: id }))}
+                />
             </View>
 
             <View style={styles.fieldGroup}>
@@ -263,24 +228,6 @@ const styles = StyleSheet.create({
     input: {
         paddingHorizontal: 10,
         paddingVertical: 10,
-    },
-    chipRow: {
-        flexDirection: 'row',
-        gap: 8,
-        flexWrap: 'wrap',
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderWidth: 1,
-        borderRadius: 8,
-    },
-    chipLabel: {
-        fontSize: 13,
-        fontWeight: '500',
     },
     saveButton: {
         flex: 1,

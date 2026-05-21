@@ -17,8 +17,12 @@ import type {
   UpdateProductPayload,
 } from '@/types/products';
 
-async function syncRelatedStores() {
-  await Promise.all([useSalesStore.getState().hydrate(), useInventoryStore.getState().hydrate()]);
+async function syncSalesStore() {
+  await useSalesStore.getState().hydrate();
+}
+
+async function syncInventoryStore() {
+  await useInventoryStore.getState().hydrate();
 }
 
 type ProductsState = {
@@ -52,37 +56,37 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 
   addCategory: async (payload) => {
     const categoryId = await productsService.addCategory(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await get().hydrate();
     return categoryId;
   },
 
   createProduct: async (payload) => {
     await productsService.createProduct(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await Promise.all([get().hydrate(), syncSalesStore()]);
   },
 
   updateProduct: async (payload) => {
     await productsService.updateProduct(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await Promise.all([get().hydrate(), syncSalesStore()]);
   },
 
   setProductIngredient: async (payload) => {
     await productsService.setProductIngredient(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await Promise.all([get().hydrate(), syncInventoryStore()]);
   },
 
   removeProductIngredient: async (payload) => {
     await productsService.removeProductIngredient(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await Promise.all([get().hydrate(), syncInventoryStore()]);
   },
 
   setProductAdditionalIngredient: async (payload) => {
     await productsService.setProductAdditionalIngredient(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await Promise.all([get().hydrate(), syncInventoryStore()]);
   },
 
   removeProductAdditionalIngredient: async (payload) => {
     await productsService.removeProductAdditionalIngredient(payload);
-    await Promise.all([get().hydrate(), syncRelatedStores()]);
+    await Promise.all([get().hydrate(), syncInventoryStore()]);
   },
 }));

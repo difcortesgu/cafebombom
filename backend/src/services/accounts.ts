@@ -2,6 +2,7 @@ import { db } from '@/database';
 import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
 import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary } from '@/types/accounts';
 import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
+import { AppError } from '@/utils/errors';
 import { and, between, desc, gte, lte, sql } from 'drizzle-orm';
 
 export class AccountsSqliteService {
@@ -186,7 +187,7 @@ export class AccountsSqliteService {
   async openCashRegister({ openingAmount, notes, userId }: OpenCashRegisterPayload): Promise<string> {
     const existing = await this.getTodayCashRegister();
     if (existing && !existing.closed_at) {
-      throw new Error('A cash register session is already open for today.');
+      throw new AppError('A cash register session is already open for today.');
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -215,11 +216,11 @@ export class AccountsSqliteService {
       .get();
 
     if (!session) {
-      throw new Error('Cash register session not found.');
+      throw new AppError('Cash register session not found.');
     }
 
     if (session.closedAt !== null) {
-      throw new Error('Cash register session is already closed.');
+      throw new AppError('Cash register session is already closed.');
     }
 
     const now = Math.floor(Date.now() / 1000);

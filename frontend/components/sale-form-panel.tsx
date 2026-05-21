@@ -1,104 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedSelect } from '@/components/ui/themed-select';
+import { useSaleCart } from '@/hooks/use-sale-cart';
+import { useSaleDraftPreload } from '@/hooks/use-sale-draft-preload';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { salesService } from '@/services';
 import { useAuthStore } from '@/stores/auth';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
-import type { SaleItemAdditionalIngredientInput, TableType } from '@/types/types';
+import {
+    type SaleFormCartItem,
+} from '@/utils/cart-normalization';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
+import { formatSaleStatusLabel, getTableSurcharge } from '@/utils/sale-view';
 
-type CartItem = {
-    id: string;
-    productId: string;
-    name: string;
-    basePrice: number;
-    unitPrice: number;
-    quantity: number;
-    observation: string | null;
-    removedIngredientIds: string[];
-    additionalIngredients: SaleItemAdditionalIngredientInput[];
-};
-
-function createCartItemId(): string {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function normalizeIngredientIds(ids: string[]): string[] {
-    return Array.from(new Set(ids.map((v) => v.trim()).filter((v) => v.length > 0))).sort();
-}
-
-function normalizeAdditionalIngredients(entries: SaleItemAdditionalIngredientInput[]): SaleItemAdditionalIngredientInput[] {
-    const deduped = new Map<string, number>();
-    for (const entry of entries) {
-        const ingredientId = String(entry.ingredientId ?? '').trim();
-        const quantity = Math.max(0, Math.floor(Number(entry.quantity ?? 0)));
-        if (!ingredientId || quantity <= 0) continue;
-        deduped.set(ingredientId, quantity);
-    }
-    return Array.from(deduped.entries())
-        .map(([ingredientId, quantity]) => ({ ingredientId, quantity }))
-        .sort((a, b) => a.ingredientId.localeCompare(b.ingredientId));
-}
-
-function buildCustomizationKey(
-    productId: string,
-    observation: string | null,
-    removedIngredientIds: string[],
-    additionalIngredients: SaleItemAdditionalIngredientInput[],
-): string {
-    const normalizedAdditional = normalizeAdditionalIngredients(additionalIngredients)
-        .map((e) => `${e.ingredientId}:${e.quantity}`)
-        .join(',');
-    const normalizedObservation = typeof observation === 'string' ? observation.trim() : '';
-    return `${productId}::${normalizedObservation}::${normalizeIngredientIds(removedIngredientIds).join(',')}::${normalizedAdditional}`;
-}
-
-function mergeCartLines(items: CartItem[]): CartItem[] {
-    const grouped = new Map<string, CartItem>();
-    for (const item of items) {
-        const removedIngredientIds = normalizeIngredientIds(item.removedIngredientIds);
-        const additionalIngredients = normalizeAdditionalIngredients(item.additionalIngredients);
-        const observation = typeof item.observation === 'string' ? item.observation.trim() : '';
-        const key = buildCustomizationKey(item.productId, observation, removedIngredientIds, additionalIngredients);
-        const existing = grouped.get(key);
-        if (existing) {
-            existing.quantity += item.quantity;
-            continue;
-        }
-        grouped.set(key, {
-            ...item,
-            observation: observation.length > 0 ? observation : null,
-            removedIngredientIds,
-            additionalIngredients,
-        });
-    }
-    return [...grouped.values()];
-}
-
-function getTableSurcharge(tableType: TableType, toGoSurcharge: number, deliverySurcharge: number) {
-    const safeToGo = Math.max(0, toGoSurcharge);
-    const safeDelivery = Math.max(0, deliverySurcharge);
-    const delivery = tableType === 'delivery' ? safeDelivery : 0;
-    const toGo = tableType === 'to-go' || tableType === 'delivery' ? safeToGo : 0;
-    return { toGo, delivery, total: toGo + delivery };
-}
-
-function formatStatusLabel(status: string) {
-    if (status === 'draft') return t('sales.status.draft');
-    if (status === 'in-progress') return t('sales.status.inProgress');
-    if (status === 'ready') return t('sales.status.ready');
-    if (status === 'completed') return t('sales.status.completed');
-    if (status === 'cancelled') return t('sales.status.cancelled');
-    return status;
-}
+type CartItem = SaleFormCartItem;
 
 export type SaleFormPanelProps = {
     orderId: string | null;
@@ -112,10 +33,8 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
     const { productIngredients, hydrate: hydrateProducts } = useProductsStore();
     const { deliverySurcharge, toGoSurcharge, hydrateFromDb } = useSettingsStore();
 
-    const [cart, setCart] = useState<CartItem[]>([]);
     const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
     const [selectedGlobalDiscountId, setSelectedGlobalDiscountId] = useState('');
-    const [loadingDraft, setLoadingDraft] = useState(false);
     const [isDraftInitialized, setIsDraftInitialized] = useState(false);
     const [mobileStep, setMobileStep] = useState<'products' | 'cart'>('products');
     const [openItemIds, setOpenItemIds] = useState<Set<string>>(new Set());
@@ -146,67 +65,20 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             setSelectedTableId(tables.length > 0 ? tables[0].id : null);
             setSelectedGlobalDiscountId('');
         }
-    }, [editingOrderId, tables]);
+    }, [editingOrderId, setCart, tables]);
 
-    useEffect(() => {
-        if (!editingOrderId || isDraftInitialized || !selectedDraftSale) return;
-
-        let isMounted = true;
-
-        const preloadDraft = async () => {
-            setLoadingDraft(true);
-            try {
-                const [items, pricingSummary] = await Promise.all([
-                    salesService.getSaleItems(editingOrderId),
-                    salesService.getSalePricingSummary(editingOrderId),
-                ]);
-
-                if (!isMounted) return;
-
-                const itemMap = new Map<string, CartItem>();
-                for (const item of items) {
-                    const removedIngredientIds = normalizeIngredientIds(item.removed_ingredient_ids ?? []);
-                    const additionalIngredients = normalizeAdditionalIngredients(item.selected_additional_ingredients ?? []);
-                    const observation = typeof item.observation === 'string' ? item.observation.trim() : '';
-                    const key = buildCustomizationKey(item.product_id, observation, removedIngredientIds, additionalIngredients);
-                    const currentProduct = products.find((p) => p.id === item.product_id);
-                    const existing = itemMap.get(key);
-                    if (existing) {
-                        existing.quantity += item.quantity;
-                    } else {
-                        itemMap.set(key, {
-                            id: createCartItemId(),
-                            productId: item.product_id,
-                            name: item.product_name,
-                            basePrice: Number(currentProduct?.price ?? item.unit_price),
-                            unitPrice: Number(item.unit_price),
-                            quantity: item.quantity,
-                            observation: observation.length > 0 ? observation : null,
-                            removedIngredientIds,
-                            additionalIngredients,
-                        });
-                    }
-                }
-
-                setCart([...itemMap.values()]);
-
-                const matchedTable = tables.find((table) => table.name === selectedDraftSale.table_name) ?? null;
-                setSelectedTableId(matchedTable?.id ?? null);
-
-                const discountName = pricingSummary?.global_discount_name ?? null;
-                const matchedGlobalDiscount = discountName
-                    ? discounts.find((d) => d.scope === 'global' && d.name === discountName)
-                    : null;
-                setSelectedGlobalDiscountId(matchedGlobalDiscount?.id ?? '');
-                setIsDraftInitialized(true);
-            } finally {
-                if (isMounted) setLoadingDraft(false);
-            }
-        };
-
-        void preloadDraft();
-        return () => { isMounted = false; };
-    }, [editingOrderId, isDraftInitialized, selectedDraftSale, tables, discounts, products]);
+    const { loadingDraft } = useSaleDraftPreload({
+        editingOrderId,
+        isDraftInitialized,
+        setIsDraftInitialized,
+        selectedDraftSale,
+        tables,
+        discounts,
+        products,
+        setCart,
+        setSelectedTableId,
+        setSelectedGlobalDiscountId,
+    });
 
     const nowUnix = Math.floor(Date.now() / 1000);
 
@@ -221,21 +93,6 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                 })),
         ],
         [discounts],
-    );
-
-    const pricing = useMemo(
-        () => calculateSaleDiscountBreakdown(
-            cart.map((item) => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                additionalIngredients: item.additionalIngredients,
-            })),
-            discounts,
-            nowUnix,
-            selectedGlobalDiscountId || null,
-        ),
-        [cart, discounts, nowUnix, selectedGlobalDiscountId],
     );
 
     const recipeByProductId = useMemo(() => {
@@ -262,12 +119,31 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         return map;
     }, [products]);
 
-    const getCartItemUnitPrice = useCallback((productId: string, basePrice: number, additionalIngredients: SaleItemAdditionalIngredientInput[]) => {
-        const options = additionalOptionsByProductId.get(productId) ?? new Map<string, { ingredientName: string; additionalPrice: number }>();
-        const additionalPrice = normalizeAdditionalIngredients(additionalIngredients)
-            .reduce((sum, entry) => sum + (options.get(entry.ingredientId)?.additionalPrice ?? 0) * entry.quantity, 0);
-        return Number((basePrice + additionalPrice).toFixed(2));
-    }, [additionalOptionsByProductId]);
+    const {
+        cart,
+        setCart,
+        addToCart,
+        getProductTotalQuantity,
+        updateQty,
+        toggleRemovedIngredient,
+        updateAdditionalIngredientQty,
+        updateObservation,
+    } = useSaleCart(additionalOptionsByProductId);
+
+    const pricing = useMemo(
+        () => calculateSaleDiscountBreakdown(
+            cart.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                additionalIngredients: item.additionalIngredients,
+            })),
+            discounts,
+            nowUnix,
+            selectedGlobalDiscountId || null,
+        ),
+        [cart, discounts, nowUnix, selectedGlobalDiscountId],
+    );
 
     const selectedTable = useMemo(
         () => tables.find((table) => table.id === selectedTableId) ?? null,
@@ -300,92 +176,6 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         if (uncategorized.length > 0) result.push({ category: null, products: uncategorized });
         return result;
     }, [products]);
-
-    const addToCart = (productId: string, name: string, basePrice: number) => {
-        setCart((prev) => {
-            const existing = prev.find((item) =>
-                item.productId === productId &&
-                !item.observation &&
-                item.removedIngredientIds.length === 0 &&
-                item.additionalIngredients.length === 0,
-            );
-            if (existing) {
-                return prev.map((item) => item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item);
-            }
-            return [...prev, {
-                id: createCartItemId(),
-                productId,
-                name,
-                basePrice,
-                unitPrice: Number(basePrice.toFixed(2)),
-                quantity: 1,
-                observation: null,
-                removedIngredientIds: [],
-                additionalIngredients: [],
-            }];
-        });
-    };
-
-    const getProductTotalQuantity = (productId: string): number =>
-        cart.filter((item) => item.productId === productId).reduce((sum, item) => sum + item.quantity, 0);
-
-    const updateQty = (cartItemId: string, delta: number) => {
-        setCart((prev) =>
-            prev
-                .map((item) => item.id === cartItemId ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item)
-                .filter((item) => item.quantity > 0),
-        );
-    };
-
-    const toggleRemovedIngredient = (cartItemId: string, ingredientId: string) => {
-        setCart((prev) => {
-            const next = prev.map((item) => {
-                if (item.id !== cartItemId) return item;
-                const hasIngredient = item.removedIngredientIds.includes(ingredientId);
-                return {
-                    ...item,
-                    removedIngredientIds: normalizeIngredientIds(
-                        hasIngredient
-                            ? item.removedIngredientIds.filter((id) => id !== ingredientId)
-                            : [...item.removedIngredientIds, ingredientId],
-                    ),
-                };
-            });
-            return mergeCartLines(next);
-        });
-    };
-
-    const updateAdditionalIngredientQty = (cartItemId: string, ingredientId: string, delta: number) => {
-        setCart((prev) => {
-            const next = prev.map((item) => {
-                if (item.id !== cartItemId) return item;
-                const currentQty = item.additionalIngredients.find((e) => e.ingredientId === ingredientId)?.quantity ?? 0;
-                const nextQty = Math.max(0, currentQty + delta);
-                const additionalIngredients = normalizeAdditionalIngredients(
-                    nextQty > 0
-                        ? [...item.additionalIngredients.filter((e) => e.ingredientId !== ingredientId), { ingredientId, quantity: nextQty }]
-                        : item.additionalIngredients.filter((e) => e.ingredientId !== ingredientId),
-                );
-                return {
-                    ...item,
-                    additionalIngredients,
-                    unitPrice: getCartItemUnitPrice(item.productId, item.basePrice, additionalIngredients),
-                };
-            });
-            return mergeCartLines(next);
-        });
-    };
-
-    const updateObservation = (cartItemId: string, observation: string) => {
-        setCart((prev) => {
-            const next = prev.map((item) => {
-                if (item.id !== cartItemId) return item;
-                const normalized = observation.trim();
-                return { ...item, observation: normalized.length > 0 ? normalized : null };
-            });
-            return mergeCartLines(next);
-        });
-    };
 
     const toggleItemExpanded = (itemId: string) => {
         setOpenItemIds((prev) => {
@@ -486,7 +276,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                 </ThemedText>
                 <View style={[styles.statusBadge, { backgroundColor: `${palette.tint}20` }]}>
                     <ThemedText style={[styles.statusBadgeText, { color: palette.tint }]}>
-                        {formatStatusLabel(selectedDraftSale?.status ?? 'draft')}
+                        {formatSaleStatusLabel(selectedDraftSale?.status ?? 'draft')}
                     </ThemedText>
                 </View>
             </View>
@@ -849,7 +639,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             {editingOrderId && selectedDraftSale && (
                 <View style={[styles.statusBadge, { backgroundColor: `${palette.tint}20` }]}>
                     <ThemedText style={[styles.statusBadgeText, { color: palette.tint }]}>
-                        {formatStatusLabel(selectedDraftSale.status)}
+                        {formatSaleStatusLabel(selectedDraftSale.status)}
                     </ThemedText>
                 </View>
             )}

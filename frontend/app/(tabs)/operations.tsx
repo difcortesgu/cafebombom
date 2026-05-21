@@ -11,11 +11,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { DateInput } from '@/components/ui/date-input';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ImportSection } from '@/components/operations/import-section';
+import { SectionTabs, type OperationsSection } from '@/components/operations/section-tabs';
+import { SurchargesSection } from '@/components/operations/surcharges-section';
+import { TablesSection } from '@/components/operations/tables-section';
 import { PaymentMethodsManager } from '@/components/payment-methods-manager';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -26,12 +29,10 @@ import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 
-type Section = 'tables' | 'payment-methods' | 'surcharges' | 'discounts' | 'receipt' | 'import';
-
 export default function OperationsScreen() {
     const palette = useAppColors();
     const router = useRouter();
-    const [section, setSection] = useState<Section>('tables');
+    const [section, setSection] = useState<OperationsSection>('tables');
 
     const {
         hydrate: hydrateSales,
@@ -101,6 +102,14 @@ export default function OperationsScreen() {
 
     const globalDiscounts = discounts.filter((discount) => discount.scope === 'global');
     const productDiscounts = discounts.filter((discount) => discount.scope === 'product');
+    const sectionLabels: { key: OperationsSection; label: string }[] = [
+        { key: 'tables', label: t('tables.title') },
+        { key: 'payment-methods', label: t('settings.paymentMethods.title') },
+        { key: 'surcharges', label: t('settings.fees.title') },
+        { key: 'discounts', label: t('products.discounts.title') },
+        { key: 'receipt', label: t('settings.receipt.title') },
+        { key: 'import', label: t('operations.import') },
+    ];
 
     const formatDiscountDate = (unix: number | null): string => {
         if (!unix) return t('productForm.discounts.open');
@@ -371,71 +380,26 @@ export default function OperationsScreen() {
             <ThemedText type="title">{t('operations.title')}</ThemedText>
             <ThemedText>{t('operations.subtitle')}</ThemedText>
 
-            <View style={styles.tabRow}>
-                {(
-                    [
-                        { key: 'tables', label: t('tables.title') },
-                        { key: 'payment-methods', label: t('settings.paymentMethods.title') },
-                        { key: 'surcharges', label: t('settings.fees.title') },
-                        { key: 'discounts', label: t('products.discounts.title') },
-                        { key: 'receipt', label: t('settings.receipt.title') },
-                        { key: 'import', label: t('operations.import') },
-                    ] as const
-                ).map((item) => (
-                    <ThemedChip
-                        key={item.key}
-                        style={styles.sectionButton}
-                        label={item.label}
-                        active={section === item.key}
-                        onPress={() => setSection(item.key)}
-                    />
-                ))}
-            </View>
+            <SectionTabs section={section} labels={sectionLabels} onChange={setSection} />
 
             {section === 'tables' ? (
-                <ThemedCard style={styles.card}>
-                    <View style={styles.headerRow}>
-                        <ThemedText type="subtitle">{t('tables.list')}</ThemedText>
-                        <ThemedButton label={t('tables.add')} onPress={() => router.push('/table-form')} />
-                    </View>
-                    {tablesMessage ? <ThemedText style={styles.muted}>{tablesMessage}</ThemedText> : null}
-                    {tables.length === 0 ? (
-                        <ThemedText style={styles.muted}>{t('tables.empty')}</ThemedText>
-                    ) : (
-                        tables.map((table) => (
-                            <View key={table.id} style={[styles.tableRow, { borderColor: palette.border }]}>
-                                <View style={styles.tableTextWrap}>
-                                    <ThemedText type="defaultSemiBold">{table.name}</ThemedText>
-                                    <ThemedText style={styles.muted}>
-                                        {table.table_type === 'to-go' ? t('tables.type.toGo') : table.table_type === 'delivery' ? t('tables.type.delivery') : t('tables.type.dineIn')}
-                                    </ThemedText>
-                                </View>
-                                <View style={styles.rowActions}>
-                                    <ThemedButton
-                                        variant="secondary"
-                                        style={styles.smallButton}
-                                        label={t('tables.edit')}
-                                        onPress={() => router.push({ pathname: '/table-form', params: { id: table.id } })}
-                                    />
-                                    <ThemedButton
-                                        variant="secondary"
-                                        style={styles.smallButton}
-                                        icon="trash.fill"
-                                        accessibilityLabel={t('tables.deleted')}
-                                        onPress={async () => {
-                                            try {
-                                                await deleteTable(table.id);
-                                                setTablesMessage(t('tables.deleted'));
-                                            } catch {
-                                                setTablesMessage(t('sales.error.tableHasLinkedSales'));
-                                            }
-                                        }}
-                                    />
-                                </View>
-                            </View>
-                        ))
-                    )}
-                </ThemedCard>
+                <TablesSection
+                    tables={tables}
+                    message={tablesMessage}
+                    borderColor={palette.border}
+                    onAdd={() => router.push('/table-form')}
+                    onEdit={(tableId) => router.push({ pathname: '/table-form', params: { id: tableId } })}
+                    onDelete={(tableId) => {
+                        void (async () => {
+                            try {
+                                await deleteTable(tableId);
+                                setTablesMessage(t('tables.deleted'));
+                            } catch {
+                                setTablesMessage(t('sales.error.tableHasLinkedSales'));
+                            }
+                        })();
+                    }}
+                />
             ) : null}
 
             {section === 'payment-methods' ? (
@@ -445,32 +409,14 @@ export default function OperationsScreen() {
             ) : null}
 
             {section === 'surcharges' ? (
-                <ThemedCard style={styles.card}>
-                    <ThemedText type="subtitle">{t('settings.fees.title')}</ThemedText>
-                    <ThemedText style={styles.muted}>{t('settings.fees.subtitle')}</ThemedText>
-                    <View style={styles.feeRow}>
-                        <ThemedText style={styles.feeLabel}>{t('settings.fees.delivery')}</ThemedText>
-                        <ThemedInput
-                            style={styles.feeInput}
-                            keyboardType="decimal-pad"
-                            value={deliveryInput}
-                            onChangeText={setDeliveryInput}
-                            onBlur={commitDeliveryFee}
-                            placeholder={t('settings.fees.placeholder')}
-                        />
-                    </View>
-                    <View style={styles.feeRow}>
-                        <ThemedText style={styles.feeLabel}>{t('settings.fees.toGo')}</ThemedText>
-                        <ThemedInput
-                            style={styles.feeInput}
-                            keyboardType="decimal-pad"
-                            value={toGoInput}
-                            onChangeText={setToGoInput}
-                            onBlur={commitToGoFee}
-                            placeholder={t('settings.fees.placeholder')}
-                        />
-                    </View>
-                </ThemedCard>
+                <SurchargesSection
+                    deliveryInput={deliveryInput}
+                    toGoInput={toGoInput}
+                    onDeliveryChange={setDeliveryInput}
+                    onToGoChange={setToGoInput}
+                    onDeliveryBlur={commitDeliveryFee}
+                    onToGoBlur={commitToGoFee}
+                />
             ) : null}
 
             {section === 'discounts' ? (
@@ -727,16 +673,14 @@ export default function OperationsScreen() {
             ) : null}
 
             {section === 'import' ? (
-                <ThemedCard style={styles.card}>
-                    <ThemedText type="subtitle">{t('operations.import')}</ThemedText>
-                    <ThemedText style={styles.muted}>{t('operations.importSubtitle')}</ThemedText>
-                    <ThemedButton disabled={importBusy} label={importBusy ? 'Importando...' : t('operations.importAction')} onPress={importSeedData} />
-                    <ThemedButton variant="secondary" disabled={importBusy} label={t('operations.downloadTemplate')} onPress={downloadImportTemplate} />
-                    {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
-                    {importIssues.map((issue) => (
-                        <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>{issue}</ThemedText>
-                    ))}
-                </ThemedCard>
+                <ImportSection
+                    busy={importBusy}
+                    message={importMessage}
+                    issues={importIssues}
+                    dangerColor={palette.danger}
+                    onImport={() => void importSeedData()}
+                    onDownloadTemplate={() => void downloadImportTemplate()}
+                />
             ) : null}
         </ScrollView>
     );
@@ -746,14 +690,6 @@ const styles = StyleSheet.create({
     container: {
         padding: 16,
         gap: 12,
-    },
-    tabRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    sectionButton: {
-        borderRadius: 10,
     },
     card: {
         gap: 10,

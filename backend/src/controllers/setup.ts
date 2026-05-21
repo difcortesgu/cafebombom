@@ -1,13 +1,10 @@
+import { setupService, usersService } from '@/services';
 import { getSetupStatus as getBootstrapStatus } from '@/services/bootstrap';
 import { SeedImportParseError, SeedImportValidationError } from '@/services/seed-import';
-import { SetupSqliteService } from '@/services/setup';
-import { UsersSqliteService } from '@/services/users';
 import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 
-const setupService = new SetupSqliteService();
-const usersService = new UsersSqliteService();
 
 export function getSetupStatus(req: Request, res: Response): void {
   try {
