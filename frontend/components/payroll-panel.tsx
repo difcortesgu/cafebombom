@@ -1,16 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import {
-    Animated,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    useWindowDimensions,
-    View,
-} from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
+import { FormFeedback } from '@/components/ui/form-feedback';
+import { PanelActionRow } from '@/components/ui/panel-action-row';
+import { SlidePanel } from '@/components/ui/slide-panel';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
@@ -37,11 +32,6 @@ const DEFAULT_FORM: PayrollForm = {
 
 export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) {
     const palette = useAppColors();
-    const { width: screenWidth } = useWindowDimensions();
-    const panelWidth = Math.floor(screenWidth / 3);
-
-    const slideAnim = useRef(new Animated.Value(panelWidth)).current;
-    const backdropOpacity = useRef(new Animated.Value(0)).current;
 
     const { employees, addPayroll } = useAccountsStore();
     const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
@@ -62,40 +52,8 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
             employeeInitRef.current = false;
             setForm(DEFAULT_FORM);
             setMessage('');
-
-            slideAnim.setValue(panelWidth);
-            backdropOpacity.setValue(0);
-            Animated.parallel([
-                Animated.spring(slideAnim, {
-                    toValue: 0,
-                    useNativeDriver: true,
-                    tension: 80,
-                    friction: 12,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 1,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        } else if (!visible && wasVisible) {
-            Animated.parallel([
-                Animated.timing(slideAnim, {
-                    toValue: panelWidth,
-                    duration: 220,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start(({ finished }) => {
-                if (finished) onExited();
-            });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visible]);
+    }, [hydratePaymentMethods, visible]);
 
     useEffect(() => {
         if (paymentInitRef.current || methods.length === 0 || !visible) return;
@@ -133,191 +91,115 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
     }
 
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-            <Animated.View
-                style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
-                pointerEvents="box-none"
-            >
-                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-            </Animated.View>
+        <SlidePanel
+            visible={visible}
+            title={t('accounts.payroll.add')}
+            icon="people-outline"
+            onClose={onClose}
+            onExited={onExited}
+            footer={(
+                <PanelActionRow
+                    primaryLabel={t('accountsForm.payroll.save')}
+                    secondaryLabel={t('common.back')}
+                    onPrimaryPress={handleSave}
+                    onSecondaryPress={onClose}
+                    primaryButtonStyle={styles.saveButton}
+                />
+            )}
+        >
+            <FormFeedback message={message} />
 
-            <Animated.View
-                style={[
-                    styles.panel,
-                    {
-                        width: panelWidth,
-                        backgroundColor: palette.background,
-                        borderLeftColor: palette.border,
-                        transform: [{ translateX: slideAnim }],
-                    },
-                ]}
-            >
-                <View style={[styles.header, { borderBottomColor: palette.border }]}>
-                    <View style={styles.headerTitle}>
-                        <Ionicons name="people-outline" size={20} color={palette.tint} />
-                        <ThemedText type="subtitle">{t('accounts.payroll.add')}</ThemedText>
-                    </View>
-                    <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
-                        <Ionicons name="close" size={22} color={palette.text} />
-                    </Pressable>
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="person-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallText}>{t('accountsForm.payroll.employee')}</ThemedText>
                 </View>
-
-                <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-                    {message ? (
-                        <View
-                            style={[
-                                styles.messageBanner,
-                                { backgroundColor: palette.danger + '22', borderColor: palette.danger + '44' },
-                            ]}
-                        >
-                            <ThemedText style={{ color: palette.danger, fontSize: 13 }}>{message}</ThemedText>
-                        </View>
-                    ) : null}
-
-                    <View style={styles.fieldGroup}>
-                        <View style={styles.labelRow}>
-                            <Ionicons name="person-outline" size={14} color={palette.mutedText} />
-                            <ThemedText style={styles.smallText}>{t('accountsForm.payroll.employee')}</ThemedText>
-                        </View>
-                        {employees.length === 0 ? (
-                            <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{t('team.noEmployees')}</ThemedText>
-                        ) : (
-                            <View style={styles.chipRow}>
-                                {employees.map((employee) => (
-                                    <Pressable
-                                        key={employee.id}
-                                        style={[
-                                            styles.chip,
-                                            { borderColor: palette.border },
-                                            form.employeeId === employee.id && {
-                                                backgroundColor: palette.accent,
-                                                borderColor: palette.accent,
-                                            },
-                                        ]}
-                                        onPress={() => setForm((f) => ({ ...f, employeeId: employee.id }))}
-                                    >
-                                        <ThemedText
-                                            style={[
-                                                styles.chipLabel,
-                                                form.employeeId === employee.id && { color: palette.text },
-                                            ]}
-                                        >
-                                            {employee.name}
-                                        </ThemedText>
-                                    </Pressable>
-                                ))}
-                            </View>
-                        )}
-                    </View>
-
-                    <View style={styles.fieldGroup}>
-                        <View style={styles.labelRow}>
-                            <Ionicons name="cash-outline" size={14} color={palette.mutedText} />
-                            <ThemedText style={styles.smallText}>{t('accountsForm.payroll.amount')}</ThemedText>
-                        </View>
-                        <ThemedInput
-                            value={form.amount}
-                            keyboardType="decimal-pad"
-                            placeholder={t('accountsForm.payroll.amount')}
-                            onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
-                            style={styles.input}
-                        />
-                    </View>
-
-                    <View style={styles.fieldGroup}>
-                        <View style={styles.labelRow}>
-                            <Ionicons name="card-outline" size={14} color={palette.mutedText} />
-                            <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
-                        </View>
-                        <View style={styles.chipRow}>
-                            {methods.map((method) => (
-                                <Pressable
-                                    key={method.id}
+                {employees.length === 0 ? (
+                    <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{t('team.noEmployees')}</ThemedText>
+                ) : (
+                    <View style={styles.chipRow}>
+                        {employees.map((employee) => (
+                            <Pressable
+                                key={employee.id}
+                                style={[
+                                    styles.chip,
+                                    { borderColor: palette.border },
+                                    form.employeeId === employee.id && {
+                                        backgroundColor: palette.accent,
+                                        borderColor: palette.accent,
+                                    },
+                                ]}
+                                onPress={() => setForm((f) => ({ ...f, employeeId: employee.id }))}
+                            >
+                                <ThemedText
                                     style={[
-                                        styles.chip,
-                                        { borderColor: palette.border },
-                                        form.paymentMethodId === method.id && {
-                                            backgroundColor: palette.accent,
-                                            borderColor: palette.accent,
-                                        },
+                                        styles.chipLabel,
+                                        form.employeeId === employee.id && { color: palette.text },
                                     ]}
-                                    onPress={() => setForm((f) => ({ ...f, paymentMethodId: method.id }))}
                                 >
-                                    <Ionicons
-                                        name={method.icon as any}
-                                        size={16}
-                                        color={form.paymentMethodId === method.id ? palette.text : palette.mutedText}
-                                    />
-                                    <ThemedText
-                                        style={[
-                                            styles.chipLabel,
-                                            form.paymentMethodId === method.id && { color: palette.text },
-                                        ]}
-                                    >
-                                        {method.name}
-                                    </ThemedText>
-                                </Pressable>
-                            ))}
-                        </View>
+                                    {employee.name}
+                                </ThemedText>
+                            </Pressable>
+                        ))}
                     </View>
-                </ScrollView>
+                )}
+            </View>
 
-                <View style={[styles.footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
-                    <ThemedButton
-                        style={styles.saveButton}
-                        icon="checkmark-circle"
-                        label={t('accountsForm.payroll.save')}
-                        onPress={handleSave}
-                    />
-                    <ThemedButton
-                        variant="secondary"
-                        icon="arrow-back"
-                        label={t('common.back')}
-                        onPress={onClose}
-                    />
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="cash-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallText}>{t('accountsForm.payroll.amount')}</ThemedText>
                 </View>
-            </Animated.View>
-        </View>
+                <ThemedInput
+                    value={form.amount}
+                    keyboardType="decimal-pad"
+                    placeholder={t('accountsForm.payroll.amount')}
+                    onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                    style={styles.input}
+                />
+            </View>
+
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="card-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
+                </View>
+                <View style={styles.chipRow}>
+                    {methods.map((method) => (
+                        <Pressable
+                            key={method.id}
+                            style={[
+                                styles.chip,
+                                { borderColor: palette.border },
+                                form.paymentMethodId === method.id && {
+                                    backgroundColor: palette.accent,
+                                    borderColor: palette.accent,
+                                },
+                            ]}
+                            onPress={() => setForm((f) => ({ ...f, paymentMethodId: method.id }))}
+                        >
+                            <Ionicons
+                                name={method.icon as any}
+                                size={16}
+                                color={form.paymentMethodId === method.id ? palette.text : palette.mutedText}
+                            />
+                            <ThemedText
+                                style={[
+                                    styles.chipLabel,
+                                    form.paymentMethodId === method.id && { color: palette.text },
+                                ]}
+                            >
+                                {method.name}
+                            </ThemedText>
+                        </Pressable>
+                    ))}
+                </View>
+            </View>
+        </SlidePanel>
     );
 }
 
 const styles = StyleSheet.create({
-    backdrop: {
-        backgroundColor: 'rgba(0,0,0,0.45)',
-    },
-    panel: {
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        borderLeftWidth: 1,
-        overflow: 'hidden',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderBottomWidth: 1,
-    },
-    headerTitle: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    closeButton: {
-        padding: 4,
-    },
-    formContent: {
-        padding: 16,
-        gap: 16,
-    },
-    messageBanner: {
-        padding: 10,
-        borderRadius: 8,
-        borderWidth: 1,
-    },
     fieldGroup: {
         gap: 6,
     },
@@ -351,12 +233,6 @@ const styles = StyleSheet.create({
     chipLabel: {
         fontSize: 13,
         fontWeight: '600',
-    },
-    footer: {
-        flexDirection: 'row',
-        gap: 8,
-        padding: 12,
-        borderTopWidth: 1,
     },
     saveButton: {
         flex: 1,
