@@ -33,3 +33,5 @@ See the respective README in each folder for setup and usage instructions.
 - API template download endpoint: GET /api/setup/import-template
 
 ## Next Features To Implement
+
+Unify create product with edit product forms, use only the drawer style, small screens should fallback to full page forms

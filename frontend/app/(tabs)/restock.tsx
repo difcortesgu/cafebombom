@@ -1,6 +1,10 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+import { useCatalogGrid } from '@/hooks/use-catalog-grid';
+import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
+import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 
 import { RestockPanel } from '@/components/restock-panel';
 import { ThemedText } from '@/components/themed-text';
@@ -13,32 +17,18 @@ import { useInventoryStore } from '@/stores/inventory';
 const GRID_GAP = 12;
 const PADDING = 16;
 
-function getColumns(width: number) {
-    if (width >= 1200) return 4;
-    if (width >= 900) return 3;
-    if (width >= 600) return 2;
-    return 1;
-}
-
 export default function RestockScreen() {
     const palette = useAppColors();
-    const router = useRouter();
     const { ingredients, hydrate } = useInventoryStore();
-    const { width: screenWidth } = useWindowDimensions();
-    const isWide = screenWidth >= 768;
+    const { screenWidth, numCols, cardWidth } = useCatalogGrid();
+    const { isWide, openOrNavigate } = useResponsiveOpen();
+    const panel = usePanelLifecycle();
 
     const [panelIngredientId, setPanelIngredientId] = useState('');
-    const [panelVisible, setPanelVisible] = useState(false);
-    const [panelMounted, setPanelMounted] = useState(false);
 
     function openPanel(ingredientId: string) {
         setPanelIngredientId(ingredientId);
-        setPanelMounted(true);
-        setPanelVisible(true);
-    }
-
-    function closePanel() {
-        setPanelVisible(false);
+        panel.open();
     }
 
     useFocusEffect(
@@ -46,9 +36,6 @@ export default function RestockScreen() {
             void hydrate();
         }, [hydrate]),
     );
-
-    const numCols = getColumns(screenWidth);
-    const cardWidth = (screenWidth - PADDING * 2 - GRID_GAP * (numCols - 1)) / numCols;
 
     return (
         <View style={styles.screenContainer}>
@@ -108,16 +95,10 @@ export default function RestockScreen() {
                                         <ThemedButton
                                             icon="add"
                                             style={styles.restockBtn}
-                                            onPress={() => {
-                                                if (isWide) {
-                                                    openPanel(ingredient.id);
-                                                } else {
-                                                    router.push({
-                                                        pathname: '/inventory-form',
-                                                        params: { section: 'restock', ingredientId: ingredient.id },
-                                                    });
-                                                }
-                                            }}
+                                            onPress={() => openOrNavigate(
+                                                () => openPanel(ingredient.id),
+                                                { pathname: '/inventory-form', params: { section: 'restock', ingredientId: ingredient.id } },
+                                            )}
                                         />
                                     </View>
 
@@ -149,12 +130,12 @@ export default function RestockScreen() {
                     </View>
                 )}
             </ScrollView>
-            {panelMounted ? (
+            {panel.mounted ? (
                 <RestockPanel
-                    visible={panelVisible}
+                    visible={panel.visible}
                     ingredientId={panelIngredientId}
-                    onClose={closePanel}
-                    onExited={() => setPanelMounted(false)}
+                    onClose={panel.close}
+                    onExited={panel.onExited}
                 />
             ) : null}
         </View>

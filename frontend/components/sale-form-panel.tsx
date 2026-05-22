@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedSelect } from '@/components/ui/themed-select';
+import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useSaleCart } from '@/hooks/use-sale-cart';
 import { useSaleDraftPreload } from '@/hooks/use-sale-draft-preload';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -41,8 +42,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
     const [tableExpanded, setTableExpanded] = useState(true);
     const [discountExpanded, setDiscountExpanded] = useState(false);
 
-    const { width } = useWindowDimensions();
-    const isWideLayout = width >= 768;
+    const { isWide: isWideLayout } = useResponsiveOpen();
 
     const selectedDraftSale = useMemo(
         () => (editingOrderId ? sales.find((sale) => sale.id === editingOrderId) ?? null : null),
@@ -55,6 +55,41 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         void hydrateProducts();
         void hydrateFromDb();
     }, [hydrate, hydrateProducts, hydrateFromDb]);
+
+    const recipeByProductId = useMemo(() => {
+        const map = new Map<string, typeof productIngredients>();
+        for (const link of productIngredients) {
+            if (!map.has(link.productId)) map.set(link.productId, []);
+            map.get(link.productId)!.push(link);
+        }
+        return map;
+    }, [productIngredients]);
+
+    const additionalOptionsByProductId = useMemo(() => {
+        const map = new Map<string, Map<string, { ingredientName: string; additionalPrice: number }>>();
+        for (const product of products) {
+            const byIngredient = new Map<string, { ingredientName: string; additionalPrice: number }>();
+            for (const option of product.additionalIngredients ?? []) {
+                byIngredient.set(option.ingredientId, {
+                    ingredientName: option.ingredientName,
+                    additionalPrice: Number(option.additionalPrice),
+                });
+            }
+            map.set(product.id, byIngredient);
+        }
+        return map;
+    }, [products]);
+
+    const {
+        cart,
+        setCart,
+        addToCart,
+        getProductTotalQuantity,
+        updateQty,
+        toggleRemovedIngredient,
+        updateAdditionalIngredientQty,
+        updateObservation,
+    } = useSaleCart(additionalOptionsByProductId);
 
     useEffect(() => {
         setIsDraftInitialized(false);
@@ -94,41 +129,6 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         ],
         [discounts],
     );
-
-    const recipeByProductId = useMemo(() => {
-        const map = new Map<string, typeof productIngredients>();
-        for (const link of productIngredients) {
-            if (!map.has(link.productId)) map.set(link.productId, []);
-            map.get(link.productId)!.push(link);
-        }
-        return map;
-    }, [productIngredients]);
-
-    const additionalOptionsByProductId = useMemo(() => {
-        const map = new Map<string, Map<string, { ingredientName: string; additionalPrice: number }>>();
-        for (const product of products) {
-            const byIngredient = new Map<string, { ingredientName: string; additionalPrice: number }>();
-            for (const option of product.additionalIngredients ?? []) {
-                byIngredient.set(option.ingredientId, {
-                    ingredientName: option.ingredientName,
-                    additionalPrice: Number(option.additionalPrice),
-                });
-            }
-            map.set(product.id, byIngredient);
-        }
-        return map;
-    }, [products]);
-
-    const {
-        cart,
-        setCart,
-        addToCart,
-        getProductTotalQuantity,
-        updateQty,
-        toggleRemovedIngredient,
-        updateAdditionalIngredientQty,
-        updateObservation,
-    } = useSaleCart(additionalOptionsByProductId);
 
     const pricing = useMemo(
         () => calculateSaleDiscountBreakdown(

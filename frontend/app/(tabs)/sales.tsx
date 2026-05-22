@@ -1,6 +1,6 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { OrderPanel } from '@/components/order-panel';
 import { SaleCanvasCard, type CanvasCardAction, type ProductItem } from '@/components/sale-canvas-card';
@@ -9,6 +9,8 @@ import { SaleStatusLane } from '@/components/sale-status-lane';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
+import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { salesService } from '@/services';
@@ -94,13 +96,11 @@ export default function SalesScreen() {
   } = useSettingsStore();
   const { hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
-  const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768;
+  const { isWide, openOrNavigate } = useResponsiveOpen();
+  const orderPanel = usePanelLifecycle();
 
   const [saleProductsById, setSaleProductsById] = useState<Record<string, ProductItem[]>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
-  const [orderPanelVisible, setOrderPanelVisible] = useState(false);
-  const [orderPanelMounted, setOrderPanelMounted] = useState(false);
   const [orderPanelSale, setOrderPanelSale] = useState<Sale | null>(null);
   const [draggingSale, setDraggingSale] = useState<Sale | null>(null);
   const [moveOrderSale, setMoveOrderSale] = useState<Sale | null>(null);
@@ -181,9 +181,7 @@ export default function SalesScreen() {
           label: t('sales.action.openTab'),
           icon: 'create-outline',
           variant: 'secondary' as const,
-          onPress: isLargeScreen
-            ? () => setInlineSaleFormId(sale.id)
-            : () => router.push(`/sale-form?orderId=${sale.id}`),
+          onPress: () => openOrNavigate(() => setInlineSaleFormId(sale.id), `/sale-form?orderId=${sale.id}`),
           disabled,
         },
         { label: t('sales.action.payNow'), icon: 'card-outline', variant: 'secondary' as const, onPress: () => openOrderPanel(sale), disabled },
@@ -213,12 +211,7 @@ export default function SalesScreen() {
 
   const openOrderPanel = (sale: Sale) => {
     setOrderPanelSale(sale);
-    setOrderPanelMounted(true);
-    setOrderPanelVisible(true);
-  };
-
-  const closeOrderPanel = () => {
-    setOrderPanelVisible(false);
+    orderPanel.open();
   };
 
   const isWeb = Platform.OS === 'web';
@@ -289,7 +282,7 @@ export default function SalesScreen() {
             <ThemedButton
               label={t('sales.newSale')}
               icon="add-outline"
-              onPress={isLargeScreen ? () => setInlineSaleFormId('') : () => router.push('/sale-form')}
+              onPress={() => openOrNavigate(() => setInlineSaleFormId(''), '/sale-form')}
             />
           </View>
         </View>
@@ -320,13 +313,13 @@ export default function SalesScreen() {
             );
           })}
         </ScrollView>
-        {orderPanelMounted && (
+        {orderPanel.mounted && (
           <OrderPanel
-            visible={orderPanelVisible}
+            visible={orderPanel.visible}
             sale={orderPanelSale}
-            onClose={closeOrderPanel}
+            onClose={orderPanel.close}
             onExited={() => {
-              setOrderPanelMounted(false);
+              orderPanel.onExited();
               setOrderPanelSale(null);
             }}
             business={{
@@ -357,7 +350,7 @@ export default function SalesScreen() {
         <ThemedButton
           label={t('sales.newSale')}
           icon="add-outline"
-          onPress={isLargeScreen ? () => setInlineSaleFormId('') : () => router.push('/sale-form')}
+          onPress={() => openOrNavigate(() => setInlineSaleFormId(''), '/sale-form')}
         />
       </View>
 
@@ -413,13 +406,13 @@ export default function SalesScreen() {
         </View>
       </Modal>
 
-      {orderPanelMounted && (
+      {orderPanel.mounted && (
         <OrderPanel
-          visible={orderPanelVisible}
+          visible={orderPanel.visible}
           sale={orderPanelSale}
-          onClose={closeOrderPanel}
+          onClose={orderPanel.close}
           onExited={() => {
-            setOrderPanelMounted(false);
+            orderPanel.onExited();
             setOrderPanelSale(null);
           }}
           business={{

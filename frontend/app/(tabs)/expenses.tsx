@@ -1,9 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+
+import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
+import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 
 import { ExpensePanel } from '@/components/expense-panel';
+import { ExpensesList } from '@/components/expenses/expenses-list';
+import { PayrollList } from '@/components/expenses/payroll-list';
 import { PayrollPanel } from '@/components/payroll-panel';
 import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -16,19 +21,14 @@ type Section = 'expenses' | 'payroll';
 
 export default function ExpensesScreen() {
     const palette = useAppColors();
-    const router = useRouter();
-    const { width } = useWindowDimensions();
-    const isWide = width >= 768;
+    const { isWide, openOrNavigate } = useResponsiveOpen();
     const [section, setSection] = useState<Section>('expenses');
 
     const { hydrate, expenses, employees, payroll } = useAccountsStore();
     const { hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
-    const [panelVisible, setPanelVisible] = useState(false);
-    const [panelMounted, setPanelMounted] = useState(false);
-
-    const [payrollPanelVisible, setPayrollPanelVisible] = useState(false);
-    const [payrollPanelMounted, setPayrollPanelMounted] = useState(false);
+    const expensePanel = usePanelLifecycle();
+    const payrollPanel = usePanelLifecycle();
 
     const todayExpenses = useMemo(
         () => expenses.reduce((sum, expense) => sum + Number(expense.amount), 0),
@@ -42,21 +42,11 @@ export default function ExpensesScreen() {
     );
 
     function openPayrollForm() {
-        if (isWide) {
-            setPayrollPanelMounted(true);
-            setPayrollPanelVisible(true);
-        } else {
-            router.push('/payroll-form');
-        }
+        openOrNavigate(() => payrollPanel.open(), '/payroll-form');
     }
 
     function openExpenseForm() {
-        if (isWide) {
-            setPanelMounted(true);
-            setPanelVisible(true);
-        } else {
-            router.push('/expense-form');
-        }
+        openOrNavigate(() => expensePanel.open(), '/expense-form');
     }
 
     return (
@@ -140,83 +130,32 @@ export default function ExpensesScreen() {
 
                 {section === 'expenses' ? (
                     <View style={styles.section}>
-                        {/* Expense list */}
-                        {expenses.length === 0 ? (
-                            <View style={[styles.emptyCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                                <IconSymbol name="receipt.fill" size={24} color={palette.mutedText} />
-                                <ThemedText style={[styles.emptyText, { color: palette.mutedText }]}>{t('accounts.expenses.today')}: $0.00</ThemedText>
-                            </View>
-                        ) : (
-                            <View style={styles.listSection}>
-                                <View style={styles.sectionHeader}>
-                                    <IconSymbol name="receipt.fill" size={16} color={palette.mutedText} />
-                                    <ThemedText style={[styles.listSectionTitle, { color: palette.mutedText }]}>Registros del día</ThemedText>
-                                </View>
-                                {expenses.map((expense) => (
-                                    <View key={expense.id} style={[styles.listItem, { backgroundColor: palette.card }]}>
-                                        <View style={[styles.listItemIcon, { backgroundColor: palette.tint + '22' }]}>
-                                            <IconSymbol name="tag.fill" size={20} color={palette.tint} />
-                                        </View>
-                                        <View style={styles.listItemInfo}>
-                                            <ThemedText type="defaultSemiBold">{expense.category}</ThemedText>
-                                            <ThemedText style={[styles.listItemSub, { color: palette.mutedText }]}>
-                                                {expense.description || t('accounts.expenses.noDescription')}
-                                            </ThemedText>
-                                        </View>
-                                        <ThemedText style={[styles.listItemAmount, { color: palette.tint }]}>
-                                            ${Number(expense.amount).toFixed(2)}
-                                        </ThemedText>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
+                        <ExpensesList expenses={expenses} palette={palette} />
                     </View>
                 ) : null}
 
                 {section === 'payroll' ? (
                     <View style={styles.section}>
-                        {payroll.length > 0 && (
-                            <View style={styles.listSection}>
-                                <View style={styles.sectionHeader}>
-                                    <IconSymbol name="receipt.fill" size={16} color={palette.mutedText} />
-                                    <ThemedText style={[styles.listSectionTitle, { color: palette.mutedText }]}>Registros del día</ThemedText>
-                                </View>
-                                {payroll.map((entry) => (
-                                    <View key={entry.id} style={[styles.listItem, { backgroundColor: palette.card }]}>
-                                        <View style={[styles.listItemIcon, { backgroundColor: palette.accent + '22' }]}>
-                                            <IconSymbol name="person.fill" size={20} color={palette.accent} />
-                                        </View>
-                                        <View style={styles.listItemInfo}>
-                                            <ThemedText type="defaultSemiBold">
-                                                {employees.find((emp) => emp.id === entry.employee_id)?.name ?? `${t('accounts.payroll.employeePrefix')} #${entry.employee_id}`}
-                                            </ThemedText>
-                                        </View>
-                                        <ThemedText style={[styles.listItemAmount, { color: palette.accent }]}>
-                                            ${Number(entry.amount).toFixed(2)}
-                                        </ThemedText>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
+                        <PayrollList payroll={payroll} employees={employees} palette={palette} />
                     </View>
                 ) : null}
             </ScrollView>
-            {panelMounted ? (
+            {expensePanel.mounted ? (
                 <ExpensePanel
-                    visible={panelVisible}
-                    onClose={() => setPanelVisible(false)}
+                    visible={expensePanel.visible}
+                    onClose={expensePanel.close}
                     onExited={() => {
-                        setPanelMounted(false);
+                        expensePanel.onExited();
                         void hydrate();
                     }}
                 />
             ) : null}
-            {payrollPanelMounted ? (
+            {payrollPanel.mounted ? (
                 <PayrollPanel
-                    visible={payrollPanelVisible}
-                    onClose={() => setPayrollPanelVisible(false)}
+                    visible={payrollPanel.visible}
+                    onClose={payrollPanel.close}
                     onExited={() => {
-                        setPayrollPanelMounted(false);
+                        payrollPanel.onExited();
                         void hydrate();
                     }}
                 />
