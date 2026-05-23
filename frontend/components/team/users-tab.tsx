@@ -1,137 +1,124 @@
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
-import { ThemedCard } from '@/components/ui/themed-card';
-import { UserAccountModal } from '@/components/user-account-modal';
-import { UserManagementTable } from '@/components/user-management-table';
-import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { useAuthStore } from '@/stores/auth';
+import type { ManagedUser } from '@/types/auth';
 
-export function UsersTab() {
-    const palette = useAppColors();
-    const {
-        currentUser,
-        managedUsers,
-        createUser,
-        deactivateUser,
-        reactivateUser,
-        hardDeleteUser,
-        loading: authLoading,
-        error: authError,
-    } = useAuthStore();
+type UsersTabProps = {
+    users: ManagedUser[];
+    currentUserId: string | null;
+    cardWidth: number;
+    gap: number;
+    palette: {
+        card: string;
+        border: string;
+        mutedText: string;
+        inputBackground: string;
+        danger: string;
+    };
+    onEdit: (user: ManagedUser) => void;
+    onDeactivate: (id: string) => void;
+    onReactivate: (id: string) => void;
+    onHardDelete: (id: string) => void;
+};
 
-    const [accountModalVisible, setAccountModalVisible] = useState(false);
-    const [accountMessage, setAccountMessage] = useState<string | null>(null);
+export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit, onDeactivate, onReactivate, onHardDelete }: UsersTabProps) {
+    if (users.length === 0) {
+        return (
+            <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
+                <ThemedText style={{ color: palette.mutedText }}>{t('settings.accounts.none')}</ThemedText>
+            </View>
+        );
+    }
 
     return (
-        <>
-            <ThemedCard style={styles.card}>
-                <ThemedText type="subtitle">{t('settings.accounts.title')}</ThemedText>
-                <ThemedText style={styles.muted}>{t('settings.accounts.subtitle')}</ThemedText>
-
-                <ThemedButton
-                    label={t('setup.account.add')}
-                    disabled={authLoading}
-                    onPress={() => {
-                        setAccountMessage(null);
-                        setAccountModalVisible(true);
-                    }}
-                />
-
-                {accountMessage ? <ThemedText style={styles.muted}>{accountMessage}</ThemedText> : null}
-                {authError ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{authError}</ThemedText> : null}
-
-                <UserManagementTable
-                    users={managedUsers}
-                    listTitle={t('settings.accounts.listTitle')}
-                    emptyText={t('settings.accounts.none')}
-                    roleLabel={(role) => (role === 'owner' ? t('auth.role.owner') : t('auth.role.staff'))}
-                    activeStatusLabel={t('userManagement.status.active')}
-                    inactiveStatusLabel={t('userManagement.status.softDeleted')}
-                    renderActions={(user) => {
-                        const canManage = currentUser?.role === 'owner' && currentUser.id !== user.id;
-                        if (!canManage) {
-                            return <ThemedText style={styles.muted}>-</ThemedText>;
-                        }
-                        return (
-                            <View style={styles.rowActions}>
-                                {user.isActive ? (
-                                    <ThemedButton
-                                        variant="secondary"
-                                        style={styles.smallButton}
-                                        label={t('userManagement.action.softDelete')}
-                                        onPress={async () => {
-                                            setAccountMessage(null);
-                                            const ok = await deactivateUser(user.id);
-                                            if (ok) setAccountMessage(t('settings.accounts.message.deactivated', { name: user.name }));
-                                        }}
-                                    />
-                                ) : (
-                                    <ThemedButton
-                                        variant="secondary"
-                                        style={styles.smallButton}
-                                        label={t('userManagement.action.reactivate')}
-                                        onPress={async () => {
-                                            setAccountMessage(null);
-                                            const ok = await reactivateUser(user.id);
-                                            if (ok) setAccountMessage(t('settings.accounts.message.reactivated', { name: user.name }));
-                                        }}
-                                    />
-                                )}
+        <View style={[styles.grid, { gap }]}>
+            {users.map((user) => {
+                const isSelf = !!currentUserId && currentUserId === user.id;
+                const canManageOthers = !!currentUserId && !isSelf;
+                return (
+                    <View key={user.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
+                        <ThemedText type="defaultSemiBold" numberOfLines={1}>{user.name}</ThemedText>
+                        <ThemedText style={[styles.role, { color: palette.mutedText }]}>
+                            {user.role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')}
+                        </ThemedText>
+                        <ThemedText style={[styles.status, { color: user.isActive ? palette.mutedText : palette.danger }]}>
+                            {user.isActive ? t('userManagement.status.active') : t('userManagement.status.softDeleted')}
+                        </ThemedText>
+                        {isSelf || canManageOthers ? (
+                            <View style={styles.actions}>
                                 <ThemedButton
                                     variant="secondary"
-                                    style={styles.smallButton}
-                                    icon="trash.fill"
-                                    accessibilityLabel={t('userManagement.action.hardDeleteA11y')}
-                                    onPress={async () => {
-                                        setAccountMessage(null);
-                                        const ok = await hardDeleteUser(user.id);
-                                        if (ok) setAccountMessage(t('settings.accounts.message.hardDeleted', { name: user.name }));
-                                    }}
+                                    icon="pencil"
+                                    style={styles.actionBtn}
+                                    accessibilityLabel={t('setup.account.edit')}
+                                    onPress={() => onEdit(user)}
                                 />
+                                {canManageOthers ? (
+                                    <>
+                                        {user.isActive ? (
+                                            <ThemedButton
+                                                variant="secondary"
+                                                style={styles.actionBtn}
+                                                label={t('userManagement.action.softDelete')}
+                                                onPress={() => onDeactivate(user.id)}
+                                            />
+                                        ) : (
+                                            <ThemedButton
+                                                variant="secondary"
+                                                style={styles.actionBtn}
+                                                label={t('userManagement.action.reactivate')}
+                                                onPress={() => onReactivate(user.id)}
+                                            />
+                                        )}
+                                        <ThemedButton
+                                            variant="secondary"
+                                            icon="trash"
+                                            style={styles.actionBtn}
+                                            accessibilityLabel={t('userManagement.action.hardDeleteA11y')}
+                                            onPress={() => onHardDelete(user.id)}
+                                        />
+                                    </>
+                                ) : null}
                             </View>
-                        );
-                    }}
-                />
-            </ThemedCard>
-
-            <UserAccountModal
-                visible={accountModalVisible}
-                mode="add"
-                loading={authLoading}
-                onClose={() => setAccountModalVisible(false)}
-                onSubmit={async (payload) => {
-                    const created = await createUser({
-                        name: payload.name,
-                        role: payload.role,
-                        pin: payload.pin ?? '',
-                    });
-                    if (!created) return false;
-                    setAccountMessage(`Cuenta creada para ${created.name} (${created.role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')}).`);
-                    return true;
-                }}
-            />
-        </>
+                        ) : null}
+                    </View>
+                );
+            })}
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    card: {
-        gap: 10,
-    },
-    rowActions: {
+    grid: {
         flexDirection: 'row',
-        gap: 8,
+        flexWrap: 'wrap',
     },
-    muted: {
-        opacity: 0.9,
+    card: {
+        borderWidth: 1,
+        borderRadius: 10,
+        padding: 12,
+        gap: 4,
+    },
+    role: {
         fontSize: 13,
     },
-    smallButton: {
-        paddingVertical: 7,
-        paddingHorizontal: 10,
+    status: {
+        fontSize: 12,
+    },
+    emptyCard: {
+        borderWidth: 1,
+        borderRadius: 10,
+        padding: 16,
+        alignItems: 'center',
+    },
+    actions: {
+        flexDirection: 'row',
+        gap: 6,
+        marginTop: 6,
+    },
+    actionBtn: {
+        flex: 1,
     },
 });

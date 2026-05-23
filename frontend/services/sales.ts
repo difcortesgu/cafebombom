@@ -37,8 +37,8 @@ export class SalesService {
   }
 
   async getDiscounts(): Promise<Discount[]> {
-    const response = await apiClient.get<{ discounts: Discount[] }>('/sales/discounts');
-    return response.discounts || [];
+    const response = await apiClient.get<Discount[]>('/sales/discounts');
+    return response || [];
   }
 
   async createDiscount(payload: CreateDiscountPayload): Promise<string> {

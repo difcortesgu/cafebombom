@@ -1,90 +1,94 @@
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
-import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedInput } from '@/components/ui/themed-input';
-import { ThemedSelect } from '@/components/ui/themed-select';
-import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { useAccountsStore } from '@/stores/accounts';
+import type { Employee } from '@/types/types';
 
-export function EmployeesTab() {
-    const palette = useAppColors();
-    const { employees, addEmployee } = useAccountsStore();
+type EmployeesTabProps = {
+    employees: Employee[];
+    cardWidth: number;
+    gap: number;
+    palette: {
+        card: string;
+        border: string;
+        mutedText: string;
+        inputBackground: string;
+    };
+    onEdit: (employee: Employee) => void;
+    onDelete: (id: string) => void;
+};
 
-    const [employeeForm, setEmployeeForm] = useState({ name: '', salaryType: 'hourly' as 'hourly' | 'monthly', rate: '' });
-    const [employeeMessage, setEmployeeMessage] = useState<string | null>(null);
+export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDelete }: EmployeesTabProps) {
+    if (employees.length === 0) {
+        return (
+            <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
+                <ThemedText style={{ color: palette.mutedText }}>{t('accounts.employees.roster')}</ThemedText>
+            </View>
+        );
+    }
 
     return (
-        <ThemedCard style={styles.card}>
-            <View style={styles.headerRow}>
-                <ThemedText type="subtitle">{t('accounts.employees.roster')}</ThemedText>
-            </View>
-
-            <ThemedInput
-                value={employeeForm.name}
-                placeholder={t('accounts.employees.namePlaceholder')}
-                onChangeText={(val) => setEmployeeForm((prev) => ({ ...prev, name: val }))}
-            />
-            <ThemedSelect
-                value={employeeForm.salaryType}
-                onValueChange={(val) => setEmployeeForm((prev) => ({ ...prev, salaryType: val as 'hourly' | 'monthly' }))}
-                items={[
-                    { label: t('accounts.employees.hourly'), value: 'hourly' },
-                    { label: t('accounts.employees.monthly'), value: 'monthly' },
-                ]}
-            />
-            <ThemedInput
-                value={employeeForm.rate}
-                placeholder={t('accounts.employees.ratePlaceholder')}
-                keyboardType="decimal-pad"
-                onChangeText={(val) => setEmployeeForm((prev) => ({ ...prev, rate: val }))}
-            />
-            <ThemedButton
-                label={t('accounts.employees.add')}
-                onPress={async () => {
-                    const rate = Number(employeeForm.rate);
-                    if (!employeeForm.name.trim() || !Number.isFinite(rate) || rate <= 0) {
-                        setEmployeeMessage(t('accounts.employees.invalid'));
-                        return;
-                    }
-                    await addEmployee({ name: employeeForm.name.trim(), salaryType: employeeForm.salaryType, rate });
-                    setEmployeeForm({ name: '', salaryType: 'hourly', rate: '' });
-                    setEmployeeMessage(t('accounts.employees.added'));
-                }}
-            />
-            {employeeMessage ? <ThemedText style={styles.muted}>{employeeMessage}</ThemedText> : null}
-
+        <View style={[styles.grid, { gap }]}>
             {employees.map((emp) => (
-                <View key={emp.id} style={[styles.listItem, { borderColor: palette.border }]}>
-                    <ThemedText type="defaultSemiBold">{emp.name}</ThemedText>
-                    <ThemedText style={styles.muted}>{emp.salary_type} · ${Number(emp.rate).toFixed(2)}</ThemedText>
+                <View key={emp.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
+                    <ThemedText type="defaultSemiBold" numberOfLines={1}>{emp.name}</ThemedText>
+                    <ThemedText style={[styles.muted, { color: palette.mutedText }]}>
+                        {emp.salary_type === 'hourly' ? t('accounts.employees.hourly') : t('accounts.employees.monthly')}
+                    </ThemedText>
+                    <ThemedText style={[styles.rate, { color: palette.mutedText }]}>
+                        ${Number(emp.rate).toFixed(2)}
+                    </ThemedText>
+                    <View style={styles.actions}>
+                        <ThemedButton
+                            icon="pencil"
+                            variant="secondary"
+                            style={styles.actionBtn}
+                            onPress={() => onEdit(emp)}
+                        />
+                        <ThemedButton
+                            icon="trash"
+                            variant="secondary"
+                            style={styles.actionBtn}
+                            onPress={() => onDelete(emp.id)}
+                        />
+                    </View>
                 </View>
             ))}
-        </ThemedCard>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    card: {
-        gap: 10,
-    },
-    headerRow: {
+    grid: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 8,
+        flexWrap: 'wrap',
     },
-    muted: {
-        opacity: 0.9,
-        fontSize: 13,
-    },
-    listItem: {
+    card: {
         borderWidth: 1,
         borderRadius: 10,
-        padding: 10,
+        padding: 12,
         gap: 4,
+    },
+    muted: {
+        fontSize: 13,
+    },
+    rate: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    emptyCard: {
+        borderWidth: 1,
+        borderRadius: 10,
+        padding: 16,
+        alignItems: 'center',
+    },
+    actions: {
+        flexDirection: 'row',
+        gap: 6,
+        marginTop: 6,
+    },
+    actionBtn: {
+        flex: 1,
     },
 });

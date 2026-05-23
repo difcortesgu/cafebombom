@@ -1,24 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { ThemedInput } from '@/components/ui/themed-input';
 import { THEME_OPTIONS } from '@/constants/theme';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { useAuthStore } from '@/stores/auth';
 import { type ThemeModePreference, useSettingsStore } from '@/stores/settings';
 
 export default function AppearanceScreen() {
     const palette = useAppColors();
-
-    const {
-        currentUser,
-        updateCurrentUserProfile,
-        loading: authLoading,
-    } = useAuthStore();
 
     const {
         selectedThemeId,
@@ -27,10 +18,6 @@ export default function AppearanceScreen() {
         setTheme,
         setThemeModePreference,
     } = useSettingsStore();
-
-    const [profileName, setProfileName] = useState(currentUser?.name ?? '');
-    const [profilePin, setProfilePin] = useState('');
-    const [profileMessage, setProfileMessage] = useState<string | null>(null);
 
     const MODE_OPTIONS: { label: string; value: ThemeModePreference }[] = [
         { label: t('settings.mode.system'), value: 'system' },
@@ -42,47 +29,10 @@ export default function AppearanceScreen() {
         void hydrateFromDb();
     }, [hydrateFromDb]);
 
-    useEffect(() => {
-        setProfileName(currentUser?.name ?? '');
-    }, [currentUser?.name]);
-
     return (
         <ScrollView contentContainerStyle={styles.container}>
             <ThemedText type="title">{t('nav.tab.appearance')}</ThemedText>
             <ThemedText>{t('appearance.subtitle')}</ThemedText>
-
-            <ThemedCard style={styles.card}>
-                <ThemedText type="subtitle">{t('settings.currentUser.title')}</ThemedText>
-                <ThemedInput
-                    value={profileName}
-                    placeholder={t('settings.currentUser.namePlaceholder')}
-                    onChangeText={setProfileName}
-                />
-                <ThemedInput
-                    value={profilePin}
-                    secureTextEntry
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    placeholder={t('settings.currentUser.pinPlaceholder')}
-                    onChangeText={setProfilePin}
-                />
-                <ThemedButton
-                    disabled={authLoading || profileName.trim().length === 0}
-                    label={authLoading ? t('settings.currentUser.savingProfile') : t('settings.currentUser.saveProfile')}
-                    onPress={async () => {
-                        setProfileMessage(null);
-                        const ok = await updateCurrentUserProfile({
-                            name: profileName,
-                            pin: profilePin.trim().length > 0 ? profilePin : undefined,
-                        });
-                        if (ok) {
-                            setProfilePin('');
-                            setProfileMessage(t('settings.currentUser.updated'));
-                        }
-                    }}
-                />
-                {profileMessage ? <ThemedText style={styles.muted}>{profileMessage}</ThemedText> : null}
-            </ThemedCard>
 
             <ThemedCard style={styles.card}>
                 <ThemedText type="subtitle">{t('settings.theme.title')}</ThemedText>

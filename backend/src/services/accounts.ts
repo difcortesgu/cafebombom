@@ -1,9 +1,9 @@
 import { db } from '@/database';
 import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
-import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary } from '@/types/accounts';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary, UpdateEmployeePayload } from '@/types/accounts';
 import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { AppError } from '@/utils/errors';
-import { and, between, desc, gte, lte, sql } from 'drizzle-orm';
+import { and, between, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 export class AccountsSqliteService {
   async getHydrationData() {
@@ -133,6 +133,21 @@ export class AccountsSqliteService {
       .all();
 
     return inserted?.id ?? null;
+  }
+
+  async updateEmployee({ id, name, salaryType, rate }: UpdateEmployeePayload): Promise<boolean> {
+    const result = db.update(employees)
+      .set({ name, salaryType, rate })
+      .where(eq(employees.id, id))
+      .run();
+    return result.changes > 0;
+  }
+
+  async deleteEmployee(id: string): Promise<boolean> {
+    const result = db.delete(employees)
+      .where(eq(employees.id, id))
+      .run();
+    return result.changes > 0;
   }
 
   async addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethodId }: AddPayrollPayload): Promise<string> {

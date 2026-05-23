@@ -1,4 +1,4 @@
-import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload } from '@/types/accounts';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, UpdateEmployeePayload } from '@/types/accounts';
 import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { apiClient } from './api-client';
 
@@ -39,6 +39,24 @@ export class AccountsService {
       return response.id || null;
     } catch {
       return null;
+    }
+  }
+
+  async updateEmployee(payload: UpdateEmployeePayload): Promise<boolean> {
+    try {
+      await apiClient.put<{ ok: boolean }>(`/accounts/employees/${payload.id}`, payload);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async deleteEmployee(id: string): Promise<boolean> {
+    try {
+      await apiClient.delete<{ ok: boolean }>(`/accounts/employees/${id}`);
+      return true;
+    } catch {
+      return false;
     }
   }
 

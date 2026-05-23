@@ -41,6 +41,22 @@ export function validateAddEmployee(body: Record<string, unknown>): ValidationRe
     };
 }
 
+export type UpdateEmployeePayload = { id: string; name: string; salaryType: 'hourly' | 'monthly'; rate: number };
+
+export function validateUpdateEmployee(body: Record<string, unknown>): ValidationResult<UpdateEmployeePayload> {
+    const { id, name, salaryType, rate } = body;
+    if (!id || !name || !salaryType || rate == null) {
+        return { valid: false, error: 'id, name, salaryType, and rate are required.' };
+    }
+    if (salaryType !== 'hourly' && salaryType !== 'monthly') {
+        return { valid: false, error: 'salaryType must be hourly or monthly.' };
+    }
+    return {
+        valid: true,
+        data: { id: String(id), name: String(name), salaryType: salaryType as 'hourly' | 'monthly', rate: Number(rate) },
+    };
+}
+
 export type AddPayrollPayload = {
     employeeId: string;
     periodStart: number;

@@ -24,6 +24,13 @@ export type AddEmployeePayload = {
   rate: number;
 };
 
+export type UpdateEmployeePayload = {
+  id: string;
+  name: string;
+  salaryType: 'hourly' | 'monthly';
+  rate: number;
+};
+
 export type AddPayrollPayload = {
   employeeId: string;
   periodStart: number;

@@ -10,6 +10,7 @@ import {
   validateDateRange,
   validateGetAdjustments,
   validateOpenCashRegister,
+  validateUpdateEmployee,
 } from '@/validators/accounts';
 import type { Request, Response } from 'express';
 
@@ -58,6 +59,42 @@ export async function addEmployee(req: Request, res: Response): Promise<void> {
     res.status(201).json({ id });
   } catch (error) {
     handleControllerError(error, res, { label: '[accounts] addEmployee', fallbackMessage: 'Failed to create employee.' });
+  }
+}
+
+export async function updateEmployee(req: Request, res: Response): Promise<void> {
+  const v = validateUpdateEmployee({ ...req.body as Record<string, unknown>, id: req.params['id'] });
+  if (!v.valid) {
+    res.status(400).json({ error: v.error });
+    return;
+  }
+  try {
+    const updated = await accountsService.updateEmployee(v.data);
+    if (!updated) {
+      res.status(404).json({ error: 'Employee not found.' });
+      return;
+    }
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[accounts] updateEmployee', fallbackMessage: 'Failed to update employee.' });
+  }
+}
+
+export async function deleteEmployee(req: Request, res: Response): Promise<void> {
+  const id = String(req.params['id'] ?? '');
+  if (!id) {
+    res.status(400).json({ error: 'id is required.' });
+    return;
+  }
+  try {
+    const deleted = await accountsService.deleteEmployee(id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Employee not found.' });
+      return;
+    }
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[accounts] deleteEmployee', fallbackMessage: 'Failed to delete employee.' });
   }
 }
 

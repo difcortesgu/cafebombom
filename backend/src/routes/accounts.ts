@@ -4,12 +4,14 @@ import {
     addExpense,
     addPayroll,
     closeCashRegister,
+    deleteEmployee,
     getCashRegisterAdjustments,
     getExpensesTotal,
     getHydrationData,
     getTodayCashRegister,
     getTodayCashRegisterSummary,
     openCashRegister,
+    updateEmployee,
 } from '@/controllers/accounts';
 import { authMiddleware, requireRole } from '@/middleware/auth';
 import { Router } from 'express';
@@ -118,6 +120,8 @@ router.get('/expenses/total', getExpensesTotal);
  *         description: Forbidden
  */
 router.post('/employees', requireRole('owner'), addEmployee);
+router.put('/employees/:id', requireRole('owner'), updateEmployee);
+router.delete('/employees/:id', requireRole('owner'), deleteEmployee);
 
 /**
  * @openapi

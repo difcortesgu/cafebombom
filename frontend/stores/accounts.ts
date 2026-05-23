@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { accountsService, salesService } from '@/services';
-import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary } from '@/types/accounts';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary, UpdateEmployeePayload } from '@/types/accounts';
 import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 
 type AccountsState = {
@@ -15,6 +15,8 @@ type AccountsState = {
   hydrate: () => Promise<void>;
   addExpense: (payload: AddExpensePayload) => Promise<void>;
   addEmployee: (payload: AddEmployeePayload) => Promise<void>;
+  updateEmployee: (payload: UpdateEmployeePayload) => Promise<void>;
+  deleteEmployee: (id: string) => Promise<void>;
   addPayroll: (payload: AddPayrollPayload) => Promise<void>;
   getPnL: (payload: GetPnLPayload) => Promise<PnLSummary>;
   openCashRegister: (payload: OpenCashRegisterPayload) => Promise<void>;
@@ -61,6 +63,16 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     rate,
   }: AddEmployeePayload) => {
     await accountsService.addEmployee({ name, salaryType, rate });
+    await get().hydrate();
+  },
+
+  updateEmployee: async (payload: UpdateEmployeePayload) => {
+    await accountsService.updateEmployee(payload);
+    await get().hydrate();
+  },
+
+  deleteEmployee: async (id: string) => {
+    await accountsService.deleteEmployee(id);
     await get().hydrate();
   },
 
