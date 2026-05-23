@@ -1,5 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Buffer } from 'buffer';
-import Constants from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
@@ -12,7 +12,6 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
-import { ImportSection } from '@/components/operations/import-section';
 import { PaymentMethodPanelForm } from '@/components/operations/payment-method-panel-form';
 import { PaymentMethodsSection } from '@/components/operations/payment-methods-section';
 import { SectionTabs, type OperationsSection } from '@/components/operations/section-tabs';
@@ -45,7 +44,8 @@ type OperationsPanelMode =
     | { type: 'payment-method-add' }
     | { type: 'discount-add-global' }
     | { type: 'discount-add-product' }
-    | { type: 'discount-edit'; discount: Discount };
+    | { type: 'discount-edit'; discount: Discount }
+    | { type: 'import' };
 
 export default function OperationsScreen() {
     const palette = useAppColors();
@@ -114,7 +114,7 @@ export default function OperationsScreen() {
         { key: 'surcharges', label: t('settings.fees.title') },
         { key: 'discounts', label: t('products.discounts.title') },
         { key: 'receipt', label: t('settings.receipt.title') },
-        { key: 'import', label: t('operations.import') },
+        { key: 'printer', label: t('settings.printer.title') },
     ];
 
     useEffect(() => {
@@ -140,7 +140,7 @@ export default function OperationsScreen() {
     useEffect(() => { setPrinterAddressInput(printerDeviceAddress); }, [printerDeviceAddress]);
 
     useEffect(() => {
-        if (section !== 'receipt' || Platform.OS !== 'android') return;
+        if (section !== 'printer' || Platform.OS !== 'android') return;
         void (async () => {
             try {
                 setBondedPrintersBusy(true);
@@ -378,8 +378,17 @@ export default function OperationsScreen() {
     return (
         <View style={styles.screenContainer}>
             <ScrollView contentContainerStyle={styles.container}>
-                <ThemedText type="title">{t('operations.title')}</ThemedText>
-                <ThemedText>{t('operations.subtitle')}</ThemedText>
+                <View style={styles.headerRow}>
+                    <View>
+                        <ThemedText type="title">{t('operations.title')}</ThemedText>
+                        <ThemedText>{t('operations.subtitle')}</ThemedText>
+                    </View>
+                    <ThemedButton
+                        variant="secondary"
+                        label={t('operations.importData')}
+                        onPress={() => { setPanelMode({ type: 'import' }); panel.open(); }}
+                    />
+                </View>
 
                 <SectionTabs section={section} labels={sectionLabels} onChange={setSection} />
 
@@ -455,43 +464,108 @@ export default function OperationsScreen() {
                     <ThemedCard style={styles.card}>
                         <ThemedText type="subtitle">{t('settings.receipt.title')}</ThemedText>
                         <ThemedText style={styles.muted}>{t('settings.receipt.subtitle')}</ThemedText>
-                        <ThemedInput value={businessNameInput} placeholder={t('settings.receipt.businessName')} onChangeText={setBusinessNameInput} onBlur={commitBusinessInfo} />
-                        <ThemedInput value={businessAddressInput} placeholder={t('settings.receipt.businessAddress')} onChangeText={setBusinessAddressInput} onBlur={commitBusinessInfo} />
-                        <ThemedInput value={businessPhoneInput} placeholder={t('settings.receipt.businessPhone')} onChangeText={setBusinessPhoneInput} onBlur={commitBusinessInfo} />
-                        <ThemedInput value={businessNitInput} placeholder={t('settings.receipt.businessNit')} onChangeText={setBusinessNitInput} onBlur={commitBusinessInfo} />
-                        <View style={styles.rowActions}>
-                            <ThemedButton variant="secondary" label={logoBusy ? `${t('settings.receipt.pickLogo')}...` : t('settings.receipt.pickLogo')} onPress={() => void pickBusinessLogo()} disabled={logoBusy} />
+                        <ThemedInput
+                            style={styles.receiptInput}
+                            value={businessNameInput}
+                            placeholder={t('settings.receipt.businessName')}
+                            onChangeText={setBusinessNameInput}
+                            onBlur={commitBusinessInfo}
+                        />
+                        <ThemedInput
+                            style={styles.receiptInput}
+                            value={businessAddressInput}
+                            placeholder={t('settings.receipt.businessAddress')}
+                            onChangeText={setBusinessAddressInput}
+                            onBlur={commitBusinessInfo}
+                        />
+                        <ThemedInput
+                            style={styles.receiptInput}
+                            value={businessPhoneInput}
+                            placeholder={t('settings.receipt.businessPhone')}
+                            onChangeText={setBusinessPhoneInput}
+                            onBlur={commitBusinessInfo}
+                        />
+                        <ThemedInput
+                            style={styles.receiptInput}
+                            value={businessNitInput}
+                            placeholder={t('settings.receipt.businessNit')}
+                            onChangeText={setBusinessNitInput}
+                            onBlur={commitBusinessInfo}
+                        />
+                        <View style={styles.receiptActionRow}>
+                            <ThemedButton
+                                label={logoBusy ? `${t('settings.receipt.pickLogo')}...` : t('settings.receipt.pickLogo')}
+                                onPress={() => void pickBusinessLogo()}
+                                disabled={logoBusy}
+                            />
                             {businessLogoUriInput ? (
-                                <ThemedButton variant="secondary" label={t('settings.receipt.removeLogo')} onPress={removeBusinessLogo} disabled={logoBusy} />
+                                <ThemedButton
+                                    variant="secondary"
+                                    style={styles.printerActionClearButton}
+                                    labelStyle={[styles.printerActionClearText, { color: palette.danger }]}
+                                    label={t('settings.receipt.removeLogo')}
+                                    onPress={removeBusinessLogo}
+                                    disabled={logoBusy}
+                                />
                             ) : null}
                         </View>
                         {businessLogoUriInput ? (
                             <Image source={{ uri: businessLogoUriInput }} style={styles.logoPreview} contentFit="contain" />
                         ) : (
-                            <ThemedText style={styles.muted}>{t('settings.receipt.noLogo')}</ThemedText>
+                            <View style={[styles.receiptHintCallout, { backgroundColor: `${palette.tint}14`, borderColor: `${palette.tint}33` }]}>
+                                <Ionicons name="information-circle-outline" size={16} color={palette.tint} />
+                                <ThemedText style={styles.receiptHintText}>{t('settings.receipt.noLogo')}</ThemedText>
+                            </View>
                         )}
-                        {logoMessage ? <ThemedText style={[styles.muted, { color: palette.danger }]}>{logoMessage}</ThemedText> : null}
-                        <ThemedInput value={receiptFooterInput} placeholder={t('settings.receipt.footerMessage')} onChangeText={setReceiptFooterInput} onBlur={commitBusinessInfo} />
-                        <View style={styles.feeRow}>
+                        {logoMessage ? (
+                            <View style={[styles.receiptStatusCallout, { backgroundColor: `${palette.inputBackground}` }]}>
+                                <Ionicons name="information-circle-outline" size={16} color={logoMessage === t('settings.receipt.logoOptimized') ? palette.tint : palette.danger} />
+                                <ThemedText style={styles.receiptStatusText}>{logoMessage}</ThemedText>
+                            </View>
+                        ) : null}
+                        <ThemedInput
+                            style={styles.receiptInput}
+                            value={receiptFooterInput}
+                            placeholder={t('settings.receipt.footerMessage')}
+                            onChangeText={setReceiptFooterInput}
+                            onBlur={commitBusinessInfo}
+                        />
+                        <View style={styles.receiptCompactControl}>
                             <ThemedText style={styles.feeLabel}>{t('settings.receipt.taxRate')}</ThemedText>
-                            <ThemedInput style={styles.feeInput} keyboardType="decimal-pad" value={taxRateInput} onChangeText={setTaxRateInput} onBlur={commitTaxRate} placeholder="8.00" />
+                            <ThemedInput
+                                style={styles.receiptTaxInput}
+                                keyboardType="decimal-pad"
+                                value={taxRateInput}
+                                onChangeText={setTaxRateInput}
+                                onBlur={commitTaxRate}
+                                placeholder="8.00"
+                            />
                         </View>
-                        <ThemedText style={styles.muted}>{t('settings.receipt.paperWidth')}</ThemedText>
-                        <View style={styles.modeRow}>
-                            {[58, 80].map((width) => {
-                                const isActive = printerPaperWidth === width;
-                                return (
-                                    <Pressable
-                                        key={width}
-                                        style={[styles.modeChip, { backgroundColor: isActive ? palette.tint : palette.inputBackground, borderColor: isActive ? palette.tint : palette.border }]}
-                                        onPress={() => setPrinterPaperWidth(width as 58 | 80)}>
-                                        <ThemedText style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
-                                            {width}mm
-                                        </ThemedText>
-                                    </Pressable>
-                                );
-                            })}
+                        <View style={styles.receiptCompactControl}>
+                            <ThemedText style={styles.muted}>{t('settings.receipt.paperWidth')}</ThemedText>
+                            <View style={styles.receiptPaperWidthRow}>
+                                {[58, 80].map((width) => {
+                                    const isActive = printerPaperWidth === width;
+                                    return (
+                                        <Pressable
+                                            key={width}
+                                            style={[styles.receiptPaperChip, { backgroundColor: isActive ? palette.tint : palette.inputBackground, borderColor: isActive ? palette.tint : palette.border }]}
+                                            onPress={() => setPrinterPaperWidth(width as 58 | 80)}>
+                                            <ThemedText style={{ color: isActive ? palette.card : palette.text, fontWeight: isActive ? '700' : '400' }}>
+                                                {width}mm
+                                            </ThemedText>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
                         </View>
+                    </ThemedCard>
+                ) : null}
+
+                {section === 'printer' ? (
+                    <ThemedCard style={styles.card}>
+                        <ThemedText type="subtitle">{t('settings.printer.title')}</ThemedText>
+                        <ThemedText style={styles.muted}>{t('settings.printer.subtitle')}</ThemedText>
                         <ThemedText style={styles.muted}>{t('settings.receipt.printerConfigTitle')}</ThemedText>
                         {Platform.OS === 'android' ? (
                             <>
@@ -508,32 +582,69 @@ export default function OperationsScreen() {
                                     }}
                                     items={bondedPrinters.length > 0 ? bondedPrinters : [{ label: t('settings.receipt.noBondedPrinters'), value: '' }]}
                                 />
-                                <ThemedButton variant="secondary" label={bondedPrintersBusy ? t('settings.receipt.refreshingPrinters') : t('settings.receipt.refreshPrinters')} disabled={bondedPrintersBusy} onPress={() => void refreshBondedPrinters()} />
+                                <ThemedButton
+                                    variant="secondary"
+                                    style={styles.printerActionOutlineButton}
+                                    labelStyle={[styles.printerActionOutlineText, { color: palette.tint }]}
+                                    label={bondedPrintersBusy ? t('settings.receipt.refreshingPrinters') : t('settings.receipt.refreshPrinters')}
+                                    disabled={bondedPrintersBusy}
+                                    onPress={() => void refreshBondedPrinters()}
+                                />
                             </>
                         ) : null}
-                        <ThemedInput value={printerNameInput} placeholder={t('settings.receipt.printerName')} onChangeText={setPrinterNameInput} onBlur={commitPrinterDevice} />
-                        <ThemedInput value={printerAddressInput} placeholder={t('settings.receipt.printerAddress')} onChangeText={setPrinterAddressInput} onBlur={commitPrinterDevice} autoCapitalize="characters" />
-                        <View style={styles.rowActions}>
-                            <ThemedButton variant="secondary" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
-                            <ThemedButton variant="secondary" label={printerTestBusy ? t('settings.receipt.testingPrinter') : t('settings.receipt.testPrinter')} disabled={printerTestBusy} onPress={() => void runPrinterTest()} />
-                            <ThemedButton variant="secondary" label={t('settings.receipt.clearPrinter')} onPress={clearPrinterDevice} disabled={printerTestBusy} />
+                        <ThemedInput
+                            style={styles.printerInput}
+                            value={printerNameInput}
+                            placeholder={t('settings.receipt.printerName')}
+                            onChangeText={setPrinterNameInput}
+                            onBlur={commitPrinterDevice}
+                        />
+                        <ThemedInput
+                            style={styles.printerInput}
+                            value={printerAddressInput}
+                            placeholder={t('settings.receipt.printerAddress')}
+                            onChangeText={setPrinterAddressInput}
+                            onBlur={commitPrinterDevice}
+                            autoCapitalize="characters"
+                        />
+                        <View style={styles.printerActionRow}>
+                            <View style={styles.printerSaveGroup}>
+                                <ThemedButton label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
+                                {printerStatusMessage === t('settings.receipt.printerSaved') ? (
+                                    <ThemedText style={styles.printerSavedContext}>{printerStatusMessage}</ThemedText>
+                                ) : null}
+                            </View>
+                            <ThemedButton
+                                variant="secondary"
+                                style={styles.printerActionOutlineButton}
+                                labelStyle={[styles.printerActionOutlineText, { color: palette.tint }]}
+                                label={printerTestBusy ? t('settings.receipt.testingPrinter') : t('settings.receipt.testPrinter')}
+                                disabled={printerTestBusy}
+                                onPress={() => void runPrinterTest()}
+                            />
+                            <ThemedButton
+                                variant="secondary"
+                                style={styles.printerActionClearButton}
+                                labelStyle={[styles.printerActionClearText, { color: palette.danger }]}
+                                label={t('settings.receipt.clearPrinter')}
+                                onPress={clearPrinterDevice}
+                                disabled={printerTestBusy}
+                            />
                         </View>
-                        <ThemedText style={styles.muted}>{t('settings.receipt.printerHint')}</ThemedText>
-                        {printerStatusMessage ? <ThemedText style={styles.muted}>{printerStatusMessage}</ThemedText> : null}
-                        <ThemedText style={styles.muted}>{t('settings.app.title')}: {Constants.expoConfig?.version ?? '1.0.0'}</ThemedText>
+                        {printerStatusMessage && printerStatusMessage !== t('settings.receipt.printerSaved') ? (
+                            <View style={[styles.printerStatusCallout, { backgroundColor: `${palette.inputBackground}` }]}>
+                                <Ionicons name="information-circle-outline" size={16} color={palette.text} />
+                                <ThemedText style={styles.printerStatusText}>{printerStatusMessage}</ThemedText>
+                            </View>
+                        ) : null}
+                        <View style={[styles.printerHintCallout, { backgroundColor: `${palette.tint}14`, borderColor: `${palette.tint}33` }]}>
+                            <Ionicons name="information-circle-outline" size={16} color={palette.tint} />
+                            <ThemedText style={styles.printerHintText}>{t('settings.receipt.printerHint')}</ThemedText>
+                        </View>
                     </ThemedCard>
                 ) : null}
 
-                {section === 'import' ? (
-                    <ImportSection
-                        busy={importBusy}
-                        message={importMessage}
-                        issues={importIssues}
-                        dangerColor={palette.danger}
-                        onImport={() => void importSeedData()}
-                        onDownloadTemplate={() => void downloadImportTemplate()}
-                    />
-                ) : null}
+
             </ScrollView>
             {panel.mounted ? (
                 <SlidePanelShell
@@ -560,6 +671,38 @@ export default function OperationsScreen() {
                             discount={panelMode.discount}
                             onClose={panel.close}
                         />
+                    ) : panelMode?.type === 'import' ? (
+                        <View style={styles.importPanel}>
+                            <View style={[styles.importPanelHeader, { borderBottomColor: palette.border }]}>
+                                <View style={styles.importPanelTitle}>
+                                    <Ionicons name="cloud-upload-outline" size={20} color={palette.tint} />
+                                    <ThemedText type="subtitle">{t('operations.importData')}</ThemedText>
+                                </View>
+                                <Pressable style={styles.importPanelClose} onPress={panel.close} hitSlop={8}>
+                                    <Ionicons name="close" size={22} color={palette.text} />
+                                </Pressable>
+                            </View>
+                            <ScrollView contentContainerStyle={styles.importPanelContent}>
+                                <ThemedText style={styles.muted}>{t('operations.importSubtitle')}</ThemedText>
+                                <ThemedButton
+                                    disabled={importBusy}
+                                    label={importBusy ? 'Importando...' : t('operations.importAction')}
+                                    onPress={() => void importSeedData()}
+                                />
+                                <ThemedButton
+                                    variant="secondary"
+                                    disabled={importBusy}
+                                    label={t('operations.downloadTemplate')}
+                                    onPress={() => void downloadImportTemplate()}
+                                />
+                                {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
+                                {importIssues.map((issue) => (
+                                    <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>
+                                        {issue}
+                                    </ThemedText>
+                                ))}
+                            </ScrollView>
+                        </View>
                     ) : null}
                 </SlidePanelShell>
             ) : null}
@@ -635,5 +778,149 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 120,
         borderRadius: 8,
+    },
+    receiptInput: {
+        width: '100%',
+        maxWidth: 420,
+        alignSelf: 'flex-start',
+    },
+    receiptCompactControl: {
+        width: '100%',
+        maxWidth: 420,
+        alignSelf: 'flex-start',
+        gap: 8,
+    },
+    receiptTaxInput: {
+        width: 140,
+        textAlign: 'right',
+        alignSelf: 'flex-start',
+    },
+    receiptPaperWidthRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    receiptPaperChip: {
+        width: 108,
+        alignItems: 'center',
+        paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    receiptActionRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        alignItems: 'center',
+    },
+    receiptStatusCallout: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        maxWidth: 520,
+    },
+    receiptStatusText: {
+        flex: 1,
+        fontSize: 12,
+    },
+    receiptHintCallout: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        maxWidth: 520,
+    },
+    receiptHintText: {
+        flex: 1,
+        fontSize: 12,
+        opacity: 0.95,
+    },
+    printerInput: {
+        width: '100%',
+        maxWidth: 420,
+        alignSelf: 'flex-start',
+    },
+    printerActionRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        alignItems: 'flex-start',
+    },
+    printerSaveGroup: {
+        gap: 6,
+        alignItems: 'flex-start',
+    },
+    printerSavedContext: {
+        fontSize: 12,
+        opacity: 0.7,
+        marginLeft: 2,
+        maxWidth: 280,
+    },
+    printerActionOutlineButton: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+    },
+    printerActionOutlineText: {
+        fontWeight: '600',
+    },
+    printerActionClearButton: {
+        backgroundColor: 'transparent',
+        paddingHorizontal: 4,
+    },
+    printerActionClearText: {
+        fontWeight: '600',
+    },
+    printerStatusCallout: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+    },
+    printerStatusText: {
+        flex: 1,
+        fontSize: 12,
+    },
+    printerHintCallout: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+    },
+    printerHintText: {
+        flex: 1,
+        fontSize: 12,
+        opacity: 0.95,
+    },
+    importPanel: {
+        flex: 1,
+    },
+    importPanelHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+    },
+    importPanelTitle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    importPanelClose: {
+        padding: 4,
+    },
+    importPanelContent: {
+        padding: 16,
+        gap: 12,
     },
 });
