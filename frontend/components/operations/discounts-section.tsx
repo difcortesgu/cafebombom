@@ -72,20 +72,25 @@ function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDe
                             backgroundColor: discount.isActive ? `${palette.danger}18` : `${palette.success}18`,
                         },
                     ]}
+                    icon={discount.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                    iconColor={discount.isActive ? palette.danger : palette.success}
                     labelStyle={{ color: discount.isActive ? palette.danger : palette.success }}
                     label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
                     onPress={onToggle}
                 />
                 <ThemedButton
                     variant="secondary"
-                    style={[styles.iconButton, { borderColor: `${palette.border}88` }]}
-                    icon="pencil"
+                    style={[styles.editButton, { borderColor: `${palette.border}88` }]}
+                    icon="create-outline"
+                    label={t('products.list.edit')}
                     onPress={onEdit}
                 />
                 <ThemedButton
                     variant="secondary"
-                    style={[styles.iconButton, { borderColor: `${palette.border}88` }]}
-                    icon="trash.fill"
+                    tone="danger"
+                    style={styles.editButton}
+                    icon="trash-outline"
+                    label={t('products.discounts.delete')}
                     onPress={onDelete}
                 />
             </View>
@@ -121,7 +126,7 @@ export function DiscountsSection({ cardWidth, gap, onAddGlobal, onAddProduct, on
             <View style={styles.subSection}>
                 <View style={styles.subHeader}>
                     <ThemedText type="defaultSemiBold" style={styles.sectionLabel}>{t('products.discounts.title')}</ThemedText>
-                    <ThemedButton label={t('products.discounts.create')} onPress={onAddGlobal} />
+                    <ThemedButton icon="add-circle-outline" label={t('products.discounts.create')} onPress={onAddGlobal} />
                 </View>
                 {globalDiscounts.length === 0 ? (
                     <ThemedText style={styles.muted}>{t('products.discounts.subtitle')}</ThemedText>
@@ -146,7 +151,7 @@ export function DiscountsSection({ cardWidth, gap, onAddGlobal, onAddProduct, on
             <View style={styles.subSection}>
                 <View style={styles.subHeader}>
                     <ThemedText type="defaultSemiBold" style={styles.sectionLabel}>{t('products.discounts.productSection')}</ThemedText>
-                    <ThemedButton label={t('products.discounts.createProduct')} onPress={onAddProduct} />
+                    <ThemedButton icon="add-circle-outline" label={t('products.discounts.createProduct')} onPress={onAddProduct} />
                 </View>
                 {productDiscounts.length === 0 ? (
                     <ThemedText style={styles.muted}>{t('products.discounts.productSubtitle')}</ThemedText>
@@ -243,11 +248,10 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         paddingHorizontal: 10,
     },
-    iconButton: {
-        width: 34,
-        height: 34,
+    editButton: {
         borderRadius: 10,
-        padding: 0,
+        paddingVertical: 7,
+        paddingHorizontal: 10,
     },
     divider: {
         borderTopWidth: 1,

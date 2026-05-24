@@ -6,6 +6,7 @@ import {
     closeCashRegister,
     deleteEmployee,
     getCashRegisterAdjustments,
+    getCashRegisterHistory,
     getExpensesTotal,
     getHydrationData,
     getTodayCashRegister,
@@ -257,6 +258,20 @@ router.post('/cash-register/close', closeCashRegister);
  *         description: Forbidden
  */
 router.post('/cash-register/adjustments', requireRole('owner'), addCashRegisterAdjustment);
+
+/**
+ * @openapi
+ * /api/accounts/cash-register/history:
+ *   get:
+ *     tags: [Accounts]
+ *     summary: List recent cash register sessions with adjustments (owner only)
+ *     responses:
+ *       200:
+ *         description: Cash register history
+ *       403:
+ *         description: Forbidden
+ */
+router.get('/cash-register/history', requireRole('owner'), getCashRegisterHistory);
 
 /**
  * @openapi

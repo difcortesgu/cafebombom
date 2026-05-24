@@ -24,7 +24,7 @@ export function TablesSection({ tables, message, cardWidth, gap, onAdd, onEdit, 
         <ThemedCard style={styles.card}>
             <View style={styles.headerRow}>
                 <ThemedText type="subtitle">{t('tables.list')}</ThemedText>
-                <ThemedButton label={t('tables.add')} onPress={onAdd} />
+                <ThemedButton icon="add-circle-outline" label={t('tables.add')} onPress={onAdd} />
             </View>
             {message ? <ThemedText style={styles.muted}>{message}</ThemedText> : null}
             {tables.length === 0 ? (
@@ -46,15 +46,17 @@ export function TablesSection({ tables, message, cardWidth, gap, onAdd, onEdit, 
                             <View style={styles.rowActions}>
                                 <ThemedButton
                                     variant="secondary"
-                                    style={styles.actionButton}
-                                    icon="pencil"
+                                    style={styles.editActionButton}
+                                    icon="create-outline"
+                                    label={t('tables.edit')}
                                     onPress={() => onEdit(table.id)}
                                 />
                                 <ThemedButton
                                     variant="secondary"
-                                    style={styles.actionButton}
-                                    icon="trash.fill"
-                                    accessibilityLabel={t('tables.deleted')}
+                                    tone="danger"
+                                    style={styles.editActionButton}
+                                    icon="trash-outline"
+                                    label={t('common.delete')}
                                     onPress={() => onDelete(table.id)}
                                 />
                             </View>
@@ -92,16 +94,10 @@ const styles = StyleSheet.create({
     rowActions: {
         flexDirection: 'row',
         gap: 8,
-    },
-    actionButton: {
-        width: 34,
-        height: 34,
-        minHeight: 0,
-        borderRadius: 10,
-        paddingHorizontal: 0,
-        paddingVertical: 0,
         alignItems: 'center',
-        justifyContent: 'center',
+    },
+    editActionButton: {
+        flex: 1,
     },
     muted: {
         opacity: 0.9,

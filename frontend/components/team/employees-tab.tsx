@@ -41,13 +41,16 @@ export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDel
                     </ThemedText>
                     <View style={styles.actions}>
                         <ThemedButton
-                            icon="pencil"
+                            icon="create-outline"
+                            label={t('setup.account.edit')}
                             variant="secondary"
                             style={styles.actionBtn}
                             onPress={() => onEdit(emp)}
                         />
                         <ThemedButton
-                            icon="trash"
+                            icon="trash-outline"
+                            label={t('common.delete')}
+                            tone="danger"
                             variant="secondary"
                             style={styles.actionBtn}
                             onPress={() => onDelete(emp.id)}

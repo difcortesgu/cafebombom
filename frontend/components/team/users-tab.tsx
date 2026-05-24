@@ -50,7 +50,8 @@ export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit
                             <View style={styles.actions}>
                                 <ThemedButton
                                     variant="secondary"
-                                    icon="pencil"
+                                    icon="create-outline"
+                                    label={t('setup.account.edit')}
                                     style={styles.actionBtn}
                                     accessibilityLabel={t('setup.account.edit')}
                                     onPress={() => onEdit(user)}
@@ -60,6 +61,8 @@ export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit
                                         {user.isActive ? (
                                             <ThemedButton
                                                 variant="secondary"
+                                                tone="warning"
+                                                icon="remove-circle-outline"
                                                 style={styles.actionBtn}
                                                 label={t('userManagement.action.softDelete')}
                                                 onPress={() => onDeactivate(user.id)}
@@ -67,6 +70,8 @@ export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit
                                         ) : (
                                             <ThemedButton
                                                 variant="secondary"
+                                                tone="success"
+                                                icon="refresh-circle-outline"
                                                 style={styles.actionBtn}
                                                 label={t('userManagement.action.reactivate')}
                                                 onPress={() => onReactivate(user.id)}
@@ -74,9 +79,10 @@ export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit
                                         )}
                                         <ThemedButton
                                             variant="secondary"
-                                            icon="trash"
+                                            tone="danger"
+                                            icon="trash-outline"
+                                            label={t('userManagement.action.hardDelete')}
                                             style={styles.actionBtn}
-                                            accessibilityLabel={t('userManagement.action.hardDeleteA11y')}
                                             onPress={() => onHardDelete(user.id)}
                                         />
                                     </>

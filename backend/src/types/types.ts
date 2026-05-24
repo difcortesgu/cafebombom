@@ -126,6 +126,13 @@ export type CashRegisterAdjustment = {
   created_at: number;
 };
 
+export type CashRegisterHistoryDay = CashRegisterSession & {
+  day_key: string;
+  day_label: string;
+  adjustment_total: number;
+  adjustments: CashRegisterAdjustment[];
+};
+
 export type Employee = {
   id: string;
   name: string;

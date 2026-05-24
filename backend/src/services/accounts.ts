@@ -1,9 +1,9 @@
 import { db } from '@/database';
 import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
 import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary, UpdateEmployeePayload } from '@/types/accounts';
-import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
+import type { CashRegisterAdjustment, CashRegisterHistoryDay, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { AppError } from '@/utils/errors';
-import { and, between, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, between, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 
 export class AccountsSqliteService {
   async getHydrationData() {
@@ -279,5 +279,97 @@ export class AccountsSqliteService {
       .all() as CashRegisterAdjustment[];
 
     return rows;
+  }
+
+  async getCashRegisterHistory(limit = 30): Promise<CashRegisterHistoryDay[]> {
+    const sessions = db
+      .select({
+        id: cashRegisterSessions.id,
+        opening_amount: cashRegisterSessions.openingAmount,
+        closing_amount: cashRegisterSessions.closingAmount,
+        opening_notes: cashRegisterSessions.openingNotes,
+        closing_notes: cashRegisterSessions.closingNotes,
+        opened_at: cashRegisterSessions.openedAt,
+        closed_at: cashRegisterSessions.closedAt,
+        opened_by: cashRegisterSessions.openedBy,
+        closed_by: cashRegisterSessions.closedBy,
+      })
+      .from(cashRegisterSessions)
+      .orderBy(desc(cashRegisterSessions.openedAt))
+      .limit(limit)
+      .all() as CashRegisterSession[];
+
+    if (sessions.length === 0) return [];
+
+    const sessionIds = sessions.map((session) => session.id);
+    const adjustments = db
+      .select({
+        id: cashRegisterAdjustments.id,
+        session_id: cashRegisterAdjustments.sessionId,
+        amount: cashRegisterAdjustments.amount,
+        reason: cashRegisterAdjustments.reason,
+        adjusted_by: cashRegisterAdjustments.adjustedBy,
+        created_at: cashRegisterAdjustments.createdAt,
+      })
+      .from(cashRegisterAdjustments)
+      .where(inArray(cashRegisterAdjustments.sessionId, sessionIds))
+      .orderBy(cashRegisterAdjustments.createdAt)
+      .all() as CashRegisterAdjustment[];
+
+    const adjustmentsBySession = new Map<string, CashRegisterAdjustment[]>();
+    for (const adjustment of adjustments) {
+      const current = adjustmentsBySession.get(adjustment.session_id) ?? [];
+      current.push(adjustment);
+      adjustmentsBySession.set(adjustment.session_id, current);
+    }
+
+    const groupByDayKey = (timestamp: number) => {
+      const date = new Date(timestamp * 1000);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const dayLabelFor = (timestamp: number) => new Date(timestamp * 1000).toLocaleDateString('es-CO', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const grouped = new Map<string, CashRegisterHistoryDay>();
+
+    for (const session of sessions) {
+      const dayKey = groupByDayKey(session.opened_at);
+      const existing = grouped.get(dayKey);
+      const sessionAdjustments = adjustmentsBySession.get(session.id) ?? [];
+
+      if (!existing) {
+        grouped.set(dayKey, {
+          ...session,
+          day_key: dayKey,
+          day_label: dayLabelFor(session.opened_at),
+          adjustment_total: Number(sessionAdjustments.reduce((total, adjustment) => total + Number(adjustment.amount), 0).toFixed(2)),
+          adjustments: [...sessionAdjustments],
+        });
+        continue;
+      }
+
+      const combinedAdjustments = [...existing.adjustments, ...sessionAdjustments].sort((a, b) => a.created_at - b.created_at);
+      const finalClosingAmount = session.closed_at != null ? session.closing_amount : existing.closing_amount;
+      const finalClosedAt = session.closed_at ?? existing.closed_at;
+      const finalClosingNotes = session.closing_notes ?? existing.closing_notes;
+      const finalClosedBy = session.closed_by ?? existing.closed_by;
+
+      grouped.set(dayKey, {
+        ...existing,
+        closing_amount: finalClosingAmount,
+        closing_notes: finalClosingNotes,
+        closed_at: finalClosedAt,
+        closed_by: finalClosedBy,
+        adjustment_total: Number((existing.adjustment_total + sessionAdjustments.reduce((total, adjustment) => total + Number(adjustment.amount), 0)).toFixed(2)),
+        adjustments: combinedAdjustments,
+      });
+    }
+
+    return [...grouped.values()].sort((a, b) => b.opened_at - a.opened_at);
   }
 }

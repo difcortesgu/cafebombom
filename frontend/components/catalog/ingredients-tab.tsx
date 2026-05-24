@@ -63,7 +63,8 @@ export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIng
                                 ) : null}
                             </View>
                             <ThemedButton
-                                icon="pencil"
+                                icon="create-outline"
+                                label={t('products.ingredients.edit')}
                                 variant="secondary"
                                 style={styles.editBtn}
                                 onPress={() => onEditIngredient(ingredient.id)}
@@ -122,12 +123,9 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     editBtn: {
-        width: 34,
-        height: 34,
-        minHeight: 0,
         borderRadius: 10,
-        paddingHorizontal: 0,
-        paddingVertical: 0,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
         alignItems: 'center',
         justifyContent: 'center',
     },

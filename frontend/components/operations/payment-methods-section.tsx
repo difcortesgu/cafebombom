@@ -27,7 +27,7 @@ export function PaymentMethodsSection({ cardWidth, gap, onAdd }: PaymentMethodsS
         <ThemedCard style={styles.card}>
             <View style={styles.headerRow}>
                 <ThemedText type="subtitle">{t('settings.paymentMethods.title')}</ThemedText>
-                <ThemedButton label={t('settings.paymentMethods.addButton')} onPress={onAdd} />
+                <ThemedButton icon="add-circle-outline" label={t('settings.paymentMethods.addButton')} onPress={onAdd} />
             </View>
             {methods.length === 0 ? (
                 <ThemedText style={styles.muted}>{t('settings.paymentMethods.empty')}</ThemedText>

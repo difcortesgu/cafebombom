@@ -195,6 +195,9 @@ export function buildDashboardSalesSummary({
     topProducts: [...productMap.values()]
       .sort((left, right) => right.quantity - left.quantity || right.revenue - left.revenue)
       .slice(0, 5),
+    leastProducts: [...productMap.values()]
+      .sort((left, right) => left.quantity - right.quantity || left.revenue - right.revenue)
+      .slice(0, 5),
     trend,
   };
 }

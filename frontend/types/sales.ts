@@ -31,6 +31,7 @@ export type DashboardSalesSummary = {
   statusCounts: DashboardStatusCounts;
   paymentBreakdown: DashboardPaymentBreakdown[];
   topProducts: DashboardTopProduct[];
+  leastProducts: DashboardTopProduct[];
   trend: DashboardTrendPoint[];
 };
 

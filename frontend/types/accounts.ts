@@ -1,4 +1,6 @@
 
+import type { CashRegisterAdjustment, CashRegisterSession } from './types';
+
 export type AddExpensePayload = {
   category: string;
   amount: number;
@@ -68,4 +70,11 @@ export type AddCashRegisterAdjustmentPayload = {
   sessionId: string;
   amount: number;
   reason: string;
+};
+
+export type CashRegisterHistoryDay = CashRegisterSession & {
+  day_key: string;
+  day_label: string;
+  adjustment_total: number;
+  adjustments: CashRegisterAdjustment[];
 };

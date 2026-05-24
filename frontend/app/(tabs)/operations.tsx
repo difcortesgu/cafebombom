@@ -5,11 +5,12 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
 import { PaymentMethodPanelForm } from '@/components/operations/payment-method-panel-form';
@@ -50,6 +51,7 @@ type OperationsPanelMode =
 export default function OperationsScreen() {
     const palette = useAppColors();
     const router = useRouter();
+    const params = useLocalSearchParams<{ section?: string | string[] }>();
     const { screenWidth, cardWidth } = useCatalogGrid();
     const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
@@ -112,6 +114,7 @@ export default function OperationsScreen() {
         { key: 'tables', label: t('tables.title') },
         { key: 'payment-methods', label: t('settings.paymentMethods.title') },
         { key: 'surcharges', label: t('settings.fees.title') },
+        { key: 'cash-register', label: t('cashRegister.title') },
         { key: 'discounts', label: t('products.discounts.title') },
         { key: 'receipt', label: t('settings.receipt.title') },
         { key: 'printer', label: t('settings.printer.title') },
@@ -138,6 +141,14 @@ export default function OperationsScreen() {
     useEffect(() => { setTaxRateInput((taxRate * 100).toFixed(2)); }, [taxRate]);
     useEffect(() => { setPrinterNameInput(printerDeviceName); }, [printerDeviceName]);
     useEffect(() => { setPrinterAddressInput(printerDeviceAddress); }, [printerDeviceAddress]);
+
+    useEffect(() => {
+        const requestedSection = Array.isArray(params.section) ? params.section[0] : params.section;
+        if (!requestedSection) return;
+        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer') {
+            setSection(requestedSection);
+        }
+    }, [params.section]);
 
     useEffect(() => {
         if (section !== 'printer' || Platform.OS !== 'android') return;
@@ -385,6 +396,7 @@ export default function OperationsScreen() {
                     </View>
                     <ThemedButton
                         variant="secondary"
+                        icon="cloud-upload-outline"
                         label={t('operations.importData')}
                         onPress={() => { setPanelMode({ type: 'import' }); panel.open(); }}
                     />
@@ -440,6 +452,8 @@ export default function OperationsScreen() {
                         onToGoBlur={commitToGoFee}
                     />
                 ) : null}
+
+                {section === 'cash-register' ? <CashRegisterHistorySection /> : null}
 
                 {section === 'discounts' ? (
                     <DiscountsSection
@@ -609,13 +623,15 @@ export default function OperationsScreen() {
                         />
                         <View style={styles.printerActionRow}>
                             <View style={styles.printerSaveGroup}>
-                                <ThemedButton label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
+                                <ThemedButton icon="save-outline" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
                                 {printerStatusMessage === t('settings.receipt.printerSaved') ? (
                                     <ThemedText style={styles.printerSavedContext}>{printerStatusMessage}</ThemedText>
                                 ) : null}
                             </View>
                             <ThemedButton
                                 variant="secondary"
+                                icon="print-outline"
+                                iconColor={palette.tint}
                                 style={styles.printerActionOutlineButton}
                                 labelStyle={[styles.printerActionOutlineText, { color: palette.tint }]}
                                 label={printerTestBusy ? t('settings.receipt.testingPrinter') : t('settings.receipt.testPrinter')}
@@ -624,6 +640,8 @@ export default function OperationsScreen() {
                             />
                             <ThemedButton
                                 variant="secondary"
+                                icon="trash-outline"
+                                iconColor={palette.danger}
                                 style={styles.printerActionClearButton}
                                 labelStyle={[styles.printerActionClearText, { color: palette.danger }]}
                                 label={t('settings.receipt.clearPrinter')}

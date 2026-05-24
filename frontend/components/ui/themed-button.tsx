@@ -5,11 +5,14 @@ import { ThemedText } from '@/components/themed-text';
 import { useAppColors } from '@/hooks/use-theme-color';
 
 type ThemedButtonVariant = 'primary' | 'secondary';
+type ThemedButtonTone = 'danger' | 'warning' | 'success';
 
 type ThemedButtonProps = PressableProps & {
   label?: string;
   icon?: string;
+  iconColor?: string;
   variant?: ThemedButtonVariant;
+  tone?: ThemedButtonTone;
   style?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
 };
@@ -17,15 +20,20 @@ type ThemedButtonProps = PressableProps & {
 export function ThemedButton({
   label,
   icon,
+  iconColor,
   children,
   variant = 'primary',
+  tone,
   style,
   labelStyle,
   ...props
 }: ThemedButtonProps) {
   const palette = useAppColors();
   const isPrimary = variant === 'primary';
-  const textColor = isPrimary ? palette.card : palette.text;
+  const toneColor = tone ? palette[tone] : null;
+  const defaultTextColor = isPrimary ? palette.card : palette.text;
+  const textColor = toneColor ?? defaultTextColor;
+  const resolvedIconColor = iconColor ?? textColor;
   const isIconOnly = icon && !label;
 
   return (
@@ -34,20 +42,21 @@ export function ThemedButton({
         styles.base,
         isPrimary
           ? { backgroundColor: palette.tint }
-          : { backgroundColor: palette.inputBackground },
+          : toneColor
+            ? { backgroundColor: `${toneColor}18`, borderWidth: 1, borderColor: toneColor }
+            : { backgroundColor: palette.inputBackground, borderWidth: 1, borderColor: palette.border },
         isIconOnly && styles.iconOnlyBase,
         style,
       ]}
       {...props}>
       {icon ? (
         <View style={styles.iconContainer}>
-          <Ionicons name={icon as any} size={20} color={textColor} />
+          <Ionicons name={icon as any} size={18} color={resolvedIconColor} />
           {label && (
             <ThemedText
               style={[
                 styles.label,
-                { marginLeft: 6 },
-                isPrimary ? { color: palette.card } : undefined,
+                { marginLeft: 5, color: textColor },
                 labelStyle,
               ]}>
               {label}
@@ -58,7 +67,7 @@ export function ThemedButton({
         <ThemedText
           style={[
             styles.label,
-            isPrimary ? { color: palette.card } : undefined,
+            isPrimary ? { color: palette.card } : toneColor ? { color: toneColor } : undefined,
             labelStyle,
           ]}>
           {label}
@@ -88,6 +97,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '700',
   },
 });

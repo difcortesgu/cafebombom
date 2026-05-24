@@ -1,4 +1,4 @@
-import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, UpdateEmployeePayload } from '@/types/accounts';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CashRegisterHistoryDay, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, UpdateEmployeePayload } from '@/types/accounts';
 import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 import { apiClient } from './api-client';
 
@@ -95,6 +95,11 @@ export class AccountsService {
   async addCashRegisterAdjustment(payload: AddCashRegisterAdjustmentPayload): Promise<string> {
     const response = await apiClient.post<{ id: string }>('/accounts/cash-register/adjustments', payload);
     return response.id || '';
+  }
+
+  async getCashRegisterHistory(): Promise<CashRegisterHistoryDay[]> {
+    const response = await apiClient.get<{ history: CashRegisterHistoryDay[] }>('/accounts/cash-register/history');
+    return response.history || [];
   }
 
   async getCashRegisterAdjustments(sessionId: string): Promise<CashRegisterAdjustment[]> {

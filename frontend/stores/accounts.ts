@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { accountsService, salesService } from '@/services';
-import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary, UpdateEmployeePayload } from '@/types/accounts';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CashRegisterHistoryDay, CloseCashRegisterPayload, DailyCashRegisterSummary, GetPnLPayload, OpenCashRegisterPayload, PnLSummary, UpdateEmployeePayload } from '@/types/accounts';
 import type { CashRegisterAdjustment, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
 
 type AccountsState = {
@@ -11,6 +11,7 @@ type AccountsState = {
   cashRegisterToday: CashRegisterSession | null;
   cashRegisterSummaryToday: DailyCashRegisterSummary;
   cashRegisterAdjustments: CashRegisterAdjustment[];
+  cashRegisterHistory: CashRegisterHistoryDay[];
   loading: boolean;
   hydrate: () => Promise<void>;
   addExpense: (payload: AddExpensePayload) => Promise<void>;
@@ -23,6 +24,7 @@ type AccountsState = {
   closeCashRegister: (payload: CloseCashRegisterPayload) => Promise<void>;
   addCashRegisterAdjustment: (payload: AddCashRegisterAdjustmentPayload) => Promise<void>;
   loadCashRegisterAdjustments: (sessionId: string) => Promise<void>;
+  loadCashRegisterHistory: () => Promise<void>;
 };
 
 export const useAccountsStore = create<AccountsState>((set, get) => ({
@@ -38,6 +40,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     expensesByMethod: [],
   },
   cashRegisterAdjustments: [],
+  cashRegisterHistory: [],
   loading: false,
 
   hydrate: async () => {
@@ -112,10 +115,16 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
     if (get().cashRegisterToday) {
       await get().loadCashRegisterAdjustments(get().cashRegisterToday!.id);
     }
+    await get().loadCashRegisterHistory();
   },
 
   loadCashRegisterAdjustments: async (sessionId: string) => {
     const adjustments = await accountsService.getCashRegisterAdjustments(sessionId);
     set({ cashRegisterAdjustments: adjustments });
+  },
+
+  loadCashRegisterHistory: async () => {
+    const history = await accountsService.getCashRegisterHistory();
+    set({ cashRegisterHistory: history });
   },
 }));

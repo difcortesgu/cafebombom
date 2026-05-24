@@ -1,4 +1,6 @@
 
+import type { CashRegisterHistoryDay } from './types';
+
 export type AddExpensePayload = {
   category: string;
   amount: number;
@@ -71,4 +73,8 @@ export type AddCashRegisterAdjustmentPayload = {
   amount: number;
   reason: string;
   adjustedBy: string;
+};
+
+export type CashRegisterHistoryResponse = {
+  history: CashRegisterHistoryDay[];
 };

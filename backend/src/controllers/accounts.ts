@@ -214,3 +214,12 @@ export async function getCashRegisterAdjustments(req: Request, res: Response): P
     handleControllerError(error, res, { label: '[accounts] getCashRegisterAdjustments', fallbackMessage: 'Failed to fetch cash register adjustments.' });
   }
 }
+
+export async function getCashRegisterHistory(req: Request, res: Response): Promise<void> {
+  try {
+    const history = await accountsService.getCashRegisterHistory();
+    res.status(200).json({ history });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[accounts] getCashRegisterHistory', fallbackMessage: 'Failed to fetch cash register history.' });
+  }
+}
