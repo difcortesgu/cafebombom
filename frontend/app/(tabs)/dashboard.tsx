@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-gifted-charts';
 
 import { PaymentMethodDisplay } from '@/components/payment-method-display';
@@ -17,6 +17,10 @@ import { dayRangeUnix, monthRangeUnix, previousRangeUnix, weekRangeUnix } from '
 
 const PIE_COLORS = ['#14B8A6', '#F5C842', '#E05252', '#818CF8', '#34D399', '#FB923C'];
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+const TREND_CHART_HORIZONTAL_PADDING = 10;
+const TREND_CHART_Y_AXIS_LABEL_WIDTH = 38;
+const WEEKDAY_CHART_HORIZONTAL_PADDING = 10;
+const WEEKDAY_CHART_Y_AXIS_LABEL_WIDTH = 38;
 
 const RANGE_LABELS: Record<DashboardRangeKey, string> = {
     today: 'Hoy',
@@ -52,6 +56,22 @@ function formatTrendLabel(bucketStart: number, bucket: DashboardTrendBucket, ran
     if (bucket === 'hour') return `${String(date.getHours()).padStart(2, '0')}:00`;
     if (rangeKey === 'week') return new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(date).replace('.', '');
     return `${date.getDate()}`;
+}
+
+function formatTrendTooltipLabel(bucketStart: number, bucket: DashboardTrendBucket, rangeKey: DashboardRangeKey) {
+    const date = new Date(bucketStart * 1000);
+    if (bucket === 'hour') {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const hour = String(date.getHours()).padStart(2, '0');
+        return `${day}/${month} ${hour}:00`;
+    }
+    if (rangeKey === 'week') {
+        return new Intl.DateTimeFormat('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit' })
+            .format(date)
+            .replace('.', '');
+    }
+    return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short' }).format(date);
 }
 
 function getWeekdayIndexMondayFirst(unixSeconds: number) {
@@ -129,6 +149,8 @@ export default function DashboardScreen() {
     const [previousFinanceSummary, setPreviousFinanceSummary] = useState({ income: 0, expenses: 0, net: 0 });
     const [loading, setLoading] = useState(true);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [trendCardWidth, setTrendCardWidth] = useState(0);
+    const [weekdayChartWidth, setWeekdayChartWidth] = useState(0);
 
     const { range, previousRange, bucket } = useMemo(() => getRangeConfig(rangeKey), [rangeKey]);
 
@@ -144,7 +166,7 @@ export default function DashboardScreen() {
         const trend = dashboardSummary?.trend ?? [];
         if (trend.length === 0) {
             return {
-                data: [{ value: 0, label: '' }],
+                data: [{ value: 0, label: '', tooltipLabel: 'Sin datos' }],
                 maxValue: 1,
                 stepValue: 0.25,
                 roundToDigits: 2,
@@ -174,6 +196,7 @@ export default function DashboardScreen() {
             return {
                 value: Number(point.total),
                 label: showLabel ? formatTrendLabel(point.bucket_start, bucket, rangeKey) : '',
+                tooltipLabel: formatTrendTooltipLabel(point.bucket_start, bucket, rangeKey),
             };
         });
 
@@ -195,6 +218,44 @@ export default function DashboardScreen() {
             xAxisLabelFontSize: bucket === 'hour' ? 9 : shouldUseReferenceLabels ? 10 : 11,
         };
     }, [bucket, dashboardSummary?.trend, rangeKey, width]);
+
+    const trendPointCount = Math.max(trendChart.data.length, 2);
+    const trendChartInnerWidth = Math.max(0, trendCardWidth - TREND_CHART_HORIZONTAL_PADDING * 2);
+    const trendChartCanvasWidth = Math.max(0, trendChartInnerWidth - TREND_CHART_Y_AXIS_LABEL_WIDTH);
+    const trendSpacing = useMemo(() => {
+        if (trendChartCanvasWidth <= 0) return trendChart.spacing;
+        const drawableWidth = trendChartCanvasWidth;
+        return Math.max(8, drawableWidth / (trendPointCount - 1));
+    }, [trendChartCanvasWidth, trendChart.spacing, trendPointCount]);
+
+    const trendPointerConfig = useMemo(() => {
+        return {
+            pointerColor: palette.tint,
+            pointerStripColor: palette.border,
+            pointerStripWidth: 1,
+            radius: 4,
+            pointerLabelWidth: 132,
+            pointerLabelHeight: 58,
+            autoAdjustPointerLabelPosition: true,
+            activatePointersInstantlyOnTouch: true,
+            activatePointersOnLongPress: false,
+            persistPointer: Platform.OS === 'web',
+            pointerLabelComponent: (items: Array<{ value: number; tooltipLabel?: string }>) => {
+                const point = items[0];
+                if (!point) return null;
+                return (
+                    <View style={[styles.trendPointerTooltip, { backgroundColor: palette.card, borderColor: palette.border }]}>
+                        <Text style={[styles.trendPointerTooltipLabel, { color: palette.mutedText }]}>
+                            {point.tooltipLabel ?? ''}
+                        </Text>
+                        <Text style={[styles.trendPointerTooltipValue, { color: palette.text }]}>
+                            {formatCurrency(Number(point.value ?? 0))}
+                        </Text>
+                    </View>
+                );
+            },
+        };
+    }, [palette.border, palette.card, palette.mutedText, palette.text, palette.tint]);
 
     const pieData = useMemo(() => {
         const breakdown = dashboardSummary?.paymentBreakdown.filter((item) => item.total > 0) ?? [];
@@ -235,7 +296,30 @@ export default function DashboardScreen() {
             roundToDigits: hasFractionalScale ? 2 : 0,
             showFractionalValues: hasFractionalScale,
         };
-    }, [dashboardSummary?.trend, palette.tint]);
+    }, [dashboardSummary?.trend, palette.tint, rangeKey]);
+
+    const weekdayChartKey = useMemo(
+        () => `weekday-${rangeKey}-${weekdaySalesChart.data.map((item) => item.value.toFixed(2)).join('-')}`,
+        [rangeKey, weekdaySalesChart.data],
+    );
+
+    const weekdayChartInnerWidth = Math.max(0, weekdayChartWidth - WEEKDAY_CHART_HORIZONTAL_PADDING * 2);
+    const weekdayChartCanvasWidth = Math.max(0, weekdayChartInnerWidth - WEEKDAY_CHART_Y_AXIS_LABEL_WIDTH);
+    const weekdayBarMetrics = useMemo(() => {
+        const points = Math.max(weekdaySalesChart.data.length, 1);
+        if (weekdayChartCanvasWidth <= 0) {
+            return {
+                barWidth: isWide ? 24 : 18,
+                spacing: isWide ? 20 : 12,
+            };
+        }
+
+        const slotWidth = weekdayChartCanvasWidth / points;
+        const barWidth = Math.max(10, Math.min(isWide ? 24 : 18, slotWidth * 0.58));
+        const spacing = Math.max(4, slotWidth - barWidth);
+
+        return { barWidth, spacing };
+    }, [weekdaySalesChart.data.length, weekdayChartCanvasWidth, isWide]);
 
     useFocusEffect(
         useCallback(() => {
@@ -343,30 +427,48 @@ export default function DashboardScreen() {
                             <Text style={{ color: palette.mutedText, fontSize: 13 }}>
                                 {t('dashboard.salesTrendSubtitle', { range: RANGE_LABELS[rangeKey] })}
                             </Text>
-                            <LineChart
-                                data={trendChart.data}
-                                isAnimated
-                                noOfSections={4}
-                                maxValue={trendChart.maxValue}
-                                stepValue={trendChart.stepValue}
-                                roundToDigits={trendChart.roundToDigits}
-                                showFractionalValues={trendChart.showFractionalValues}
-                                thickness={2.5}
-                                yAxisThickness={0}
-                                xAxisThickness={1}
-                                xAxisColor={palette.border}
-                                yAxisTextStyle={{ color: palette.mutedText, fontSize: 10 }}
-                                xAxisLabelTextStyle={{ color: palette.mutedText, fontSize: trendChart.xAxisLabelFontSize }}
-                                color={palette.tint}
-                                dataPointsColor={palette.tint}
-                                startFillColor={palette.tint}
-                                endFillColor={palette.card}
-                                startOpacity={0.22}
-                                endOpacity={0.02}
-                                areaChart
-                                height={240}
-                                spacing={trendChart.spacing}
-                            />
+                            <View
+                                style={styles.trendChartHost}
+                                onLayout={(event) => {
+                                    const nextWidth = Math.floor(event.nativeEvent.layout.width);
+                                    if (nextWidth > 0 && nextWidth !== trendCardWidth) {
+                                        setTrendCardWidth(nextWidth);
+                                    }
+                                }}>
+                                {trendChartCanvasWidth > 0 ? (
+                                    <LineChart
+                                        data={trendChart.data}
+                                        isAnimated={Platform.OS !== 'web'}
+                                        animationDuration={500}
+                                        disableScroll
+                                        width={trendChartCanvasWidth}
+                                        parentWidth={trendChartCanvasWidth}
+                                        yAxisLabelWidth={TREND_CHART_Y_AXIS_LABEL_WIDTH}
+                                        initialSpacing={0}
+                                        endSpacing={0}
+                                        noOfSections={4}
+                                        maxValue={trendChart.maxValue}
+                                        stepValue={trendChart.stepValue}
+                                        roundToDigits={0}
+                                        showFractionalValues={false}
+                                        thickness={2.5}
+                                        yAxisThickness={0}
+                                        xAxisThickness={1}
+                                        xAxisColor={palette.border}
+                                        yAxisTextStyle={{ color: palette.mutedText, fontSize: 10 }}
+                                        xAxisLabelTextStyle={{ color: palette.mutedText, fontSize: trendChart.xAxisLabelFontSize }}
+                                        color={palette.tint}
+                                        dataPointsColor={palette.tint}
+                                        startFillColor={palette.tint}
+                                        endFillColor={palette.card}
+                                        startOpacity={0.22}
+                                        endOpacity={0.02}
+                                        pointerConfig={trendPointerConfig}
+                                        height={260}
+                                        spacing={trendSpacing}
+                                    />
+                                ) : null}
+                            </View>
                         </ThemedCard>
                         <View style={[styles.analyticsGrid, isWide ? styles.analyticsGridRow : styles.analyticsGridCol]}>
                             <ProductRankingCard
@@ -388,40 +490,6 @@ export default function DashboardScreen() {
 
                     {/* Right sidebar */}
                     <View style={[styles.sideCol, isWide && { flex: 2 }]}>
-
-                        {/* Inventory health */}
-                        <ThemedCard style={styles.sideCard}>
-                            <View style={styles.rowBetween}>
-                                <ThemedText type="subtitle">Estado de Inventario</ThemedText>
-                                <View style={[styles.healthBadge, { backgroundColor: lowStock === 0 ? palette.success : palette.warning }]}>
-                                    <Text style={styles.healthBadgeText}>{lowStock === 0 ? '✓' : lowStock}</Text>
-                                </View>
-                            </View>
-                            <Text style={{ fontSize: 18, fontWeight: '700', color: lowStock === 0 ? palette.success : palette.warning }}>
-                                {lowStock === 0 ? 'Inventario Saludable' : `${lowStock} items bajos`}
-                            </Text>
-                            <Text style={{ color: palette.mutedText, fontSize: 13 }}>
-                                {lowStock === 0 ? '0 items bajo umbral' : `${lowStock} items bajo el umbral mínimo`}
-                            </Text>
-                            {lowStockItems.length === 0 ? (
-                                <View style={[styles.alertOk, { backgroundColor: palette.success + '22' }]}>
-                                    <Text style={{ color: palette.success, fontSize: 13 }}>
-                                        {'✓  Todo el inventario está por encima del umbral'}
-                                    </Text>
-                                </View>
-                            ) : (
-                                <View style={styles.alertList}>
-                                    {lowStockItems.map((item) => (
-                                        <View key={item.id} style={[styles.alertRow, { borderLeftColor: palette.warning }]}>
-                                            <ThemedText style={{ fontSize: 13, flex: 1 }}>{item.name}</ThemedText>
-                                            <Text style={{ color: palette.warning, fontSize: 12 }}>
-                                                {Number(item.quantity).toFixed(1)} / {Number(item.low_stock_threshold).toFixed(1)} {item.unit}
-                                            </Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </ThemedCard>
 
                         {/* Payment methods donut */}
                         <ThemedCard style={styles.sideCard}>
@@ -465,33 +533,82 @@ export default function DashboardScreen() {
                         <ThemedCard style={styles.sideCard}>
                             <ThemedText type="subtitle">Ventas por día de la semana</ThemedText>
                             {weekdaySalesChart.hasSales ? (
-                                <BarChart
-                                    data={weekdaySalesChart.data}
-                                    isAnimated
-                                    noOfSections={4}
-                                    height={190}
-                                    barWidth={isWide ? 24 : 18}
-                                    spacing={isWide ? 20 : 12}
-                                    disableScroll
-                                    initialSpacing={8}
-                                    endSpacing={8}
-                                    maxValue={weekdaySalesChart.maxValue}
-                                    stepValue={weekdaySalesChart.stepValue}
-                                    roundToDigits={weekdaySalesChart.roundToDigits}
-                                    showFractionalValues={weekdaySalesChart.showFractionalValues}
-                                    yAxisThickness={0}
-                                    xAxisThickness={1}
-                                    xAxisColor={palette.border}
-                                    rulesColor={palette.border + '66'}
-                                    yAxisTextStyle={{ color: palette.mutedText, fontSize: 10 }}
-                                    xAxisLabelTextStyle={{ color: palette.mutedText, fontSize: 11 }}
-                                    showValuesAsTopLabel
-                                    topLabelTextStyle={{ color: palette.mutedText, fontSize: 10 }}
-                                />
+                                <View
+                                    style={styles.weekdayChartHost}
+                                    onLayout={(event) => {
+                                        const nextWidth = Math.floor(event.nativeEvent.layout.width);
+                                        if (nextWidth > 0 && nextWidth !== weekdayChartWidth) {
+                                            setWeekdayChartWidth(nextWidth);
+                                        }
+                                    }}>
+                                    {weekdayChartCanvasWidth > 0 ? (
+                                        <BarChart
+                                            key={weekdayChartKey}
+                                            data={weekdaySalesChart.data}
+                                            isAnimated
+                                            noOfSections={4}
+                                            height={190}
+                                            width={weekdayChartCanvasWidth}
+                                            parentWidth={weekdayChartCanvasWidth}
+                                            barWidth={weekdayBarMetrics.barWidth}
+                                            spacing={weekdayBarMetrics.spacing}
+                                            disableScroll
+                                            initialSpacing={0}
+                                            endSpacing={0}
+                                            maxValue={weekdaySalesChart.maxValue}
+                                            stepValue={weekdaySalesChart.stepValue}
+                                            roundToDigits={weekdaySalesChart.roundToDigits}
+                                            showFractionalValues={weekdaySalesChart.showFractionalValues}
+                                            yAxisLabelWidth={WEEKDAY_CHART_Y_AXIS_LABEL_WIDTH}
+                                            yAxisThickness={0}
+                                            xAxisThickness={1}
+                                            xAxisColor={palette.border}
+                                            rulesColor={palette.border + '66'}
+                                            yAxisTextStyle={{ color: palette.mutedText, fontSize: 10 }}
+                                            xAxisLabelTextStyle={{ color: palette.mutedText, fontSize: 11 }}
+                                            showValuesAsTopLabel
+                                            topLabelTextStyle={{ color: palette.mutedText, fontSize: 10 }}
+                                        />
+                                    ) : null}
+                                </View>
                             ) : (
                                 <Text style={{ color: palette.mutedText, fontSize: 13 }}>
                                     {loading ? t('dashboard.loading') : 'Sin ventas en el periodo seleccionado'}
                                 </Text>
+                            )}
+                        </ThemedCard>
+
+                        {/* Inventory health */}
+                        <ThemedCard style={styles.sideCard}>
+                            <View style={styles.rowBetween}>
+                                <ThemedText type="subtitle">Estado de Inventario</ThemedText>
+                                <View style={[styles.healthBadge, { backgroundColor: lowStock === 0 ? palette.success : palette.warning }]}>
+                                    <Text style={styles.healthBadgeText}>{lowStock === 0 ? '✓' : lowStock}</Text>
+                                </View>
+                            </View>
+                            <Text style={{ fontSize: 18, fontWeight: '700', color: lowStock === 0 ? palette.success : palette.warning }}>
+                                {lowStock === 0 ? 'Inventario Saludable' : `${lowStock} items bajos`}
+                            </Text>
+                            <Text style={{ color: palette.mutedText, fontSize: 13 }}>
+                                {lowStock === 0 ? '0 items bajo umbral' : `${lowStock} items bajo el umbral mínimo`}
+                            </Text>
+                            {lowStockItems.length === 0 ? (
+                                <View style={[styles.alertOk, { backgroundColor: palette.success + '22' }]}>
+                                    <Text style={{ color: palette.success, fontSize: 13 }}>
+                                        {'✓  Todo el inventario está por encima del umbral'}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View style={styles.alertList}>
+                                    {lowStockItems.map((item) => (
+                                        <View key={item.id} style={[styles.alertRow, { borderLeftColor: palette.warning }]}>
+                                            <ThemedText style={{ fontSize: 13, flex: 1 }}>{item.name}</ThemedText>
+                                            <Text style={{ color: palette.warning, fontSize: 12 }}>
+                                                {Number(item.quantity).toFixed(1)} / {Number(item.low_stock_threshold).toFixed(1)} {item.unit}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
                             )}
                         </ThemedCard>
 
@@ -601,6 +718,29 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.07,
         shadowRadius: 6,
         elevation: 2,
+    },
+    trendChartHost: {
+        width: '100%',
+        paddingHorizontal: TREND_CHART_HORIZONTAL_PADDING,
+        overflow: 'hidden',
+    },
+    trendPointerTooltip: {
+        borderWidth: 1,
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    trendPointerTooltipLabel: {
+        fontSize: 11,
+    },
+    trendPointerTooltipValue: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    weekdayChartHost: {
+        width: '100%',
+        paddingHorizontal: WEEKDAY_CHART_HORIZONTAL_PADDING,
+        overflow: 'hidden',
     },
     sideCol: {
         gap: 12,
