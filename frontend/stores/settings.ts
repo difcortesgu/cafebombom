@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { create } from 'zustand';
 // Utilidades de persistencia multiplataforma
 const THEME_STORAGE_KEY = 'settings.theme-preferences';
 
@@ -35,7 +36,6 @@ async function readThemePreferences(): Promise<{ selectedThemeId: string; themeM
     return null;
   }
 }
-import { create } from 'zustand';
 
 import { type AppThemeId } from '@/constants/theme';
 import { salesService, setupService } from '@/services';
@@ -135,9 +135,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({
       ...(themePrefs
         ? {
-            selectedThemeId: themePrefs.selectedThemeId,
-            themeModePreference: themePrefs.themeModePreference,
-          }
+          selectedThemeId: themePrefs.selectedThemeId,
+          themeModePreference: themePrefs.themeModePreference,
+        }
         : {}),
       themeHydrated: true,
     });

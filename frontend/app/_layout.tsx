@@ -1,3 +1,4 @@
+import { useSettingsStore } from '@/stores/settings';
 import {
   Poppins_400Regular,
   Poppins_500Medium,
@@ -10,7 +11,6 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
-import { useSettingsStore } from '@/stores/settings';
 // Hidrata settings al inicio y espera a que esté listo antes de renderizar la app
 import 'react-native-reanimated';
 
