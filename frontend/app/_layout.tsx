@@ -9,7 +9,9 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSettingsStore } from '@/stores/settings';
+// Hidrata settings al inicio y espera a que esté listo antes de renderizar la app
 import 'react-native-reanimated';
 
 import { useAppColors, useThemeMode } from '@/hooks/use-theme-color';
@@ -24,23 +26,30 @@ export const unstable_settings = {
 export default function RootLayout() {
   const mode = useThemeMode();
   const palette = useAppColors();
-
+  const themeHydrated = useSettingsStore((s) => s.themeHydrated);
+  const hydrateTheme = useSettingsStore((s) => s.hydrateTheme);
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded) {
+    // Hidratar solo preferencias de tema al inicio
+    void hydrateTheme();
+  }, [hydrateTheme]);
+
+  useEffect(() => {
+    if (fontsLoaded && themeHydrated) {
+      setReady(true);
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, themeHydrated]);
 
   const navigationTheme = useMemo(() => {
     const base = mode === 'dark' ? DarkTheme : DefaultTheme;
-
     return {
       ...base,
       colors: {
@@ -55,7 +64,7 @@ export default function RootLayout() {
     };
   }, [mode, palette]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !ready) {
     return null;
   }
 

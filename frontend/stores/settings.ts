@@ -1,4 +1,40 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+// Utilidades de persistencia multiplataforma
+const THEME_STORAGE_KEY = 'settings.theme-preferences';
+
+function isWeb() {
+  // Platform.OS === 'web' en React Native Web
+  return typeof window !== 'undefined' && Platform.OS === 'web';
+}
+
+async function saveThemePreferences(preferences: { selectedThemeId: string; themeModePreference: string }) {
+  const data = JSON.stringify(preferences);
+  if (isWeb()) {
+    window.localStorage.setItem(THEME_STORAGE_KEY, data);
+  } else {
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, data);
+  }
+}
+
+async function readThemePreferences(): Promise<{ selectedThemeId: string; themeModePreference: string } | null> {
+  try {
+    let raw: string | null = null;
+    if (isWeb()) {
+      raw = window.localStorage.getItem(THEME_STORAGE_KEY);
+    } else {
+      raw = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+    }
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.selectedThemeId === 'string' && typeof parsed.themeModePreference === 'string') {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 import { create } from 'zustand';
 
 import { type AppThemeId } from '@/constants/theme';
@@ -63,6 +99,9 @@ type SettingsState = {
   taxRate: number;
   printerDeviceName: string;
   printerDeviceAddress: string;
+  settingsHydrated: boolean;
+  themeHydrated: boolean;
+  hydrateTheme: () => Promise<void>;
   hydrateFromDb: () => Promise<void>;
   setTheme: (themeId: AppThemeId) => void;
   setThemeModePreference: (mode: ThemeModePreference) => void;
@@ -89,6 +128,20 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   taxRate: COLOMBIAN_IVA_RATE,
   printerDeviceName: '',
   printerDeviceAddress: '',
+  settingsHydrated: false,
+  themeHydrated: false,
+  hydrateTheme: async () => {
+    const themePrefs = await readThemePreferences();
+    set({
+      ...(themePrefs
+        ? {
+            selectedThemeId: themePrefs.selectedThemeId,
+            themeModePreference: themePrefs.themeModePreference,
+          }
+        : {}),
+      themeHydrated: true,
+    });
+  },
   hydrateFromDb: async () => {
     const [config, receiptConfig, storedPrinter] = await Promise.all([
       salesService.getOrderTypeSurchargeConfig(),
@@ -108,10 +161,29 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       taxRate: receiptConfig.taxRate,
       printerDeviceName: storedPrinter?.name ?? '',
       printerDeviceAddress: storedPrinter?.address ?? '',
+      settingsHydrated: true,
     });
   },
-  setTheme: (themeId) => set({ selectedThemeId: themeId }),
-  setThemeModePreference: (mode) => set({ themeModePreference: mode }),
+  setTheme: (themeId) => {
+    set((state) => {
+      const next = { ...state, selectedThemeId: themeId };
+      void saveThemePreferences({
+        selectedThemeId: next.selectedThemeId,
+        themeModePreference: next.themeModePreference,
+      });
+      return { selectedThemeId: themeId };
+    });
+  },
+  setThemeModePreference: (mode) => {
+    set((state) => {
+      const next = { ...state, themeModePreference: mode };
+      void saveThemePreferences({
+        selectedThemeId: next.selectedThemeId,
+        themeModePreference: next.themeModePreference,
+      });
+      return { themeModePreference: mode };
+    });
+  },
   setDeliverySurcharge: (value) => {
     const normalized = Number.isFinite(value) ? Math.max(0, value) : 0;
     set({ deliverySurcharge: normalized });
