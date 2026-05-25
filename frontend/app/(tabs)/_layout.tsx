@@ -115,7 +115,6 @@ export default function TabLayout() {
       { key: 'catalog', href: '/catalog', title: t('nav.tab.catalog'), icon: 'books.vertical.fill' },
       { key: 'operations', href: '/operations', title: t('nav.tab.operations'), icon: 'gearshape.2.fill' },
       { key: 'team', href: '/team', title: t('nav.tab.team'), icon: 'person.2.fill' },
-      { key: 'appearance', href: '/appearance', title: t('nav.tab.appearance'), icon: 'paintbrush.fill' },
     ];
 
     const staffItems: SidebarItem[] = [
@@ -129,7 +128,6 @@ export default function TabLayout() {
         badge: alertCount > 0 ? alertCount : undefined,
       },
       { key: 'expenses', href: '/expenses', title: t('nav.tab.expenses'), icon: 'arrow.down.circle.fill' },
-      { key: 'appearance', href: '/appearance', title: t('nav.tab.appearance'), icon: 'paintbrush.fill' },
     ];
 
     const selected = isOwner ? ownerItems : staffItems;
@@ -258,30 +256,54 @@ export default function TabLayout() {
           );
         })}
       </View>
+      <View>
+        <Pressable
+          onPress={() => handleNavPress('/appearance')}
+          style={({ pressed }) => [
+            styles.navItem,
+            isCompact ? styles.navItemCompact : null,
+            {
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}>
+          <View style={styles.navIconRow}>
+            <IconSymbol
+              size={22}
+              name="paintbrush.fill"
+              color={palette.card}
+            />
+          </View>
+          <Animated.View style={[styles.labelShell, labelShellStyle]}>
+            <Text style={[styles.navText, { color: palette.card }]} numberOfLines={1}>
+              {t('nav.tab.appearance')}
+            </Text>
+          </Animated.View>
+        </Pressable>
 
-      <Pressable
-        onPress={() => void handleLogout()}
-        style={({ pressed }) => [
-          styles.navItem,
-          styles.logoutItem,
-          isCompact ? styles.navItemCompact : null,
-          {
-            opacity: pressed ? 0.9 : 1,
-          },
-        ]}>
-        <View style={styles.navIconRow}>
-          <IconSymbol
-            size={22}
-            name="lock.fill"
-            color={palette.card}
-          />
-        </View>
-        <Animated.View style={[styles.labelShell, labelShellStyle]}>
-          <Text style={[styles.navText, { color: palette.card }]} numberOfLines={1}>
-            {t('settings.session.logout')}
-          </Text>
-        </Animated.View>
-      </Pressable>
+        <Pressable
+          onPress={() => void handleLogout()}
+          style={({ pressed }) => [
+            styles.navItem,
+            styles.logoutItem,
+            isCompact ? styles.navItemCompact : null,
+            {
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}>
+          <View style={styles.navIconRow}>
+            <IconSymbol
+              size={22}
+              name="lock.fill"
+              color={palette.card}
+            />
+          </View>
+          <Animated.View style={[styles.labelShell, labelShellStyle]}>
+            <Text style={[styles.navText, { color: palette.card }]} numberOfLines={1}>
+              {t('settings.session.logout')}
+            </Text>
+          </Animated.View>
+        </Pressable>
+      </View>
     </View>
   );
 
