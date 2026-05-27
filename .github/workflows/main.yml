@@ -20,7 +20,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20" # Cambiado a 20 para máxima compatibilidad con pkg
+          node-version: "20"
+          cache: "npm" # Le decimos que active el caché para npm
+          cache-dependency-path: | # Le indicamos dónde están tus archivos lock
+            frontend/package-lock.json
+            backend/package-lock.json
 
       - name: Build Frontend (React Native Web)
         run: |
