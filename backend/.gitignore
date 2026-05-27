@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 dist/
+dist-app/
+public/
 
 # Environment variables
 .env

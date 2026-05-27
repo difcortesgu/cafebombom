@@ -188,12 +188,12 @@ app.use('/api/payment-methods', paymentMethodsRouter);
 
 
 // Serve the compiled Expo Web static files (from frontend/dist)
-const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+const frontendDistPath = path.join(__dirname, '../public');
 app.use(express.static(frontendDistPath));
 
 // Any route not starting with /api should serve the frontend (SPA routing)
-app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(frontendDistPath, 'index.html'));
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
 app.listen(PORT, () => {

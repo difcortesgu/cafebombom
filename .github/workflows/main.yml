@@ -8,10 +8,10 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest # Ubuntu can cross-compile to Windows using pkg
-    
+
     # We need write permissions to create a GitHub Release
     permissions:
-      contents: write 
+      contents: write
 
     steps:
       - name: Checkout Source Code
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Cambiado a 20 para máxima compatibilidad con pkg
+          node-version: "20" # Cambiado a 20 para máxima compatibilidad con pkg
 
       - name: Build Frontend (React Native Web)
         run: |
@@ -29,18 +29,18 @@ jobs:
           echo "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000/api" > .env
           npx expo export --platform web
 
-      - name: Prepare Backend
+      - name: Prepare and Compile Backend
         run: |
           cd backend
           npm install
-          # Movemos el frontend compilado al backend
-          cp -R ../frontend/dist ./dist 
+          npx tsc 
+          cp -R ../frontend/dist ./public
 
       - name: Compile Executable with pkg
         run: |
           cd backend
           npm install -g pkg
-          npm run build:exe 
+          npm run build:exe
 
       - name: Generate Dynamic Version Tag
         id: version_tag
