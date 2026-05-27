@@ -1,10 +1,11 @@
 // dotenv MUST be loaded with require() before any other import, so env vars
 // are set before module-level code in jwt.ts and other services fires.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-require('dotenv').config();
+require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
 import cors from 'cors';
 import express, { Request, Response } from 'express';
+import path from 'path';
 import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
@@ -19,7 +20,7 @@ import { getJwtExpiresIn, signAccessToken } from './services/jwt';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN;
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || '10mb';
 const authService = new AuthSqliteService();
 
@@ -36,9 +37,6 @@ app.use(express.json({ limit: JSON_BODY_LIMIT }));
  *       200:
  *         description: Returns a greeting
  */
-app.get('/', (req: Request, res: Response) => {
-    res.send('Express + TypeScript Server is running');
-});
 
 /**
  * @openapi
@@ -176,7 +174,7 @@ app.post('/api/auth/logout', authMiddleware, async (req: Request, res: Response)
 });
 
 // Add this after your middleware setup
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // ── Domain routes ─────────────────────────────────────────────────────────────
 app.use('/api/users', usersRouter);
@@ -186,6 +184,17 @@ app.use('/api/inventory', inventoryRouter);
 app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
+
+
+
+// Serve the compiled Expo Web static files (from frontend/dist)
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(frontendDistPath));
+
+// Any route not starting with /api should serve the frontend (SPA routing)
+app.get(/^\/(?!api).*/, (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running at http://localhost:${PORT}`);

@@ -2,7 +2,10 @@ const Database = require('better-sqlite3');
 const { drizzle } = require('drizzle-orm/better-sqlite3');
 const { migrate } = require('drizzle-orm/better-sqlite3/migrator');
 
-const sqliteFilePath = process.env.SQLITE_FILE_PATH || 'sqlite.db';
+const sqliteFilePath = process.env.SQLITE_FILE_PATH
+    ? process.env.SQLITE_FILE_PATH
+    : path.join(process.cwd(), 'sqlite.db');
+
 const migrationsFolder = './src/database/migrations';
 
 function getMigrationCount(db) {

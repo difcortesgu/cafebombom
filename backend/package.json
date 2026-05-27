@@ -1,6 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
+  "bin": "index.js",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -9,12 +10,18 @@
     "dev": "nodemon --watch src --watch .env --ext ts,env --exec \"npm run build && node dist/index.js\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.cjs",
-    "db:migrate:drizzle-kit": "drizzle-kit migrate"
+    "db:migrate:drizzle-kit": "drizzle-kit migrate",
+    "build:exe": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path dist-app"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "pkg": {
+    "assets": [
+      "dist/**/*"
+    ]
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",

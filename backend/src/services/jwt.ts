@@ -1,5 +1,6 @@
 import type { SignOptions } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 
 export type JwtClaims = {
   sub: string;
@@ -8,7 +9,7 @@ export type JwtClaims = {
   sid: string;
 };
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
 const JWT_EXPIRES_IN: SignOptions['expiresIn'] =
   (process.env.JWT_EXPIRES_IN as SignOptions['expiresIn']) || '8h';
 
