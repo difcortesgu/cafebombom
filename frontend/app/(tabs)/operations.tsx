@@ -5,7 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -50,9 +50,8 @@ type OperationsPanelMode =
 
 export default function OperationsScreen() {
     const palette = useAppColors();
-    const router = useRouter();
     const params = useLocalSearchParams<{ section?: string | string[] }>();
-    const { screenWidth, cardWidth } = useCatalogGrid();
+    const { cardWidth } = useCatalogGrid();
     const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
     const [panelMode, setPanelMode] = useState<OperationsPanelMode | null>(null);

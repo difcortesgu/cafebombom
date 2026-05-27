@@ -35,8 +35,8 @@ const PADDING = 16;
 
 export default function CatalogScreen() {
     const palette = useAppColors();
-    const { screenWidth, numCols, cardWidth } = useCatalogGrid();
-    const { isWide, openOrNavigate } = useResponsiveOpen();
+    const { screenWidth, cardWidth } = useCatalogGrid();
+    const { openOrNavigate } = useResponsiveOpen();
 
     const [section, setSection] = useState<Section>('products');
 

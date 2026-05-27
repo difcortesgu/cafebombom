@@ -22,8 +22,8 @@ import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 
-const COLLAPSED_WIDTH = 68;
-const EXPANDED_WIDTH = 236;
+// const COLLAPSED_WIDTH = 68;
+// const EXPANDED_WIDTH = 236;
 const MOBILE_BREAKPOINT = 900;
 const MOBILE_DRAWER_WIDTH = 280;
 const LABEL_MAX_WIDTH = 156;
@@ -64,7 +64,7 @@ export default function TabLayout() {
     managedUsers,
     currentUser,
     isSetupDone,
-    hydrate: hydrateAuth,
+    // hydrate: hydrateAuth,
     setupCreateUser,
     setupDeleteUser,
     setupReactivateUser,
@@ -107,7 +107,7 @@ export default function TabLayout() {
     if (isMobileLayout) {
       setDrawerOpen(false);
     }
-  }, [activeRoute, isMobileLayout]);
+  }, [activeRoute, isMobileLayout, setDrawerOpen]);
 
   const navItems = useMemo<SidebarItem[]>(() => {
     const ownerItems: SidebarItem[] = [

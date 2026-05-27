@@ -21,7 +21,7 @@ type Section = 'expenses' | 'payroll';
 
 export default function ExpensesScreen() {
     const palette = useAppColors();
-    const { isWide, openOrNavigate } = useResponsiveOpen();
+    const { openOrNavigate } = useResponsiveOpen();
     const [section, setSection] = useState<Section>('expenses');
 
     const { hydrate, expenses, employees, payroll } = useAccountsStore();

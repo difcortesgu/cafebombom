@@ -240,7 +240,7 @@ export default function DashboardScreen() {
             activatePointersInstantlyOnTouch: true,
             activatePointersOnLongPress: false,
             persistPointer: Platform.OS === 'web',
-            pointerLabelComponent: (items: Array<{ value: number; tooltipLabel?: string }>) => {
+            pointerLabelComponent: (items: { value: number; tooltipLabel?: string }[]) => {
                 const point = items[0];
                 if (!point) return null;
                 return (
@@ -300,7 +300,7 @@ export default function DashboardScreen() {
 
     const weekdayChartKey = useMemo(
         () => `weekday-${rangeKey}-${weekdaySalesChart.data.map((item) => item.value.toFixed(2)).join('-')}`,
-        [rangeKey, weekdaySalesChart.data],
+        [weekdaySalesChart, rangeKey],
     );
 
     const weekdayChartInnerWidth = Math.max(0, weekdayChartWidth - WEEKDAY_CHART_HORIZONTAL_PADDING * 2);

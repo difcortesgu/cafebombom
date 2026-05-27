@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -73,7 +73,6 @@ function getTransitionAction(from: OrderStatus, to: OrderStatus): 'sendToKitchen
 
 export default function SalesScreen() {
   const palette = useAppColors();
-  const router = useRouter();
   const {
     hydrate,
     sales,
@@ -96,7 +95,7 @@ export default function SalesScreen() {
   } = useSettingsStore();
   const { hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
-  const { isWide, openOrNavigate } = useResponsiveOpen();
+  const { openOrNavigate } = useResponsiveOpen();
   const orderPanel = usePanelLifecycle();
 
   const [saleProductsById, setSaleProductsById] = useState<Record<string, ProductItem[]>>({});

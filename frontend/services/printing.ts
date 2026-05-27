@@ -95,104 +95,6 @@ function normalizeEscPosText(value: string): string {
     .replace(/[^\x0a\x20-\x7e]/g, '?');
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function buildReceiptHtml(receiptData: ReceiptData): string {
-  const textPreview = buildPrintableReceiptText(receiptData);
-  const paperWidthPx = receiptData.paperWidth === 58 ? 280 : 380;
-
-  return `<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Recibo ${escapeHtml(receiptData.metadata.orderShortId)}</title>
-    <style>
-      :root {
-        color-scheme: light;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        padding: 16px;
-        background: #ece8df;
-        font-family: "Courier New", Courier, monospace;
-      }
-      .ticket {
-        width: min(100%, ${paperWidthPx}px);
-        margin: 0 auto;
-        border: 1px solid #31291f;
-        border-radius: 10px;
-        background: #fffefa;
-        color: #1f1912;
-        padding: 14px;
-        box-shadow: 0 12px 30px rgba(24, 17, 10, 0.15);
-      }
-      pre {
-        margin: 0;
-        white-space: pre-wrap;
-        word-break: break-word;
-        line-height: 1.35;
-        font-size: 12px;
-      }
-      .hint {
-        width: min(100%, ${paperWidthPx}px);
-        margin: 12px auto 0;
-        color: #4f4031;
-        font-size: 12px;
-      }
-      @media print {
-        body {
-          background: #ffffff;
-          padding: 0;
-        }
-        .ticket {
-          border: 0;
-          border-radius: 0;
-          box-shadow: none;
-          width: 100%;
-        }
-        .hint {
-          display: none;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <section class="ticket">
-      <pre>${escapeHtml(textPreview)}</pre>
-    </section>
-    <p class="hint">Usa el dialogo del navegador para imprimir o guardar como PDF.</p>
-  </body>
-</html>`;
-}
-
-function openWebPrintPreview(html: string): void {
-  if (typeof window === 'undefined') {
-    throw new Error('La vista previa web no esta disponible en este entorno.');
-  }
-
-  const previewWindow = window.open('', '_blank', 'noopener,noreferrer');
-  if (!previewWindow) {
-    throw new Error('No se pudo abrir la vista previa. Verifica bloqueadores de ventanas emergentes.');
-  }
-
-  previewWindow.document.open();
-  previewWindow.document.write(html);
-  previewWindow.document.close();
-  previewWindow.focus();
-  previewWindow.print();
-}
-
 function encodeReceiptToEscPos(receiptData: ReceiptData): Uint8Array {
   const encoder = new ReceiptPrinterEncoder();
   const textPreview = buildPrintableReceiptText(receiptData);
@@ -240,6 +142,41 @@ async function sendEscPosOverAndroidBluetooth(payload: Uint8Array, target: Print
   }
 
   await bluetooth.disconnectFromDevice(address).catch(() => false);
+}
+
+async function sendEscPosOverWebUSB(payload: Uint8Array): Promise<void> {
+  if (typeof navigator === 'undefined' || !navigator.usb) {
+    throw new Error('WebUSB is not supported on this browser. Use Chrome or Edge.');
+  }
+
+  try {
+    const device = await navigator.usb.requestDevice({ filters: [] });
+
+    await device.open();
+    if (device.configuration === null) {
+      await device.selectConfiguration(1);
+    }
+    await device.claimInterface(0);
+
+    const interfaceNumber = device.configuration.interfaces[0];
+    const endpoint = interfaceNumber.alternates[0].endpoints.find(e => e.direction === 'out');
+
+    if (!endpoint) {
+      throw new Error('No out endpoint found on this USB device.');
+    }
+
+    await device.transferOut(endpoint.endpointNumber, payload);
+
+    await device.close();
+
+  } catch (error: any) {
+
+    console.error('WebUSB Error:', error);
+    if (error.message.includes('claim')) {
+      throw new Error('Driver error. Remember to use Zadig to change to WinUSB.');
+    }
+    throw new Error('Couldn\'t print using webUSB: ' + error.message);
+  }
 }
 
 function buildTestReceipt(paperWidth: ReceiptPaperWidth): ReceiptData {
@@ -326,16 +263,15 @@ export class PrintService {
   }
 
   previewReceipt(receiptData: ReceiptData): string {
-    if (Platform.OS === 'web') {
-      return buildReceiptHtml(receiptData);
-    }
-
     return buildPrintableReceiptText(receiptData);
   }
 
+
   async printReceipt(receiptData: ReceiptData, target?: PrinterTarget): Promise<void> {
+    const payload = encodeReceiptToEscPos(receiptData);
+
     if (Platform.OS === 'web') {
-      openWebPrintPreview(this.previewReceipt(receiptData));
+      await sendEscPosOverWebUSB(payload);
       return;
     }
 
@@ -343,7 +279,6 @@ export class PrintService {
       throw new Error('Configura la impresora Bluetooth en Ajustes para imprimir desde Android.');
     }
 
-    const payload = encodeReceiptToEscPos(receiptData);
     await sendEscPosOverAndroidBluetooth(payload, target ?? {});
   }
 

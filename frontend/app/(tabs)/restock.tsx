@@ -20,8 +20,8 @@ const PADDING = 16;
 export default function RestockScreen() {
     const palette = useAppColors();
     const { ingredients, hydrate } = useInventoryStore();
-    const { screenWidth, numCols, cardWidth } = useCatalogGrid();
-    const { isWide, openOrNavigate } = useResponsiveOpen();
+    const { cardWidth } = useCatalogGrid();
+    const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
 
     const [panelIngredientId, setPanelIngredientId] = useState('');

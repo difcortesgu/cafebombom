@@ -45,7 +45,7 @@ export function DiscountPanelForm({ onClose, initialScope = 'global', discount }
         setStartsAt(discount?.startsAt ?? Math.floor(Date.now() / 1000));
         setEndsAt(discount?.endsAt ?? null);
         setMessage('');
-    }, [discount]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [discount]);  
 
     const typeItems = [
         { label: t('products.discounts.typePercentage'), value: 'percentage' as DiscountType },
