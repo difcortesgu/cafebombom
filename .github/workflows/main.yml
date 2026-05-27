@@ -1,0 +1,61 @@
+name: Build and Release POS
+
+on:
+  push:
+    branches:
+      - main # Triggers whenever code is pushed or merged into main
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest # Ubuntu can cross-compile to Windows using pkg
+    
+    # We need write permissions to create a GitHub Release
+    permissions:
+      contents: write 
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Cambiado a 20 para máxima compatibilidad con pkg
+
+      - name: Build Frontend (React Native Web)
+        run: |
+          cd frontend
+          npm install
+          echo "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000/api" > .env
+          npx expo export --platform web
+
+      - name: Prepare Backend
+        run: |
+          cd backend
+          npm install
+          # Movemos el frontend compilado al backend
+          cp -R ../frontend/dist ./dist 
+
+      - name: Compile Executable with pkg
+        run: |
+          cd backend
+          npm install -g pkg
+          npm run build:exe 
+
+      - name: Generate Dynamic Version Tag
+        id: version_tag
+        # Cambiamos GITHUB_ENV por GITHUB_OUTPUT
+        run: echo "tag_name=v$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release and Upload .exe
+        uses: softprops/action-gh-release@v2
+        with:
+          # Ahora accedemos al valor a través del ID del paso anterior (version_tag)
+          tag_name: ${{ steps.version_tag.outputs.tag_name }}
+          name: "POS System Release ${{ steps.version_tag.outputs.tag_name }}"
+          draft: false
+          prerelease: false
+          files: |
+            backend/dist-app/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
