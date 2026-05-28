@@ -60,6 +60,10 @@ jobs:
           cd release-windows && zip -r ../pos-windows-v1.zip ./* && cd ..
           cd release-linux && tar -czvf ../pos-linux-v1.tar.gz ./* && cd ..
 
+      - name: Generate Dynamic Version Tag
+        id: version_tag
+        run: echo "tag_name=v$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
