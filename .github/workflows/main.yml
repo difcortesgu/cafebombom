@@ -37,7 +37,9 @@ jobs:
       - name: Compilar Backend con Bun
         run: |
           cd backend
-          bun install # Bun instala tus dependencias en milisegundos
+          bun install 
+
+          cp -R ../frontend/dist ./public
 
           # Generar ejecutables para Windows y Linux
           bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
@@ -47,16 +49,14 @@ jobs:
           # Empaquetar todo en carpetas listas para distribuir
           mkdir release-windows release-linux
 
-          # Copiamos los ejecutables a sus respectivas carpetas
           mv pos-app.exe release-windows/
           mv pos-app-linux release-linux/
 
-          # Copiamos el frontend (React Native Web) a ambas carpetas
-          # Asegúrate de que tu index.ts de express apunte a la carpeta 'public'
-          cp -R ../frontend/dist release-windows/public
-          cp -R ../frontend/dist release-linux/public
+          # Ahora simplemente movemos esa misma carpeta public a los instaladores
+          cp -R ./public release-windows/public
+          cp -R ./public release-linux/public
 
-          # Comprimimos en .zip para subir al Release
+          # Comprimir en .zip y .tar.gz para subir al Release
           cd release-windows && zip -r ../pos-windows-v1.zip ./* && cd ..
           cd release-linux && tar -czvf ../pos-linux-v1.tar.gz ./* && cd ..
 
