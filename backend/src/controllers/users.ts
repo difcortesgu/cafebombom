@@ -1,4 +1,4 @@
-import { usersService } from '@/services';
+import { usersService } from '../services';
 import type { Request, Response } from 'express';
 
 export async function getActiveUsers(req: Request, res: Response): Promise<void> {

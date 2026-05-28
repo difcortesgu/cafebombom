@@ -1,7 +1,7 @@
-import { db } from '@/database';
-import { expenses, ingredientUnits, ingredients, restockLogs, suppliers } from '@/database/schema';
-import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload, UpdateSupplierPayload } from '@/types/inventory';
-import type { Ingredient, Supplier } from '@/types/types';
+import { db } from '../database';
+import { expenses, ingredientUnits, ingredients, restockLogs, suppliers } from '../database/schema';
+import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload, UpdateSupplierPayload } from '../types/inventory';
+import type { Ingredient, Supplier } from '../types/types';
 import { asc, desc, eq, sql } from 'drizzle-orm';
 
 export class InventorySqliteService {

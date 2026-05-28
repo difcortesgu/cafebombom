@@ -1,23 +1,23 @@
-import { db } from '@/database';
-import {
-  categories,
-  discounts,
-  employees,
-  ingredients,
-  ingredientUnits,
-  paymentMethods,
-  productAdditionalIngredients,
-  productIngredients,
-  products,
-  receiptPreferences,
-  restaurantTables,
-  suppliers,
-  surcharges,
-} from '@/database/schema';
-import { parseSeedWorkbook, SeedImportValidationError } from '@/services/seed-import';
-import { ReceiptPreferences } from '@/types/receipt';
-import { SeedImportEntitySummary, SeedImportIssue, SeedImportResult, SeedImportSummary } from '@/types/setup';
 import { and, eq } from 'drizzle-orm';
+import { db } from '../database';
+import {
+    categories,
+    discounts,
+    employees,
+    ingredients,
+    ingredientUnits,
+    paymentMethods,
+    productAdditionalIngredients,
+    productIngredients,
+    products,
+    receiptPreferences,
+    restaurantTables,
+    suppliers,
+    surcharges,
+} from '../database/schema';
+import { ReceiptPreferences } from '../types/receipt';
+import { SeedImportEntitySummary, SeedImportIssue, SeedImportResult, SeedImportSummary } from '../types/setup';
+import { parseSeedWorkbook, SeedImportValidationError } from './seed-import';
 
 const RECEIPT_PREFERENCES_ID = 'default';
 const DEFAULT_RECEIPT_PREFERENCES: ReceiptPreferences = {

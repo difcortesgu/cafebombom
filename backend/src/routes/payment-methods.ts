@@ -5,8 +5,8 @@ import {
     getAllPaymentMethods,
     getPaymentMethodById,
     updatePaymentMethod,
-} from '@/controllers/payment-methods';
-import { authMiddleware, requireRole } from '@/middleware/auth';
+} from '../controllers/payment-methods';
+import { authMiddleware, requireRole } from '../middleware/auth';
 import { Router } from 'express';
 
 const router = Router();

@@ -7,8 +7,8 @@ import {
     getHydrationData,
     updateIngredient,
     updateSupplier,
-} from '@/controllers/inventory';
-import { authMiddleware, requireRole } from '@/middleware/auth';
+} from '../controllers/inventory';
+import { authMiddleware, requireRole } from '../middleware/auth';
 import { Router } from 'express';
 
 const router = Router();

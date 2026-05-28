@@ -1,4 +1,4 @@
-import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
+import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '../types/products';
 import type { ValidationResult } from './types';
 
 export type CreateProductPayload = {

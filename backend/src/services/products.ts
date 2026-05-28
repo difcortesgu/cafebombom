@@ -1,5 +1,5 @@
-import { db } from '@/database';
-import { categories, ingredients, productAdditionalIngredients, productIngredients, products } from '@/database/schema';
+import { db } from '../database';
+import { categories, ingredients, productAdditionalIngredients, productIngredients, products } from '../database/schema';
 import type {
   AddCategoryPayload,
   CategoryOption,
@@ -14,7 +14,7 @@ import type {
   SetProductAdditionalIngredientPayload,
   SetProductIngredientPayload,
   UpdateProductPayload,
-} from '@/types/products';
+} from '../types/products';
 import { randomUUID } from 'crypto';
 import { and, eq, sql } from 'drizzle-orm';
 

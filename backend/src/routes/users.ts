@@ -6,8 +6,8 @@ import {
     hardDeleteUser,
     reactivateUser,
     updateOwnProfile,
-} from '@/controllers/users';
-import { authMiddleware, requireRole } from '@/middleware/auth';
+} from '../controllers/users';
+import { authMiddleware, requireRole } from '../middleware/auth';
 import { Router } from 'express';
 
 const router = Router();

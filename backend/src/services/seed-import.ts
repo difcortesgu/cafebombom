@@ -1,4 +1,4 @@
-import { SeedImportIssue } from '@/types/setup';
+import { SeedImportIssue } from '../types/setup';
 import * as XLSX from 'xlsx';
 
 type SeedBaseRow = {

@@ -1,11 +1,11 @@
-import { productsService } from '@/services';
-import { handleControllerError } from '@/utils/errors';
+import { productsService } from '../services';
+import { handleControllerError } from '../utils/errors';
 import {
   validateAddCategory,
   validateCreateProduct,
   validateSetAdditionalIngredient,
   validateSetIngredient,
-} from '@/validators/products';
+} from '../validators/products';
 import type { Request, Response } from 'express';
 
 

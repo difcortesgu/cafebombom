@@ -1,5 +1,5 @@
-import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
-import type { OrderStatus, PaymentMethod } from '@/types/types';
+import type { SaleItemDetail, SalePricingSummary } from '../types/sales';
+import type { OrderStatus, PaymentMethod } from '../types/types';
 
 export type ReceiptPaperWidth = 58 | 80;
 

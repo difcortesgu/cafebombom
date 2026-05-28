@@ -192,7 +192,8 @@ const frontendDistPath = path.join(__dirname, '../public');
 app.use(express.static(frontendDistPath));
 
 // Any route not starting with /api should serve the frontend (SPA routing)
-app.get('*', (req, res) => {
+// Catch-all route for SPA (except /api/*)
+app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 

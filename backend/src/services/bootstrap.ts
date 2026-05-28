@@ -1,5 +1,5 @@
-import { db } from '@/database';
-import { users } from '@/database/schema';
+import { db } from '../database';
+import { users } from '../database/schema';
 import { and, eq, sql } from 'drizzle-orm';
 
 export type SetupStatus = {

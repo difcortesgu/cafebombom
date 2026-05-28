@@ -1,9 +1,9 @@
-import { db } from '@/database';
-import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '@/database/schema';
-import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary, UpdateEmployeePayload } from '@/types/accounts';
-import type { CashRegisterAdjustment, CashRegisterHistoryDay, CashRegisterSession, Employee, Expense, PayrollEntry } from '@/types/types';
-import { AppError } from '@/utils/errors';
 import { and, between, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { db } from '../database';
+import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '../database/schema';
+import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary, UpdateEmployeePayload } from '../types/accounts';
+import type { CashRegisterAdjustment, CashRegisterHistoryDay, CashRegisterSession, Employee, Expense, PayrollEntry } from '../types/types';
+import { AppError } from '../utils/errors';
 
 export class AccountsSqliteService {
   async getHydrationData() {

@@ -1,5 +1,5 @@
-import { getSetupStatus } from '@/services/bootstrap';
 import { NextFunction, Request, Response } from 'express';
+import { getSetupStatus } from '../services/bootstrap';
 import { authMiddleware, requireRole } from './auth';
 
 /**

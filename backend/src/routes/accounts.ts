@@ -13,8 +13,8 @@ import {
     getTodayCashRegisterSummary,
     openCashRegister,
     updateEmployee,
-} from '@/controllers/accounts';
-import { authMiddleware, requireRole } from '@/middleware/auth';
+} from '../controllers/accounts';
+import { authMiddleware, requireRole } from '../middleware/auth';
 import { Router } from 'express';
 
 const router = Router();

@@ -5,8 +5,8 @@ import type {
   DashboardTopProduct,
   DashboardTrendBucket,
   DashboardTrendPoint,
-} from '@/types/sales';
-import type { OrderStatus, PaymentMethod } from '@/types/types';
+} from '../types/sales';
+import type { OrderStatus, PaymentMethod } from '../types/types';
 
 type DashboardSaleRecord = {
   id: string;

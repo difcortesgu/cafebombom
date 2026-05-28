@@ -10,9 +10,9 @@ import {
     setupHardDeleteUser,
     setupReactivateUser,
     setupUpdateUser,
-} from '@/controllers/setup';
-import { authMiddleware } from '@/middleware/auth';
-import { bootstrapOrOwnerAuth } from '@/middleware/bootstrap';
+} from '../controllers/setup';
+import { authMiddleware } from '../middleware/auth';
+import { bootstrapOrOwnerAuth } from '../middleware/bootstrap';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import multer from 'multer';

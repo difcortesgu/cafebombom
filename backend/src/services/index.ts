@@ -1,10 +1,10 @@
-import { AccountsSqliteService } from '@/services/accounts';
-import { InventorySqliteService } from '@/services/inventory';
-import { PaymentMethodsSqliteService } from '@/services/payment-methods';
-import { ProductsSqliteService } from '@/services/products';
-import { SalesSqliteService } from '@/services/sales';
-import { SetupSqliteService } from '@/services/setup';
-import { UsersSqliteService } from '@/services/users';
+import { AccountsSqliteService } from './accounts';
+import { InventorySqliteService } from './inventory';
+import { PaymentMethodsSqliteService } from './payment-methods';
+import { ProductsSqliteService } from './products';
+import { SalesSqliteService } from './sales';
+import { SetupSqliteService } from './setup';
+import { UsersSqliteService } from './users';
 
 export const salesService = new SalesSqliteService();
 export const productsService = new ProductsSqliteService();

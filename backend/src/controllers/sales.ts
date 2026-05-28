@@ -1,5 +1,5 @@
-import { salesService } from '@/services';
-import { handleControllerError } from '@/utils/errors';
+import { salesService } from '../services';
+import { handleControllerError } from '../utils/errors';
 import {
   validateAddItem,
   validateDashboardQuery,
@@ -10,7 +10,7 @@ import {
   validatePartialPayment,
   validateSurchargeConfig,
   validateTablePayload,
-} from '@/validators/sales';
+} from '../validators/sales';
 import type { Request, Response } from 'express';
 
 

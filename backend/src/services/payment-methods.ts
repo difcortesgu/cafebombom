@@ -1,7 +1,7 @@
-import { db } from '@/database';
-import { paymentMethods } from '@/database/schema';
-import type { PaymentMethodConfig } from '@/types/payment-methods';
 import { asc, eq, sql } from 'drizzle-orm';
+import { db } from '../database';
+import { paymentMethods } from '../database/schema';
+import type { PaymentMethodConfig } from '../types/payment-methods';
 
 export class PaymentMethodsSqliteService {
     async getAll(): Promise<PaymentMethodConfig[]> {

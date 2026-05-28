@@ -1,6 +1,7 @@
-import type { AuthenticatedRequestUser } from '@/middleware/auth';
-import { accountsService } from '@/services';
-import { handleControllerError } from '@/utils/errors';
+import type { Request, Response } from 'express';
+import type { AuthenticatedRequestUser } from '../middleware/auth';
+import { accountsService } from '../services';
+import { handleControllerError } from '../utils/errors';
 import {
   validateAddAdjustment,
   validateAddEmployee,
@@ -11,8 +12,7 @@ import {
   validateGetAdjustments,
   validateOpenCashRegister,
   validateUpdateEmployee,
-} from '@/validators/accounts';
-import type { Request, Response } from 'express';
+} from '../validators/accounts';
 
 type AuthenticatedRequest = Request & { auth: AuthenticatedRequestUser };
 

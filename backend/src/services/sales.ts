@@ -1,31 +1,31 @@
-import { db } from '@/database';
-import { categories, discounts, ingredients, productAdditionalIngredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '@/database/schema';
-import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from '@/services/analytics';
-import { salesErrorMessage } from '@/services/messages';
-import { calculateSaleDiscountBreakdown } from '@/services/pricing';
-import type {
-  AddItemToOrderPayload,
-  CreateDiscountPayload,
-  CreatePartialPaymentPayload,
-  CreateSalePayload,
-  CreateTablePayload,
-  DashboardSalesSummary,
-  DashboardTrendBucket,
-  RemoveItemFromOrderPayload,
-  SaleItemDetail,
-  SalePayment,
-  SalePaymentBoard,
-  SalePaymentBoardItem,
-  SalePaymentLine,
-  SalePricingSummary,
-  UpdateDiscountPayload,
-  UpdateDraftOrderPayload,
-  UpdateTablePayload,
-} from '@/types/sales';
-import type { Discount, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '@/types/types';
-import { AppError } from '@/utils/errors';
-import { allocateProportionally, clampQuantity, normalizeObservation, roundMoney } from '@/utils/math';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { db } from '../database';
+import { categories, discounts, ingredients, productAdditionalIngredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '../database/schema';
+import type {
+    AddItemToOrderPayload,
+    CreateDiscountPayload,
+    CreatePartialPaymentPayload,
+    CreateSalePayload,
+    CreateTablePayload,
+    DashboardSalesSummary,
+    DashboardTrendBucket,
+    RemoveItemFromOrderPayload,
+    SaleItemDetail,
+    SalePayment,
+    SalePaymentBoard,
+    SalePaymentBoardItem,
+    SalePaymentLine,
+    SalePricingSummary,
+    UpdateDiscountPayload,
+    UpdateDraftOrderPayload,
+    UpdateTablePayload,
+} from '../types/sales';
+import type { Discount, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '../types/types';
+import { AppError } from '../utils/errors';
+import { allocateProportionally, clampQuantity, normalizeObservation, roundMoney } from '../utils/math';
+import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from './analytics';
+import { salesErrorMessage } from './messages';
+import { calculateSaleDiscountBreakdown } from './pricing';
 
 export class SalesSqliteService {
   private normalizeRemovedIngredientIds(raw: unknown): string[] {

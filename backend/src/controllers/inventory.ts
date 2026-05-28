@@ -1,5 +1,5 @@
-import { inventoryService } from '@/services';
-import { handleControllerError } from '@/utils/errors';
+import { inventoryService } from '../services';
+import { handleControllerError } from '../utils/errors';
 import {
   validateAddIngredient,
   validateAddRestock,
@@ -8,7 +8,7 @@ import {
   validateDeleteUnit,
   validateUpdateIngredient,
   validateUpdateSupplier,
-} from '@/validators/inventory';
+} from '../validators/inventory';
 import type { Request, Response } from 'express';
 
 

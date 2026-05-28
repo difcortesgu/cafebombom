@@ -1,5 +1,5 @@
-import type { DashboardTrendBucket } from '@/types/sales';
-import type { DiscountScope, DiscountType, SaleItemInput, TableType } from '@/types/types';
+import type { DashboardTrendBucket } from '../types/sales';
+import type { DiscountScope, DiscountType, SaleItemInput, TableType } from '../types/types';
 import type { ValidationResult } from './types';
 
 export type OrderPayload = {

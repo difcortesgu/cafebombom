@@ -1,5 +1,5 @@
 
-import type { IngredientUnit, Unit } from '@/types/types';
+import type { IngredientUnit, Unit } from '../types/types';
 
 export type InventoryUnit = IngredientUnit;
 

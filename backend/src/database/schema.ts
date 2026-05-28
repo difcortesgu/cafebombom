@@ -1,9 +1,9 @@
+import { randomUUID } from 'crypto';
 import { sql } from 'drizzle-orm';
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import { v4 as uuidv4 } from 'uuid';
 
 export const users = sqliteTable('users', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   role: text('role', { enum: ['owner', 'staff'] }).notNull(),
   pinHash: text('pin_hash').notNull(),
@@ -13,7 +13,7 @@ export const users = sqliteTable('users', {
 });
 
 export const sessions = sqliteTable('sessions', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   userId: text('user_id').notNull().references(() => users.id),
   loggedInAt: integer('logged_in_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   loggedOutAt: integer('logged_out_at'),
@@ -39,7 +39,7 @@ export const receiptPreferences = sqliteTable('receipt_preferences', {
 });
 
 export const paymentMethods = sqliteTable('payment_methods', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   icon: text('icon').notNull().default('wallet'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
@@ -48,7 +48,7 @@ export const paymentMethods = sqliteTable('payment_methods', {
 });
 
 export const suppliers = sqliteTable('suppliers', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   phone: text('phone'),
   notes: text('notes'),
@@ -57,7 +57,7 @@ export const suppliers = sqliteTable('suppliers', {
 });
 
 export const ingredientUnits = sqliteTable('ingredient_units', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
@@ -66,7 +66,7 @@ export const ingredientUnits = sqliteTable('ingredient_units', {
 ]);
 
 export const ingredients = sqliteTable('ingredients', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   unit: text('unit').notNull(),
   quantity: real('quantity').notNull().default(0),
@@ -79,14 +79,14 @@ export const ingredients = sqliteTable('ingredients', {
 ]);
 
 export const categories = sqliteTable('categories', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
 
 export const products = sqliteTable('products', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   categoryId: text('category_id').references(() => categories.id),
   price: real('price').notNull(),
@@ -97,7 +97,7 @@ export const products = sqliteTable('products', {
 });
 
 export const productIngredients = sqliteTable('product_ingredients', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   productId: text('product_id').notNull().references(() => products.id),
   ingredientId: text('ingredient_id').notNull().references(() => ingredients.id),
   quantityUsed: real('quantity_used').notNull(),
@@ -108,7 +108,7 @@ export const productIngredients = sqliteTable('product_ingredients', {
 ]);
 
 export const productAdditionalIngredients = sqliteTable('product_additional_ingredients', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   productId: text('product_id').notNull().references(() => products.id),
   ingredientId: text('ingredient_id').notNull().references(() => ingredients.id),
   quantityUsed: real('quantity_used').notNull(),
@@ -120,7 +120,7 @@ export const productAdditionalIngredients = sqliteTable('product_additional_ingr
 ]);
 
 export const restaurantTables = sqliteTable('restaurant_tables', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   tableType: text('table_type', { enum: ['dine-in', 'to-go', 'delivery'] }).notNull().default('dine-in'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
@@ -130,7 +130,7 @@ export const restaurantTables = sqliteTable('restaurant_tables', {
 ]);
 
 export const discounts = sqliteTable('discounts', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   scope: text('scope', { enum: ['product', 'global'] }).notNull().default('product'),
   productId: text('product_id').references(() => products.id),
@@ -147,7 +147,7 @@ export const discounts = sqliteTable('discounts', {
 ]);
 
 export const sales = sqliteTable('sales', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   staffId: text('staff_id').notNull().references(() => users.id),
   tableId: text('table_id').notNull().references(() => restaurantTables.id, { onDelete: 'restrict' }),
@@ -172,7 +172,7 @@ export const sales = sqliteTable('sales', {
 ]);
 
 export const saleItems = sqliteTable('sale_items', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   saleId: text('sale_id').notNull().references(() => sales.id),
   productId: text('product_id').notNull().references(() => products.id),
   quantity: integer('quantity').notNull(),
@@ -189,7 +189,7 @@ export const saleItems = sqliteTable('sale_items', {
 });
 
 export const salePayments = sqliteTable('sale_payments', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   saleId: text('sale_id').notNull().references(() => sales.id),
   paymentMethodId: text('payment_method_id').notNull().references(() => paymentMethods.id),
   subtotal: real('subtotal').notNull().default(0),
@@ -205,7 +205,7 @@ export const salePayments = sqliteTable('sale_payments', {
 ]);
 
 export const salePaymentItems = sqliteTable('sale_payment_items', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   paymentId: text('payment_id').notNull().references(() => salePayments.id),
   saleItemId: text('sale_item_id').notNull().references(() => saleItems.id),
   quantityPaid: integer('quantity_paid').notNull(),
@@ -219,7 +219,7 @@ export const salePaymentItems = sqliteTable('sale_payment_items', {
 ]);
 
 export const restockLogs = sqliteTable('restock_logs', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   ingredientId: text('ingredient_id').notNull().references(() => ingredients.id),
   quantityAdded: real('quantity_added').notNull(),
   cost: real('cost').notNull(),
@@ -229,7 +229,7 @@ export const restockLogs = sqliteTable('restock_logs', {
 });
 
 export const expenses = sqliteTable('expenses', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   date: integer('date').notNull(),
   category: text('category').notNull(),
   amount: real('amount').notNull(),
@@ -241,7 +241,7 @@ export const expenses = sqliteTable('expenses', {
 ]);
 
 export const cashRegisterSessions = sqliteTable('cash_register_sessions', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   openingAmount: real('opening_amount').notNull(),
   closingAmount: real('closing_amount'),
   openingNotes: text('opening_notes'),
@@ -255,14 +255,14 @@ export const cashRegisterSessions = sqliteTable('cash_register_sessions', {
 ]);
 
 export const employees = sqliteTable('employees', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   salaryType: text('salary_type', { enum: ['hourly', 'monthly'] }).notNull(),
   rate: real('rate').notNull(),
 });
 
 export const payrollEntries = sqliteTable('payroll_entries', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   employeeId: text('employee_id').notNull().references(() => employees.id),
   periodStart: integer('period_start').notNull(),
   periodEnd: integer('period_end').notNull(),
@@ -271,7 +271,7 @@ export const payrollEntries = sqliteTable('payroll_entries', {
 });
 
 export const cashRegisterAdjustments = sqliteTable('cash_register_adjustments', {
-  id: text('id').primaryKey().$defaultFn(() => uuidv4()),
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   sessionId: text('session_id').notNull().references(() => cashRegisterSessions.id),
   amount: real('amount').notNull(),
   reason: text('reason').notNull(),

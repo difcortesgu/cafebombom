@@ -1,6 +1,6 @@
-import { setupService, usersService } from '@/services';
-import { getSetupStatus as getBootstrapStatus } from '@/services/bootstrap';
-import { SeedImportParseError, SeedImportValidationError } from '@/services/seed-import';
+import { setupService, usersService } from '../services';
+import { getSetupStatus as getBootstrapStatus } from '../services/bootstrap';
+import { SeedImportParseError, SeedImportValidationError } from '../services/seed-import';
 import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
