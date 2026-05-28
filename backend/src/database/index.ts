@@ -4,59 +4,71 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { logger } from '../utils/logger'; // Importamos tu nuevo logger
 
-// 1. Verificamos el entorno (recuerda que en index.ts lo forzamos a production si no hay nada)
-const isProduction = process.env.NODE_ENV !== 'development';
+// Si no dice "development", asumimos que es el ejecutable de producción
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-let dbPath: string;
-let migrationsPath: string;
+let dbPath = "";
+let migrationsPath = "";
 
-if (isProduction) {
-    // =========================================================
-    //   PRODUCCIÓN: Base de datos en carpeta segura del usuario
-    // =========================================================
-    const appDataPath = process.platform === 'win32'
-        ? path.join(os.homedir(), 'AppData', 'Roaming', 'CafeBomBom')
-        : path.join(os.homedir(), '.config', 'CafeBomBom');
+// 1. Calcular las rutas de manera ultra-segura
+if (!isDevelopment) {
+    // Usamos process.env.APPDATA nativo de Windows (mucho más infalible)
+    const appDataDir = process.platform === 'win32'
+        ? process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+        : path.join(os.homedir(), '.config');
 
-    // Asegurarnos de que la carpeta maestra exista
-    if (!fs.existsSync(appDataPath)) {
-        fs.mkdirSync(appDataPath, { recursive: true });
+    const baseFolder = path.join(appDataDir, 'CafeBomBom');
+
+    // Intentamos crear la carpeta si no existe
+    try {
+        if (!fs.existsSync(baseFolder)) {
+            fs.mkdirSync(baseFolder, { recursive: true });
+        }
+    } catch (err) {
+        console.error(`[ERROR FATAL] No se pudo crear la carpeta en: ${baseFolder}`);
+        console.error(err);
+        process.exit(1);
     }
 
-    // La base de datos vive a salvo en AppData/.config
-    dbPath = path.join(appDataPath, 'sqlite.db');
-
-    const exeDir = path.dirname(process.execPath);
-    migrationsPath = path.join(exeDir, 'migrations');
-
+    dbPath = path.join(baseFolder, 'sqlite.db');
+    migrationsPath = path.join(path.dirname(process.execPath), 'migrations');
 } else {
-    // =========================================================
-    //   DESARROLLO: Base de datos en la carpeta del proyecto
-    // =========================================================
+    // Desarrollo
     dbPath = path.join(process.cwd(), 'sqlite.db');
     migrationsPath = path.join(process.cwd(), 'src', 'database', 'migrations');
 }
 
-// 2. Inicializamos la conexión
-const sqlite = new Database(dbPath);
-const db = drizzle(sqlite);
+console.log(`=========================================`);
+console.log(`[STARTUP] Ruta de Base de Datos: ${dbPath}`);
+console.log(`[STARTUP] Ruta de Migraciones: ${migrationsPath}`);
+console.log(`=========================================`);
 
-// 3. Ejecutamos las migraciones al arrancar
+// 2. Inicializar Base de Datos con manejo de errores estricto
+let sqlite;
 try {
-    logger.info(`⏳ Conectando a base de datos en: ${dbPath}`);
-
-    // Verificamos que la carpeta de migraciones exista para evitar un error 500 silencioso
-    if (fs.existsSync(migrationsPath)) {
-        migrate(db, { migrationsFolder: migrationsPath });
-        logger.info(`✅ Base de datos lista y migrada correctamente.`);
-    } else {
-        logger.error(`⚠️ ALERTA: No se encontró la carpeta de migraciones en: ${migrationsPath}`);
-    }
+    // { create: true } fuerza a Bun a crear el archivo si no existe
+    sqlite = new Database(dbPath, { create: true });
 } catch (error) {
-    logger.error(`❌ Error fatal al preparar la base de datos:`, error);
-    process.exit(1); // Apagamos la app de forma segura si la DB no puede iniciar
+    console.error(`[ERROR FATAL DE BD] No se pudo abrir/crear el archivo en: ${dbPath}`);
+    console.error(error);
+    process.exit(1);
 }
 
+const db = drizzle(sqlite);
+
+// 3. Ejecutar Migraciones
+try {
+    if (fs.existsSync(migrationsPath)) {
+        console.log(`⏳ Corriendo migraciones...`);
+        migrate(db, { migrationsFolder: migrationsPath });
+        console.log(`✅ Base de datos lista y migrada.`);
+    } else {
+        console.error(`[ALERTA] Carpeta de migraciones NO encontrada en: ${migrationsPath}`);
+    }
+} catch (error) {
+    console.error(`[ERROR DE MIGRACIONES] Fallo al ejecutar migraciones:`, error);
+}
+
+// 4. Exportar la base de datos para que el resto de la app la use
 export { db };
