@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
@@ -56,6 +56,7 @@ export default function OperationsScreen() {
     const panel = usePanelLifecycle();
     const [panelMode, setPanelMode] = useState<OperationsPanelMode | null>(null);
     const [section, setSection] = useState<OperationsSection>('tables');
+    const { width: screenWidth } = useWindowDimensions();
 
     const {
         hydrate: hydrateSales,
