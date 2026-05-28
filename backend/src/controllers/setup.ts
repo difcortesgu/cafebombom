@@ -8,6 +8,7 @@ import { SeedImportParseError, SeedImportValidationError } from '../services/see
 
 export function getSetupStatus(req: Request, res: Response): void {
   try {
+    console.log('[setup] Fetching setup status...');
     const status = getBootstrapStatus();
     res.status(200).json(status);
   } catch (error) {

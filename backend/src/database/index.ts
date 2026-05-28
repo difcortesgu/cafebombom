@@ -1,6 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import fs from 'fs';
 import path from 'path';
 import * as schema from './schema';
 
@@ -13,7 +14,14 @@ const sqlite = new Database(SQLITE_FILE_PATH);
 const db = drizzle(sqlite, { schema });
 
 // --- MAGIA DE AUTO-MIGRACIÓN ---
-const migrationsPath = path.join(process.cwd(), 'migrations');
+// 1. Definimos ambas rutas posibles
+const devMigrationsPath = path.join(process.cwd(), 'src', 'database', 'migrations');
+const prodMigrationsPath = path.join(process.cwd(), 'migrations');
+
+// 2. Elegimos dinámicamente cuál usar
+const migrationsPath = fs.existsSync(devMigrationsPath)
+    ? devMigrationsPath
+    : prodMigrationsPath;
 
 try {
     console.log(`⏳ Verificando base de datos y corriendo migraciones...`);
