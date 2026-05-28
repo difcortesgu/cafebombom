@@ -1,15 +1,13 @@
-name: Build and Release POS
+name: Build and Release POS (Web & Bun)
 
 on:
   push:
     branches:
-      - main # Triggers whenever code is pushed or merged into main
+      - main
 
 jobs:
   build-and-publish:
-    runs-on: ubuntu-latest # Ubuntu can cross-compile to Windows using pkg
-
-    # We need write permissions to create a GitHub Release
+    runs-on: ubuntu-latest
     permissions:
       contents: write
 
@@ -39,30 +37,95 @@ jobs:
           cd backend
           bun install 
 
+          # Copiar el frontend al backend ANTES de compilar
           cp -R ../frontend/dist ./public
 
-          # Generar ejecutables para Windows y Linux
+          # Generar ejecutables base
           bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
           bun build ./src/index.ts --compile --target=bun-linux-x64 --outfile=pos-app-linux
           chmod +x pos-app-linux
 
-          # Empaquetar todo en carpetas listas para distribuir
+          # Crear carpetas temporales para empaquetar
           mkdir release-windows release-linux
 
+          # Distribuir archivos Windows
           mv pos-app.exe release-windows/
-          mv pos-app-linux release-linux/
-
-          # Ahora simplemente movemos esa misma carpeta public a los instaladores
           cp -R ./public release-windows/public
-          cp -R ./public release-linux/public
-
-          # 👇 NUEVO: Copiamos la carpeta de migraciones de Drizzle a ambas carpetas 👇
           cp -R ./src/database/migrations release-windows/migrations
+
+          # Distribuir archivos Linux
+          mv pos-app-linux release-linux/
+          cp -R ./public release-linux/public
           cp -R ./src/database/migrations release-linux/migrations
 
-          # Comprimir en .zip y .tar.gz para subir al Release
-          cd release-windows && zip -r ../pos-windows-v1.zip ./* && cd ..
-          cd release-linux && tar -czvf ../pos-linux-v1.tar.gz ./* && cd ..
+      - name: Generar Scripts de Instalación (Windows y Linux)
+        run: |
+          cd backend
+
+          # ==========================================
+          # 1. LINUX: Archivo .desktop y Script install.sh
+          # ==========================================
+          cat << 'EOF' > release-linux/CafeBomBom.desktop
+          [Desktop Entry]
+          Version=1.0
+          Name=Caja POS Cafe BomBom
+          Comment=Sistema de Punto de Venta
+          Exec=/opt/cafebombom/pos-app-linux
+          Icon=utilities-terminal
+          Terminal=false
+          Type=Application
+          Categories=Utility;
+          EOF
+
+          cat << 'EOF' > release-linux/install.sh
+          #!/bin/bash
+          echo "Instalando Cafe BomBom POS..."
+          sudo mkdir -p /opt/cafebombom
+          sudo cp -R ./* /opt/cafebombom/
+          sudo chmod +x /opt/cafebombom/pos-app-linux
+          sudo cp /opt/cafebombom/CafeBomBom.desktop /usr/share/applications/
+          echo "¡Instalación completada! Búscalo en tu menú de aplicaciones."
+          EOF
+          chmod +x release-linux/install.sh
+
+          # Empaquetamos el instalador final de Linux
+          cd release-linux && tar -czvf ../Instalador_CafeBomBom_Linux.tar.gz ./* && cd ..
+
+          # ==========================================
+          # 2. WINDOWS: Script VBScript invisible
+          # ==========================================
+          cat << 'EOF' > release-windows/Iniciar_POS.vbs
+          Set WshShell = CreateObject("WScript.Shell")
+          WshShell.Run chr(34) & "pos-app.exe" & Chr(34), 0
+          Set WshShell = Nothing
+          EOF
+
+          # ==========================================
+          # 3. WINDOWS: Configuración Inno Setup (.iss)
+          # ==========================================
+          cat << 'EOF' > release-windows/installer.iss
+          [Setup]
+          AppName=Cafe BomBom POS
+          AppVersion=1.0
+          DefaultDirName={autopf}\CafeBomBom
+          OutputBaseFilename=Instalar_CafeBomBom_Windows
+          Compression=lzma
+          SolidCompression=yes
+          ; Pone el instalador final fuera de la carpeta
+          OutputDir=..\
+
+          [Files]
+          Source: "*"; Excludes: "installer.iss"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"
+          Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"
+          EOF
+
+      - name: Compilar Instalador de Windows (Inno Setup)
+        uses: slavrd/inno-setup-action@v3.0.0
+        with:
+          filepath: backend/release-windows/installer.iss
 
       - name: Generate Dynamic Version Tag
         id: version_tag
@@ -76,5 +139,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            backend/pos-windows-v1.zip
-            backend/pos-linux-v1.tar.gz
+            backend/Instalar_CafeBomBom_Windows.exe
+            backend/Instalador_CafeBomBom_Linux.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

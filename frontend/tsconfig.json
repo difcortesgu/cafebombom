@@ -1,6 +1,9 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "types": [
+      "@types/w3c-web-usb"
+    ],
     "strict": true,
     "paths": {
       "@/*": [
