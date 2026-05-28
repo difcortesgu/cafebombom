@@ -100,6 +100,7 @@ jobs:
           Name=Caja POS Cafe BomBom
           Comment=Sistema de Punto de Venta
           Exec=$APP_DIR/pos-app-linux
+          Path=$APP_DIR
           Icon=utilities-terminal
           Terminal=false
           Type=Application

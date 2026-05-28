@@ -185,7 +185,11 @@ app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 
-const frontendDistPath = path.join(process.cwd(), 'public');
+const isProduction = process.env.NODE_ENV === 'production';
+const baseDir = isProduction ? path.dirname(process.execPath) : process.cwd();
+
+// Point to the public folder
+const frontendDistPath = path.join(baseDir, 'public');
 app.use(express.static(frontendDistPath));
 
 // Catch-all route for SPA (except /api/*)

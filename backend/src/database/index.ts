@@ -28,8 +28,8 @@ if (isProduction) {
     // La base de datos vive a salvo en AppData/.config
     dbPath = path.join(appDataPath, 'sqlite.db');
 
-    // Las migraciones viven junto al ejecutable (donde GitHub Actions las copió)
-    migrationsPath = path.join(process.cwd(), 'migrations');
+    const exeDir = path.dirname(process.execPath);
+    migrationsPath = path.join(exeDir, 'migrations');
 
 } else {
     // =========================================================
