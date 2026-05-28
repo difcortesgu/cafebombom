@@ -7,7 +7,7 @@ import path from 'path';
 import { logger } from '../utils/logger'; // Importamos tu nuevo logger
 
 // 1. Verificamos el entorno (recuerda que en index.ts lo forzamos a production si no hay nada)
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV !== 'development';
 
 let dbPath: string;
 let migrationsPath: string;

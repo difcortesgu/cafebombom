@@ -5,13 +5,13 @@
   "main": "dist/index.js",
   "description": "POS system for Cafe Bom Bom",
   "scripts": {
-    "build": "tsc && tsc-alias",
-    "start": "node dist/index.js",
-    "dev": "nodemon --watch src --watch .env --ext ts,env --exec \"npm run build && node dist/index.js\"",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "node scripts/migrate.cjs",
-    "db:migrate:drizzle-kit": "drizzle-kit migrate",
-    "build:exe": "pkg . --targets node18-win-x64,node18-linux-x64 --out-path dist-app"
+    "start": "bun run src/index.ts",
+    "dev": "NODE_ENV=development bun --watch src/index.ts",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:migrate": "bunx drizzle-kit migrate",
+    "build:windows": "bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe",
+    "build:linux": "bun build ./src/index.ts --compile --target=bun-linux-x64 --outfile=pos-app-linux",
+    "build:exe": "bun run build:windows && bun run build:linux"
   },
   "keywords": [],
   "author": "",
@@ -33,8 +33,6 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "drizzle-kit": "^0.31.10",
-    "nodemon": "^3.1.10",
-    "tsc-alias": "^1.8.16",
     "typescript": "^6.0.2"
   },
   "dependencies": {

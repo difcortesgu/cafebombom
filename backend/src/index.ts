@@ -1,5 +1,3 @@
-process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-
 const path = require('path');
 require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
@@ -185,7 +183,7 @@ app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV !== 'development';
 const baseDir = isProduction ? path.dirname(process.execPath) : process.cwd();
 
 // Point to the public folder

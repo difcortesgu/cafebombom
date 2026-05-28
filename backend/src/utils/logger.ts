@@ -21,7 +21,7 @@ export const logger = winston.createLogger({
 });
 
 // 3. Verificamos en qué entorno estamos
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV !== 'development';
 
 if (isProduction) {
     // =========================================================
