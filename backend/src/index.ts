@@ -1,6 +1,5 @@
-// dotenv MUST be loaded with require() before any other import, so env vars
-// are set before module-level code in jwt.ts and other services fires.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
 const path = require('path');
 require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
@@ -17,6 +16,7 @@ import setupRouter from './routes/setup';
 import usersRouter from './routes/users';
 import { AuthSqliteService } from './services/auth';
 import { getJwtExpiresIn, signAccessToken } from './services/jwt';
+import { logger } from './utils/logger';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -106,7 +106,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
             sessionId,
         });
     } catch (error) {
-        console.error('Login failed:', error);
+        logger.error('Login failed:', error);
         res.status(500).json({ error: 'Failed to login user.' });
     }
 });
@@ -168,7 +168,7 @@ app.post('/api/auth/logout', authMiddleware, async (req: Request, res: Response)
         await authService.endOpenSession(req.auth.userId);
         res.status(204).send();
     } catch (error) {
-        console.error('Logout failed:', error);
+        logger.error('Logout failed:', error);
         res.status(500).json({ error: 'Failed to logout user.' });
     }
 });
@@ -194,7 +194,7 @@ app.get(/^(?!\/api).*/, (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`✅ Servidor POS Iniciado.`);
-    console.log(`Server is running at http://localhost:${PORT}`);
-    console.log(`Sirviendo archivos web desde: ${frontendDistPath}`); // Agregué esto para que al correrlo veas exactamente qué ruta está usando
+    logger.info(`✅ Servidor POS Iniciado.`);
+    logger.info(`Server is running at http://localhost:${PORT}`);
+    logger.info(`Sirviendo archivos web desde: ${frontendDistPath}`); // Agregué esto para que al correrlo veas exactamente qué ruta está usando
 });

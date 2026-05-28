@@ -1,12 +1,13 @@
-import { paymentMethodsService } from '../services';
 import type { Request, Response } from 'express';
+import { paymentMethodsService } from '../services';
+import { logger } from '../utils/logger';
 
 export async function getAllPaymentMethods(req: Request, res: Response): Promise<void> {
     try {
         const methods = await paymentMethodsService.getAll();
         res.status(200).json(methods);
     } catch (error) {
-        console.error('[payment-methods] getAllPaymentMethods failed:', error);
+        logger.error('[payment-methods] getAllPaymentMethods failed:', error);
         res.status(500).json({ error: 'Failed to fetch payment methods.' });
     }
 }
@@ -16,7 +17,7 @@ export async function getActivePaymentMethods(req: Request, res: Response): Prom
         const methods = await paymentMethodsService.getActive();
         res.status(200).json(methods);
     } catch (error) {
-        console.error('[payment-methods] getActivePaymentMethods failed:', error);
+        logger.error('[payment-methods] getActivePaymentMethods failed:', error);
         res.status(500).json({ error: 'Failed to fetch active payment methods.' });
     }
 }
@@ -37,7 +38,7 @@ export async function getPaymentMethodById(req: Request, res: Response): Promise
         }
         res.status(200).json(method);
     } catch (error) {
-        console.error('[payment-methods] getPaymentMethodById failed:', error);
+        logger.error('[payment-methods] getPaymentMethodById failed:', error);
         res.status(500).json({ error: 'Failed to fetch payment method.' });
     }
 }
@@ -56,7 +57,7 @@ export async function createPaymentMethod(req: Request, res: Response): Promise<
         const id = await paymentMethodsService.create(name.trim(), iconValue);
         res.status(201).json({ id, name: name.trim(), icon: iconValue, is_active: true });
     } catch (error) {
-        console.error('[payment-methods] createPaymentMethod failed:', error);
+        logger.error('[payment-methods] createPaymentMethod failed:', error);
         if ((error as any)?.message?.includes('unique')) {
             res.status(409).json({ error: 'Payment method already exists.' });
             return;
@@ -92,7 +93,7 @@ export async function updatePaymentMethod(req: Request, res: Response): Promise<
         }
         res.status(204).send();
     } catch (error) {
-        console.error('[payment-methods] updatePaymentMethod failed:', error);
+        logger.error('[payment-methods] updatePaymentMethod failed:', error);
         if ((error as any)?.message?.includes('unique')) {
             res.status(409).json({ error: 'Payment method name already exists.' });
             return;
@@ -117,7 +118,7 @@ export async function deletePaymentMethod(req: Request, res: Response): Promise<
         }
         res.status(204).send();
     } catch (error) {
-        console.error('[payment-methods] deletePaymentMethod failed:', error);
+        logger.error('[payment-methods] deletePaymentMethod failed:', error);
         res.status(500).json({ error: 'Failed to delete payment method.' });
     }
 }

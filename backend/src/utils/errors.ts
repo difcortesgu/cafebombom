@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { logger } from './logger';
 
 /**
  * A typed application error that carries an HTTP status code.
@@ -16,7 +17,7 @@ export class AppError extends Error {
 }
 
 type ControllerContext = {
-    /** Label used in console.error output, e.g. '[sales] createSale' */
+    /** Label used in logger.error output, e.g. '[sales] createSale' */
     label: string;
     /** Default 500 error message sent to the client */
     fallbackMessage: string;
@@ -32,6 +33,6 @@ export function handleControllerError(error: unknown, res: Response, ctx: Contro
         res.status(error.statusCode).json({ error: error.message });
         return;
     }
-    console.error(`${ctx.label} failed:`, error);
+    logger.error(`${ctx.label} failed:`, error);
     res.status(500).json({ error: ctx.fallbackMessage });
 }

@@ -1,6 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { logger } from '../src/utils/logger';
 
 const sqliteFilePath = process.env.SQLITE_FILE_PATH
     ? process.env.SQLITE_FILE_PATH
@@ -27,11 +28,11 @@ function main() {
         const after = getMigrationCount(sqlite);
         const applied = Math.max(0, after - before);
 
-        console.log(`[db:migrate] OK - ${applied} migration(s) applied. Total: ${after}. DB: ${sqliteFilePath}`);
+        logger.info(`[db:migrate] OK - ${applied} migration(s) applied. Total: ${after}. DB: ${sqliteFilePath}`);
     } catch (error) {
         const message = error instanceof Error ? error.stack || error.message : String(error);
-        console.error('[db:migrate] Failed');
-        console.error(message);
+        logger.error('[db:migrate] Failed');
+        logger.error(message);
         process.exitCode = 1;
     } finally {
         sqlite.close();

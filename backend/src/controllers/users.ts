@@ -1,12 +1,13 @@
-import { usersService } from '../services';
 import type { Request, Response } from 'express';
+import { usersService } from '../services';
+import { logger } from '../utils/logger';
 
 export async function getActiveUsers(req: Request, res: Response): Promise<void> {
   try {
     const users = await usersService.getActiveUsers();
     res.status(200).json(users);
   } catch (error) {
-    console.error('[users] getActiveUsers failed:', error);
+    logger.error('[users] getActiveUsers failed:', error);
     res.status(500).json({ error: 'Failed to fetch active users.' });
   }
 }
@@ -16,7 +17,7 @@ export async function getAllUsers(req: Request, res: Response): Promise<void> {
     const users = await usersService.getAllUsers();
     res.status(200).json(users);
   } catch (error) {
-    console.error('[users] getAllUsers failed:', error);
+    logger.error('[users] getAllUsers failed:', error);
     res.status(500).json({ error: 'Failed to fetch users.' });
   }
 }
@@ -42,7 +43,7 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     }
     res.status(201).json(user);
   } catch (error) {
-    console.error('[users] createUser failed:', error);
+    logger.error('[users] createUser failed:', error);
     res.status(500).json({ error: 'Failed to create user.' });
   }
 }
@@ -60,7 +61,7 @@ export async function deactivateUser(req: Request, res: Response): Promise<void>
       res.status(422).json({ error: msg });
       return;
     }
-    console.error('[users] deactivateUser failed:', error);
+    logger.error('[users] deactivateUser failed:', error);
     res.status(500).json({ error: 'Failed to deactivate user.' });
   }
 }
@@ -78,7 +79,7 @@ export async function reactivateUser(req: Request, res: Response): Promise<void>
       res.status(422).json({ error: msg });
       return;
     }
-    console.error('[users] reactivateUser failed:', error);
+    logger.error('[users] reactivateUser failed:', error);
     res.status(500).json({ error: 'Failed to reactivate user.' });
   }
 }
@@ -101,7 +102,7 @@ export async function hardDeleteUser(req: Request, res: Response): Promise<void>
       res.status(422).json({ error: msg });
       return;
     }
-    console.error('[users] hardDeleteUser failed:', error);
+    logger.error('[users] hardDeleteUser failed:', error);
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 }
@@ -123,7 +124,7 @@ export async function updateOwnProfile(req: Request, res: Response): Promise<voi
       res.status(422).json({ error: msg });
       return;
     }
-    console.error('[users] updateOwnProfile failed:', error);
+    logger.error('[users] updateOwnProfile failed:', error);
     res.status(500).json({ error: 'Failed to update profile.' });
   }
 }

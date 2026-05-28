@@ -2,35 +2,61 @@ import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
-import * as schema from './schema';
+import { logger } from '../utils/logger'; // Importamos tu nuevo logger
 
-const SQLITE_FILE_PATH = process.env.SQLITE_FILE_PATH
-    ? process.env.SQLITE_FILE_PATH
-    : path.join(process.cwd(), 'sqlite.db');
+// 1. Verificamos el entorno (recuerda que en index.ts lo forzamos a production si no hay nada)
+const isProduction = process.env.NODE_ENV === 'production';
 
-const sqlite = new Database(SQLITE_FILE_PATH);
+let dbPath: string;
+let migrationsPath: string;
 
-const db = drizzle(sqlite, { schema });
+if (isProduction) {
+    // =========================================================
+    //   PRODUCCIÓN: Base de datos en carpeta segura del usuario
+    // =========================================================
+    const appDataPath = process.platform === 'win32'
+        ? path.join(os.homedir(), 'AppData', 'Roaming', 'CafeBomBom')
+        : path.join(os.homedir(), '.config', 'CafeBomBom');
 
-// --- MAGIA DE AUTO-MIGRACIÓN ---
-// 1. Definimos ambas rutas posibles
-const devMigrationsPath = path.join(process.cwd(), 'src', 'database', 'migrations');
-const prodMigrationsPath = path.join(process.cwd(), 'migrations');
+    // Asegurarnos de que la carpeta maestra exista
+    if (!fs.existsSync(appDataPath)) {
+        fs.mkdirSync(appDataPath, { recursive: true });
+    }
 
-// 2. Elegimos dinámicamente cuál usar
-const migrationsPath = fs.existsSync(devMigrationsPath)
-    ? devMigrationsPath
-    : prodMigrationsPath;
+    // La base de datos vive a salvo en AppData/.config
+    dbPath = path.join(appDataPath, 'sqlite.db');
 
-try {
-    console.log(`⏳ Verificando base de datos y corriendo migraciones...`);
-    migrate(db, { migrationsFolder: migrationsPath });
-    console.log(`✅ Base de datos lista y actualizada.`);
-} catch (error) {
-    console.error(`❌ Error fatal al preparar la base de datos:`, error);
-    process.exit(1); // Detiene la app si la BD falla
+    // Las migraciones viven junto al ejecutable (donde GitHub Actions las copió)
+    migrationsPath = path.join(process.cwd(), 'migrations');
+
+} else {
+    // =========================================================
+    //   DESARROLLO: Base de datos en la carpeta del proyecto
+    // =========================================================
+    dbPath = path.join(process.cwd(), 'sqlite.db');
+    migrationsPath = path.join(process.cwd(), 'src', 'database', 'migrations');
 }
-// --------------------------------
+
+// 2. Inicializamos la conexión
+const sqlite = new Database(dbPath);
+const db = drizzle(sqlite);
+
+// 3. Ejecutamos las migraciones al arrancar
+try {
+    logger.info(`⏳ Conectando a base de datos en: ${dbPath}`);
+
+    // Verificamos que la carpeta de migraciones exista para evitar un error 500 silencioso
+    if (fs.existsSync(migrationsPath)) {
+        migrate(db, { migrationsFolder: migrationsPath });
+        logger.info(`✅ Base de datos lista y migrada correctamente.`);
+    } else {
+        logger.error(`⚠️ ALERTA: No se encontró la carpeta de migraciones en: ${migrationsPath}`);
+    }
+} catch (error) {
+    logger.error(`❌ Error fatal al preparar la base de datos:`, error);
+    process.exit(1); // Apagamos la app de forma segura si la DB no puede iniciar
+}
 
 export { db };

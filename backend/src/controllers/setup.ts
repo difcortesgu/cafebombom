@@ -4,15 +4,14 @@ import path from 'path';
 import { setupService, usersService } from '../services';
 import { getSetupStatus as getBootstrapStatus } from '../services/bootstrap';
 import { SeedImportParseError, SeedImportValidationError } from '../services/seed-import';
-
+import { logger } from '../utils/logger';
 
 export function getSetupStatus(req: Request, res: Response): void {
   try {
-    console.log('[setup] Fetching setup status...');
     const status = getBootstrapStatus();
     res.status(200).json(status);
   } catch (error) {
-    console.error('[setup] getSetupStatus failed:', error);
+    logger.error('[setup] getSetupStatus failed:', error);
     res.status(500).json({ error: 'Failed to fetch setup status.' });
   }
 }
@@ -22,7 +21,7 @@ export async function getReceiptPreferences(req: Request, res: Response): Promis
     const prefs = await setupService.getReceiptPreferences();
     res.status(200).json(prefs);
   } catch (error) {
-    console.error('[setup] getReceiptPreferences failed:', error);
+    logger.error('[setup] getReceiptPreferences failed:', error);
     res.status(500).json({ error: 'Failed to fetch receipt preferences.' });
   }
 }
@@ -58,7 +57,7 @@ export async function saveReceiptPreferences(req: Request, res: Response): Promi
     });
     res.status(204).send();
   } catch (error) {
-    console.error('[setup] saveReceiptPreferences failed:', error);
+    logger.error('[setup] saveReceiptPreferences failed:', error);
     res.status(500).json({ error: 'Failed to save receipt preferences.' });
   }
 }
@@ -102,7 +101,7 @@ export async function importSeedFromExcel(req: Request, res: Response): Promise<
       return;
     }
 
-    console.error('[setup] importSeedFromExcel failed:', error);
+    logger.error('[setup] importSeedFromExcel failed:', error);
     res.status(500).json({ error: 'Failed to import seed data.' });
   }
 }
@@ -125,7 +124,7 @@ export async function setupGetAllUsers(req: Request, res: Response): Promise<voi
     const users = await usersService.getAllUsers();
     res.status(200).json(users);
   } catch (error) {
-    console.error('[setup] setupGetAllUsers failed:', error);
+    logger.error('[setup] setupGetAllUsers failed:', error);
     res.status(500).json({ error: 'Failed to fetch users.' });
   }
 }
@@ -151,7 +150,7 @@ export async function setupCreateUser(req: Request, res: Response): Promise<void
     }
     res.status(201).json(user);
   } catch (error) {
-    console.error('[setup] setupCreateUser failed:', error);
+    logger.error('[setup] setupCreateUser failed:', error);
     res.status(500).json({ error: 'Failed to create user.' });
   }
 }
@@ -178,7 +177,7 @@ export async function setupUpdateUser(req: Request, res: Response): Promise<void
       res.status(422).json({ error: msg });
       return;
     }
-    console.error('[setup] setupUpdateUser failed:', error);
+    logger.error('[setup] setupUpdateUser failed:', error);
     res.status(500).json({ error: 'Failed to update user.' });
   }
 }
@@ -189,7 +188,7 @@ export async function setupDeleteUser(req: Request, res: Response): Promise<void
     await usersService.setupDeleteUser(id);
     res.status(204).send();
   } catch (error) {
-    console.error('[setup] setupDeleteUser failed:', error);
+    logger.error('[setup] setupDeleteUser failed:', error);
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 }
@@ -205,7 +204,7 @@ export async function setupHardDeleteUser(req: Request, res: Response): Promise<
       res.status(422).json({ error: msg });
       return;
     }
-    console.error('[setup] setupHardDeleteUser failed:', error);
+    logger.error('[setup] setupHardDeleteUser failed:', error);
     res.status(500).json({ error: 'Failed to hard-delete user.' });
   }
 }
@@ -216,7 +215,7 @@ export async function setupReactivateUser(req: Request, res: Response): Promise<
     await usersService.setupReactivateUser(id);
     res.status(204).send();
   } catch (error) {
-    console.error('[setup] setupReactivateUser failed:', error);
+    logger.error('[setup] setupReactivateUser failed:', error);
     res.status(500).json({ error: 'Failed to reactivate user.' });
   }
 }
