@@ -63,25 +63,47 @@ jobs:
           cp -R ./public release-linux/public
           cp -R ./src/database/migrations release-linux/migrations
 
-          # Generar Scripts
-          cat << 'EOF' > release-linux/CafeBomBom.desktop
+          # Generar Scripts sin SUDO para instalación a nivel de usuario
+          cat << 'EOF' > release-linux/install.sh
+          #!/bin/bash
+
+          # 1. Definir carpetas seguras del usuario (No requieren sudo)
+          APP_DIR="$HOME/.local/share/CafeBomBom"
+          DESKTOP_DIR="$HOME/.local/share/applications"
+
+          # 2. Crear carpetas
+          mkdir -p "$APP_DIR"
+          mkdir -p "$DESKTOP_DIR"
+
+          # 3. Copiar el programa
+          cp -R ./* "$APP_DIR/"
+          chmod +x "$APP_DIR/pos-app-linux"
+
+          # 4. Crear el archivo .desktop dinámicamente con la ruta exacta del usuario
+          cat << DESK > "$DESKTOP_DIR/CafeBomBom.desktop"
           [Desktop Entry]
           Version=1.0
           Name=Caja POS Cafe BomBom
-          Exec=/opt/cafebombom/pos-app-linux
+          Comment=Sistema de Punto de Venta
+          Exec=$APP_DIR/pos-app-linux
+          Icon=utilities-terminal
           Terminal=false
           Type=Application
           Categories=Utility;
+          DESK
+
+          chmod +x "$DESKTOP_DIR/CafeBomBom.desktop"
+
+          # 5. Mostrar una ventana de éxito visual (Soporta GNOME y KDE)
+          if command -v zenity &> /dev/null; then
+              zenity --info --text="Instalación completada exitosamente!\n\nYa puedes encontrar Cafe BomBom en tu menú de aplicaciones." --title="Cafe BomBom POS"
+          elif command -v kdialog &> /dev/null; then
+              kdialog --msgbox "Instalación completada exitosamente!\n\nYa puedes encontrar Cafe BomBom en tu menú de aplicaciones." --title "Cafe BomBom POS"
+          else
+              echo "¡Instalación completada! Búscalo en tu menú de aplicaciones."
+          fi
           EOF
 
-          cat << 'EOF' > release-linux/install.sh
-          #!/bin/bash
-          sudo mkdir -p /opt/cafebombom
-          sudo cp -R ./* /opt/cafebombom/
-          sudo chmod +x /opt/cafebombom/pos-app-linux
-          sudo cp /opt/cafebombom/CafeBomBom.desktop /usr/share/applications/
-          echo "Instalado correctamente."
-          EOF
           chmod +x release-linux/install.sh
 
           # Comprimir
