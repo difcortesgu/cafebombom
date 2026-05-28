@@ -1,9 +1,9 @@
-import { setupService, usersService } from '../services';
-import { getSetupStatus as getBootstrapStatus } from '../services/bootstrap';
-import { SeedImportParseError, SeedImportValidationError } from '../services/seed-import';
 import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import { setupService, usersService } from '../services';
+import { getSetupStatus as getBootstrapStatus } from '../services/bootstrap';
+import { SeedImportParseError, SeedImportValidationError } from '../services/seed-import';
 
 
 export function getSetupStatus(req: Request, res: Response): void {
@@ -107,7 +107,7 @@ export async function importSeedFromExcel(req: Request, res: Response): Promise<
 }
 
 export function downloadImportTemplate(req: Request, res: Response): void {
-  const templatePath = path.resolve(__dirname, '../../../docs/import-template-v2.xlsx');
+  const templatePath = path.resolve(process.cwd(), '../../../docs/import-template-v2.xlsx');
 
   if (!fs.existsSync(templatePath)) {
     res.status(404).json({ error: 'Import template not found.' });

@@ -185,8 +185,6 @@ app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 
-
-
 const frontendDistPath = path.join(process.cwd(), 'public');
 app.use(express.static(frontendDistPath));
 
