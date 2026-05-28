@@ -187,16 +187,16 @@ app.use('/api/payment-methods', paymentMethodsRouter);
 
 
 
-// Serve the compiled Expo Web static files (from frontend/dist)
-const frontendDistPath = path.join(__dirname, '../public');
+const frontendDistPath = path.join(process.cwd(), 'public');
 app.use(express.static(frontendDistPath));
 
-// Any route not starting with /api should serve the frontend (SPA routing)
 // Catch-all route for SPA (except /api/*)
 app.get(/^(?!\/api).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
 
 app.listen(PORT, () => {
+    console.log(`✅ Servidor POS Iniciado.`);
     console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`Sirviendo archivos web desde: ${frontendDistPath}`); // Agregué esto para que al correrlo veas exactamente qué ruta está usando
 });
