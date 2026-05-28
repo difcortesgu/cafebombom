@@ -56,6 +56,10 @@ jobs:
           cp -R ./public release-windows/public
           cp -R ./public release-linux/public
 
+          # 👇 NUEVO: Copiamos la carpeta de migraciones de Drizzle a ambas carpetas 👇
+          cp -R ./src/database/migrations release-windows/migrations
+          cp -R ./src/database/migrations release-linux/migrations
+
           # Comprimir en .zip y .tar.gz para subir al Release
           cd release-windows && zip -r ../pos-windows-v1.zip ./* && cd ..
           cd release-linux && tar -czvf ../pos-linux-v1.tar.gz ./* && cd ..
