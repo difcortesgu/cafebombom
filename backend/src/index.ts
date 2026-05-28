@@ -1,7 +1,7 @@
 // dotenv MUST be loaded with require() before any other import, so env vars
 // are set before module-level code in jwt.ts and other services fires.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-import path from 'path';
+const path = require('path');
 require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
 import cors from 'cors';
