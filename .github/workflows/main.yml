@@ -6,72 +6,69 @@ on:
       - main
 
 jobs:
-  build-and-publish:
+  # ==========================================
+  # JOB 1: Compilar Frontend (Una sola vez)
+  # ==========================================
+  build-frontend:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node (Para Frontend)
+      - uses: actions/checkout@v4
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Setup Bun (Para Backend)
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Build Frontend (Web)
+      - name: Build Web
         run: |
           cd frontend
           npm install
           echo "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000/api" > .env
           npx expo export --platform web
+      - name: Subir Frontend como Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
 
-      - name: Compilar Backend con Bun
+  # ==========================================
+  # JOB 2: Empaquetar para Linux (Nativo)
+  # ==========================================
+  build-linux:
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Descargar Frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: backend/public
+
+      - name: Compilar y Empaquetar Linux
         run: |
           cd backend
-          bun install 
+          bun install
 
-          # Copiar el frontend al backend ANTES de compilar
-          cp -R ../frontend/dist ./public
-
-          # Generar ejecutables base
-          bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
+          # Compilar binario de Bun
           bun build ./src/index.ts --compile --target=bun-linux-x64 --outfile=pos-app-linux
           chmod +x pos-app-linux
 
-          # Crear carpetas temporales para empaquetar
-          mkdir release-windows release-linux
-
-          # Distribuir archivos Windows
-          mv pos-app.exe release-windows/
-          cp -R ./public release-windows/public
-          cp -R ./src/database/migrations release-windows/migrations
-
-          # Distribuir archivos Linux
+          # Preparar carpeta
+          mkdir release-linux
           mv pos-app-linux release-linux/
           cp -R ./public release-linux/public
           cp -R ./src/database/migrations release-linux/migrations
 
-      - name: Generar Scripts de Instalación (Windows y Linux)
-        run: |
-          cd backend
-
-          # ==========================================
-          # 1. LINUX: Archivo .desktop y Script install.sh
-          # ==========================================
+          # Generar Scripts
           cat << 'EOF' > release-linux/CafeBomBom.desktop
           [Desktop Entry]
           Version=1.0
           Name=Caja POS Cafe BomBom
-          Comment=Sistema de Punto de Venta
           Exec=/opt/cafebombom/pos-app-linux
-          Icon=utilities-terminal
           Terminal=false
           Type=Application
           Categories=Utility;
@@ -79,31 +76,66 @@ jobs:
 
           cat << 'EOF' > release-linux/install.sh
           #!/bin/bash
-          echo "Instalando Cafe BomBom POS..."
           sudo mkdir -p /opt/cafebombom
           sudo cp -R ./* /opt/cafebombom/
           sudo chmod +x /opt/cafebombom/pos-app-linux
           sudo cp /opt/cafebombom/CafeBomBom.desktop /usr/share/applications/
-          echo "¡Instalación completada! Búscalo en tu menú de aplicaciones."
+          echo "Instalado correctamente."
           EOF
           chmod +x release-linux/install.sh
 
-          # Empaquetamos el instalador final de Linux
+          # Comprimir
           cd release-linux && tar -czvf ../Instalador_CafeBomBom_Linux.tar.gz ./* && cd ..
 
-          # ==========================================
-          # 2. WINDOWS: Script VBScript invisible
-          # ==========================================
-          cat << 'EOF' > release-windows/Iniciar_POS.vbs
+      - name: Subir Instalador Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer
+          path: backend/Instalador_CafeBomBom_Linux.tar.gz
+
+  # ==========================================
+  # JOB 3: Empaquetar para Windows (Nativo)
+  # ==========================================
+  build-windows:
+    needs: build-frontend
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Descargar Frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: backend/public
+
+      - name: Compilar y Empaquetar Windows
+        shell: pwsh
+        run: |
+          cd backend
+          bun install
+
+          # Compilar binario de Bun
+          bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
+
+          # Preparar carpeta
+          New-Item -ItemType Directory -Force -Path release-windows
+          Move-Item pos-app.exe release-windows/
+          Copy-Item -Recurse ./public release-windows/public
+          Copy-Item -Recurse ./src/database/migrations release-windows/migrations
+
+          # Generar VBScript (En PowerShell)
+          @"
           Set WshShell = CreateObject("WScript.Shell")
           WshShell.Run chr(34) & "pos-app.exe" & Chr(34), 0
           Set WshShell = Nothing
-          EOF
+          "@ | Out-File -FilePath release-windows/Iniciar_POS.vbs -Encoding utf8
 
-          # ==========================================
-          # 3. WINDOWS: Configuración Inno Setup (.iss)
-          # ==========================================
-          cat << 'EOF' > release-windows/installer.iss
+          # Generar Configuración de Inno Setup
+          @"
           [Setup]
           AppName=Cafe BomBom POS
           AppVersion=1.0
@@ -111,7 +143,6 @@ jobs:
           OutputBaseFilename=Instalar_CafeBomBom_Windows
           Compression=lzma
           SolidCompression=yes
-          ; Pone el instalador final fuera de la carpeta
           OutputDir=..\
 
           [Files]
@@ -120,12 +151,40 @@ jobs:
           [Icons]
           Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"
           Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"
-          EOF
+          "@ | Out-File -FilePath release-windows/installer.iss -Encoding utf8
 
-      - name: Compilar Instalador de Windows (Inno Setup)
-        uses: slavrd/inno-setup-action@v3.0.0
+      - name: Ejecutar Inno Setup Nativo
+        shell: cmd
+        run: |
+          cd backend\release-windows
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Subir Instalador Windows
+        uses: actions/upload-artifact@v4
         with:
-          filepath: backend/release-windows/installer.iss
+          name: windows-installer
+          path: backend/Instalar_CafeBomBom_Windows.exe
+
+  # ==========================================
+  # JOB 4: Publicar el Release en GitHub
+  # ==========================================
+  publish-release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Descargar Instalador Linux
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-installer
+          path: final-assets
+
+      - name: Descargar Instalador Windows
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: final-assets
 
       - name: Generate Dynamic Version Tag
         id: version_tag
@@ -139,7 +198,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            backend/Instalar_CafeBomBom_Windows.exe
-            backend/Instalador_CafeBomBom_Linux.tar.gz
+            final-assets/Instalar_CafeBomBom_Windows.exe
+            final-assets/Instalador_CafeBomBom_Linux.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
