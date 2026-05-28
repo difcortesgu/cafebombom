@@ -21,16 +21,12 @@ export const logger = winston.createLogger({
 });
 
 // 3. Verificamos en qué entorno estamos
-const isProduction = process.env.NODE_ENV !== 'development';
+const exeDir = path.dirname(process.execPath);
+const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'public'));
 
 if (isProduction) {
-    // =========================================================
-    //   ENTORNO DE PRODUCCIÓN (Archivos en AppData / .config)
-    // =========================================================
-
-    // A. Resolver la ruta segura del sistema operativo
     const appDataPath = process.platform === 'win32'
-        ? path.join(os.homedir(), 'AppData', 'Roaming', 'CafeBomBom')
+        ? path.join(process.env.APPDATA || os.homedir() + '\\AppData\\Roaming', 'CafeBomBom')
         : path.join(os.homedir(), '.config', 'CafeBomBom');
 
     const logDir = path.join(appDataPath, 'logs');

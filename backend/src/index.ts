@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
 import cors from 'cors';
 import express, { Request, Response } from 'express';
+import fs from 'fs';
 import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
@@ -183,14 +184,14 @@ app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 
-const isProduction = process.env.NODE_ENV !== 'development';
-const baseDir = isProduction ? path.dirname(process.execPath) : process.cwd();
+const exeDir = path.dirname(process.execPath);
+const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'public'));
 
-// Point to the public folder
+const baseDir = isProduction ? exeDir : process.cwd();
 const frontendDistPath = path.join(baseDir, 'public');
+
 app.use(express.static(frontendDistPath));
 
-// Catch-all route for SPA (except /api/*)
 app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
 });

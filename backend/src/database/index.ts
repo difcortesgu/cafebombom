@@ -5,53 +5,46 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-// Si no dice "development", asumimos que es el ejecutable de producción
-const isDevelopment = process.env.NODE_ENV === 'development';
+const exeDir = path.dirname(process.execPath);
+const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'migrations'));
 
 let dbPath = "";
 let migrationsPath = "";
 
-// 1. Calcular las rutas de manera ultra-segura
-if (!isDevelopment) {
-    // Usamos process.env.APPDATA nativo de Windows (mucho más infalible)
+if (isProduction) {
     const appDataDir = process.platform === 'win32'
         ? process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
         : path.join(os.homedir(), '.config');
 
     const baseFolder = path.join(appDataDir, 'CafeBomBom');
 
-    // Intentamos crear la carpeta si no existe
     try {
         if (!fs.existsSync(baseFolder)) {
             fs.mkdirSync(baseFolder, { recursive: true });
         }
     } catch (err) {
         console.error(`[ERROR FATAL] No se pudo crear la carpeta en: ${baseFolder}`);
-        console.error(err);
         process.exit(1);
     }
 
     dbPath = path.join(baseFolder, 'sqlite.db');
-    migrationsPath = path.join(path.dirname(process.execPath), 'migrations');
+    migrationsPath = path.join(exeDir, 'migrations');
 } else {
-    // Desarrollo
     dbPath = path.join(process.cwd(), 'sqlite.db');
     migrationsPath = path.join(process.cwd(), 'src', 'database', 'migrations');
 }
 
 console.log(`=========================================`);
+console.log(`[MODO] ${isProduction ? 'PRODUCCIÓN' : 'DESARROLLO'}`);
 console.log(`[STARTUP] Ruta de Base de Datos: ${dbPath}`);
 console.log(`[STARTUP] Ruta de Migraciones: ${migrationsPath}`);
 console.log(`=========================================`);
 
-// 2. Inicializar Base de Datos con manejo de errores estricto
 let sqlite;
 try {
-    // { create: true } fuerza a Bun a crear el archivo si no existe
     sqlite = new Database(dbPath, { create: true });
 } catch (error) {
     console.error(`[ERROR FATAL DE BD] No se pudo abrir/crear el archivo en: ${dbPath}`);
-    console.error(error);
     process.exit(1);
 }
 
