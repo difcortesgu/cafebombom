@@ -1,6 +1,6 @@
-const Database = require('better-sqlite3');
-const { drizzle } = require('drizzle-orm/better-sqlite3');
-const { migrate } = require('drizzle-orm/better-sqlite3/migrator');
+import { Database } from 'bun:sqlite';
+import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 
 const sqliteFilePath = process.env.SQLITE_FILE_PATH
     ? process.env.SQLITE_FILE_PATH

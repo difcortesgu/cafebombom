@@ -17,49 +17,56 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node (Para Frontend)
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
-          cache: "npm" # Le decimos que active el caché para npm
-          cache-dependency-path: | # Le indicamos dónde están tus archivos lock
-            frontend/package-lock.json
-            backend/package-lock.json
+          node-version: "20"
 
-      - name: Build Frontend (React Native Web)
+      - name: Setup Bun (Para Backend)
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Build Frontend (Web)
         run: |
           cd frontend
           npm install
           echo "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000/api" > .env
           npx expo export --platform web
 
-      - name: Prepare and Compile Backend
+      - name: Compilar Backend con Bun
         run: |
           cd backend
-          npm install
-          npx tsc 
-          cp -R ../frontend/dist ./public
+          bun install # Bun instala tus dependencias en milisegundos
 
-      - name: Compile Executable with pkg
-        run: |
-          cd backend
-          npm install -g pkg
-          npm run build:exe
+          # Generar ejecutables para Windows y Linux
+          bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
+          bun build ./src/index.ts --compile --target=bun-linux-x64 --outfile=pos-app-linux
+          chmod +x pos-app-linux
 
-      - name: Generate Dynamic Version Tag
-        id: version_tag
-        # Cambiamos GITHUB_ENV por GITHUB_OUTPUT
-        run: echo "tag_name=v$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
+          # Empaquetar todo en carpetas listas para distribuir
+          mkdir release-windows release-linux
 
-      - name: Create GitHub Release and Upload .exe
+          # Copiamos los ejecutables a sus respectivas carpetas
+          mv pos-app.exe release-windows/
+          mv pos-app-linux release-linux/
+
+          # Copiamos el frontend (React Native Web) a ambas carpetas
+          # Asegúrate de que tu index.ts de express apunte a la carpeta 'public'
+          cp -R ../frontend/dist release-windows/public
+          cp -R ../frontend/dist release-linux/public
+
+          # Comprimimos en .zip para subir al Release
+          cd release-windows && zip -r ../pos-windows-v1.zip ./* && cd ..
+          cd release-linux && tar -czvf ../pos-linux-v1.tar.gz ./* && cd ..
+
+      - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          # Ahora accedemos al valor a través del ID del paso anterior (version_tag)
           tag_name: ${{ steps.version_tag.outputs.tag_name }}
           name: "POS System Release ${{ steps.version_tag.outputs.tag_name }}"
           draft: false
           prerelease: false
           files: |
-            backend/dist-app/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            backend/pos-windows-v1.zip
+            backend/pos-linux-v1.tar.gz
