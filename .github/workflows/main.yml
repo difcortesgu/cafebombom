@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "18"
           cache: "npm" # Le decimos que active el caché para npm
           cache-dependency-path: | # Le indicamos dónde están tus archivos lock
             frontend/package-lock.json
