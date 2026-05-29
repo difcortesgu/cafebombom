@@ -1,6 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(process.cwd(), '.env') });
 
+import { exec } from 'child_process';
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import fs from 'fs';
@@ -197,7 +198,25 @@ app.get(/^(?!\/api).*/, (req, res) => {
 });
 
 app.listen(PORT, () => {
-    logger.info(`✅ Servidor POS Iniciado.`);
-    logger.info(`Server is running at http://localhost:${PORT}`);
-    logger.info(`Sirviendo archivos web desde: ${frontendDistPath}`); // Agregué esto para que al correrlo veas exactamente qué ruta está usando
+    logger.info(`✅ Servidor POS Iniciado en puerto ${PORT}`);
+
+    if (isProduction) {
+        const url = `http://localhost:${PORT}`;
+        let command = '';
+
+        if (process.platform === 'win32') {
+            // Windows
+            command = `start chrome --app="${url}" || start "" "${url}"`;
+        } else {
+            // Linux
+            command = `chromium-browser --app="${url}" || xdg-open "${url}"`;
+        }
+        logger.info(`Abriendo navegador automáticamente en: ${url}`);
+
+        exec(command, (error) => {
+            if (error) {
+                logger.error(`No se pudo abrir el navegador automáticamente: ${error.message}`);
+            }
+        });
+    }
 });
