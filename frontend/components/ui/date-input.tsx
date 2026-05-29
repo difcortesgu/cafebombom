@@ -1,5 +1,5 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -24,6 +24,7 @@ const toDisplay = (unix: number | null): string => {
 };
 
 export function DateInput({ value, onChangeValue, placeholder = t('shared.date.select'), endOfDay = false, style }: DateInputProps) {
+  const isWeb = Platform.OS === 'web';
   const palette = useAppColors();
   const [showPicker, setShowPicker] = useState(false);
 
@@ -55,27 +56,84 @@ export function DateInput({ value, onChangeValue, placeholder = t('shared.date.s
     setShowPicker(false);
   };
 
+  // Fixed: Added proper React types and implemented local timezone splitting
+  const handleWebDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateString = e.target.value; // "YYYY-MM-DD"
+
+    if (!dateString) return;
+
+    // Split to avoid UTC timezone parsing bugs
+    const [year, month, day] = dateString.split('-');
+    const selectedDate = new Date(Number(year), Number(month) - 1, Number(day));
+
+    // Replicate the (event, date) signature of the native picker
+    handleDateChange({
+      type: 'set',
+      nativeEvent: {
+        timestamp: 0,
+        utcOffset: 0
+      }
+    }, selectedDate);
+  };
+
   return (
     <View style={style}>
-      <Pressable
-        onPress={() => setShowPicker(true)}
-        style={[
-          styles.field,
-          {
+      {isWeb ? (
+        /* --- WEB FALLBACK --- */
+        <input
+          type="date"
+          // Fixed: Use your existing helper to convert the Unix timestamp to YYYY-MM-DD
+          value={toDisplay(value)}
+          onChange={handleWebDateChange}
+          // Fixed: Make the whole input clickable to open the calendar
+          onClick={(e: React.MouseEvent<HTMLInputElement>) => {
+            const target = e.target as HTMLInputElement & { showPicker?: () => void };
+            if (typeof target.showPicker === 'function') {
+              target.showPicker();
+            }
+          }}
+          style={{
             borderColor: palette.border,
             backgroundColor: palette.inputBackground,
-          },
-        ]}>
-        <ThemedText style={!value ? { color: palette.placeholder } : undefined}>{value ? toDisplay(value) : placeholder}</ThemedText>
-      </Pressable>
-      {showPicker ? (
-        <DateTimePicker
-          value={pickerValue}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
+            color: palette.text,
+            padding: '10px',
+            borderWidth: '1px',
+            borderStyle: 'solid',
+            borderRadius: '5px',
+            boxSizing: 'border-box',
+            width: '100%',
+            fontFamily: 'inherit',
+            fontSize: '16px',
+            // Optional: Hide the native calendar icon since the whole input is now clickable
+            // cursor: 'pointer' 
+          }}
         />
-      ) : null}
+      ) : (
+        /* --- NATIVE IMPLEMENTATION --- */
+        <>
+          <Pressable
+            onPress={() => setShowPicker(true)}
+            style={[
+              styles.field,
+              {
+                borderColor: palette.border,
+                backgroundColor: palette.inputBackground,
+              },
+            ]}>
+            <ThemedText style={!value ? { color: palette.placeholder } : undefined}>
+              {value ? toDisplay(value) : placeholder}
+            </ThemedText>
+          </Pressable>
+          {showPicker ? (
+            <DateTimePicker
+              value={pickerValue}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateChange}
+            />
+          ) : null}
+        </>
+      )}
     </View>
   );
 }
