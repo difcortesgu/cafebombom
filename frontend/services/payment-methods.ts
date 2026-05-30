@@ -62,5 +62,3 @@ export class PaymentMethodsService {
         }
     }
 }
-
-export const paymentMethodsService = new PaymentMethodsService();

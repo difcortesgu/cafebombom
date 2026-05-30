@@ -1,4 +1,4 @@
-import { paymentMethodsService } from '@/services/payment-methods';
+import { paymentMethodsService } from '@/services';
 import type { PaymentMethodConfig } from '@/types/payment-methods';
 import { create } from 'zustand';
 

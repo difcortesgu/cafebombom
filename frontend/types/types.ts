@@ -1,11 +1,11 @@
-export type UserRole = 'owner' | 'staff';
 export type Unit = string;
 export type DiscountType = 'percentage' | 'fixed';
-export type DiscountScope = 'product' | 'global';
 export type TableType = 'dine-in' | 'to-go' | 'delivery';
 export type PaymentMethod = 'cash' | 'card' | 'transfer';
 export type OrderStatus = 'draft' | 'in-progress' | 'ready' | 'completed' | 'cancelled';
 
+type DiscountScope = 'product' | 'global';
+type UserRole = 'owner' | 'staff';
 
 export type User = {
   id: string;
@@ -43,7 +43,7 @@ export type Product = {
   additionalIngredients: ProductAdditionalIngredientOption[];
 };
 
-export type ProductAdditionalIngredientOption = {
+type ProductAdditionalIngredientOption = {
   ingredientId: string;
   ingredientName: string;
   quantityUsed: number;

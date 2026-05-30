@@ -11,7 +11,7 @@ import type { User } from '@/types/types';
 
 type UserAccountModalMode = 'add' | 'edit';
 
-type UserAccountModalPayload = {
+export type UserAccountModalPayload = {
   name: string;
   role: 'owner' | 'staff';
   pin?: string;
@@ -156,5 +156,3 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
-
-export type { UserAccountModalPayload, UserAccountModalMode };

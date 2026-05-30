@@ -10,9 +10,3 @@ export const PAYMENT_ICONS = [
     { name: 'laptop', label: 'Computadora' },
     { name: 'checkmark-circle', label: 'Confirmado' },
 ] as const;
-
-export type PaymentIcon = (typeof PAYMENT_ICONS)[number]['name'];
-
-export function getPaymentIconLabel(icon: string): string {
-    return PAYMENT_ICONS.find((item) => item.name === icon)?.label || icon;
-}

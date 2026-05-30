@@ -52,7 +52,7 @@ export type PnLSummary = {
   net: number;
 };
 
-export type PaymentMethodAmountSummary = {
+type PaymentMethodAmountSummary = {
   payment_method_id: string;
   total: number;
   count: number;

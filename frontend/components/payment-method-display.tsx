@@ -125,30 +125,6 @@ export function PaymentMethodBadge({
     );
 }
 
-// Simple text display
-export function PaymentMethodText({
-    method,
-    methodId,
-    methodName,
-    methodIcon,
-    style,
-}: TextProps) {
-    const { methods } = usePaymentMethodsStore();
-
-    let resolvedMethod = method;
-    if (!resolvedMethod && methodId) {
-        resolvedMethod = methods.find((m) => m.id === methodId);
-    }
-
-    const displayName = methodName || resolvedMethod?.name || methodId || '?';
-
-    return (
-        <ThemedText style={style}>
-            {displayName}
-        </ThemedText>
-    );
-}
-
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',

@@ -3,8 +3,9 @@ import { create } from 'zustand';
 import { salesService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import type { AddItemToOrderPayload, CreateDiscountPayload, CreatePartialPaymentPayload, CreateSalePayload, DashboardSalesSummary, DashboardTrendBucket, RemoveItemFromOrderPayload, SaleItemDetail, SalePayment, SalePaymentBoard, SalePricingSummary, UpdateDiscountPayload, UpdateDraftOrderPayload } from '@/types/sales';
-import type { Discount, Product, RestaurantTable, Sale, TableType } from '@/types/types';
-import { RECOGNIZED_REVENUE_STATUSES } from '@/utils/dashboard';
+import type { Discount, OrderStatus, Product, RestaurantTable, Sale, TableType } from '@/types/types';
+
+const RECOGNIZED_REVENUE_STATUSES: OrderStatus[] = ['completed'];
 
 type SalesState = {
   products: Product[];

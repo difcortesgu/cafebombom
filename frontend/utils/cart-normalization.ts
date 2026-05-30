@@ -34,7 +34,7 @@ export function normalizeAdditionalIngredients(entries: SaleItemAdditionalIngred
         .sort((a, b) => a.ingredientId.localeCompare(b.ingredientId));
 }
 
-export function buildCustomizationKey(
+function buildCustomizationKey(
     productId: string,
     observation: string | null,
     removedIngredientIds: string[],

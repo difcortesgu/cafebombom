@@ -1,7 +1,7 @@
 import { t } from '@/i18n';
 import type { ReceiptData, ReceiptLineItem, ReceiptPaperWidth } from '@/types/receipt';
 
-export function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
+function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
   return paperWidth === 58 ? 32 : 48;
 }
 
@@ -10,11 +10,11 @@ export function formatCurrency(value: number): string {
   return `$${normalized.toFixed(2)}`;
 }
 
-export function separatorLine(width: number, char = '-'): string {
+function separatorLine(width: number, char = '-'): string {
   return char.repeat(Math.max(1, width));
 }
 
-export function centerText(text: string, width: number): string {
+function centerText(text: string, width: number): string {
   const normalized = text.trim();
   if (normalized.length >= width) {
     return normalized.slice(0, width);
@@ -33,7 +33,7 @@ function trimToFit(text: string, width: number): string {
   return `${text.slice(0, width - 1)}~`;
 }
 
-export function formatReceiptLine(left: string, right: string, width: number): string {
+function formatReceiptLine(left: string, right: string, width: number): string {
   const leftNormalized = left.trim();
   const rightNormalized = right.trim();
   if (!rightNormalized) {
@@ -48,7 +48,7 @@ export function formatReceiptLine(left: string, right: string, width: number): s
   return `${leftText}${' '.repeat(gapSize)}${rightNormalized}`;
 }
 
-export function formatReceiptItem(item: ReceiptLineItem, width: number): string[] {
+function formatReceiptItem(item: ReceiptLineItem, width: number): string[] {
   const qtyAndPrice = `${item.quantity} x ${formatCurrency(item.unitPrice)}`;
   const mainLine = formatReceiptLine(item.name, formatCurrency(item.lineTotal), width);
   const detailLine = formatReceiptLine(qtyAndPrice, '', width);

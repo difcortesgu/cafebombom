@@ -51,7 +51,7 @@ export default function ExpenseFormScreen() {
 
             <ThemedCard style={styles.card}>
                 <View style={styles.labelRow}>
-                    <Ionicons name="tag-outline" size={14} color={palette.mutedText} />
+                    <Ionicons name="bag-outline" size={14} color={palette.mutedText} />
                     <ThemedText style={styles.smallText}>{t('accountsForm.expense.category')}</ThemedText>
                 </View>
                 <ThemedInput

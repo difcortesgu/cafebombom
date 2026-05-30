@@ -738,14 +738,6 @@ const catalogs: Record<Locale, Record<string, string>> = {
 
 let currentLocale: Locale = 'es';
 
-export function setLocale(locale: Locale) {
-  currentLocale = locale;
-}
-
-export function getLocale(): Locale {
-  return currentLocale;
-}
-
 type InterpolationValue = string | number;
 
 export function t(key: string, params?: Record<string, InterpolationValue>) {

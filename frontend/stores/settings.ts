@@ -132,11 +132,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   themeHydrated: false,
   hydrateTheme: async () => {
     const themePrefs = await readThemePreferences();
+    const allowedThemeIds = ['teal-modern', 'cafe-classic', 'quiet-luxury', 'evergreen-ledger'] as const;
+    const allowedThemeModes = ['system', 'light', 'dark'] as const;
     set({
       ...(themePrefs
         ? {
-          selectedThemeId: themePrefs.selectedThemeId,
-          themeModePreference: themePrefs.themeModePreference,
+          selectedThemeId: allowedThemeIds.includes(themePrefs.selectedThemeId as AppThemeId)
+            ? (themePrefs.selectedThemeId as AppThemeId)
+            : 'teal-modern',
+          themeModePreference: allowedThemeModes.includes(themePrefs.themeModePreference as ThemeModePreference)
+            ? (themePrefs.themeModePreference as ThemeModePreference)
+            : 'system',
         }
         : {}),
       themeHydrated: true,

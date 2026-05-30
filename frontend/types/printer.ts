@@ -9,7 +9,7 @@ export type PrinterStatus = {
     mode: 'web-print' | 'native-pending' | 'native-ready';
 };
 
-export type BluetoothClassicDevice = {
+type BluetoothClassicDevice = {
     name?: string;
     address?: string;
     id?: string;

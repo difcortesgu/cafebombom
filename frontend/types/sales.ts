@@ -4,25 +4,25 @@ export type DashboardRangeKey = 'today' | 'week' | 'month';
 
 export type DashboardTrendBucket = 'hour' | 'day';
 
-export type DashboardTrendPoint = {
+type DashboardTrendPoint = {
   bucket_start: number;
   total: number;
   sale_count: number;
 };
 
-export type DashboardPaymentBreakdown = {
+type DashboardPaymentBreakdown = {
   method: PaymentMethod;
   total: number;
   count: number;
 };
 
-export type DashboardTopProduct = {
+type DashboardTopProduct = {
   name: string;
   quantity: number;
   revenue: number;
 };
 
-export type DashboardStatusCounts = Record<OrderStatus, number>;
+type DashboardStatusCounts = Record<OrderStatus, number>;
 
 export type DashboardSalesSummary = {
   revenue: number;
@@ -35,14 +35,14 @@ export type DashboardSalesSummary = {
   trend: DashboardTrendPoint[];
 };
 
-export type DiscountSnapshot = {
+type DiscountSnapshot = {
   discount_name: string | null;
   discount_type: DiscountType | null;
   discount_value: number | null;
   discount_amount: number;
 };
 
-export type SaleItemAdditionalIngredientDetail = {
+type SaleItemAdditionalIngredientDetail = {
   ingredient_id: string;
   ingredient_name: string;
   quantity: number;
@@ -127,7 +127,7 @@ export type RemoveItemFromOrderPayload = {
   saleItemId: string;
 };
 
-export type PartialPaymentLineInput = {
+type PartialPaymentLineInput = {
   saleItemId: string;
   quantity: number;
 };
@@ -138,7 +138,7 @@ export type CreatePartialPaymentPayload = {
   lines: PartialPaymentLineInput[];
 };
 
-export type SalePaymentLine = {
+type SalePaymentLine = {
   payment_item_id: string;
   sale_item_id: string;
   product_id: string;

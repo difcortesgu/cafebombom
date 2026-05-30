@@ -16,7 +16,7 @@ type RequestOptions = {
   body?: unknown;
 };
 
-export type DownloadedFile = {
+type DownloadedFile = {
   bytes: Uint8Array<ArrayBuffer>;
   contentType: string | null;
   fileName: string;
