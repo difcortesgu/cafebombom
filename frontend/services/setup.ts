@@ -1,12 +1,12 @@
 import { apiClient } from './api-client';
 
-export type SeedImportEntitySummary = {
+type SeedImportEntitySummary = {
   inserted: number;
   updated: number;
   skipped: number;
 };
 
-export type SeedImportSummary = {
+type SeedImportSummary = {
   paymentMethods: SeedImportEntitySummary;
   suppliers: SeedImportEntitySummary;
   employees: SeedImportEntitySummary;
@@ -21,7 +21,7 @@ export type SeedImportSummary = {
   receiptPreferences: SeedImportEntitySummary;
 };
 
-export type SeedImportIssue = {
+type SeedImportIssue = {
   code: string;
   entity: keyof SeedImportSummary | 'workbook';
   message: string;

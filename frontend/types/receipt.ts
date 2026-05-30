@@ -3,7 +3,7 @@ import type { OrderStatus } from '@/types/types';
 
 export type ReceiptPaperWidth = 58 | 80;
 
-export type TaxConfig = {
+type TaxConfig = {
   label: string;
   rate: number;
   inclusive: boolean;
@@ -36,7 +36,7 @@ export type ReceiptLineItem = {
   }>;
 };
 
-export type ReceiptPricingBreakdown = {
+type ReceiptPricingBreakdown = {
   subtotal: number;
   itemDiscountTotal: number;
   globalDiscountName: string | null;
@@ -54,7 +54,7 @@ export type ReceiptPricingBreakdown = {
   total: number;
 };
 
-export type ReceiptMetadata = {
+type ReceiptMetadata = {
   orderId: string;
   orderShortId: string;
   createdAt: number;
@@ -72,17 +72,6 @@ export type ReceiptData = {
   pricing: ReceiptPricingBreakdown;
   paperWidth: ReceiptPaperWidth;
   qrCodeData: string | null;
-};
-
-export type ReceiptPreferences = {
-  businessName: string;
-  businessAddress: string;
-  businessPhone: string;
-  businessNit: string;
-  businessLogoUri: string | null;
-  footerMessage: string;
-  paperWidth: ReceiptPaperWidth;
-  taxRate: number;
 };
 
 export type BuildReceiptInput = {

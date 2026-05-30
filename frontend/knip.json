@@ -1,0 +1,13 @@
+{
+    "$schema": "https://unpkg.com/knip@latest/schema.json",
+    "expo": {
+        "entry": [
+            "app/**/*.{js,jsx,ts,tsx}"
+        ]
+    },
+    "ignore": [
+        "babel.config.js",
+        "assets/**",
+        "expo-env.d.ts"
+    ]
+}

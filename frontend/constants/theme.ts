@@ -4,7 +4,6 @@
  */
 
 import { t } from '@/i18n';
-import { Platform } from 'react-native';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -26,7 +25,7 @@ export type ThemeColors = {
   danger: string;
 };
 
-export type AppThemeDefinition = {
+type AppThemeDefinition = {
   id: string;
   nameKey: string;
   descriptionKey: string;
@@ -34,7 +33,7 @@ export type AppThemeDefinition = {
   colors: Record<ThemeMode, ThemeColors>;
 };
 
-export const APP_THEMES = [
+const APP_THEMES = [
   {
     id: 'teal-modern',
     nameKey: 'theme.teal-modern.name',
@@ -209,7 +208,7 @@ export type AppThemeId = (typeof APP_THEMES)[number]['id'];
 
 const DEFAULT_THEME_ID: AppThemeId = 'teal-modern';
 
-export const DEFAULT_THEME = APP_THEMES.find((theme) => theme.id === DEFAULT_THEME_ID) ?? APP_THEMES[0];
+const DEFAULT_THEME = APP_THEMES.find((theme) => theme.id === DEFAULT_THEME_ID) ?? APP_THEMES[0];
 
 export const THEME_OPTIONS = APP_THEMES.map((theme) => ({
   id: theme.id,
@@ -220,38 +219,7 @@ export const THEME_OPTIONS = APP_THEMES.map((theme) => ({
 
 export type ThemeColorName = keyof ThemeColors;
 
-export function getThemeDefinition(themeId?: string) {
-  return APP_THEMES.find((theme) => theme.id === themeId) ?? DEFAULT_THEME;
+export function getThemeColors(themeId: string | undefined, mode: ThemeMode): ThemeColors {
+  const theme = APP_THEMES.find((theme) => theme.id === themeId) ?? DEFAULT_THEME;
+  return theme.colors[mode];
 }
-
-export function getThemeColors(themeId: string | undefined, mode: ThemeMode) {
-  return getThemeDefinition(themeId).colors[mode];
-}
-
-// Backward-compatible default export used in a few places.
-export const Colors = DEFAULT_THEME.colors;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});

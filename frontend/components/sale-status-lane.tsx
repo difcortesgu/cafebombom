@@ -81,7 +81,7 @@ export function SaleStatusLane({
 
   const content = count === 0 && emptyMessage ? (
     <View style={styles.emptyState}>
-      <Ionicons name="tray-outline" size={28} color={palette.mutedText} style={styles.emptyIcon} />
+      <Ionicons name="rainy-outline" size={28} color={palette.mutedText} style={styles.emptyIcon} />
       <ThemedText style={[styles.emptyText, { color: palette.mutedText }]}>{emptyMessage}</ThemedText>
     </View>
   ) : (

@@ -24,8 +24,6 @@ import { getReceiptSurchargeBreakdown } from '@/utils/surcharge';
 type PanelView = 'detail' | 'payment' | 'receipt';
 type PaymentMode = 'full' | 'by-items' | 'equal';
 
-export type { PaymentModalBusiness };
-
 type OrderPanelProps = {
     visible: boolean;
     sale: Sale | null;

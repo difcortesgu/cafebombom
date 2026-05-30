@@ -3,11 +3,10 @@
     "name": "CafeBomBom",
     "slug": "CafeBomBom",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "cafebombom",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -30,7 +29,6 @@
         "BLUETOOTH_SCAN",
         "ACCESS_FINE_LOCATION"
       ],
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.CafeBomBom"
     },
