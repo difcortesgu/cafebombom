@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
+import { CashRegisterAdjustPanelContent, CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
 import { PaymentMethodPanelForm } from '@/components/operations/payment-method-panel-form';
@@ -35,6 +35,7 @@ import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
+import type { CashRegisterHistoryDay } from '@/types/accounts';
 import type { Discount } from '@/types/types';
 
 const GRID_GAP = 12;
@@ -46,6 +47,7 @@ type OperationsPanelMode =
     | { type: 'discount-add-global' }
     | { type: 'discount-add-product' }
     | { type: 'discount-edit'; discount: Discount }
+    | { type: 'cash-register-adjust'; day: CashRegisterHistoryDay }
     | { type: 'import' };
 
 export default function OperationsScreen() {
@@ -453,7 +455,11 @@ export default function OperationsScreen() {
                     />
                 ) : null}
 
-                {section === 'cash-register' ? <CashRegisterHistorySection /> : null}
+                {section === 'cash-register' ? (
+                    <CashRegisterHistorySection
+                        onAdjustDay={(day) => { setPanelMode({ type: 'cash-register-adjust', day }); panel.open(); }}
+                    />
+                ) : null}
 
                 {section === 'discounts' ? (
                     <DiscountsSection
@@ -689,6 +695,8 @@ export default function OperationsScreen() {
                             discount={panelMode.discount}
                             onClose={panel.close}
                         />
+                    ) : panelMode?.type === 'cash-register-adjust' ? (
+                        <CashRegisterAdjustPanelContent day={panelMode.day} onClose={panel.close} />
                     ) : panelMode?.type === 'import' ? (
                         <View style={styles.importPanel}>
                             <View style={[styles.importPanelHeader, { borderBottomColor: palette.border }]}>

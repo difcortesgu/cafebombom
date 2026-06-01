@@ -34,7 +34,6 @@ See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
 
-Arreglar formulario de ajustes de caja, la pantalla se recorta por alguna razon
 Arreglar logo en el recibo
 Mostrar unidades en formulario de productos
 Cambiar los mensajes de la app para usar toasts
