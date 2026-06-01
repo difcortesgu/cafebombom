@@ -209,8 +209,10 @@ export default function SalesScreen() {
   };
 
   const openOrderPanel = (sale: Sale) => {
-    setOrderPanelSale(sale);
-    orderPanel.open();
+    openOrNavigate(
+      () => { setOrderPanelSale(sale); orderPanel.open(); },
+      { pathname: '/sale-detail', params: { saleId: sale.id } },
+    );
   };
 
   const isWeb = Platform.OS === 'web';

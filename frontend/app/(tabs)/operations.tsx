@@ -400,7 +400,10 @@ export default function OperationsScreen() {
                         variant="secondary"
                         icon="cloud-upload-outline"
                         label={t('operations.importData')}
-                        onPress={() => { setPanelMode({ type: 'import' }); panel.open(); }}
+                        onPress={() => openOrNavigate(
+                            () => { setPanelMode({ type: 'import' }); panel.open(); },
+                            '/import-data',
+                        )}
                     />
                 </View>
 
@@ -439,7 +442,7 @@ export default function OperationsScreen() {
                         gap={GRID_GAP}
                         onAdd={() => openOrNavigate(
                             () => { setPanelMode({ type: 'payment-method-add' }); panel.open(); },
-                            '/payment-methods',
+                            '/payment-method-form',
                         )}
                     />
                 ) : null}
@@ -457,7 +460,10 @@ export default function OperationsScreen() {
 
                 {section === 'cash-register' ? (
                     <CashRegisterHistorySection
-                        onAdjustDay={(day) => { setPanelMode({ type: 'cash-register-adjust', day }); panel.open(); }}
+                        onAdjustDay={(day) => openOrNavigate(
+                            () => { setPanelMode({ type: 'cash-register-adjust', day }); panel.open(); },
+                            { pathname: '/cash-register-adjust-form', params: { sessionId: day.id } },
+                        )}
                     />
                 ) : null}
 
@@ -467,15 +473,15 @@ export default function OperationsScreen() {
                         gap={GRID_GAP}
                         onAddGlobal={() => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-add-global' }); panel.open(); },
-                            '/discount-form',
+                            { pathname: '/discount-form', params: { scope: 'global' } },
                         )}
                         onAddProduct={() => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-add-product' }); panel.open(); },
-                            '/discount-form',
+                            { pathname: '/discount-form', params: { scope: 'product' } },
                         )}
                         onEdit={(discount) => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-edit', discount }); panel.open(); },
-                            '/discount-form',
+                            { pathname: '/discount-form', params: { id: discount.id } },
                         )}
                     />
                 ) : null}

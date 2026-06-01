@@ -30,6 +30,8 @@ type OrderPanelProps = {
     onClose: () => void;
     onExited: () => void;
     business: PaymentModalBusiness;
+    /** When true, renders content directly without SlidePanelShell (for full-screen stack screens). */
+    standalone?: boolean;
 };
 
 type ModeTabProps = {
@@ -54,10 +56,10 @@ function ModeTab({ label, active, onPress }: ModeTabProps) {
     );
 }
 
-export function OrderPanel({ visible, sale, onClose, onExited, business }: OrderPanelProps) {
+export function OrderPanel({ visible, sale, onClose, onExited, business, standalone }: OrderPanelProps) {
     const palette = useAppColors();
     const { width: screenWidth } = useWindowDimensions();
-    const panelWidth = Math.min(Math.floor(screenWidth * 0.42), 520);
+    const panelWidth = standalone ? screenWidth : Math.min(Math.floor(screenWidth * 0.42), 520);
     const toGoSurcharge = useSettingsStore((state) => state.toGoSurcharge);
 
     const { tables, sendToKitchen, markOrderReady, cancelOrder } = useSalesStore();
@@ -289,6 +291,88 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
         return null;
     }
 
+    const innerContent = (
+        <Animated.View style={[styles.viewContainer, { transform: [{ translateX: viewOffset }] }]}>
+            {activeView === 'detail' && (
+                <OrderDetailView
+                    sale={sale}
+                    items={detailItems}
+                    pricing={detailPricing}
+                    loading={detailLoading}
+                    actionBusy={actionBusy}
+                    tables={tables}
+                    toGoSurcharge={toGoSurcharge}
+                    onClose={onClose}
+                    onNavigateToPayment={() => navigateTo('payment', 'forward')}
+                    onNavigateToReceipt={() => {
+                        setReceiptFromPayment(false);
+                        void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
+                    }}
+                    onSendToKitchen={() => void runStatusAction(() => sendToKitchen(sale.id))}
+                    onMarkReady={() => void runStatusAction(() => markOrderReady(sale.id))}
+                    onCancelOrder={() => void runStatusAction(async () => {
+                        await cancelOrder(sale.id);
+                        onClose();
+                    })}
+                />
+            )}
+
+            {activeView === 'payment' && (
+                <>
+                    <View style={[styles.header, { borderBottomColor: palette.border }]}>
+                        <Pressable style={styles.backButton} onPress={() => navigateTo('detail', 'back')}>
+                            <ThemedText type="defaultSemiBold">{`< ${t('common.back')}`}</ThemedText>
+                        </Pressable>
+                        <ThemedText type="subtitle">{`${t('sales.action.payNow')} - ${sale.table_name}`}</ThemedText>
+                        <View style={styles.headerRightSpacer} />
+                    </View>
+
+                    <View style={[styles.modeTabs, { borderBottomColor: palette.border }]}>
+                        <ModeTab label={t('sales.payment.modeFull')} active={mode === 'full'} onPress={() => setMode('full')} />
+                        <ModeTab label={t('sales.payment.modeByItems')} active={mode === 'by-items'} onPress={() => setMode('by-items')} />
+                        <ModeTab label={t('sales.payment.modeEqual')} active={mode === 'equal'} onPress={() => setMode('equal')} />
+                    </View>
+
+                    <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
+                        {mode === 'full' && (
+                            <FullPaymentTab key={`full-${sale.id}`} sale={sale} onPaymentComplete={() => void handlePaymentComplete()} />
+                        )}
+                        {mode === 'by-items' && (
+                            <ByItemsTab key={`by-items-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
+                        )}
+                        {mode === 'equal' && (
+                            <EqualSplitTab key={`equal-${sale.id}`} sale={sale} onPaymentComplete={() => void handlePaymentComplete()} />
+                        )}
+                    </ScrollView>
+                </>
+            )}
+
+            {activeView === 'receipt' && (
+                <OrderReceiptView
+                    sale={sale}
+                    receiptData={receiptData}
+                    receiptVariants={receiptVariants}
+                    receiptMessage={receiptMessage}
+                    loading={receiptLoading}
+                    printingBusy={printingBusy}
+                    fromPayment={receiptFromPayment}
+                    onBack={() => {
+                        if (receiptFromPayment) {
+                            onClose();
+                            return;
+                        }
+                        navigateTo('detail', 'back');
+                    }}
+                    onPrint={(receipt) => void handlePrintReceipt(receipt)}
+                />
+            )}
+        </Animated.View>
+    );
+
+    if (standalone) {
+        return innerContent;
+    }
+
     return (
         <SlidePanelShell
             visible={visible}
@@ -298,81 +382,7 @@ export function OrderPanel({ visible, sale, onClose, onExited, business }: Order
             backdropStyle={styles.backdrop}
             panelStyle={styles.panel}
         >
-            <Animated.View style={[styles.viewContainer, { transform: [{ translateX: viewOffset }] }]}>
-                {activeView === 'detail' && (
-                    <OrderDetailView
-                        sale={sale}
-                        items={detailItems}
-                        pricing={detailPricing}
-                        loading={detailLoading}
-                        actionBusy={actionBusy}
-                        tables={tables}
-                        toGoSurcharge={toGoSurcharge}
-                        onClose={onClose}
-                        onNavigateToPayment={() => navigateTo('payment', 'forward')}
-                        onNavigateToReceipt={() => {
-                            setReceiptFromPayment(false);
-                            void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
-                        }}
-                        onSendToKitchen={() => void runStatusAction(() => sendToKitchen(sale.id))}
-                        onMarkReady={() => void runStatusAction(() => markOrderReady(sale.id))}
-                        onCancelOrder={() => void runStatusAction(async () => {
-                            await cancelOrder(sale.id);
-                            onClose();
-                        })}
-                    />
-                )}
-
-                {activeView === 'payment' && (
-                    <>
-                        <View style={[styles.header, { borderBottomColor: palette.border }]}>
-                            <Pressable style={styles.backButton} onPress={() => navigateTo('detail', 'back')}>
-                                <ThemedText type="defaultSemiBold">{`< ${t('common.back')}`}</ThemedText>
-                            </Pressable>
-                            <ThemedText type="subtitle">{`${t('sales.action.payNow')} - ${sale.table_name}`}</ThemedText>
-                            <View style={styles.headerRightSpacer} />
-                        </View>
-
-                        <View style={[styles.modeTabs, { borderBottomColor: palette.border }]}>
-                            <ModeTab label={t('sales.payment.modeFull')} active={mode === 'full'} onPress={() => setMode('full')} />
-                            <ModeTab label={t('sales.payment.modeByItems')} active={mode === 'by-items'} onPress={() => setMode('by-items')} />
-                            <ModeTab label={t('sales.payment.modeEqual')} active={mode === 'equal'} onPress={() => setMode('equal')} />
-                        </View>
-
-                        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-                            {mode === 'full' && (
-                                <FullPaymentTab key={`full-${sale.id}`} sale={sale} onPaymentComplete={() => void handlePaymentComplete()} />
-                            )}
-                            {mode === 'by-items' && (
-                                <ByItemsTab key={`by-items-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
-                            )}
-                            {mode === 'equal' && (
-                                <EqualSplitTab key={`equal-${sale.id}`} sale={sale} onPaymentComplete={() => void handlePaymentComplete()} />
-                            )}
-                        </ScrollView>
-                    </>
-                )}
-
-                {activeView === 'receipt' && (
-                    <OrderReceiptView
-                        sale={sale}
-                        receiptData={receiptData}
-                        receiptVariants={receiptVariants}
-                        receiptMessage={receiptMessage}
-                        loading={receiptLoading}
-                        printingBusy={printingBusy}
-                        fromPayment={receiptFromPayment}
-                        onBack={() => {
-                            if (receiptFromPayment) {
-                                onClose();
-                                return;
-                            }
-                            navigateTo('detail', 'back');
-                        }}
-                        onPrint={(receipt) => void handlePrintReceipt(receipt)}
-                    />
-                )}
-            </Animated.View>
+            {innerContent}
         </SlidePanelShell>
     );
 }
