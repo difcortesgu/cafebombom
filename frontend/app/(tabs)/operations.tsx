@@ -9,7 +9,9 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
+import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
 import { CashRegisterAdjustPanelContent, CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
@@ -30,7 +32,8 @@ import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { printService, setupService } from '@/services';
+import { loadPairingInfoFromBackend, printService, setupService } from '@/services';
+import type { PairingInfo } from '@/services/connection';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
@@ -107,6 +110,8 @@ export default function OperationsScreen() {
     const [printerStatusMessage, setPrinterStatusMessage] = useState<string | null>(null);
     const [bondedPrintersBusy, setBondedPrintersBusy] = useState(false);
     const [bondedPrinters, setBondedPrinters] = useState<{ label: string; value: string }[]>([]);
+    const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
+    const [pairingBusy, setPairingBusy] = useState(false);
     const [logoBusy, setLogoBusy] = useState(false);
     const [logoMessage, setLogoMessage] = useState<string | null>(null);
     const [importBusy, setImportBusy] = useState(false);
@@ -122,6 +127,7 @@ export default function OperationsScreen() {
         { key: 'discounts', label: t('products.discounts.title') },
         { key: 'receipt', label: t('settings.receipt.title') },
         { key: 'printer', label: t('settings.printer.title') },
+        { key: 'connection', label: t('settings.connection.title') },
     ];
 
     useEffect(() => {
@@ -149,7 +155,7 @@ export default function OperationsScreen() {
     useEffect(() => {
         const requestedSection = Array.isArray(params.section) ? params.section[0] : params.section;
         if (!requestedSection) return;
-        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer') {
+        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer' || requestedSection === 'connection') {
             setSection(requestedSection);
         }
     }, [params.section]);
@@ -168,6 +174,24 @@ export default function OperationsScreen() {
                 setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
             } finally {
                 setBondedPrintersBusy(false);
+            }
+        })();
+    }, [section]);
+
+    useEffect(() => {
+        if (section !== 'connection') {
+            return;
+        }
+
+        void (async () => {
+            try {
+                setPairingBusy(true);
+                const info = await loadPairingInfoFromBackend();
+                setPairingInfo(info);
+            } catch {
+                setPairingInfo(null);
+            } finally {
+                setPairingBusy(false);
             }
         })();
     }, [section]);
@@ -664,6 +688,35 @@ export default function OperationsScreen() {
                     </ThemedCard>
                 ) : null}
 
+                {section === 'connection' ? (
+                    <ThemedCard style={styles.card}>
+                        <ThemedText type="subtitle">{t('settings.connection.title')}</ThemedText>
+                        <ThemedText style={styles.muted}>{t('settings.connection.subtitle')}</ThemedText>
+
+                        {Platform.OS === 'web' ? (
+                            <View style={styles.connectionQrWrap}>
+                                {pairingBusy ? (
+                                    <ThemedText style={styles.muted}>{t('settings.connection.loadingPairing')}</ThemedText>
+                                ) : pairingInfo?.payload ? (
+                                    <>
+                                        <QRCode value={pairingInfo.payload} size={220} />
+                                        <ThemedText style={styles.connectionPayloadText}>{pairingInfo.payload}</ThemedText>
+                                        <ThemedText style={styles.muted}>{t('settings.connection.desktopHint')}</ThemedText>
+                                    </>
+                                ) : (
+                                    <ThemedText style={styles.muted}>{t('settings.connection.pairingUnavailable')}</ThemedText>
+                                )}
+                            </View>
+                        ) : (
+                            <>
+                                <BackendConnectionForm showScanner />
+                            </>
+                        )}
+
+                        {Platform.OS === 'web' ? <BackendConnectionForm showScanner={false} /> : null}
+                    </ThemedCard>
+                ) : null}
+
 
             </ScrollView>
             {panel.mounted ? (
@@ -922,6 +975,14 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 12,
         opacity: 0.95,
+    },
+    connectionQrWrap: {
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 8,
+    },
+    connectionPayloadText: {
+        fontWeight: '700',
     },
     importPanel: {
         flex: 1,

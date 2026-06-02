@@ -16,6 +16,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "permissions": [
+        "CAMERA",
         "BLUETOOTH",
         "BLUETOOTH_ADMIN",
         "BLUETOOTH_CONNECT",
@@ -46,6 +47,12 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir camara para escanear el QR de conexion al backend"
         }
       ],
       "@react-native-community/datetimepicker"

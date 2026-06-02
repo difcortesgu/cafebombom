@@ -10,6 +10,7 @@ import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
 import inventoryRouter from './routes/inventory';
+import pairingRouter from './routes/pairing';
 import paymentMethodsRouter from './routes/payment-methods';
 import productsRouter from './routes/products';
 import salesRouter from './routes/sales';
@@ -18,6 +19,7 @@ import usersRouter from './routes/users';
 import { AuthSqliteService } from './services/auth';
 import { getJwtExpiresIn, signAccessToken } from './services/jwt';
 import { logger } from './utils/logger';
+import { resolvePairingInfo } from './utils/network';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -193,6 +195,7 @@ app.use('/api/inventory', inventoryRouter);
 app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
+app.use('/api/pairing', pairingRouter);
 
 const exeDir = path.dirname(process.execPath);
 const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'public'));
@@ -208,6 +211,13 @@ app.get(/^(?!\/api).*/, (req, res) => {
 
 app.listen(PORT, () => {
     logger.info(`✅ Servidor POS Iniciado en puerto ${PORT}`);
+    const pairing = resolvePairingInfo(PORT);
+    if (pairing.payload && pairing.url) {
+        logger.info(`📲 Pairing QR payload: ${pairing.payload}`);
+        logger.info(`🌐 Backend LAN URL: ${pairing.url}`);
+    } else {
+        logger.info('⚠️ No se detectó IPv4 LAN para pairing automático.');
+    }
 
     if (isProduction) {
         const url = `http://localhost:${PORT}`;
