@@ -135,6 +135,7 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                     phone: business.phone,
                     nit: business.nit,
                     logoUri: business.logoUri,
+                    logoRasterUrl: business.logoRasterUrl ?? null,
                     footerMessage: business.footerMessage,
                 },
                 taxConfig: {
@@ -164,6 +165,7 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                                 phone: business.phone,
                                 nit: business.nit,
                                 logoUri: business.logoUri,
+                                logoRasterUrl: business.logoRasterUrl ?? null,
                                 footerMessage: business.footerMessage,
                             },
                             taxConfig: {

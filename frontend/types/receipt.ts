@@ -15,6 +15,7 @@ export type BusinessInfo = {
   phone: string;
   nit: string;
   logoUri: string | null;
+  logoRasterUrl?: string | null;
   footerMessage: string;
 };
 

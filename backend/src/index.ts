@@ -5,6 +5,7 @@ import { exec } from 'child_process';
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import fs from 'fs';
+import { ensureLogosDir } from './database';
 import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
@@ -23,6 +24,14 @@ const PORT = process.env.PORT || 3000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || '10mb';
 const authService = new AuthSqliteService();
+
+try {
+    const logosDir = ensureLogosDir();
+    logger.info(`[STARTUP] Carpeta de logos: ${logosDir}`);
+} catch (error) {
+    logger.error('No se pudo preparar la carpeta de logos.', error);
+    process.exit(1);
+}
 
 // Middleware
 app.use(cors(CORS_ORIGIN ? { origin: CORS_ORIGIN } : undefined));

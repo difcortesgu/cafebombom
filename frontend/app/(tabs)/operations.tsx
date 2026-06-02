@@ -75,12 +75,14 @@ export default function OperationsScreen() {
         businessPhone,
         businessNit,
         businessLogoUri,
+        businessLogoPreviewUrl,
         receiptFooterMessage,
         printerPaperWidth,
         taxRate,
         printerDeviceName,
         printerDeviceAddress,
         hydrateFromDb,
+        refreshLogoManifest,
         setDeliverySurcharge,
         setToGoSurcharge,
         setBusinessInfo,
@@ -138,7 +140,7 @@ export default function OperationsScreen() {
     useEffect(() => { setBusinessAddressInput(businessAddress); }, [businessAddress]);
     useEffect(() => { setBusinessPhoneInput(businessPhone); }, [businessPhone]);
     useEffect(() => { setBusinessNitInput(businessNit); }, [businessNit]);
-    useEffect(() => { setBusinessLogoUriInput(businessLogoUri ?? ''); }, [businessLogoUri]);
+    useEffect(() => { setBusinessLogoUriInput(businessLogoPreviewUrl ?? businessLogoUri ?? ''); }, [businessLogoPreviewUrl, businessLogoUri]);
     useEffect(() => { setReceiptFooterInput(receiptFooterMessage); }, [receiptFooterMessage]);
     useEffect(() => { setTaxRateInput((taxRate * 100).toFixed(2)); }, [taxRate]);
     useEffect(() => { setPrinterNameInput(printerDeviceName); }, [printerDeviceName]);
@@ -193,7 +195,6 @@ export default function OperationsScreen() {
             address: businessAddressInput.trim(),
             phone: businessPhoneInput.trim(),
             nit: businessNitInput.trim(),
-            logoUri: businessLogoUriInput.trim() || null,
             footerMessage: receiptFooterInput.trim(),
         });
     };
@@ -272,28 +273,20 @@ export default function OperationsScreen() {
             });
             if (result.canceled || result.assets.length === 0) return;
             const selected = result.assets[0];
-            const targetWidth = printerPaperWidth === 58 ? 256 : 384;
+            const targetWidth = printerPaperWidth === 58 ? 384 : 576;
             const transformed = await manipulateAsync(
                 selected.uri,
                 [{ resize: { width: targetWidth } }],
-                { compress: 0.92, format: SaveFormat.PNG, base64: Platform.OS === 'web' },
+                { compress: 0.92, format: SaveFormat.PNG, base64: false },
             );
-            let persistedUri = transformed.uri;
-            if (businessLogoUriInput && Platform.OS !== 'web' && FileSystem.documentDirectory && businessLogoUriInput.startsWith(FileSystem.documentDirectory)) {
-                try { await FileSystem.deleteAsync(businessLogoUriInput, { idempotent: true }); } catch { /* ignore */ }
-            }
-            if (Platform.OS === 'web') {
-                if (transformed.base64) persistedUri = `data:image/png;base64,${transformed.base64}`;
-            } else if (FileSystem.documentDirectory) {
-                const logoDir = `${FileSystem.documentDirectory}receipt-logo/`;
-                await FileSystem.makeDirectoryAsync(logoDir, { intermediates: true });
-                const ext = resolveLogoExtension(transformed.uri, selected.mimeType);
-                const destination = `${logoDir}logo-${Date.now()}.${ext}`;
-                await FileSystem.copyAsync({ from: transformed.uri, to: destination });
-                persistedUri = destination;
-            }
-            setBusinessLogoUriInput(persistedUri);
-            setBusinessInfo({ logoUri: persistedUri });
+            const response = await fetch(transformed.uri);
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            const ext = resolveLogoExtension(selected.uri, selected.mimeType);
+            const fileName = `logo-${Date.now()}.${ext}`;
+            await setupService.uploadBusinessLogo(bytes, fileName);
+            await refreshLogoManifest();
+            setBusinessLogoUriInput(transformed.uri);
+            setBusinessInfo({ logoUri: null });
             setLogoMessage(t('settings.receipt.logoOptimized'));
         } catch (error) {
             setLogoMessage(String((error as Error).message || t('sales.receipt.error')));
@@ -303,9 +296,6 @@ export default function OperationsScreen() {
     };
 
     const removeBusinessLogo = () => {
-        if (businessLogoUriInput && Platform.OS !== 'web' && FileSystem.documentDirectory && businessLogoUriInput.startsWith(FileSystem.documentDirectory)) {
-            void FileSystem.deleteAsync(businessLogoUriInput, { idempotent: true });
-        }
         setBusinessLogoUriInput('');
         setBusinessInfo({ logoUri: null });
         setLogoMessage(null);

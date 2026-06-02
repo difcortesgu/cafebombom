@@ -5,7 +5,47 @@ import type { PrinterStatus, PrinterTarget } from '@/types/printer';
 import type { ReceiptData, ReceiptPaperWidth } from '@/types/receipt';
 import { buildPrintableReceiptText } from '@/utils/receipt-formatter';
 import { AndroidBluetoothPrinter } from './androidBluetoothPrinter';
+import { apiClient } from './api-client';
 import { WebUSBPrinter } from './webUsbPrinter';
+
+function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const output = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return output;
+}
+
+function stripEscPosInitialize(payload: Uint8Array): Uint8Array {
+  if (payload.length >= 2 && payload[0] === 0x1b && payload[1] === 0x40) {
+    return payload.slice(2);
+  }
+  return payload;
+}
+
+function normalizeAssetUrl(rawUrl: string): string {
+  try {
+    const apiUrl = new URL(apiClient.getBaseUrl());
+    const candidate = new URL(rawUrl, `${apiUrl.origin}/`);
+    const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1']);
+    const candidateIsLoopback = loopbackHosts.has(candidate.hostname);
+    const apiIsLoopback = loopbackHosts.has(apiUrl.hostname);
+
+    if (candidateIsLoopback && !apiIsLoopback) {
+      candidate.protocol = apiUrl.protocol;
+      candidate.host = apiUrl.host;
+    }
+
+    return candidate.toString();
+  } catch {
+    return rawUrl;
+  }
+}
 
 export class PrintService {
   private webPrinter = new WebUSBPrinter();
@@ -22,10 +62,49 @@ export class PrintService {
       .replace(/[^\x0a\x20-\x7e]/g, '?');
   }
 
-  private encodeReceiptToEscPos(receiptData: ReceiptData): Uint8Array {
+  private async fetchLogoRasterPayload(receiptData: ReceiptData): Promise<Uint8Array | null> {
+    const rasterUrl = receiptData.business.logoRasterUrl;
+    if (!rasterUrl) {
+      return null;
+    }
+
+    const normalizedUrl = normalizeAssetUrl(rasterUrl);
+    const token = apiClient.getToken();
+    const candidates = normalizedUrl === rasterUrl
+      ? [normalizedUrl]
+      : [normalizedUrl, rasterUrl];
+
+    for (const candidateUrl of candidates) {
+      try {
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await fetch(candidateUrl, {
+          method: 'GET',
+          headers,
+        });
+
+        if (!response.ok) {
+          continue;
+        }
+
+        const content = await response.arrayBuffer();
+        return new Uint8Array(content);
+      } catch {
+        // Try next URL candidate.
+      }
+    }
+
+    return null;
+  }
+
+  private async encodeReceiptToEscPos(receiptData: ReceiptData): Promise<Uint8Array> {
     const encoder = new ReceiptPrinterEncoder();
     const textPreview = buildPrintableReceiptText(receiptData);
     const lines = textPreview.split('\n');
+    const logoPayload = await this.fetchLogoRasterPayload(receiptData);
 
     encoder.initialize();
     for (const line of lines) {
@@ -37,7 +116,12 @@ export class PrintService {
     }
     encoder.newline().newline().cut();
 
-    return encoder.encode();
+    const textPayload = encoder.encode();
+    if (!logoPayload || logoPayload.length === 0) {
+      return textPayload;
+    }
+
+    return concatUint8Arrays([logoPayload, stripEscPosInitialize(textPayload)]);
   }
 
   private buildTestReceipt(paperWidth: ReceiptPaperWidth): ReceiptData {
@@ -49,6 +133,7 @@ export class PrintService {
         phone: '000-000-0000',
         nit: '',
         logoUri: null,
+        logoRasterUrl: null,
         footerMessage: 'Ticket de prueba',
       },
       metadata: {
@@ -120,7 +205,7 @@ export class PrintService {
   }
 
   async printReceipt(receiptData: ReceiptData, target?: PrinterTarget): Promise<void> {
-    const payload = this.encodeReceiptToEscPos(receiptData);
+    const payload = await this.encodeReceiptToEscPos(receiptData);
 
     if (Platform.OS === 'web') {
       await this.webPrinter.print(payload);

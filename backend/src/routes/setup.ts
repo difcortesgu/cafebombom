@@ -1,5 +1,13 @@
+import type { NextFunction, Request, Response } from 'express';
+import { Router } from 'express';
+import fs from 'fs';
+import multer from 'multer';
+import path from 'path';
 import {
     downloadImportTemplate,
+    getLogoManifest,
+    getLogoPreview,
+    getLogoRaster,
     getReceiptPreferences,
     getSetupStatus,
     importSeedFromExcel,
@@ -10,14 +18,21 @@ import {
     setupHardDeleteUser,
     setupReactivateUser,
     setupUpdateUser,
+    uploadBusinessLogo,
 } from '../controllers/setup';
+import { ensureLogosDir } from '../database';
 import { authMiddleware } from '../middleware/auth';
 import { bootstrapOrOwnerAuth } from '../middleware/bootstrap';
-import type { NextFunction, Request, Response } from 'express';
-import { Router } from 'express';
-import multer from 'multer';
+import { logger } from '../utils/logger';
 
 const router = Router();
+const logosRoot = ensureLogosDir();
+const logosTmpDir = path.join(logosRoot, '.tmp');
+
+if (!fs.existsSync(logosTmpDir)) {
+    fs.mkdirSync(logosTmpDir, { recursive: true });
+}
+
 const importUpload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -34,6 +49,34 @@ const importUpload = multer({
         const hasExcelExtension = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
 
         if (hasExcelExtension || acceptedMimeTypes.has(file.mimetype)) {
+            cb(null, true);
+            return;
+        }
+
+        cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'file'));
+    },
+});
+
+const logoUpload = multer({
+    storage: multer.diskStorage({
+        destination: (_req, _file, cb) => {
+            cb(null, logosTmpDir);
+        },
+        filename: (_req, file, cb) => {
+            const timestamp = Date.now();
+            const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+            cb(null, `${timestamp}-${sanitizedName}`);
+        },
+    }),
+    limits: {
+        fileSize: 5 * 1024 * 1024,
+    },
+    fileFilter: (_req, file, cb) => {
+        const acceptedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+        const lowerName = file.originalname.toLowerCase();
+        const validExtension = lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.webp');
+
+        if (validExtension || acceptedMimeTypes.has(file.mimetype)) {
             cb(null, true);
             return;
         }
@@ -63,6 +106,28 @@ function importUploadMiddleware(req: Request, res: Response, next: NextFunction)
     });
 }
 
+function logoUploadMiddleware(req: Request, res: Response, next: NextFunction): void {
+    logoUpload.single('file')(req, res, (error: unknown) => {
+        if (!error) {
+            next();
+            return;
+        }
+
+        logger.error('Logo upload error:', error);
+        if (error instanceof multer.MulterError) {
+            if (error.code === 'LIMIT_FILE_SIZE') {
+                res.status(400).json({ error: 'Logo file exceeds maximum size of 5MB.', code: error.code });
+                return;
+            }
+
+            res.status(400).json({ error: 'Invalid logo file upload.', code: error.code });
+            return;
+        }
+
+        res.status(400).json({ error: 'Invalid logo file upload.', code: 'UPLOAD_FAILED' });
+    });
+}
+
 /**
  * @openapi
  * /api/setup/status:
@@ -85,6 +150,9 @@ router.get('/status', getSetupStatus);
 
 // Receipt prefs are readable by any authenticated user (staff need them for the app)
 router.get('/receipt-prefs', authMiddleware, getReceiptPreferences);
+router.get('/logo/manifest', authMiddleware, getLogoManifest);
+router.get('/logo/:id/raster/:width', getLogoRaster);
+router.get('/logo/:id/preview', getLogoPreview);
 
 // All other setup routes are public during bootstrap, owner-auth after first owner exists
 router.use(bootstrapOrOwnerAuth);
@@ -122,6 +190,7 @@ router.use(bootstrapOrOwnerAuth);
  *         description: Saved
  */
 router.put('/receipt-prefs', saveReceiptPreferences);
+router.post('/logo', logoUploadMiddleware, uploadBusinessLogo);
 
 /**
  * @openapi

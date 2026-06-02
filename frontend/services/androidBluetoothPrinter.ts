@@ -5,6 +5,7 @@ import { PermissionsAndroid, Platform } from 'react-native';
 
 export class AndroidBluetoothPrinter {
     private modulePromise: Promise<BluetoothClassicModule> | null = null;
+    private readonly writeChunkSize = 256;
 
     public hasConfiguredPrinter(target?: PrinterTarget): boolean {
         return Boolean(target?.address && target.address.trim().length > 0);
@@ -64,13 +65,17 @@ export class AndroidBluetoothPrinter {
             await bluetooth.connectToDevice(address, {
                 connectorType: 'rfcomm',
                 delimiter: '',
-                charset: 'ascii',
+                charset: 'ISO-8859-1',
             });
         }
 
-        const wrote = await bluetooth.writeToDevice(address, Buffer.from(payload));
-        if (!wrote) {
-            throw new Error('No se pudo enviar el ticket a la impresora Bluetooth.');
+        const raw = Buffer.from(payload);
+        for (let offset = 0; offset < raw.length; offset += this.writeChunkSize) {
+            const chunk = raw.subarray(offset, Math.min(offset + this.writeChunkSize, raw.length));
+            const wrote = await bluetooth.writeToDevice(address, chunk.toString('latin1'), 'latin1');
+            if (!wrote) {
+                throw new Error('No se pudo enviar el ticket a la impresora Bluetooth.');
+            }
         }
 
         await bluetooth.disconnectFromDevice(address).catch(() => false);

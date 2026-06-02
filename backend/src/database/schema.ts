@@ -32,6 +32,8 @@ export const receiptPreferences = sqliteTable('receipt_preferences', {
   businessPhone: text('business_phone').notNull().default(''),
   businessNit: text('business_nit').notNull().default(''),
   businessLogoUri: text('business_logo_uri'),
+  logoId: text('logo_id'),
+  logoVersion: text('logo_version'),
   footerMessage: text('footer_message').notNull().default('Gracias por tu compra'),
   paperWidth: integer('paper_width').notNull().default(80),
   taxRate: real('tax_rate').notNull().default(0.08),

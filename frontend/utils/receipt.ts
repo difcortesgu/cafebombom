@@ -57,6 +57,7 @@ export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
       phone: safeBusinessPhone,
       nit: safeBusinessNit,
       logoUri: input.business.logoUri,
+      logoRasterUrl: input.business.logoRasterUrl ?? null,
       footerMessage: safeFooterMessage,
     },
     metadata: {
