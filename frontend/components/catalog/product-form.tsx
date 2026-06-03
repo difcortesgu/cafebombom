@@ -36,11 +36,17 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
     } = useProductsStore();
 
     const [productForm, setProductForm] = useState({ name: '', price: '', categoryId: null as string | null, imageUri: null as string | null });
+
+    // Lista unificada de elementos guardados temporalmente en el formulario
     const [recipeItems, setRecipeItems] = useState<{ ingredientId: string; quantityUsed: string }[]>([]);
     const [additionalItems, setAdditionalItems] = useState<{ ingredientId: string; quantityUsed: string; additionalPrice: string }[]>([]);
+
+    // Objeto único para controlar el elemento que se está agregando actualmente
+    const [draftRecipe, setDraftRecipe] = useState<{ ingredientId: string; quantityUsed: string } | null>(null);
+    const [draftAdditional, setDraftAdditional] = useState<{ ingredientId: string; quantityUsed: string; additionalPrice: string } | null>(null);
+
     const [sections, setSections] = useState({ general: true, recipe: true, additional: false });
     const [message, setMessage] = useState('');
-
     const isEdit = mode !== 'create';
 
     const categoryOptions = useMemo(
@@ -51,19 +57,33 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
         [categories],
     );
 
+    // Carga inicial de datos
     useEffect(() => {
         setMessage('');
+        setDraftRecipe(null);
+        setDraftAdditional(null);
+
         if (mode === 'create') {
             setProductForm({ name: '', price: '', categoryId: null, imageUri: null });
-            setRecipeItems([{ ingredientId: '', quantityUsed: '' }]);
+            setRecipeItems([]);
             setAdditionalItems([]);
             setSections({ general: true, recipe: true, additional: false });
         } else {
             const item = products.find((p) => p.id === mode.productId);
             if (item) setProductForm({ name: item.name, price: String(item.price), categoryId: item.categoryId, imageUri: item.imageUri ?? null });
-            setRecipeItems([]);
-            setAdditionalItems([]);
-            setSections({ general: true, recipe: false, additional: false });
+
+            // Llenamos las listas locales con los datos existentes
+            const existingRecipes = productIngredients
+                .filter(link => link.productId === mode.productId)
+                .map(link => ({ ingredientId: link.ingredientId, quantityUsed: String(link.quantityUsed) }));
+            setRecipeItems(existingRecipes);
+
+            const existingAdditional = productAdditionalIngredients
+                .filter(link => link.productId === mode.productId)
+                .map(link => ({ ingredientId: link.ingredientId, quantityUsed: String(link.quantityUsed), additionalPrice: String(link.additionalPrice) }));
+            setAdditionalItems(existingAdditional);
+
+            setSections({ general: true, recipe: true, additional: true });
         }
     }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,82 +92,98 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
         const price = Number(productForm.price || '0');
         if (price <= 0) { setMessage(t('productForm.error.pricePositive')); return; }
 
+        const finalRecipe = [...recipeItems];
+        if (draftRecipe && draftRecipe.ingredientId && Number(draftRecipe.quantityUsed) > 0) {
+            finalRecipe.push(draftRecipe); // Auto-guarda el borrador si es válido y quedó abierto
+        }
+
+        const finalAdditional = [...additionalItems];
+        if (draftAdditional && draftAdditional.ingredientId && Number(draftAdditional.quantityUsed) > 0 && Number(draftAdditional.additionalPrice) >= 0) {
+            finalAdditional.push(draftAdditional);
+        }
+
+        if (finalRecipe.length === 0) { setMessage(t('productForm.error.recipeRequired')); return; }
+
+        const parsedRecipe = finalRecipe.map((item) => ({
+            ingredientId: item.ingredientId,
+            quantityUsed: Number(item.quantityUsed),
+        })) as [ProductRecipeInput, ...ProductRecipeInput[]];
+
+        const parsedAdditional = finalAdditional.map((item) => ({
+            ingredientId: item.ingredientId,
+            quantityUsed: Number(item.quantityUsed),
+            additionalPrice: Number(item.additionalPrice || '0'),
+        })) as ProductAdditionalIngredientInput[];
+
         if (mode === 'create') {
-            if (recipeItems.length === 0) { setMessage(t('productForm.error.recipeRequired')); return; }
-            const invalidRecipe = recipeItems.filter((item) => !item.ingredientId || Number(item.quantityUsed || '0') <= 0);
-            if (invalidRecipe.length > 0) { setMessage(t('productForm.error.recipeItemInvalid')); return; }
-            const invalidAdditional = additionalItems.filter(
-                (item) => !item.ingredientId || Number(item.quantityUsed || '0') <= 0 || Number(item.additionalPrice || '0') < 0,
-            );
-            if (invalidAdditional.length > 0) { setMessage(t('productForm.error.additionalItemInvalid')); return; }
-
-            const recipe = recipeItems.map((item) => ({
-                ingredientId: item.ingredientId,
-                quantityUsed: Number(item.quantityUsed),
-            })) as [ProductRecipeInput, ...ProductRecipeInput[]];
-
-            const additionalIngredientInputs = additionalItems
-                .map((item) => ({
-                    ingredientId: item.ingredientId,
-                    quantityUsed: Number(item.quantityUsed),
-                    additionalPrice: Number(item.additionalPrice || '0'),
-                }))
-                .filter((item) => item.ingredientId && item.quantityUsed > 0 && item.additionalPrice >= 0) as ProductAdditionalIngredientInput[];
-
             await createProduct({
                 name: productForm.name.trim(),
                 categoryId: productForm.categoryId ?? undefined,
                 price,
                 imageUri: productForm.imageUri ?? undefined,
-                recipe,
-                additionalIngredients: additionalIngredientInputs,
+                recipe: parsedRecipe,
+                additionalIngredients: parsedAdditional,
             });
         } else {
+            // Sincroniza la información del producto
             await updateProduct({ id: mode.productId, name: productForm.name.trim(), price, categoryId: productForm.categoryId, imageUri: productForm.imageUri });
+
+            // Sincroniza los ingredientes de la receta (Agrega/Actualiza y Elimina lo que falte)
+            const existingRecipeIds = productIngredients.filter(l => l.productId === mode.productId).map(l => l.ingredientId);
+            const newRecipeIds = parsedRecipe.map(r => r.ingredientId);
+
+            for (const oldId of existingRecipeIds) {
+                if (!newRecipeIds.includes(oldId)) await removeProductIngredient({ productId: mode.productId, ingredientId: oldId });
+            }
+            for (const newItem of parsedRecipe) {
+                await setProductIngredient({ productId: mode.productId, ingredientId: newItem.ingredientId, quantityUsed: newItem.quantityUsed });
+            }
+
+            // Sincroniza los ingredientes adicionales
+            const existingAddIds = productAdditionalIngredients.filter(l => l.productId === mode.productId).map(l => l.ingredientId);
+            const newAddIds = parsedAdditional.map(a => a.ingredientId);
+
+            for (const oldId of existingAddIds) {
+                if (!newAddIds.includes(oldId)) await removeProductAdditionalIngredient({ productId: mode.productId, ingredientId: oldId });
+            }
+            for (const newItem of parsedAdditional) {
+                await setProductAdditionalIngredient({ productId: mode.productId, ingredientId: newItem.ingredientId, quantityUsed: newItem.quantityUsed, additionalPrice: newItem.additionalPrice });
+            }
         }
         onClose();
     }
 
-    const addRecipeDraft = () => setRecipeItems((items) => [...items, { ingredientId: '', quantityUsed: '' }]);
-    const updateRecipeDraft = (index: number, updates: Partial<{ ingredientId: string; quantityUsed: string }>) =>
-        setRecipeItems((items) => items.map((item, i) => (i === index ? { ...item, ...updates } : item)));
-    const removeRecipeDraft = (index: number) => setRecipeItems((items) => items.filter((_, i) => i !== index));
-
-    const addAdditionalDraft = () => setAdditionalItems((items) => [...items, { ingredientId: '', quantityUsed: '', additionalPrice: '' }]);
-    const updateAdditionalDraft = (index: number, updates: Partial<{ ingredientId: string; quantityUsed: string; additionalPrice: string }>) =>
-        setAdditionalItems((items) => items.map((item, i) => (i === index ? { ...item, ...updates } : item)));
-    const removeAdditionalDraft = (index: number) => setAdditionalItems((items) => items.filter((_, i) => i !== index));
-
-    async function saveRecipe() {
-        if (mode === 'create' || recipeItems.length === 0) return;
-        const productId = mode.productId;
-        const invalid = recipeItems.find((item) => !item.ingredientId || Number(item.quantityUsed || '0') <= 0);
-        if (invalid) { setMessage(t('productForm.error.recipeItemInvalid')); return; }
-        for (const item of recipeItems) {
-            await setProductIngredient({ productId, ingredientId: item.ingredientId, quantityUsed: Number(item.quantityUsed) });
-        }
-        setRecipeItems([]);
+    // --- LÓGICA PARA RECETA ---
+    const handleAddRecipe = () => {
         setMessage('');
-    }
+        setDraftRecipe({ ingredientId: '', quantityUsed: '' });
+    };
 
-    async function saveAdditional() {
-        if (mode === 'create' || additionalItems.length === 0) return;
-        const productId = mode.productId;
-        const invalid = additionalItems.find(
-            (item) => !item.ingredientId || Number(item.quantityUsed || '0') <= 0 || Number(item.additionalPrice || '0') < 0,
-        );
-        if (invalid) { setMessage(t('productForm.error.additionalItemInvalid')); return; }
-        for (const item of additionalItems) {
-            await setProductAdditionalIngredient({
-                productId,
-                ingredientId: item.ingredientId,
-                quantityUsed: Number(item.quantityUsed),
-                additionalPrice: Number(item.additionalPrice || '0'),
-            });
+    const handleSaveRecipe = () => {
+        if (!draftRecipe || !draftRecipe.ingredientId || Number(draftRecipe.quantityUsed || '0') <= 0) {
+            setMessage(t('productForm.error.recipeItemInvalid'));
+            return;
         }
-        setAdditionalItems([]);
         setMessage('');
-    }
+        setRecipeItems((prev) => [draftRecipe, ...prev]);
+        setDraftRecipe(null);
+    };
+
+    // --- LÓGICA PARA ADICIONALES ---
+    const handleAddAdditional = () => {
+        setMessage('');
+        setDraftAdditional({ ingredientId: '', quantityUsed: '', additionalPrice: '' });
+    };
+
+    const handleSaveAdditional = () => {
+        if (!draftAdditional || !draftAdditional.ingredientId || Number(draftAdditional.quantityUsed || '0') <= 0 || Number(draftAdditional.additionalPrice || '0') < 0) {
+            setMessage(t('productForm.error.additionalItemInvalid'));
+            return;
+        }
+        setMessage('');
+        setAdditionalItems((prev) => [draftAdditional, ...prev]);
+        setDraftAdditional(null);
+    };
 
     async function pickImage() {
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
@@ -162,7 +198,6 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
 
     return (
         <>
-            {/* Header del Formulario */}
             <View style={[styles.Header, { borderBottomColor: palette.border }]}>
                 <View style={styles.HeaderTitle}>
                     <Ionicons name="storefront-outline" size={20} color={palette.tint} />
@@ -257,74 +292,70 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                 </Pressable>
                 {sections.recipe ? (
                     <View style={styles.collapsibleContent}>
-                        {isEdit ? (() => {
-                            const recipeLinks = productIngredients.filter((link) => link.productId === (mode as { productId: string }).productId);
-                            return recipeLinks.length === 0 ? (
-                                <ThemedText style={styles.smallLabel}>{t('productForm.noDirectIngredients')}</ThemedText>
-                            ) : recipeLinks.map((link) => (
-                                <View key={link.id} style={[styles.ListItem, { borderColor: palette.border }]}>
-                                    <View style={styles.flex1}>
-                                        <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{link.ingredientName}</ThemedText>
-                                        <ThemedText style={styles.smallLabel}>{link.quantityUsed} {getIngredient(link.ingredientId)?.unit}</ThemedText>
+                        <ThemedText style={[styles.smallLabel, { marginTop: 8 }]}>{t('productForm.addRecipeIngredients')}</ThemedText>
+
+
+                        {/* Tarjeta de Formulario para Ingrediente Nuevo */}
+                        {draftRecipe ? (
+                            <View style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground, marginBottom: 8 }]}>
+                                <View style={styles.ingredientCardHeader}>
+                                    <View style={styles.labelRow}>
+                                        <Ionicons name="leaf-outline" size={13} color={palette.mutedText} />
+                                        <ThemedText style={styles.smallLabel}>{t('productForm.selectIngredient')}</ThemedText>
                                     </View>
-                                    <Pressable
-                                        hitSlop={8}
-                                        onPress={async () => {
-                                            if (recipeLinks.length <= 1) { setMessage(t('productForm.error.keepOneIngredient')); return; }
-                                            await removeProductIngredient({ productId: (mode as { productId: string }).productId, ingredientId: link.ingredientId });
-                                        }}
-                                    >
+                                    <Pressable hitSlop={8} onPress={() => setDraftRecipe(null)}>
+                                        <Ionicons name="close-circle-outline" size={18} color={palette.danger} />
+                                    </Pressable>
+                                </View>
+                                <ThemedSelect
+                                    placeholder={t('productForm.selectIngredient')}
+                                    value={draftRecipe.ingredientId}
+                                    items={ingredients
+                                        .filter(ing => !recipeItems.find(r => r.ingredientId === ing.id))
+                                        .map((ing) => ({ label: ing.name, value: ing.id }))}
+                                    onValueChange={(value) => setDraftRecipe(prev => prev ? { ...prev, ingredientId: value } : null)}
+                                />
+                                <View style={styles.labelRow}>
+                                    <Ionicons name="scale-outline" size={13} color={palette.mutedText} />
+                                    <ThemedText style={styles.smallLabel}>{t('common.qtyShort')} {getIngredient(draftRecipe.ingredientId)?.unit ? `(${getIngredient(draftRecipe.ingredientId)?.unit})` : ""}</ThemedText>
+                                </View>
+                                <ThemedInput
+                                    placeholder="0"
+                                    keyboardType="decimal-pad"
+                                    value={draftRecipe.quantityUsed}
+                                    onChangeText={(value) => setDraftRecipe(prev => prev ? { ...prev, quantityUsed: value } : null)}
+                                    style={styles.input}
+                                />
+                            </View>
+                        ) : null}
+
+                        <View style={[styles.RowActions, { marginBottom: 8 }]}>
+                            {!draftRecipe ? (
+                                <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.addIngredient')} onPress={handleAddRecipe} />
+                            ) : (
+                                <ThemedButton style={styles.smallBtn} label={t('productForm.saveRecipeItems')} onPress={handleSaveRecipe} />
+                            )}
+                        </View>
+
+
+                        {/* Lista Consolidada de Ingredientes */}
+                        {recipeItems.length === 0 && !draftRecipe ? (
+                            <ThemedText style={styles.smallLabel}>{t('productForm.addRecipeHelp')}</ThemedText>
+                        ) : recipeItems.map((item) => {
+                            const ingredient = getIngredient(item.ingredientId);
+                            if (!ingredient) return null;
+                            return (
+                                <View key={`recipe-${item.ingredientId}`} style={[styles.ListItem, { borderColor: palette.border, marginBottom: 4 }]}>
+                                    <View style={styles.flex1}>
+                                        <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{ingredient.name}</ThemedText>
+                                        <ThemedText style={styles.smallLabel}>{item.quantityUsed} {ingredient.unit}</ThemedText>
+                                    </View>
+                                    <Pressable hitSlop={8} onPress={() => setRecipeItems(items => items.filter(i => i.ingredientId !== item.ingredientId))}>
                                         <Ionicons name="trash-outline" size={16} color={palette.danger} />
                                     </Pressable>
                                 </View>
-                            ));
-                        })() : null}
-                        <ThemedText style={[styles.smallLabel, { marginTop: 8 }]}>{t('productForm.addRecipeIngredients')}</ThemedText>
-                        {recipeItems.length === 0 ? (
-                            <ThemedText style={styles.smallLabel}>{t('productForm.addRecipeHelp')}</ThemedText>
-                        ) : recipeItems.map((item, index) => {
-                            const productId = isEdit ? (mode as { productId: string }).productId : null;
-                            const reservedIds = recipeItems.filter((_, i) => i !== index).map((d) => d.ingredientId).filter(Boolean);
-                            const usedIds = productId ? productIngredients.filter((l) => l.productId === productId).map((l) => l.ingredientId) : [];
-                            const available = ingredients.filter((ing) => ![...usedIds, ...reservedIds].includes(ing.id) || ing.id === item.ingredientId);
-                            const ingredient = getIngredient(item.ingredientId);
-                            return (
-                                <View key={`recipe-draft-${index}`} style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground }]}>
-                                    <View style={styles.ingredientCardHeader}>
-                                        <View style={styles.labelRow}>
-                                            <Ionicons name="leaf-outline" size={13} color={palette.mutedText} />
-                                            <ThemedText style={styles.smallLabel}>{t('productForm.selectIngredient')}</ThemedText>
-                                        </View>
-                                        <Pressable hitSlop={8} onPress={() => removeRecipeDraft(index)}>
-                                            <Ionicons name="close-circle-outline" size={18} color={palette.danger} />
-                                        </Pressable>
-                                    </View>
-                                    <ThemedSelect
-                                        placeholder={t('productForm.selectIngredient')}
-                                        value={item.ingredientId}
-                                        items={available.map((ing) => ({ label: ing.name, value: ing.id }))}
-                                        onValueChange={(value) => updateRecipeDraft(index, { ingredientId: value })}
-                                    />
-                                    <View style={styles.labelRow}>
-                                        <Ionicons name="scale-outline" size={13} color={palette.mutedText} />
-                                        <ThemedText style={styles.smallLabel}>{t('common.qtyShort')} {ingredient ? `(${ingredient.unit})` : ""}</ThemedText>
-                                    </View>
-                                    <ThemedInput
-                                        placeholder="0"
-                                        keyboardType="decimal-pad"
-                                        value={item.quantityUsed}
-                                        onChangeText={(value) => updateRecipeDraft(index, { quantityUsed: value })}
-                                        style={styles.input}
-                                    />
-                                </View>
                             );
                         })}
-                        <View style={styles.RowActions}>
-                            <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.addIngredient')} onPress={addRecipeDraft} />
-                            {isEdit ? (
-                                <ThemedButton style={styles.smallBtn} label={t('productForm.saveRecipeItems')} onPress={() => void saveRecipe()} />
-                            ) : null}
-                        </View>
                     </View>
                 ) : null}
 
@@ -341,89 +372,86 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                 </Pressable>
                 {sections.additional ? (
                     <View style={styles.collapsibleContent}>
-                        {isEdit ? (() => {
-                            const productId = (mode as { productId: string }).productId;
-                            const additionalLinks = productAdditionalIngredients.filter((link) => link.productId === productId);
-                            return additionalLinks.length === 0 ? (
-                                <ThemedText style={styles.smallLabel}>{t('productForm.noAdditionalIngredients')}</ThemedText>
-                            ) : additionalLinks.map((link) => (
-                                <View key={link.id} style={[styles.ListItem, { borderColor: palette.border }]}>
-                                    <View style={styles.flex1}>
-                                        <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{link.ingredientName}</ThemedText>
-                                        <ThemedText style={styles.smallLabel}>{link.quantityUsed} {getIngredient(link.ingredientId)?.unit} · +${link.additionalPrice.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.smallLabel, { marginTop: 8 }]}>{t('productForm.addAdditionalIngredients')}</ThemedText>
+
+                        {/* Tarjeta de Formulario para Adicional Nuevo */}
+                        {draftAdditional ? (
+                            <View style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground, marginBottom: 8 }]}>
+                                <View style={styles.ingredientCardHeader}>
+                                    <View style={styles.labelRow}>
+                                        <Ionicons name="leaf-outline" size={13} color={palette.mutedText} />
+                                        <ThemedText style={styles.smallLabel}>{t('productForm.selectIngredient')}</ThemedText>
                                     </View>
-                                    <Pressable
-                                        hitSlop={8}
-                                        onPress={async () => { await removeProductAdditionalIngredient({ productId, ingredientId: link.ingredientId }); }}
-                                    >
+                                    <Pressable hitSlop={8} onPress={() => setDraftAdditional(null)}>
+                                        <Ionicons name="close-circle-outline" size={18} color={palette.danger} />
+                                    </Pressable>
+                                </View>
+                                <ThemedSelect
+                                    placeholder={t('productForm.selectIngredient')}
+                                    value={draftAdditional.ingredientId}
+                                    items={ingredients
+                                        .filter(ing => !additionalItems.find(r => r.ingredientId === ing.id))
+                                        .map((ing) => ({ label: ing.name, value: ing.id }))}
+                                    onValueChange={(value) => setDraftAdditional(prev => prev ? { ...prev, ingredientId: value } : null)}
+                                />
+                                <View style={styles.ingredientCardInputs}>
+                                    <View style={styles.ingredientCardField}>
+                                        <View style={styles.labelRow}>
+                                            <Ionicons name="scale-outline" size={13} color={palette.mutedText} />
+                                            <ThemedText style={styles.smallLabel}>{t('common.qtyShort')} {getIngredient(draftAdditional.ingredientId)?.unit ? `(${getIngredient(draftAdditional.ingredientId)?.unit})` : ""}</ThemedText>
+                                        </View>
+                                        <ThemedInput
+                                            placeholder="0"
+                                            keyboardType="decimal-pad"
+                                            value={draftAdditional.quantityUsed}
+                                            onChangeText={(value) => setDraftAdditional(prev => prev ? { ...prev, quantityUsed: value } : null)}
+                                            style={styles.input}
+                                        />
+                                    </View>
+                                    <View style={styles.ingredientCardField}>
+                                        <View style={styles.labelRow}>
+                                            <Ionicons name="pricetag-outline" size={13} color={palette.mutedText} />
+                                            <ThemedText style={styles.smallLabel}>{t('productForm.additionalPrice')}</ThemedText>
+                                        </View>
+                                        <ThemedInput
+                                            placeholder="0.00"
+                                            keyboardType="decimal-pad"
+                                            value={draftAdditional.additionalPrice}
+                                            onChangeText={(value) => setDraftAdditional(prev => prev ? { ...prev, additionalPrice: value } : null)}
+                                            style={styles.input}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+                        ) : null}
+
+                        <View style={[styles.RowActions, { marginBottom: 8 }]}>
+                            {!draftAdditional ? (
+                                <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.addAdditionalIngredient')} onPress={handleAddAdditional} />
+                            ) : (
+                                <ThemedButton style={styles.smallBtn} label={t('productForm.saveAdditionalItems')} onPress={handleSaveAdditional} />
+                            )}
+                        </View>
+
+
+                        {/* Lista Consolidada de Adicionales */}
+                        {additionalItems.length === 0 && !draftAdditional ? (
+                            <ThemedText style={styles.smallLabel}>{t('productForm.addAdditionalHelp')}</ThemedText>
+                        ) : additionalItems.map((item) => {
+                            const ingredient = getIngredient(item.ingredientId);
+                            if (!ingredient) return null;
+                            return (
+                                <View key={`additional-${item.ingredientId}`} style={[styles.ListItem, { borderColor: palette.border, marginBottom: 4 }]}>
+                                    <View style={styles.flex1}>
+                                        <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{ingredient.name}</ThemedText>
+                                        <ThemedText style={styles.smallLabel}>{item.quantityUsed} {ingredient.unit} · +${Number(item.additionalPrice).toFixed(2)}</ThemedText>
+                                    </View>
+                                    <Pressable hitSlop={8} onPress={() => setAdditionalItems(items => items.filter(i => i.ingredientId !== item.ingredientId))}>
                                         <Ionicons name="trash-outline" size={16} color={palette.danger} />
                                     </Pressable>
                                 </View>
-                            ));
-                        })() : null}
-                        <ThemedText style={[styles.smallLabel, { marginTop: 8 }]}>{t('productForm.addAdditionalIngredients')}</ThemedText>
-                        {additionalItems.length === 0 ? (
-                            <ThemedText style={styles.smallLabel}>{t('productForm.addAdditionalHelp')}</ThemedText>
-                        ) : additionalItems.map((item, index) => {
-                            const productId = isEdit ? (mode as { productId: string }).productId : null;
-                            const reservedIds = additionalItems.filter((_, i) => i !== index).map((d) => d.ingredientId).filter(Boolean);
-                            const usedIds = productId ? productAdditionalIngredients.filter((l) => l.productId === productId).map((l) => l.ingredientId) : [];
-                            const available = ingredients.filter((ing) => ![...usedIds, ...reservedIds].includes(ing.id) || ing.id === item.ingredientId);
-                            const ingredient = getIngredient(item.ingredientId);
-                            return (
-                                <View key={`additional-draft-${index}`} style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground }]}>
-                                    <View style={styles.ingredientCardHeader}>
-                                        <View style={styles.labelRow}>
-                                            <Ionicons name="leaf-outline" size={13} color={palette.mutedText} />
-                                            <ThemedText style={styles.smallLabel}>{t('productForm.selectIngredient')}</ThemedText>
-                                        </View>
-                                        <Pressable hitSlop={8} onPress={() => removeAdditionalDraft(index)}>
-                                            <Ionicons name="close-circle-outline" size={18} color={palette.danger} />
-                                        </Pressable>
-                                    </View>
-                                    <ThemedSelect
-                                        placeholder={t('productForm.selectIngredient')}
-                                        value={item.ingredientId}
-                                        items={available.map((ing) => ({ label: ing.name, value: ing.id }))}
-                                        onValueChange={(value) => updateAdditionalDraft(index, { ingredientId: value })}
-                                    />
-                                    <View style={styles.ingredientCardInputs}>
-                                        <View style={styles.ingredientCardField}>
-                                            <View style={styles.labelRow}>
-                                                <Ionicons name="scale-outline" size={13} color={palette.mutedText} />
-                                                <ThemedText style={styles.smallLabel}>{t('common.qtyShort')} {ingredient ? `(${ingredient.unit})` : ""}</ThemedText>
-                                            </View>
-                                            <ThemedInput
-                                                placeholder="0"
-                                                keyboardType="decimal-pad"
-                                                value={item.quantityUsed}
-                                                onChangeText={(value) => updateAdditionalDraft(index, { quantityUsed: value })}
-                                                style={styles.input}
-                                            />
-                                        </View>
-                                        <View style={styles.ingredientCardField}>
-                                            <View style={styles.labelRow}>
-                                                <Ionicons name="pricetag-outline" size={13} color={palette.mutedText} />
-                                                <ThemedText style={styles.smallLabel}>{t('productForm.additionalPrice')}</ThemedText>
-                                            </View>
-                                            <ThemedInput
-                                                placeholder="0.00"
-                                                keyboardType="decimal-pad"
-                                                value={item.additionalPrice}
-                                                onChangeText={(value) => updateAdditionalDraft(index, { additionalPrice: value })}
-                                                style={styles.input}
-                                            />
-                                        </View>
-                                    </View>
-                                </View>
                             );
                         })}
-                        <View style={styles.RowActions}>
-                            <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.addAdditionalIngredient')} onPress={addAdditionalDraft} />
-                            {isEdit ? (
-                                <ThemedButton style={styles.smallBtn} label={t('productForm.saveAdditionalItems')} onPress={() => void saveAdditional()} />
-                            ) : null}
-                        </View>
                     </View>
                 ) : null}
             </ScrollView>

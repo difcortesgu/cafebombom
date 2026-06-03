@@ -34,9 +34,7 @@ See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
 
-Mostrar unidades en formulario de productos
 Cambiar los mensajes de la app para usar toasts
-Los formularios laterales deberían tener los nuevos ingredientes arriba
 
 Imprimir comanda para la cocina
 Organizar ingredientes y productos alfabéticamente y agrupar productos por categoría
