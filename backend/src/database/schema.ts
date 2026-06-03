@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { sql } from 'drizzle-orm';
-import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { AnySQLiteColumn, index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey().$defaultFn(() => randomUUID()),
@@ -93,6 +93,7 @@ export const products = sqliteTable('products', {
   categoryId: text('category_id').references(() => categories.id),
   price: real('price').notNull(),
   imageUri: text('image_uri'),
+  isCombo: integer('is_combo', { mode: 'boolean' }).notNull().default(false), // <-- NUEVO: Identifica si es un combo
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
@@ -107,6 +108,26 @@ export const productIngredients = sqliteTable('product_ingredients', {
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 }, (t) => [
   uniqueIndex('product_ingredients_unique').on(t.productId, t.ingredientId),
+]);
+
+export const comboGroups = sqliteTable('combo_groups', {
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
+  comboProductId: text('combo_product_id').notNull().references(() => products.id),
+  name: text('name').notNull(), // Ej: "Bebida", "Acompañante"
+  minQuantity: integer('min_quantity').notNull().default(1),
+  maxQuantity: integer('max_quantity').notNull().default(1),
+}, (t) => [
+  index('idx_combo_groups_combo_product_id').on(t.comboProductId),
+]);
+
+export const comboGroupOptions = sqliteTable('combo_group_options', {
+  id: text('id').primaryKey().$defaultFn(() => randomUUID()),
+  groupId: text('group_id').notNull().references(() => comboGroups.id),
+  productId: text('product_id').notNull().references(() => products.id), // El producto real que se entrega
+  additionalPrice: real('additional_price').notNull().default(0), // El costo extra (ej. 1.50 por jugo)
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false), // Para auto-seleccionar en el frontend
+}, (t) => [
+  index('idx_combo_group_options_group_id').on(t.groupId),
 ]);
 
 export const productAdditionalIngredients = sqliteTable('product_additional_ingredients', {
@@ -182,6 +203,7 @@ export const saleItems = sqliteTable('sale_items', {
   observation: text('observation'),
   removedIngredientIds: text('removed_ingredient_ids').notNull().default('[]'),
   selectedAdditionalIngredients: text('selected_additional_ingredients').notNull().default('[]'),
+  parentSaleItemId: text('parent_sale_item_id').references((): AnySQLiteColumn => saleItems.id),
   unitPrice: real('unit_price').notNull(),
   lineSubtotal: real('line_subtotal').notNull().default(0),
   discountName: text('discount_name'),

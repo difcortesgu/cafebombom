@@ -35,6 +35,14 @@ export type ReceiptLineItem = {
     unitAdditionalPrice: number;
     totalAdditionalPrice: number;
   }>;
+  children?: Array<{
+    name: string;
+    quantity: number;
+    extraPrice: number;
+    additionalIngredients: Array<{ name: string; quantity: number; totalAdditionalPrice: number }>;
+    removedIngredientIds: string[];
+    observation: string | null;
+  }>;
 };
 
 type ReceiptPricingBreakdown = {

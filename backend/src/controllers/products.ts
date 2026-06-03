@@ -24,7 +24,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     res.status(400).json({ error: v.error });
     return;
   }
-  const { name, categoryId, price, imageUri, recipe, additionalIngredients } = v.data;
+  const { name, categoryId, price, imageUri, isCombo, recipe, additionalIngredients } = v.data;
 
   try {
     const id = await productsService.createProduct({
@@ -32,6 +32,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       categoryId,
       price,
       imageUri,
+      isCombo,
       recipe,
       additionalIngredients,
     });
@@ -138,5 +139,73 @@ export async function removeProductAdditionalIngredient(req: Request, res: Respo
     res.status(204).send();
   } catch (error) {
     handleControllerError(error, res, { label: '[products] removeProductAdditionalIngredient', fallbackMessage: 'Failed to remove product additional ingredient.' });
+  }
+}
+
+export async function setComboGroup(req: Request, res: Response): Promise<void> {
+  const { id, groupId } = req.params as Record<string, string>;
+  const { name, minQuantity, maxQuantity } = req.body as Record<string, unknown>;
+
+  if (!name || typeof minQuantity !== 'number' || typeof maxQuantity !== 'number') {
+    res.status(400).json({ error: 'Invalid combo group data.' });
+    return;
+  }
+
+  try {
+    const newGroupId = await productsService.setComboGroup({
+      comboProductId: id,
+      name: String(name),
+      minQuantity: Number(minQuantity),
+      maxQuantity: Number(maxQuantity),
+      groupId,
+    });
+    res.status(groupId ? 204 : 201).json(groupId ? undefined : { id: newGroupId });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[products] setComboGroup', fallbackMessage: 'Failed to set combo group.' });
+  }
+}
+
+export async function removeComboGroup(req: Request, res: Response): Promise<void> {
+  const { groupId } = req.params as Record<string, string>;
+
+  try {
+    await productsService.removeComboGroup(groupId);
+    res.status(204).send();
+  } catch (error) {
+    handleControllerError(error, res, { label: '[products] removeComboGroup', fallbackMessage: 'Failed to remove combo group.' });
+  }
+}
+
+export async function setComboGroupOption(req: Request, res: Response): Promise<void> {
+  const { groupId, optionId } = req.params as Record<string, string>;
+  const { productId, additionalPrice, isDefault } = req.body as Record<string, unknown>;
+
+  if (!productId || typeof additionalPrice !== 'number' || typeof isDefault !== 'boolean') {
+    res.status(400).json({ error: 'Invalid combo option data.' });
+    return;
+  }
+
+  try {
+    const newOptionId = await productsService.setComboGroupOption({
+      groupId,
+      productId: String(productId),
+      additionalPrice: Number(additionalPrice),
+      isDefault: Boolean(isDefault),
+      optionId,
+    });
+    res.status(optionId ? 204 : 201).json(optionId ? undefined : { id: newOptionId });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[products] setComboGroupOption', fallbackMessage: 'Failed to set combo option.' });
+  }
+}
+
+export async function removeComboGroupOption(req: Request, res: Response): Promise<void> {
+  const { optionId } = req.params as Record<string, string>;
+
+  try {
+    await productsService.removeComboGroupOption(optionId);
+    res.status(204).send();
+  } catch (error) {
+    handleControllerError(error, res, { label: '[products] removeComboGroupOption', fallbackMessage: 'Failed to remove combo option.' });
   }
 }

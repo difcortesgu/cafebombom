@@ -124,16 +124,47 @@ export function OrderDetailView({
                 ) : (
                     <>
                         <View style={[styles.section, { borderColor: palette.border }]}>
-                            {items.map((item) => (
-                                <View key={item.id} style={styles.detailRow}>
-                                    <ThemedText style={styles.detailRowLabel}>
-                                        {item.product_name} x{item.quantity}
-                                    </ThemedText>
-                                    <ThemedText style={styles.detailRowValue}>
-                                        ${Number(item.final_line_total).toFixed(2)}
-                                    </ThemedText>
-                                </View>
-                            ))}
+                            {items
+                                .filter((item) => !item.parent_sale_item_id)
+                                .map((item) => {
+                                    const children = items.filter((c) => c.parent_sale_item_id === item.id);
+                                    return (
+                                        <View key={item.id}>
+                                            <View style={styles.detailRow}>
+                                                <ThemedText style={styles.detailRowLabel}>
+                                                    {item.product_name} x{item.quantity}
+                                                </ThemedText>
+                                                <ThemedText style={styles.detailRowValue}>
+                                                    ${Number(item.final_line_total).toFixed(2)}
+                                                </ThemedText>
+                                            </View>
+                                            {children.map((child) => {
+                                                const additionalDetails = child.selected_additional_ingredient_details ?? [];
+                                                const addedNames = additionalDetails.map((d) => `+${d.ingredient_name} x${d.quantity}`);
+                                                return (
+                                                    <View key={child.id} style={styles.comboChildRow}>
+                                                        <Ionicons name="return-down-forward-outline" size={12} color={palette.mutedText} />
+                                                        <View style={{ flex: 1 }}>
+                                                            <ThemedText style={[styles.detailRowLabel, { color: palette.mutedText, fontSize: 12 }]}>
+                                                                {child.product_name} x{child.quantity}{Number(child.unit_price) > 0 ? `  +$${Number(child.unit_price).toFixed(2)}` : ''}
+                                                            </ThemedText>
+                                                            {addedNames.length > 0 && (
+                                                                <ThemedText style={[styles.detailRowLabel, { color: palette.mutedText, fontSize: 11, paddingLeft: 4 }]}>
+                                                                    {addedNames.join(' · ')}
+                                                                </ThemedText>
+                                                            )}
+                                                            {child.observation ? (
+                                                                <ThemedText style={[styles.detailRowLabel, { color: palette.mutedText, fontSize: 11, fontStyle: 'italic', paddingLeft: 4 }]}>
+                                                                    📝 {child.observation}
+                                                                </ThemedText>
+                                                            ) : null}
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    );
+                                })}
                         </View>
 
                         {pricing && (
@@ -365,6 +396,13 @@ const styles = StyleSheet.create({
     detailRowLabel: {
         fontSize: 13,
         flex: 1,
+    },
+    comboChildRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingLeft: 12,
+        paddingTop: 2,
     },
     detailRowValue: {
         fontSize: 13,

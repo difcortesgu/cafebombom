@@ -278,7 +278,12 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'common.enable': 'Habilitar',
     'common.disable': 'Deshabilitar',
     'common.close': 'Cerrar',
+    'common.cancel': 'Cancelar',
+    'common.add': 'Agregar',
     'app.name': 'CafeBomBom',
+
+    // Combos
+    'combos.selectRange': 'Selecciona {min}–{max}',
 
     // Sales tab
     'sales.title': 'Ventas',

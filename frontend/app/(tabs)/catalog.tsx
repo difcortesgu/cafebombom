@@ -25,6 +25,8 @@ type Section = 'products' | 'ingredients' | 'suppliers';
 type PanelMode =
     | { type: 'product-create' }
     | { type: 'product-edit'; productId: string }
+    | { type: 'combo-create' }
+    | { type: 'combo-edit'; productId: string }
     | { type: 'ingredient-create' }
     | { type: 'ingredient-edit'; ingredientId: string }
     | { type: 'supplier-create' }
@@ -91,25 +93,34 @@ export default function CatalogScreen() {
                                 ? t('products.ingredients.title')
                                 : t('inventory.suppliers.list')}
                     </ThemedText>
-                    <ThemedButton
-                        icon="add"
-                        label={
-                            section === 'products'
-                                ? t('products.list.add')
-                                : section === 'ingredients'
-                                    ? t('products.ingredients.add')
-                                    : t('inventory.suppliers.add')
-                        }
-                        onPress={() => {
-                            if (section === 'products') {
-                                openOrNavigate(() => openPanel({ type: 'product-create' }), '/product-form');
-                            } else if (section === 'ingredients') {
-                                openOrNavigate(() => openPanel({ type: 'ingredient-create' }), '/ingredient-form');
-                            } else {
-                                openOrNavigate(() => openPanel({ type: 'supplier-create' }), { pathname: '/inventory-form', params: { section: 'suppliers' } });
+                    <View style={styles.buttonGroup}>
+                        {section === 'products' && (
+                            <ThemedButton
+                                icon="layers-outline"
+                                label="Combo"
+                                onPress={() => openOrNavigate(() => openPanel({ type: 'combo-create' }), '/product-form')}
+                            />
+                        )}
+                        <ThemedButton
+                            icon="add"
+                            label={
+                                section === 'products'
+                                    ? t('products.list.add')
+                                    : section === 'ingredients'
+                                        ? t('products.ingredients.add')
+                                        : t('inventory.suppliers.add')
                             }
-                        }}
-                    />
+                            onPress={() => {
+                                if (section === 'products') {
+                                    openOrNavigate(() => openPanel({ type: 'product-create' }), '/product-form');
+                                } else if (section === 'ingredients') {
+                                    openOrNavigate(() => openPanel({ type: 'ingredient-create' }), '/ingredient-form');
+                                } else {
+                                    openOrNavigate(() => openPanel({ type: 'supplier-create' }), { pathname: '/inventory-form', params: { section: 'suppliers' } });
+                                }
+                            }}
+                        />
+                    </View>
                 </View>
 
                 {/* Tab content */}
@@ -176,6 +187,10 @@ export default function CatalogScreen() {
                         <ProductForm mode="create" onClose={panel.close} />
                     ) : panelMode?.type === 'product-edit' ? (
                         <ProductForm mode={{ productId: panelMode.productId }} onClose={panel.close} />
+                    ) : panelMode?.type === 'combo-create' ? (
+                        <ProductForm mode="combo-create" onClose={panel.close} />
+                    ) : panelMode?.type === 'combo-edit' ? (
+                        <ProductForm mode={{ productId: panelMode.productId }} onClose={panel.close} />
                     ) : null}
                 </SlidePanelShell>
             ) : null}
@@ -200,6 +215,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        gap: 8,
+    },
+    buttonGroup: {
+        flexDirection: 'row',
         gap: 8,
     },
     // Panel

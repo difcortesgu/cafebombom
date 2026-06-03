@@ -1,24 +1,25 @@
+import { randomUUID } from 'crypto';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '../database';
-import { categories, discounts, ingredients, productAdditionalIngredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '../database/schema';
+import { categories, comboGroupOptions, comboGroups, discounts, ingredients, productAdditionalIngredients, productIngredients, products, restaurantTables, saleItems, salePaymentItems, salePayments, sales, surcharges, users } from '../database/schema';
 import type {
-    AddItemToOrderPayload,
-    CreateDiscountPayload,
-    CreatePartialPaymentPayload,
-    CreateSalePayload,
-    CreateTablePayload,
-    DashboardSalesSummary,
-    DashboardTrendBucket,
-    RemoveItemFromOrderPayload,
-    SaleItemDetail,
-    SalePayment,
-    SalePaymentBoard,
-    SalePaymentBoardItem,
-    SalePaymentLine,
-    SalePricingSummary,
-    UpdateDiscountPayload,
-    UpdateDraftOrderPayload,
-    UpdateTablePayload,
+  AddItemToOrderPayload,
+  CreateDiscountPayload,
+  CreatePartialPaymentPayload,
+  CreateSalePayload,
+  CreateTablePayload,
+  DashboardSalesSummary,
+  DashboardTrendBucket,
+  RemoveItemFromOrderPayload,
+  SaleItemDetail,
+  SalePayment,
+  SalePaymentBoard,
+  SalePaymentBoardItem,
+  SalePaymentLine,
+  SalePricingSummary,
+  UpdateDiscountPayload,
+  UpdateDraftOrderPayload,
+  UpdateTablePayload,
 } from '../types/sales';
 import type { Discount, Product, ProductAdditionalIngredientOption, RestaurantTable, Sale, SaleItemAdditionalIngredientInput, SaleItemInput } from '../types/types';
 import { AppError } from '../utils/errors';
@@ -28,6 +29,321 @@ import { salesErrorMessage } from './messages';
 import { calculateSaleDiscountBreakdown } from './pricing';
 
 export class SalesSqliteService {
+  private async resolveSaleItems(items: SaleItemInput[]): Promise<SaleItemInput[]> {
+    if (items.length === 0) {
+      return [];
+    }
+
+    // 1. Extraemos todos los IDs (tanto de productos normales como de los que vienen dentro de combos)
+    const allProductIds = new Set<string>();
+    for (const item of items) {
+      if (item.productId) allProductIds.add(item.productId);
+      if (item.comboItems) {
+        for (const child of item.comboItems) {
+          if (child.productId) allProductIds.add(child.productId);
+        }
+      }
+    }
+
+    if (allProductIds.size === 0) {
+      return [];
+    }
+
+    const productIds = Array.from(allProductIds);
+
+    // 2. Buscamos los precios base en la base de datos
+    const productRows = db
+      .select({ id: products.id, price: products.price })
+      .from(products)
+      .where(inArray(products.id, productIds))
+      .all();
+    const productMap = new Map(productRows.map((row) => [row.id, Number(row.price)]));
+
+    // 3. Buscamos los precios de ingredientes adicionales normales
+    const additionalRows = db
+      .select({
+        productId: productAdditionalIngredients.productId,
+        ingredientId: productAdditionalIngredients.ingredientId,
+        additionalPrice: productAdditionalIngredients.additionalPrice,
+      })
+      .from(productAdditionalIngredients)
+      .where(inArray(productAdditionalIngredients.productId, productIds))
+      .all();
+
+    const additionalMap = new Map<string, Map<string, number>>();
+    for (const row of additionalRows) {
+      if (!additionalMap.has(row.productId)) {
+        additionalMap.set(row.productId, new Map());
+      }
+      additionalMap.get(row.productId)!.set(row.ingredientId, Number(row.additionalPrice));
+    }
+
+    const resolvedItems: SaleItemInput[] = [];
+    for (const item of items) {
+      const productPrice = productMap.get(item.productId);
+      if (productPrice == null) {
+        throw new AppError(salesErrorMessage('productNotFound', { productId: item.productId }));
+      }
+
+      const quantity = clampQuantity(Number(item.quantity));
+      if (quantity <= 0) {
+        continue;
+      }
+
+      const removedIngredientIds = this.normalizeRemovedIngredientIds(item.removedIngredientIds ?? []);
+      const allowedAdditionalByIngredient = additionalMap.get(item.productId) ?? new Map<string, number>();
+      const normalizedAdditional = this
+        .normalizeSelectedAdditionalIngredients(item.additionalIngredients ?? [])
+        .filter((entry) => allowedAdditionalByIngredient.has(entry.ingredientId));
+
+      const additionalUnitPrice = normalizedAdditional.reduce(
+        (sum, entry) => sum + (allowedAdditionalByIngredient.get(entry.ingredientId) ?? 0) * entry.quantity,
+        0,
+      );
+
+      // NUEVO: Procesar hijos del combo
+      const resolvedComboItems: SaleItemInput[] = [];
+      let comboExtraPrice = 0;
+
+      if (item.comboItems && item.comboItems.length > 0) {
+        for (const child of item.comboItems) {
+          const childQuantity = clampQuantity(Number(child.quantity));
+          if (childQuantity <= 0) continue;
+
+          if (!productMap.has(child.productId)) {
+            throw new AppError(salesErrorMessage('productNotFound', { productId: child.productId }));
+          }
+
+          // Aquí tomamos el recargo enviado por el frontend (ej: 1.50 extra por el jugo)
+          const childUnitPrice = Number(child.unitPrice) || 0;
+          comboExtraPrice += (childUnitPrice * childQuantity);
+
+          resolvedComboItems.push({
+            productId: child.productId,
+            quantity: childQuantity,
+            unitPrice: childUnitPrice,
+            observation: normalizeObservation(child.observation),
+            removedIngredientIds: this.normalizeRemovedIngredientIds(child.removedIngredientIds ?? []),
+            additionalIngredients: this.normalizeSelectedAdditionalIngredients(child.additionalIngredients ?? []),
+          });
+        }
+      }
+
+      resolvedItems.push({
+        productId: item.productId,
+        quantity,
+        // Todo el valor recae en el padre: Precio base + Adicionales propios + Recargos de hijos del combo
+        unitPrice: roundMoney(productPrice + additionalUnitPrice + comboExtraPrice),
+        observation: normalizeObservation(item.observation),
+        removedIngredientIds,
+        additionalIngredients: normalizedAdditional,
+        comboItems: resolvedComboItems,
+      });
+    }
+
+    return resolvedItems;
+  }
+
+  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
+    const resolvedItems = await this.resolveSaleItems(items);
+    if (resolvedItems.length === 0) {
+      return null;
+    }
+
+    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
+
+    const activeDiscounts = db
+      .select({
+        id: discounts.id,
+        name: discounts.name,
+        scope: discounts.scope,
+        productId: discounts.productId,
+        type: discounts.type,
+        value: discounts.value,
+        startsAt: discounts.startsAt,
+        endsAt: discounts.endsAt,
+        isActive: discounts.isActive,
+      })
+      .from(discounts)
+      .all() as Discount[];
+
+    const createdAt = Math.floor(Date.now() / 1000);
+    const breakdown = calculateSaleDiscountBreakdown(resolvedItems, activeDiscounts, createdAt, globalDiscountId ?? null);
+
+    const saleId = db.transaction((tx) => {
+      const [newSale] = tx
+        .insert(sales)
+        .values({
+          createdAt,
+          staffId,
+          tableId,
+          subtotal: breakdown.subtotal,
+          itemDiscountTotal: breakdown.itemDiscountTotal,
+          orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
+          orderDiscountType: breakdown.globalDiscountSnapshot.discountType,
+          orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
+          orderDiscountAmount: breakdown.globalDiscountAmount,
+          discountAppliedBy: staffId,
+          total: breakdown.total + normalizedSurcharge,
+          status: 'draft',
+        })
+        .returning({ id: sales.id })
+        .all();
+
+      for (const item of breakdown.items) {
+        // Generamos el ID del contenedor / padre de antemano
+        const parentSaleItemId = randomUUID();
+
+        tx.insert(saleItems)
+          .values({
+            id: parentSaleItemId, // Asignamos el ID
+            saleId: newSale.id,
+            parentSaleItemId: null, // Como es el padre, no tiene padre
+            productId: item.productId,
+            quantity: item.quantity,
+            observation: normalizeObservation(item.observation),
+            removedIngredientIds: JSON.stringify(item.removedIngredientIds),
+            selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
+            unitPrice: item.unitPrice,
+            lineSubtotal: item.lineSubtotal,
+            discountName: item.discountSnapshot.discountName,
+            discountType: item.discountSnapshot.discountType,
+            discountValue: item.discountSnapshot.discountValue,
+            discountAmount: item.discountSnapshot.discountAmount,
+          })
+          .run();
+
+        // Insertar los productos hijos vinculados
+        if (item.comboItems && item.comboItems.length > 0) {
+          for (const child of item.comboItems) {
+            tx.insert(saleItems)
+              .values({
+                id: randomUUID(), // ID único para el hijo
+                saleId: newSale.id,
+                parentSaleItemId: parentSaleItemId, // <-- Relación establecida
+                productId: child.productId,
+                quantity: child.quantity * item.quantity, // Escalar cantidad según combos comprados
+                observation: normalizeObservation(child.observation),
+                removedIngredientIds: JSON.stringify(child.removedIngredientIds ?? []),
+                selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(child.additionalIngredients),
+                unitPrice: 0, // El valor ya fue absorbido por la línea del padre
+                lineSubtotal: 0,
+                discountAmount: 0,
+              })
+              .run();
+          }
+        }
+      }
+
+      return newSale.id;
+    });
+
+    return saleId;
+  }
+
+  async updateDraftOrder({ orderId, staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
+    const resolvedItems = await this.resolveSaleItems(items);
+    if (resolvedItems.length === 0) {
+      return;
+    }
+
+    const existingOrder = db
+      .select({ status: sales.status })
+      .from(sales)
+      .where(eq(sales.id, orderId))
+      .get();
+
+    if (!existingOrder) {
+      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
+    }
+
+    if (existingOrder.status !== 'draft') {
+      throw new AppError(salesErrorMessage('onlyDraftEditable'));
+    }
+
+    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
+
+    const activeDiscounts = db
+      .select({
+        id: discounts.id,
+        name: discounts.name,
+        scope: discounts.scope,
+        productId: discounts.productId,
+        type: discounts.type,
+        value: discounts.value,
+        startsAt: discounts.startsAt,
+        endsAt: discounts.endsAt,
+        isActive: discounts.isActive,
+      })
+      .from(discounts)
+      .all() as Discount[];
+
+    const now = Math.floor(Date.now() / 1000);
+    const breakdown = calculateSaleDiscountBreakdown(resolvedItems, activeDiscounts, now, globalDiscountId ?? null);
+
+    db.transaction((tx) => {
+      tx.delete(saleItems).where(eq(saleItems.saleId, orderId)).run();
+
+      tx.update(sales)
+        .set({
+          tableId,
+          subtotal: breakdown.subtotal,
+          itemDiscountTotal: breakdown.itemDiscountTotal,
+          orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
+          orderDiscountType: breakdown.globalDiscountSnapshot.discountType,
+          orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
+          orderDiscountAmount: breakdown.globalDiscountAmount,
+          discountAppliedBy: staffId,
+          total: breakdown.total + normalizedSurcharge,
+        })
+        .where(eq(sales.id, orderId))
+        .run();
+
+      for (const item of breakdown.items) {
+        const parentSaleItemId = randomUUID();
+
+        tx.insert(saleItems)
+          .values({
+            id: parentSaleItemId,
+            saleId: orderId,
+            parentSaleItemId: null,
+            productId: item.productId,
+            quantity: item.quantity,
+            observation: normalizeObservation(item.observation),
+            removedIngredientIds: JSON.stringify(item.removedIngredientIds),
+            selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
+            unitPrice: item.unitPrice,
+            lineSubtotal: item.lineSubtotal,
+            discountName: item.discountSnapshot.discountName,
+            discountType: item.discountSnapshot.discountType,
+            discountValue: item.discountSnapshot.discountValue,
+            discountAmount: item.discountSnapshot.discountAmount,
+          })
+          .run();
+
+        if (item.comboItems && item.comboItems.length > 0) {
+          for (const child of item.comboItems) {
+            tx.insert(saleItems)
+              .values({
+                id: randomUUID(),
+                saleId: orderId,
+                parentSaleItemId: parentSaleItemId,
+                productId: child.productId,
+                quantity: child.quantity * item.quantity,
+                observation: normalizeObservation(child.observation),
+                removedIngredientIds: JSON.stringify(child.removedIngredientIds ?? []),
+                selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(child.additionalIngredients),
+                unitPrice: 0,
+                lineSubtotal: 0,
+                discountAmount: 0,
+              })
+              .run();
+          }
+        }
+      }
+    });
+  }
+
   private normalizeRemovedIngredientIds(raw: unknown): string[] {
     if (!Array.isArray(raw)) {
       return [];
@@ -95,77 +411,6 @@ export class SalesSqliteService {
     return JSON.stringify(this.normalizeSelectedAdditionalIngredients(raw ?? []));
   }
 
-  private async resolveSaleItems(items: SaleItemInput[]): Promise<SaleItemInput[]> {
-    if (items.length === 0) {
-      return [];
-    }
-
-    const productIds = Array.from(new Set(items.map((item) => item.productId).filter((id) => typeof id === 'string' && id.length > 0)));
-    if (productIds.length === 0) {
-      return [];
-    }
-
-    const productRows = db
-      .select({ id: products.id, price: products.price })
-      .from(products)
-      .where(inArray(products.id, productIds))
-      .all();
-    const productMap = new Map(productRows.map((row) => [row.id, Number(row.price)]));
-
-    const additionalRows = db
-      .select({
-        productId: productAdditionalIngredients.productId,
-        ingredientId: productAdditionalIngredients.ingredientId,
-        additionalPrice: productAdditionalIngredients.additionalPrice,
-      })
-      .from(productAdditionalIngredients)
-      .where(inArray(productAdditionalIngredients.productId, productIds))
-      .all();
-
-    const additionalMap = new Map<string, Map<string, number>>();
-    for (const row of additionalRows) {
-      if (!additionalMap.has(row.productId)) {
-        additionalMap.set(row.productId, new Map());
-      }
-      additionalMap.get(row.productId)!.set(row.ingredientId, Number(row.additionalPrice));
-    }
-
-    const resolvedItems: SaleItemInput[] = [];
-    for (const item of items) {
-      const productPrice = productMap.get(item.productId);
-      if (productPrice == null) {
-        throw new AppError(salesErrorMessage('productNotFound', { productId: item.productId }));
-      }
-
-      const quantity = clampQuantity(Number(item.quantity));
-      if (quantity <= 0) {
-        continue;
-      }
-
-      const removedIngredientIds = this.normalizeRemovedIngredientIds(item.removedIngredientIds ?? []);
-      const allowedAdditionalByIngredient = additionalMap.get(item.productId) ?? new Map<string, number>();
-      const normalizedAdditional = this
-        .normalizeSelectedAdditionalIngredients(item.additionalIngredients ?? [])
-        .filter((entry) => allowedAdditionalByIngredient.has(entry.ingredientId));
-
-      const additionalUnitPrice = normalizedAdditional.reduce(
-        (sum, entry) => sum + (allowedAdditionalByIngredient.get(entry.ingredientId) ?? 0) * entry.quantity,
-        0,
-      );
-
-      resolvedItems.push({
-        productId: item.productId,
-        quantity,
-        unitPrice: roundMoney(productPrice + additionalUnitPrice),
-        observation: normalizeObservation(item.observation),
-        removedIngredientIds,
-        additionalIngredients: normalizedAdditional,
-      });
-    }
-
-    return resolvedItems;
-  }
-
   async getHydrationData() {
     const productsList = db
       .select({
@@ -174,12 +419,47 @@ export class SalesSqliteService {
         category: categories.name,
         price: products.price,
         imageUri: products.imageUri,
+        isCombo: products.isCombo,
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
       .where(eq(products.isActive, true))
       .orderBy(products.name)
       .all();
+
+    const comboGroupsList = db
+      .select({
+        id: comboGroups.id,
+        comboProductId: comboGroups.comboProductId,
+        name: comboGroups.name,
+        minQuantity: comboGroups.minQuantity,
+        maxQuantity: comboGroups.maxQuantity,
+      })
+      .from(comboGroups)
+      .all();
+
+    const comboGroupOptionsList = db
+      .select({
+        id: comboGroupOptions.id,
+        groupId: comboGroupOptions.groupId,
+        productId: comboGroupOptions.productId,
+        additionalPrice: comboGroupOptions.additionalPrice,
+        isDefault: comboGroupOptions.isDefault,
+      })
+      .from(comboGroupOptions)
+      .all();
+
+    const comboOptionsByGroupId = new Map<string, typeof comboGroupOptionsList>();
+    for (const opt of comboGroupOptionsList) {
+      if (!comboOptionsByGroupId.has(opt.groupId)) comboOptionsByGroupId.set(opt.groupId, []);
+      comboOptionsByGroupId.get(opt.groupId)!.push(opt);
+    }
+
+    const comboGroupsByProductId = new Map<string, typeof comboGroupsList[0][]>();
+    for (const group of comboGroupsList) {
+      if (!comboGroupsByProductId.has(group.comboProductId)) comboGroupsByProductId.set(group.comboProductId, []);
+      comboGroupsByProductId.get(group.comboProductId)!.push(group);
+    }
 
     const additionalRows = db
       .select({
@@ -213,7 +493,15 @@ export class SalesSqliteService {
       category: row.category ?? '',
       price: Number(row.price),
       imageUri: row.imageUri,
+      isCombo: Boolean(row.isCombo),
       additionalIngredients: additionalByProduct.get(row.id) ?? [],
+      comboGroups: (comboGroupsByProductId.get(row.id) ?? []).map((g) => ({
+        id: g.id,
+        name: g.name,
+        minQuantity: g.minQuantity,
+        maxQuantity: g.maxQuantity,
+        options: comboOptionsByGroupId.get(g.id) ?? [],
+      })),
     })) as Product[];
 
     const salesList = db
@@ -388,156 +676,6 @@ export class SalesSqliteService {
     }
   }
 
-  async createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: CreateSalePayload): Promise<string | null> {
-    const resolvedItems = await this.resolveSaleItems(items);
-    if (resolvedItems.length === 0) {
-      return null;
-    }
-
-    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
-
-    const activeDiscounts = db
-      .select({
-        id: discounts.id,
-        name: discounts.name,
-        scope: discounts.scope,
-        productId: discounts.productId,
-        type: discounts.type,
-        value: discounts.value,
-        startsAt: discounts.startsAt,
-        endsAt: discounts.endsAt,
-        isActive: discounts.isActive,
-      })
-      .from(discounts)
-      .all() as Discount[];
-
-    const createdAt = Math.floor(Date.now() / 1000);
-    const breakdown = calculateSaleDiscountBreakdown(resolvedItems, activeDiscounts, createdAt, globalDiscountId ?? null);
-
-    const saleId = db.transaction((tx) => {
-      const [newSale] = tx
-        .insert(sales)
-        .values({
-          createdAt,
-          staffId,
-          tableId,
-          subtotal: breakdown.subtotal,
-          itemDiscountTotal: breakdown.itemDiscountTotal,
-          orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
-          orderDiscountType: breakdown.globalDiscountSnapshot.discountType,
-          orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
-          orderDiscountAmount: breakdown.globalDiscountAmount,
-          discountAppliedBy: staffId,
-          total: breakdown.total + normalizedSurcharge,
-          status: 'draft',
-        })
-        .returning({ id: sales.id })
-        .all();
-
-      for (const item of breakdown.items) {
-        tx.insert(saleItems)
-          .values({
-            saleId: newSale.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            observation: normalizeObservation(item.observation),
-            removedIngredientIds: JSON.stringify(item.removedIngredientIds),
-            selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
-            unitPrice: item.unitPrice,
-            lineSubtotal: item.lineSubtotal,
-            discountName: item.discountSnapshot.discountName,
-            discountType: item.discountSnapshot.discountType,
-            discountValue: item.discountSnapshot.discountValue,
-            discountAmount: item.discountSnapshot.discountAmount,
-          })
-          .run();
-      }
-
-      return newSale.id;
-    });
-
-    return saleId;
-  }
-
-  async updateDraftOrder({ orderId, staffId, items, tableId, globalDiscountId, orderTypeSurcharge }: UpdateDraftOrderPayload): Promise<void> {
-    const resolvedItems = await this.resolveSaleItems(items);
-    if (resolvedItems.length === 0) {
-      return;
-    }
-
-    const existingOrder = db
-      .select({ status: sales.status })
-      .from(sales)
-      .where(eq(sales.id, orderId))
-      .get();
-
-    if (!existingOrder) {
-      throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
-    }
-
-    if (existingOrder.status !== 'draft') {
-      throw new AppError(salesErrorMessage('onlyDraftEditable'));
-    }
-
-    const normalizedSurcharge = Number.isFinite(orderTypeSurcharge) ? Math.max(0, Number(orderTypeSurcharge)) : 0;
-
-    const activeDiscounts = db
-      .select({
-        id: discounts.id,
-        name: discounts.name,
-        scope: discounts.scope,
-        productId: discounts.productId,
-        type: discounts.type,
-        value: discounts.value,
-        startsAt: discounts.startsAt,
-        endsAt: discounts.endsAt,
-        isActive: discounts.isActive,
-      })
-      .from(discounts)
-      .all() as Discount[];
-
-    const now = Math.floor(Date.now() / 1000);
-    const breakdown = calculateSaleDiscountBreakdown(resolvedItems, activeDiscounts, now, globalDiscountId ?? null);
-
-    db.transaction((tx) => {
-      tx.delete(saleItems).where(eq(saleItems.saleId, orderId)).run();
-
-      tx.update(sales)
-        .set({
-          tableId,
-          subtotal: breakdown.subtotal,
-          itemDiscountTotal: breakdown.itemDiscountTotal,
-          orderDiscountName: breakdown.globalDiscountSnapshot.discountName,
-          orderDiscountType: breakdown.globalDiscountSnapshot.discountType,
-          orderDiscountValue: breakdown.globalDiscountSnapshot.discountValue,
-          orderDiscountAmount: breakdown.globalDiscountAmount,
-          discountAppliedBy: staffId,
-          total: breakdown.total + normalizedSurcharge,
-        })
-        .where(eq(sales.id, orderId))
-        .run();
-
-      for (const item of breakdown.items) {
-        tx.insert(saleItems)
-          .values({
-            saleId: orderId,
-            productId: item.productId,
-            quantity: item.quantity,
-            observation: normalizeObservation(item.observation),
-            removedIngredientIds: JSON.stringify(item.removedIngredientIds),
-            selectedAdditionalIngredients: this.serializeSelectedAdditionalIngredients(item.additionalIngredients),
-            unitPrice: item.unitPrice,
-            lineSubtotal: item.lineSubtotal,
-            discountName: item.discountSnapshot.discountName,
-            discountType: item.discountSnapshot.discountType,
-            discountValue: item.discountSnapshot.discountValue,
-            discountAmount: item.discountSnapshot.discountAmount,
-          })
-          .run();
-      }
-    });
-  }
-
   async getTopSelling(limit = 5): Promise<{ name: string; quantity: number }[]> {
     return db
       .select({ name: products.name, quantity: sql<number>`SUM(${saleItems.quantity})` })
@@ -556,6 +694,7 @@ export class SalesSqliteService {
       .select({
         id: saleItems.id,
         product_id: saleItems.productId,
+        parent_sale_item_id: saleItems.parentSaleItemId,
         product_name: products.name,
         observation: saleItems.observation,
         quantity: saleItems.quantity,
@@ -981,9 +1120,10 @@ export class SalesSqliteService {
       throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
-    const pending = db
+    const allItems = db
       .select({
         sale_item_id: saleItems.id,
+        parent_sale_item_id: saleItems.parentSaleItemId,
         product_id: saleItems.productId,
         product_name: products.name,
         unit_price: saleItems.unitPrice,
@@ -991,12 +1131,49 @@ export class SalesSqliteService {
         line_subtotal_total: saleItems.lineSubtotal,
         quantity_total: saleItems.quantity,
         quantity_paid: saleItems.quantityPaid,
+        selected_additional_ingredients: saleItems.selectedAdditionalIngredients,
       })
       .from(saleItems)
       .innerJoin(products, eq(products.id, saleItems.productId))
       .where(eq(saleItems.saleId, orderId))
       .orderBy(saleItems.id)
-      .all()
+      .all();
+
+    // Build additional ingredient name lookup for child items
+    const childProductIds = allItems.filter((i) => i.parent_sale_item_id).map((i) => i.product_id);
+    const additionalIngredientNames = childProductIds.length > 0
+      ? db
+        .select({ productId: productAdditionalIngredients.productId, ingredientId: productAdditionalIngredients.ingredientId, ingredientName: ingredients.name })
+        .from(productAdditionalIngredients)
+        .innerJoin(ingredients, eq(ingredients.id, productAdditionalIngredients.ingredientId))
+        .where(inArray(productAdditionalIngredients.productId, childProductIds))
+        .all()
+      : [];
+    const additionalNameMap = new Map<string, string>();
+    for (const row of additionalIngredientNames) {
+      additionalNameMap.set(`${row.productId}:${row.ingredientId}`, row.ingredientName);
+    }
+
+    const childrenByParentId = new Map<string, { product_name: string; quantity: number; extra_price: number; additional_ingredient_names: string[] }[]>();
+    for (const item of allItems) {
+      if (item.parent_sale_item_id) {
+        const selectedAdditionals = this.parseSelectedAdditionalIngredients(item.selected_additional_ingredients);
+        const additionalIngredientNames = selectedAdditionals.map((entry) =>
+          additionalNameMap.get(`${item.product_id}:${entry.ingredientId}`) ?? entry.ingredientId,
+        );
+        const list = childrenByParentId.get(item.parent_sale_item_id) ?? [];
+        list.push({
+          product_name: item.product_name,
+          quantity: clampQuantity(item.quantity_total),
+          extra_price: Number(item.unit_price),
+          additional_ingredient_names: additionalIngredientNames,
+        });
+        childrenByParentId.set(item.parent_sale_item_id, list);
+      }
+    }
+
+    const pending = allItems
+      .filter((item) => !item.parent_sale_item_id)
       .map((item) => {
         const quantityTotal = clampQuantity(item.quantity_total);
         const quantityPaid = clampQuantity(item.quantity_paid);
@@ -1004,6 +1181,7 @@ export class SalesSqliteService {
         const lineSubtotalTotal = Number(item.line_subtotal_total);
         const discountAmountTotal = Number(item.discount_amount_total);
         const lineTotalTotal = roundMoney(Math.max(0, lineSubtotalTotal - discountAmountTotal));
+        const children = childrenByParentId.get(item.sale_item_id);
         return {
           sale_item_id: item.sale_item_id,
           product_id: item.product_id,
@@ -1015,6 +1193,7 @@ export class SalesSqliteService {
           quantity_total: quantityTotal,
           quantity_paid: quantityPaid,
           quantity_pending: quantityPending,
+          ...(children ? { children } : {}),
         } satisfies SalePaymentBoardItem;
       })
       .filter((item) => item.quantity_pending > 0);

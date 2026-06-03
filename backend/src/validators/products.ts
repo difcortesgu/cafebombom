@@ -6,14 +6,19 @@ export type CreateProductPayload = {
     categoryId: string | undefined;
     price: number;
     imageUri: string | undefined;
-    recipe: [ProductRecipeInput, ...ProductRecipeInput[]];
+    isCombo?: boolean;
+    recipe?: [ProductRecipeInput, ...ProductRecipeInput[]];
     additionalIngredients: ProductAdditionalIngredientInput[];
 };
 
 export function validateCreateProduct(body: Record<string, unknown>): ValidationResult<CreateProductPayload> {
-    const { name, categoryId, price, imageUri, recipe, additionalIngredients } = body;
-    if (!name || price == null || !Array.isArray(recipe) || recipe.length === 0) {
-        return { valid: false, error: 'name, price, and recipe (non-empty array) are required.' };
+    const { name, categoryId, price, imageUri, isCombo, recipe, additionalIngredients } = body;
+    if (!name || price == null) {
+        return { valid: false, error: 'name and price are required.' };
+    }
+    // Recipe is required only for non-combo products
+    if (!isCombo && (!Array.isArray(recipe) || recipe.length === 0)) {
+        return { valid: false, error: 'recipe (non-empty array) is required for non-combo products.' };
     }
     return {
         valid: true,
@@ -22,7 +27,8 @@ export function validateCreateProduct(body: Record<string, unknown>): Validation
             categoryId: categoryId != null ? String(categoryId) : undefined,
             price: Number(price),
             imageUri: imageUri != null ? String(imageUri) : undefined,
-            recipe: recipe as [ProductRecipeInput, ...ProductRecipeInput[]],
+            isCombo: Boolean(isCombo),
+            recipe: Array.isArray(recipe) && recipe.length > 0 ? (recipe as [ProductRecipeInput, ...ProductRecipeInput[]]) : undefined,
             additionalIngredients: Array.isArray(additionalIngredients)
                 ? (additionalIngredients as ProductAdditionalIngredientInput[])
                 : [],

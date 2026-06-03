@@ -14,7 +14,7 @@ import { useProductsStore } from '@/stores/products';
 import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
 
 export type ProductFormProps = {
-    mode: 'create' | { productId: string };
+    mode: 'create' | 'combo-create' | { productId: string };
     onClose: () => void;
 };
 
@@ -33,6 +33,10 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
         removeProductIngredient,
         setProductAdditionalIngredient,
         removeProductAdditionalIngredient,
+        setComboGroup,
+        removeComboGroup,
+        setComboGroupOption,
+        removeComboGroupOption,
     } = useProductsStore();
 
     const [productForm, setProductForm] = useState({ name: '', price: '', categoryId: null as string | null, imageUri: null as string | null });
@@ -45,9 +49,16 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
     const [draftRecipe, setDraftRecipe] = useState<{ ingredientId: string; quantityUsed: string } | null>(null);
     const [draftAdditional, setDraftAdditional] = useState<{ ingredientId: string; quantityUsed: string; additionalPrice: string } | null>(null);
 
+    // Combo groups state
+    const [comboGroupsData, setComboGroupsData] = useState<{ id: string; name: string; minQuantity: number; maxQuantity: number; options: { productId: string; additionalPrice: number; isDefault: boolean }[] }[]>([]);
+    const [draftComboGroup, setDraftComboGroup] = useState<{ name: string; minQuantity: number; maxQuantity: number } | null>(null);
+    const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    const [draftGroupOption, setDraftGroupOption] = useState<{ productId: string; additionalPrice: string; isDefault: boolean } | null>(null);
+
     const [sections, setSections] = useState({ general: true, recipe: true, additional: false });
     const [message, setMessage] = useState('');
-    const isEdit = mode !== 'create';
+    const isEdit = typeof mode === 'object';
+    const isCombo = mode === 'combo-create' || (typeof mode === 'object' && products.find(p => p.id === mode.productId)?.isCombo);
 
     const categoryOptions = useMemo(
         () => [
@@ -62,12 +73,16 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
         setMessage('');
         setDraftRecipe(null);
         setDraftAdditional(null);
+        setDraftComboGroup(null);
+        setEditingGroupId(null);
+        setDraftGroupOption(null);
 
-        if (mode === 'create') {
+        if (mode === 'create' || mode === 'combo-create') {
             setProductForm({ name: '', price: '', categoryId: null, imageUri: null });
             setRecipeItems([]);
             setAdditionalItems([]);
-            setSections({ general: true, recipe: true, additional: false });
+            setComboGroupsData([]);
+            setSections({ general: true, recipe: mode === 'create', additional: false });
         } else {
             const item = products.find((p) => p.id === mode.productId);
             if (item) setProductForm({ name: item.name, price: String(item.price), categoryId: item.categoryId, imageUri: item.imageUri ?? null });
@@ -83,7 +98,10 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                 .map(link => ({ ingredientId: link.ingredientId, quantityUsed: String(link.quantityUsed), additionalPrice: String(link.additionalPrice) }));
             setAdditionalItems(existingAdditional);
 
-            setSections({ general: true, recipe: true, additional: true });
+            const existingComboGroups = item?.comboGroups ?? [];
+            setComboGroupsData(existingComboGroups as any);
+
+            setSections({ general: true, recipe: !item?.isCombo, additional: !item?.isCombo });
         }
     }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -102,12 +120,12 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
             finalAdditional.push(draftAdditional);
         }
 
-        if (finalRecipe.length === 0) { setMessage(t('productForm.error.recipeRequired')); return; }
+        if (!isCombo && finalRecipe.length === 0) { setMessage(t('productForm.error.recipeRequired')); return; }
 
         const parsedRecipe = finalRecipe.map((item) => ({
             ingredientId: item.ingredientId,
             quantityUsed: Number(item.quantityUsed),
-        })) as [ProductRecipeInput, ...ProductRecipeInput[]];
+        })) as [ProductRecipeInput, ...ProductRecipeInput[]] | undefined;
 
         const parsedAdditional = finalAdditional.map((item) => ({
             ingredientId: item.ingredientId,
@@ -115,39 +133,89 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
             additionalPrice: Number(item.additionalPrice || '0'),
         })) as ProductAdditionalIngredientInput[];
 
-        if (mode === 'create') {
-            await createProduct({
+        if (mode === 'create' || mode === 'combo-create') {
+            const productId = await createProduct({
                 name: productForm.name.trim(),
                 categoryId: productForm.categoryId ?? undefined,
                 price,
                 imageUri: productForm.imageUri ?? undefined,
-                recipe: parsedRecipe,
-                additionalIngredients: parsedAdditional,
+                isCombo: mode === 'combo-create',
+                recipe: mode === 'create' ? parsedRecipe : undefined,
+                additionalIngredients: mode === 'create' ? parsedAdditional : undefined,
             });
+
+            // Si es un combo, sincroniza los grupos
+            if (mode === 'combo-create' && productId && isCombo) {
+                for (const group of comboGroupsData) {
+                    const groupId = await setComboGroup(productId, { name: group.name, minQuantity: group.minQuantity, maxQuantity: group.maxQuantity });
+                    if (groupId) {
+                        for (const option of group.options) {
+                            await setComboGroupOption(productId, groupId, { productId: option.productId, additionalPrice: option.additionalPrice, isDefault: option.isDefault });
+                        }
+                    }
+                }
+            }
         } else {
             // Sincroniza la información del producto
             await updateProduct({ id: mode.productId, name: productForm.name.trim(), price, categoryId: productForm.categoryId, imageUri: productForm.imageUri });
 
-            // Sincroniza los ingredientes de la receta (Agrega/Actualiza y Elimina lo que falte)
-            const existingRecipeIds = productIngredients.filter(l => l.productId === mode.productId).map(l => l.ingredientId);
-            const newRecipeIds = parsedRecipe.map(r => r.ingredientId);
+            // Solo sincroniza ingredientes si NO es un combo
+            if (!isCombo) {
+                // Sincroniza los ingredientes de la receta (Agrega/Actualiza y Elimina lo que falte)
+                const existingRecipeIds = productIngredients.filter(l => l.productId === mode.productId).map(l => l.ingredientId);
+                const newRecipeIds = parsedRecipe?.map(r => r.ingredientId) ?? [];
 
-            for (const oldId of existingRecipeIds) {
-                if (!newRecipeIds.includes(oldId)) await removeProductIngredient({ productId: mode.productId, ingredientId: oldId });
-            }
-            for (const newItem of parsedRecipe) {
-                await setProductIngredient({ productId: mode.productId, ingredientId: newItem.ingredientId, quantityUsed: newItem.quantityUsed });
-            }
+                for (const oldId of existingRecipeIds) {
+                    if (!newRecipeIds.includes(oldId)) await removeProductIngredient({ productId: mode.productId, ingredientId: oldId });
+                }
+                if (parsedRecipe) {
+                    for (const newItem of parsedRecipe) {
+                        await setProductIngredient({ productId: mode.productId, ingredientId: newItem.ingredientId, quantityUsed: newItem.quantityUsed });
+                    }
+                }
 
-            // Sincroniza los ingredientes adicionales
-            const existingAddIds = productAdditionalIngredients.filter(l => l.productId === mode.productId).map(l => l.ingredientId);
-            const newAddIds = parsedAdditional.map(a => a.ingredientId);
+                // Sincroniza los ingredientes adicionales
+                const existingAddIds = productAdditionalIngredients.filter(l => l.productId === mode.productId).map(l => l.ingredientId);
+                const newAddIds = parsedAdditional.map(a => a.ingredientId);
 
-            for (const oldId of existingAddIds) {
-                if (!newAddIds.includes(oldId)) await removeProductAdditionalIngredient({ productId: mode.productId, ingredientId: oldId });
-            }
-            for (const newItem of parsedAdditional) {
-                await setProductAdditionalIngredient({ productId: mode.productId, ingredientId: newItem.ingredientId, quantityUsed: newItem.quantityUsed, additionalPrice: newItem.additionalPrice });
+                for (const oldId of existingAddIds) {
+                    if (!newAddIds.includes(oldId)) await removeProductAdditionalIngredient({ productId: mode.productId, ingredientId: oldId });
+                }
+                for (const newItem of parsedAdditional) {
+                    await setProductAdditionalIngredient({ productId: mode.productId, ingredientId: newItem.ingredientId, quantityUsed: newItem.quantityUsed, additionalPrice: newItem.additionalPrice });
+                }
+            } else {
+                // Sincroniza los grupos de combo
+                const product = products.find(p => p.id === mode.productId);
+                const existingGroupIds = product?.comboGroups?.map(g => g.id) ?? [];
+                const newGroupIds = comboGroupsData.map(g => g.id);
+
+                // Elimina grupos que ya no existen (solo los del servidor con IDs más largos)
+                for (const groupId of existingGroupIds) {
+                    if (!newGroupIds.includes(groupId)) {
+                        await removeComboGroup(mode.productId, groupId);
+                    }
+                }
+
+                // Agrega/actualiza grupos y sus opciones
+                for (const group of comboGroupsData) {
+                    if (group.id.length <= 20) {
+                        // Grupo nuevo: crear en servidor con todas sus opciones
+                        const groupId = await setComboGroup(mode.productId, { name: group.name, minQuantity: group.minQuantity, maxQuantity: group.maxQuantity });
+                        if (groupId) {
+                            for (const option of group.options) {
+                                await setComboGroupOption(mode.productId, groupId, { productId: option.productId, additionalPrice: option.additionalPrice, isDefault: option.isDefault });
+                            }
+                        }
+                    } else {
+                        // Grupo existente: guardar solo las opciones nuevas (sin id de servidor)
+                        for (const option of group.options) {
+                            if (!(option as any).id) {
+                                await setComboGroupOption(mode.productId, group.id, { productId: option.productId, additionalPrice: option.additionalPrice, isDefault: option.isDefault });
+                            }
+                        }
+                    }
+                }
             }
         }
         onClose();
@@ -183,6 +251,48 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
         setMessage('');
         setAdditionalItems((prev) => [draftAdditional, ...prev]);
         setDraftAdditional(null);
+    };
+
+    // --- LÓGICA PARA COMBO GROUPS ---
+    const handleAddComboGroup = () => {
+        setMessage('');
+        setDraftComboGroup({ name: '', minQuantity: 1, maxQuantity: 1 });
+    };
+
+    const handleSaveComboGroup = () => {
+        if (!draftComboGroup || !draftComboGroup.name.trim() || draftComboGroup.minQuantity < 1 || draftComboGroup.maxQuantity < draftComboGroup.minQuantity) {
+            setMessage('El grupo debe tener un nombre válido y cantidades válidas (min ≤ max)');
+            return;
+        }
+        setMessage('');
+        const groupId = Math.random().toString(36).substring(7);
+        setComboGroupsData((prev) => [...prev, { id: groupId, name: draftComboGroup.name, minQuantity: draftComboGroup.minQuantity, maxQuantity: draftComboGroup.maxQuantity, options: [] }]);
+        setDraftComboGroup(null);
+    };
+
+    const handleAddGroupOption = (groupId: string) => {
+        setMessage('');
+        setEditingGroupId(groupId);
+        setDraftGroupOption({ productId: '', additionalPrice: '', isDefault: false });
+    };
+
+    const handleSaveGroupOption = (groupId: string) => {
+        if (!draftGroupOption || !draftGroupOption.productId || Number(draftGroupOption.additionalPrice || '0') < 0) {
+            setMessage('La opción debe tener un producto y precio válido');
+            return;
+        }
+        setMessage('');
+        setComboGroupsData((prev) => prev.map((group) => {
+            if (group.id === groupId) {
+                return {
+                    ...group,
+                    options: [...group.options, { productId: draftGroupOption.productId, additionalPrice: Number(draftGroupOption.additionalPrice), isDefault: draftGroupOption.isDefault }],
+                };
+            }
+            return group;
+        }));
+        setDraftGroupOption(null);
+        setEditingGroupId(null);
     };
 
     async function pickImage() {
@@ -280,17 +390,19 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                 ) : null}
 
                 {/* Recipe section */}
-                <Pressable
-                    style={[styles.collapsibleHeader, { borderColor: palette.border }]}
-                    onPress={() => setSections((s) => ({ ...s, recipe: !s.recipe }))}
-                >
-                    <View style={styles.collapsibleHeaderLeft}>
-                        <Ionicons name="flask-outline" size={16} color={palette.tint} />
-                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.sectionRecipe')}</ThemedText>
-                    </View>
-                    <Ionicons name={sections.recipe ? 'chevron-up' : 'chevron-down'} size={16} color={palette.mutedText} />
-                </Pressable>
-                {sections.recipe ? (
+                {!isCombo && (
+                    <>
+                        <Pressable
+                            style={[styles.collapsibleHeader, { borderColor: palette.border }]}
+                            onPress={() => setSections((s) => ({ ...s, recipe: !s.recipe }))}
+                        >
+                            <View style={styles.collapsibleHeaderLeft}>
+                                <Ionicons name="flask-outline" size={16} color={palette.tint} />
+                                <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.sectionRecipe')}</ThemedText>
+                            </View>
+                            <Ionicons name={sections.recipe ? 'chevron-up' : 'chevron-down'} size={16} color={palette.mutedText} />
+                        </Pressable>
+                        {sections.recipe ? (
                     <View style={styles.collapsibleContent}>
                         <ThemedText style={[styles.smallLabel, { marginTop: 8 }]}>{t('productForm.addRecipeIngredients')}</ThemedText>
 
@@ -454,6 +566,142 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                         })}
                     </View>
                 ) : null}
+                    </>
+                )}
+
+                {isCombo && (
+                    <>
+                        <Pressable
+                            style={[styles.collapsibleHeader, { borderColor: palette.border }]}
+                            onPress={() => setSections((s) => ({ ...s, additional: !s.additional }))}
+                        >
+                            <View style={styles.collapsibleHeaderLeft}>
+                                <Ionicons name="layers-outline" size={16} color={palette.tint} />
+                                <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>Grupos de Combo</ThemedText>
+                            </View>
+                            <Ionicons name={sections.additional ? 'chevron-up' : 'chevron-down'} size={16} color={palette.mutedText} />
+                        </Pressable>
+                        {sections.additional ? (
+                            <View style={styles.collapsibleContent}>
+                                <ThemedText style={[styles.smallLabel, { marginTop: 8 }]}>Agrupa los productos disponibles para este combo</ThemedText>
+
+                                {/* Tarjeta de Formulario para Grupo Nuevo */}
+                                {draftComboGroup ? (
+                                    <View style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground, marginBottom: 8 }]}>
+                                        <View style={styles.ingredientCardHeader}>
+                                            <View style={styles.labelRow}>
+                                                <Ionicons name="layers-outline" size={13} color={palette.mutedText} />
+                                                <ThemedText style={styles.smallLabel}>Nombre del Grupo</ThemedText>
+                                            </View>
+                                            <Pressable hitSlop={8} onPress={() => setDraftComboGroup(null)}>
+                                                <Ionicons name="close-circle-outline" size={18} color={palette.danger} />
+                                            </Pressable>
+                                        </View>
+                                        <ThemedInput value={draftComboGroup.name} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, name: v } : null)} style={styles.input} placeholder="Ej: Tipo de pasta" />
+                                        <View style={styles.ingredientCardInputs}>
+                                            <View style={styles.ingredientCardField}>
+                                                <View style={styles.labelRow}>
+                                                    <Ionicons name="remove-outline" size={13} color={palette.mutedText} />
+                                                    <ThemedText style={styles.smallLabel}>Mín</ThemedText>
+                                                </View>
+                                                <ThemedInput placeholder="1" keyboardType="decimal-pad" value={String(draftComboGroup.minQuantity)} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, minQuantity: Number(v) || 1 } : null)} style={styles.input} />
+                                            </View>
+                                            <View style={styles.ingredientCardField}>
+                                                <View style={styles.labelRow}>
+                                                    <Ionicons name="add-outline" size={13} color={palette.mutedText} />
+                                                    <ThemedText style={styles.smallLabel}>Máx</ThemedText>
+                                                </View>
+                                                <ThemedInput placeholder="1" keyboardType="decimal-pad" value={String(draftComboGroup.maxQuantity)} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, maxQuantity: Number(v) || 1 } : null)} style={styles.input} />
+                                            </View>
+                                        </View>
+                                    </View>
+                                ) : null}
+
+                                <View style={[styles.RowActions, { marginBottom: 8 }]}>
+                                    {!draftComboGroup ? (
+                                        <ThemedButton variant="secondary" style={styles.smallBtn} label="Agregar Grupo" onPress={handleAddComboGroup} />
+                                    ) : (
+                                        <ThemedButton style={styles.smallBtn} label="Guardar Grupo" onPress={handleSaveComboGroup} />
+                                    )}
+                                </View>
+
+                                {/* Lista de Grupos */}
+                                {comboGroupsData.length === 0 && !draftComboGroup ? (
+                                    <ThemedText style={styles.smallLabel}>Crea grupos para organizar las opciones del combo</ThemedText>
+                                ) : comboGroupsData.map((group) => (
+                                    <View key={group.id} style={[styles.ingredientCard, { borderColor: palette.border + '66', marginBottom: 12 }]}>
+                                        <View style={styles.ingredientCardHeader}>
+                                            <View style={{ flex: 1 }}>
+                                                <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{group.name}</ThemedText>
+                                                <ThemedText style={styles.smallLabel}>Selecciona {group.minQuantity}–{group.maxQuantity}</ThemedText>
+                                            </View>
+                                            <Pressable hitSlop={8} onPress={() => setComboGroupsData(items => items.filter(i => i.id !== group.id))}>
+                                                <Ionicons name="trash-outline" size={16} color={palette.danger} />
+                                            </Pressable>
+                                        </View>
+
+                                        {/* Opciones del Grupo */}
+                                        {editingGroupId === group.id && draftGroupOption ? (
+                                            <View style={[{ borderTopWidth: 1, borderTopColor: palette.border, marginTop: 8, paddingTop: 8 }]}>
+                                                <View style={styles.labelRow}>
+                                                    <Ionicons name="storefront-outline" size={13} color={palette.mutedText} />
+                                                    <ThemedText style={styles.smallLabel}>Selecciona Producto</ThemedText>
+                                                </View>
+                                                <ThemedSelect
+                                                    placeholder="Elige un producto"
+                                                    value={draftGroupOption.productId}
+                                                    items={products
+                                                        .filter(p => !p.isCombo && !group.options.find(opt => opt.productId === p.id))
+                                                        .map((p) => ({ label: p.name, value: p.id }))}
+                                                    onValueChange={(value) => setDraftGroupOption(prev => prev ? { ...prev, productId: value } : null)}
+                                                />
+                                                <View style={styles.ingredientCardInputs}>
+                                                    <View style={styles.ingredientCardField}>
+                                                        <View style={styles.labelRow}>
+                                                            <Ionicons name="pricetag-outline" size={13} color={palette.mutedText} />
+                                                            <ThemedText style={styles.smallLabel}>Precio Adicional</ThemedText>
+                                                        </View>
+                                                        <ThemedInput placeholder="0.00" keyboardType="decimal-pad" value={draftGroupOption.additionalPrice} onChangeText={(v) => setDraftGroupOption(prev => prev ? { ...prev, additionalPrice: v } : null)} style={styles.input} />
+                                                    </View>
+                                                </View>
+                                                <View style={[styles.RowActions, { marginTop: 8 }]}>
+                                                    <ThemedButton style={styles.smallBtn} label="Guardar Opción" onPress={() => handleSaveGroupOption(group.id)} />
+                                                    <ThemedButton variant="secondary" style={styles.smallBtn} label="Cancelar" onPress={() => { setDraftGroupOption(null); setEditingGroupId(null); }} />
+                                                </View>
+                                            </View>
+                                        ) : null}
+
+                                        {/* Lista de Opciones */}
+                                        <View style={{ marginTop: 8 }}>
+                                            {group.options.length === 0 ? (
+                                                <ThemedText style={[styles.smallLabel, { marginBottom: 8 }]}>Sin opciones aún</ThemedText>
+                                            ) : (
+                                                group.options.map((opt, idx) => {
+                                                    const optProduct = products.find(p => p.id === opt.productId);
+                                                    return (
+                                                        <View key={`${group.id}-opt-${idx}`} style={[styles.ListItem, { borderColor: palette.border, marginBottom: 4 }]}>
+                                                            <View style={styles.flex1}>
+                                                                <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{optProduct?.name}</ThemedText>
+                                                                <ThemedText style={styles.smallLabel}>+${Number(opt.additionalPrice).toFixed(2)}</ThemedText>
+                                                            </View>
+                                                            <Pressable hitSlop={8} onPress={() => setComboGroupsData(items => items.map(g => g.id === group.id ? { ...g, options: g.options.filter((_, i) => i !== idx) } : g))}>
+                                                                <Ionicons name="trash-outline" size={16} color={palette.danger} />
+                                                            </Pressable>
+                                                        </View>
+                                                    );
+                                                })
+                                            )}
+                                        </View>
+
+                                        {editingGroupId !== group.id ? (
+                                            <ThemedButton variant="secondary" style={[styles.smallBtn, { marginTop: 8 }]} label="Agregar Opción" onPress={() => handleAddGroupOption(group.id)} />
+                                        ) : null}
+                                    </View>
+                                ))}
+                            </View>
+                        ) : null}
+                    </>
+                )}
             </ScrollView>
 
             <View style={[styles.Footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>

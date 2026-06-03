@@ -1,6 +1,7 @@
 import type {
   AddCategoryPayload,
   CategoryOption,
+  ComboGroup,
   CreateProductPayload,
   ProductAdditionalIngredientLink,
   ProductDetail,
@@ -18,6 +19,8 @@ export type ProductsHydrationData = {
   products: ProductDetail[];
   productIngredients: ProductIngredientLink[];
   productAdditionalIngredients: ProductAdditionalIngredientLink[];
+  comboGroups?: any[];
+  comboGroupOptions?: any[];
 };
 
 export class ProductsService {
@@ -28,6 +31,8 @@ export class ProductsService {
       products: [],
       productIngredients: [],
       productAdditionalIngredients: [],
+      comboGroups: [],
+      comboGroupOptions: [],
     };
   }
 
@@ -67,5 +72,26 @@ export class ProductsService {
 
   async removeProductAdditionalIngredient(payload: RemoveProductAdditionalIngredientPayload): Promise<void> {
     await apiClient.delete(`/products/${payload.productId}/additional-ingredients/${payload.ingredientId}`);
+  }
+
+  async setComboGroup(productId: string, payload: { name: string; minQuantity: number; maxQuantity: number }): Promise<string | null> {
+    try {
+      const response = await apiClient.post<{ id: string }>(`/products/${productId}/combo-groups`, payload);
+      return response.id || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async removeComboGroup(productId: string, groupId: string): Promise<void> {
+    await apiClient.delete(`/products/${productId}/combo-groups/${groupId}`);
+  }
+
+  async setComboGroupOption(productId: string, groupId: string, payload: { productId: string; additionalPrice: number; isDefault: boolean }): Promise<void> {
+    await apiClient.post(`/products/${productId}/combo-groups/${groupId}/options`, payload);
+  }
+
+  async removeComboGroupOption(productId: string, groupId: string, optionProductId: string): Promise<void> {
+    await apiClient.delete(`/products/${productId}/combo-groups/${groupId}/options/${optionProductId}`);
   }
 }

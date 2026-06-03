@@ -11,6 +11,7 @@ export type SaleFormCartItem = {
     observation: string | null;
     removedIngredientIds: string[];
     additionalIngredients: SaleItemAdditionalIngredientInput[];
+    comboItems?: SaleFormCartItem[];
 };
 
 export function createCartItemId(): string {
@@ -73,17 +74,41 @@ export function mapDraftItemsToCart(
     items: SaleItemDetail[],
     getProductPrice: (productId: string) => number | null,
 ): SaleFormCartItem[] {
-    const itemMap = new Map<string, SaleFormCartItem>();
+    // Group children by their parent sale item id
+    const childrenByParentId = new Map<string, SaleItemDetail[]>();
     for (const item of items) {
+        if (item.parent_sale_item_id) {
+            const list = childrenByParentId.get(item.parent_sale_item_id) ?? [];
+            list.push(item);
+            childrenByParentId.set(item.parent_sale_item_id, list);
+        }
+    }
+
+    const itemMap = new Map<string, SaleFormCartItem>();
+    for (const item of items.filter((i) => !i.parent_sale_item_id)) {
         const removedIngredientIds = normalizeIngredientIds(item.removed_ingredient_ids ?? []);
         const additionalIngredients = normalizeAdditionalIngredients(item.selected_additional_ingredients ?? []);
         const observation = typeof item.observation === 'string' ? item.observation.trim() : '';
         const key = buildCustomizationKey(item.product_id, observation, removedIngredientIds, additionalIngredients);
         const existing = itemMap.get(key);
-        if (existing) {
+
+        const children = childrenByParentId.get(item.id);
+        const comboItems: SaleFormCartItem[] | undefined = children?.map((child) => ({
+            id: createCartItemId(),
+            productId: child.product_id,
+            name: child.product_name,
+            basePrice: Number(getProductPrice(child.product_id) ?? child.unit_price),
+            unitPrice: Number(child.unit_price),
+            quantity: child.quantity,
+            observation: typeof child.observation === 'string' && child.observation.trim() ? child.observation.trim() : null,
+            removedIngredientIds: normalizeIngredientIds(child.removed_ingredient_ids ?? []),
+            additionalIngredients: normalizeAdditionalIngredients(child.selected_additional_ingredients ?? []),
+        }));
+
+        if (existing && !comboItems) {
             existing.quantity += item.quantity;
         } else {
-            itemMap.set(key, {
+            itemMap.set(comboItems ? item.id : key, {
                 id: createCartItemId(),
                 productId: item.product_id,
                 name: item.product_name,
@@ -93,6 +118,7 @@ export function mapDraftItemsToCart(
                 observation: observation.length > 0 ? observation : null,
                 removedIngredientIds,
                 additionalIngredients,
+                comboItems,
             });
         }
     }

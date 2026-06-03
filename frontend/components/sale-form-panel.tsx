@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import { ComboConfigModal, type ComboItemCustomization, type CustomizationsByOptionId } from '@/components/combo-config-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedSelect } from '@/components/ui/themed-select';
@@ -15,6 +16,7 @@ import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import {
+    createCartItemId,
     type SaleFormCartItem,
 } from '@/utils/cart-normalization';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
@@ -41,6 +43,11 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
     const [openItemIds, setOpenItemIds] = useState<Set<string>>(new Set());
     const [tableExpanded, setTableExpanded] = useState(true);
     const [discountExpanded, setDiscountExpanded] = useState(false);
+    const [comboModalVisible, setComboModalVisible] = useState(false);
+    const [selectedComboProduct, setSelectedComboProduct] = useState<typeof products[0] | null>(null);
+    const [editingCartItemId, setEditingCartItemId] = useState<string | null>(null);
+    const [comboInitialSelections, setComboInitialSelections] = useState<Map<string, any> | undefined>(undefined);
+    const [comboInitialCustomizations, setComboInitialCustomizations] = useState<CustomizationsByOptionId | undefined>(undefined);
 
     const { isWide: isWideLayout } = useResponsiveOpen();
 
@@ -198,6 +205,14 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                 observation: item.observation,
                 removedIngredientIds: item.removedIngredientIds,
                 additionalIngredients: item.additionalIngredients,
+                comboItems: item.comboItems?.map((sub) => ({
+                    productId: sub.productId,
+                    quantity: sub.quantity,
+                    unitPrice: sub.unitPrice,
+                    observation: sub.observation,
+                    removedIngredientIds: sub.removedIngredientIds,
+                    additionalIngredients: sub.additionalIngredients,
+                })),
             })),
             tableId: selectedTableId,
             globalDiscountId: selectedGlobalDiscountId || null,
@@ -232,10 +247,21 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                     style={[
                                         styles.productCard,
                                         isWideLayout ? styles.productCardWide : styles.productCardNarrow,
-                                        { borderColor: isSelected ? palette.tint : palette.border, backgroundColor: palette.card },
+                                        {
+                                          borderColor: product.isCombo ? palette.accent : (isSelected ? palette.tint : palette.border),
+                                          backgroundColor: palette.card,
+                                        },
                                         editingOrderId && !canEditDraft ? styles.disabledTile : null,
                                     ]}
-                                    onPress={() => addToCart(product.id, product.name, Number(product.price))}
+                                    onPress={() => {
+                                      if (editingOrderId && !canEditDraft) return;
+                                      if (product.isCombo) {
+                                        setSelectedComboProduct(product);
+                                        setComboModalVisible(true);
+                                      } else {
+                                        addToCart(product.id, product.name, Number(product.price));
+                                      }
+                                    }}
                                     disabled={Boolean(editingOrderId && !canEditDraft)}>
                                     {product.imageUri ? (
                                         <Image source={{ uri: product.imageUri }} style={styles.productImage} />
@@ -250,7 +276,12 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                         </View>
                                     )}
                                     <View style={styles.productInfo}>
-                                        <ThemedText style={styles.productName} numberOfLines={2}>{product.name}</ThemedText>
+                                        <View style={styles.productNameRow}>
+                                            <ThemedText style={styles.productName} numberOfLines={2}>{product.name}</ThemedText>
+                                            {product.isCombo && (
+                                                <Ionicons name="layers-outline" size={12} color={palette.accent} />
+                                            )}
+                                        </View>
                                         <ThemedText style={[styles.productPrice, { color: palette.mutedText }]}>
                                             ${Number(product.price).toFixed(2)}
                                         </ThemedText>
@@ -342,6 +373,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
 
     const renderCartItem = (item: CartItem) => {
         const isExpanded = openItemIds.has(item.id);
+        const isComboItem = Boolean(item.comboItems?.length);
         const removedNames = item.removedIngredientIds
             .map((id) => recipeByProductId.get(item.productId)?.find((x) => x.ingredientId === id)?.ingredientName)
             .filter((name): name is string => Boolean(name));
@@ -353,9 +385,12 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             .filter((s): s is string => Boolean(s));
         const modifierSummary = [...removedNames.map((n) => `${t('saleForm.withoutChip')} ${n}`), ...addedNames].join(' · ');
         const itemTotal = item.unitPrice * item.quantity;
-        const hasIngredients = (recipeByProductId.get(item.productId)?.length ?? 0) > 0;
-        const hasAdditionals = (products.find((p) => p.id === item.productId)?.additionalIngredients.length ?? 0) > 0;
+        const hasIngredients = !isComboItem && (recipeByProductId.get(item.productId)?.length ?? 0) > 0;
+        const hasAdditionals = !isComboItem && (products.find((p) => p.id === item.productId)?.additionalIngredients.length ?? 0) > 0;
         const isDisabled = Boolean(editingOrderId && !canEditDraft);
+
+        // Group combo sub-items by their group for display
+        const comboProduct = isComboItem ? products.find((p) => p.id === item.productId) : null;
 
         return (
             <View key={item.id} style={[styles.cartItem, { borderBottomColor: palette.border }]}>
@@ -364,11 +399,16 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                     <Ionicons
                         name={isExpanded ? 'chevron-up' : 'chevron-down'}
                         size={14}
-                        color={palette.tint}
+                        color={isComboItem ? palette.accent : palette.tint}
                         style={styles.itemChevron}
                     />
                     <View style={styles.cartItemNameUnit}>
-                        <ThemedText style={styles.cartItemName} numberOfLines={1}>{item.name}</ThemedText>
+                        <View style={styles.cartItemNameRow}>
+                            {isComboItem && (
+                                <Ionicons name="layers-outline" size={13} color={palette.accent} style={{ marginRight: 4 }} />
+                            )}
+                            <ThemedText style={styles.cartItemName} numberOfLines={1}>{item.name}</ThemedText>
+                        </View>
                         <ThemedText style={[styles.cartItemUnitPrice, { color: palette.mutedText }]}>
                             ${item.unitPrice.toFixed(2)} {t('saleForm.each')}
                         </ThemedText>
@@ -376,9 +416,37 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                     <ThemedText style={styles.cartItemTotal}>${itemTotal.toFixed(2)}</ThemedText>
                 </Pressable>
 
+                {/* Combo sub-items summary (collapsed) */}
+                {isComboItem && !isExpanded && (
+                    <View style={[styles.comboSubSummary, { borderLeftColor: palette.accent + '60' }]}>
+                        {item.comboItems!.map((sub, idx) => {
+                            const subName = productsMap.get(sub.productId)?.name ?? sub.name;
+                            const removedCount = sub.removedIngredientIds.length;
+                            const addedCount = sub.additionalIngredients.length;
+                            const obs = sub.observation;
+                            const tags = [
+                                removedCount > 0 ? `−${removedCount}` : '',
+                                addedCount > 0 ? `+${addedCount}` : '',
+                                obs ? '📝' : '',
+                            ].filter(Boolean).join(' ');
+                            return (
+                                <ThemedText key={idx} style={[styles.comboSubSummaryText, { color: palette.mutedText }]} numberOfLines={1}>
+                                    · {subName}{tags ? ` (${tags})` : ''}
+                                </ThemedText>
+                            );
+                        })}
+                        {!isDisabled && (
+                            <Pressable onPress={() => handleEditComboCartItem(item)} style={styles.editComboBtn}>
+                                <Ionicons name="create-outline" size={12} color={palette.accent} />
+                                <ThemedText style={[styles.comboSubSummaryText, { color: palette.accent }]}>Editar combo</ThemedText>
+                            </Pressable>
+                        )}
+                    </View>
+                )}
+
                 {/* Line 2: modifier summary | qty buttons */}
                 <View style={styles.cartItemRow2}>
-                    {!isExpanded && (modifierSummary.length > 0 || item.observation) ? (
+                    {!isExpanded && !isComboItem && (modifierSummary.length > 0 || item.observation) ? (
                         <ThemedText style={[styles.modifierSummary, { color: palette.mutedText, flex: 1 }]} numberOfLines={2}>
                             {[modifierSummary, item.observation ? `📝 ${item.observation}` : null].filter(Boolean).join(' · ')}
                         </ThemedText>
@@ -406,7 +474,101 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                 {isExpanded && (
                     <View style={[styles.expandedContent, { borderTopColor: palette.border }]}>
 
-                        {/* Remove ingredients */}
+                        {/* Combo groups breakdown */}
+                        {isComboItem && comboProduct?.comboGroups && comboProduct.comboGroups.length > 0 && (
+                            <View style={styles.expandedSection}>
+                                {comboProduct.comboGroups.map((group) => {
+                                    const groupOptions = item.comboItems!.filter((sub) =>
+                                        group.options.some((opt) => opt.productId === sub.productId),
+                                    );
+                                    if (groupOptions.length === 0) return null;
+                                    return (
+                                        <View key={group.id} style={[styles.comboGroupBlock, { borderColor: palette.border }]}>
+                                            <View style={styles.expandedSectionHeader}>
+                                                <Ionicons name="layers-outline" size={13} color={palette.accent} />
+                                                <ThemedText style={[styles.expandedSectionLabel, { color: palette.accent }]}>
+                                                    {group.name}
+                                                </ThemedText>
+                                            </View>
+                                            {groupOptions.map((sub, idx) => {
+                                                const subName = productsMap.get(sub.productId)?.name ?? sub.name;
+                                                const groupOption = group.options.find((o) => o.productId === sub.productId);
+                                                const removedNames = (recipeByProductId.get(sub.productId) ?? [])
+                                                    .filter((ing) => sub.removedIngredientIds.includes(ing.ingredientId))
+                                                    .map((ing) => ing.ingredientName);
+                                                const addedItems = sub.additionalIngredients.map((entry) => {
+                                                    const opt = additionalOptionsByProductId.get(sub.productId)?.get(entry.ingredientId);
+                                                    return opt ? `+${opt.ingredientName} x${entry.quantity}` : null;
+                                                }).filter(Boolean) as string[];
+                                                return (
+                                                    <View key={idx} style={styles.comboSubItem}>
+                                                        <View style={{ flex: 1 }}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                                <Ionicons name="checkmark" size={13} color={palette.tint} />
+                                                                <ThemedText style={[styles.comboSubItemName, { color: palette.text }]}>
+                                                                    {subName}
+                                                                </ThemedText>
+                                                                {groupOption && groupOption.additionalPrice > 0 && (
+                                                                    <ThemedText style={[styles.comboSubItemPrice, { color: palette.mutedText }]}>
+                                                                        +${groupOption.additionalPrice.toFixed(2)}
+                                                                    </ThemedText>
+                                                                )}
+                                                            </View>
+                                                            {removedNames.length > 0 && (
+                                                                <ThemedText style={[styles.comboSubItemPrice, { color: palette.danger ?? '#C62828', paddingLeft: 19 }]}>
+                                                                    Sin: {removedNames.join(', ')}
+                                                                </ThemedText>
+                                                            )}
+                                                            {addedItems.length > 0 && (
+                                                                <ThemedText style={[styles.comboSubItemPrice, { color: palette.tint, paddingLeft: 19 }]}>
+                                                                    {addedItems.join(' · ')}
+                                                                </ThemedText>
+                                                            )}
+                                                            {sub.observation ? (
+                                                                <ThemedText style={[styles.comboSubItemPrice, { color: palette.mutedText, paddingLeft: 19, fontStyle: 'italic' }]}>
+                                                                    📝 {sub.observation}
+                                                                </ThemedText>
+                                                            ) : null}
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+
+                        {/* Fallback: flat combo list when no group info available */}
+                        {isComboItem && (!comboProduct?.comboGroups || comboProduct.comboGroups.length === 0) && (
+                            <View style={styles.expandedSection}>
+                                <View style={styles.expandedSectionHeader}>
+                                    <Ionicons name="layers-outline" size={13} color={palette.accent} />
+                                    <ThemedText style={[styles.expandedSectionLabel, { color: palette.accent }]}>
+                                        Opciones seleccionadas
+                                    </ThemedText>
+                                </View>
+                                {item.comboItems!.map((sub, idx) => {
+                                    const subName = productsMap.get(sub.productId)?.name ?? sub.name;
+                                    return (
+                                        <View key={idx} style={styles.comboSubItem}>
+                                            <Ionicons name="checkmark" size={13} color={palette.tint} />
+                                            <ThemedText style={[styles.comboSubItemName, { color: palette.text }]}>{subName}</ThemedText>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+
+                        {/* Edit combo button (expanded) */}
+                        {isComboItem && !isDisabled && (
+                            <Pressable onPress={() => handleEditComboCartItem(item)} style={[styles.editComboBtnExpanded, { borderColor: palette.accent + '60', backgroundColor: palette.accent + '10' }]}>
+                                <Ionicons name="create-outline" size={14} color={palette.accent} />
+                                <ThemedText style={[styles.comboSubItemName, { color: palette.accent }]}>Editar combo</ThemedText>
+                            </Pressable>
+                        )}
+
+                        {/* Remove ingredients (regular products only) */}
                         {hasIngredients && (
                             <View style={styles.expandedSection}>
                                 <View style={styles.expandedSectionHeader}>
@@ -441,7 +603,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                             </View>
                         )}
 
-                        {/* Additional ingredients */}
+                        {/* Additional ingredients (regular products only) */}
                         {hasAdditionals && (
                             <View style={styles.expandedSection}>
                                 <View style={styles.expandedSectionHeader}>
@@ -648,82 +810,212 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
 
     const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-    // ─── Wide layout ───────────────────────────────────────────────────────────
-    if (isWideLayout) {
-        return (
-            <View
-                style={[
-                    styles.wideRoot,
-                    Platform.select({ web: { height: '100vh', overflow: 'hidden' } as object }) ?? {},
-                ]}>
-                {/* Left: Catalog */}
-                <View style={[styles.catalogColumn, { backgroundColor: palette.inputBackground }]}>
-                    <View style={[styles.catalogHeader, { borderBottomColor: palette.border }]}>
-                        <ThemedText type="subtitle">{t('saleForm.catalog')}</ThemedText>
-                        {editingOrderId && loadingDraft && (
-                            <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{t('saleForm.loadingDraft')}</ThemedText>
-                        )}
-                    </View>
-                    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.catalogScrollContent} showsVerticalScrollIndicator={false}>
-                        {renderCatalogContent()}
-                    </ScrollView>
-                </View>
+    const productsMap = useMemo(() => {
+        const map = new Map<string, { name: string; price: number }>();
+        for (const product of products) {
+            map.set(product.id, { name: product.name, price: product.price });
+        }
+        return map;
+    }, [products]);
 
-                {/* Right: Cart (40%) */}
+    const handleComboConfirm = (selectedOptions: Map<string, any[]>, customizations: CustomizationsByOptionId) => {
+        if (!selectedComboProduct) return;
+
+        const comboItems: SaleFormCartItem[] = [];
+
+        selectedComboProduct.comboGroups?.forEach((group) => {
+            const groupOptions = selectedOptions.get(group.id) ?? [];
+            groupOptions.forEach((option: any) => {
+                const childProduct = products.find((p) => p.id === option.productId);
+                const childName = childProduct?.name ?? productsMap.get(option.productId)?.name ?? option.productId;
+                const basePrice = Number(childProduct?.price ?? 0);
+                const groupOptionPrice = Number(option.additionalPrice ?? 0);
+                const customization: ComboItemCustomization = customizations.get(option.id) ?? { removedIngredientIds: [], additionalIngredients: [], observation: '' };
+
+                // Only the extras on top of the combo base price (group option surcharge + additional ingredients)
+                const additionalIngredientPrice = customization.additionalIngredients.reduce((sum, entry) => {
+                    const opt = additionalOptionsByProductId.get(option.productId)?.get(entry.ingredientId);
+                    return sum + (opt?.additionalPrice ?? 0) * entry.quantity;
+                }, 0);
+                const extraPrice = groupOptionPrice + additionalIngredientPrice;
+
+                comboItems.push({
+                    id: createCartItemId(),
+                    productId: option.productId,
+                    name: childName,
+                    basePrice,
+                    unitPrice: extraPrice,
+                    quantity: 1,
+                    observation: customization.observation.trim() || null,
+                    removedIngredientIds: customization.removedIngredientIds,
+                    additionalIngredients: customization.additionalIngredients,
+                });
+            });
+        });
+
+        // Backend adds all child unitPrices on top of the combo base price — mirror that here
+        const comboExtraPrice = comboItems.reduce((sum, sub) => sum + sub.unitPrice * sub.quantity, 0);
+        const comboTotalPrice = Number(selectedComboProduct.price) + comboExtraPrice;
+
+        if (editingCartItemId) {
+            setCart((prev) => prev.map((item) =>
+                item.id === editingCartItemId
+                    ? { ...item, comboItems, unitPrice: comboTotalPrice }
+                    : item,
+            ));
+            setEditingCartItemId(null);
+        } else {
+            addToCart(selectedComboProduct.id, selectedComboProduct.name, comboTotalPrice, { comboItems });
+        }
+
+        setComboModalVisible(false);
+        setSelectedComboProduct(null);
+        setComboInitialSelections(undefined);
+        setComboInitialCustomizations(undefined);
+        if (!isWideLayout && !editingCartItemId) {
+            setMobileStep('cart');
+        }
+    };
+
+    const handleEditComboCartItem = (item: CartItem) => {
+        const comboProduct = products.find((p) => p.id === item.productId);
+        if (!comboProduct || !item.comboItems) return;
+
+        // Reconstruct selections from comboItems
+        const initialSelections = new Map<string, any[]>();
+        for (const group of comboProduct.comboGroups ?? []) {
+            const selectedOpts = item.comboItems
+                .map((sub) => group.options.find((o) => o.productId === sub.productId))
+                .filter(Boolean) as any[];
+            if (selectedOpts.length > 0) initialSelections.set(group.id, selectedOpts);
+        }
+
+        // Reconstruct customizations from comboItems, keyed by option.id
+        const initialCustomizations = new Map<string, ComboItemCustomization>();
+        for (const group of comboProduct.comboGroups ?? []) {
+            for (const sub of item.comboItems) {
+                const opt = group.options.find((o) => o.productId === sub.productId);
+                if (opt) {
+                    initialCustomizations.set(opt.id, {
+                        removedIngredientIds: sub.removedIngredientIds,
+                        additionalIngredients: sub.additionalIngredients,
+                        observation: sub.observation ?? '',
+                    });
+                }
+            }
+        }
+
+        setSelectedComboProduct(comboProduct);
+        setEditingCartItemId(item.id);
+        setComboInitialSelections(initialSelections);
+        setComboInitialCustomizations(initialCustomizations);
+        setComboModalVisible(true);
+    };
+
+    const layoutContent = (() => {
+        // ─── Wide layout ───────────────────────────────────────────────────────────
+        if (isWideLayout) {
+            return (
                 <View
                     style={[
-                        styles.cartColumn,
-                        { backgroundColor: palette.card },
-                        Platform.select({
-                            web: { boxShadow: '-4px 0 12px rgba(0,0,0,0.08)' } as object,
-                            default: { elevation: 4 },
-                        }) ?? {},
+                        styles.wideRoot,
+                        Platform.select({ web: { height: '100vh', overflow: 'hidden' } as object }) ?? {},
                     ]}>
+                    {/* Left: Catalog */}
+                    <View style={[styles.catalogColumn, { backgroundColor: palette.inputBackground }]}>
+                        <View style={[styles.catalogHeader, { borderBottomColor: palette.border }]}>
+                            <ThemedText type="subtitle">{t('saleForm.catalog')}</ThemedText>
+                            {editingOrderId && loadingDraft && (
+                                <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{t('saleForm.loadingDraft')}</ThemedText>
+                            )}
+                        </View>
+                        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.catalogScrollContent} showsVerticalScrollIndicator={false}>
+                            {renderCatalogContent()}
+                        </ScrollView>
+                    </View>
+
+                    {/* Right: Cart (40%) */}
+                    <View
+                        style={[
+                            styles.cartColumn,
+                            { backgroundColor: palette.card },
+                            Platform.select({
+                                web: { boxShadow: '-4px 0 12px rgba(0,0,0,0.08)' } as object,
+                                default: { elevation: 4 },
+                            }) ?? {},
+                        ]}>
+                        {renderCartHeader()}
+                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+                            {renderCartBody()}
+                        </ScrollView>
+                        {renderCartFooter()}
+                    </View>
+                </View>
+            );
+        }
+
+        // ─── Narrow: cart step ─────────────────────────────────────────────────────
+        if (mobileStep === 'cart') {
+            return (
+                <View style={[styles.narrowRoot, { backgroundColor: palette.background }]}>
                     {renderCartHeader()}
                     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
                         {renderCartBody()}
                     </ScrollView>
                     {renderCartFooter()}
                 </View>
-            </View>
-        );
-    }
+            );
+        }
 
-    // ─── Narrow: cart step ─────────────────────────────────────────────────────
-    if (mobileStep === 'cart') {
+        // ─── Narrow: products step ─────────────────────────────────────────────────
         return (
             <View style={[styles.narrowRoot, { backgroundColor: palette.background }]}>
-                {renderCartHeader()}
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-                    {renderCartBody()}
+                {renderNarrowHeader()}
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+                    {renderCatalogContent()}
                 </ScrollView>
-                {renderCartFooter()}
+                <View style={[styles.bottomBar, { backgroundColor: palette.card, borderTopColor: palette.border }]}>
+                    <View style={styles.bottomBarInfo}>
+                        <ThemedText type="defaultSemiBold">
+                            {totalCartItems} {totalCartItems === 1 ? 'item' : 'items'}
+                        </ThemedText>
+                        <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
+                            ${finalTotal.toFixed(2)}
+                        </ThemedText>
+                    </View>
+                    <ThemedButton
+                        label={`${t('saleForm.cart')} →`}
+                        onPress={() => setMobileStep('cart')}
+                        style={styles.goToCartButton}
+                    />
+                </View>
             </View>
         );
-    }
+    })();
 
-    // ─── Narrow: products step ─────────────────────────────────────────────────
     return (
-        <View style={[styles.narrowRoot, { backgroundColor: palette.background }]}>
-            {renderNarrowHeader()}
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-                {renderCatalogContent()}
-            </ScrollView>
-            <View style={[styles.bottomBar, { backgroundColor: palette.card, borderTopColor: palette.border }]}>
-                <View style={styles.bottomBarInfo}>
-                    <ThemedText type="defaultSemiBold">
-                        {totalCartItems} {totalCartItems === 1 ? 'item' : 'items'}
-                    </ThemedText>
-                    <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
-                        ${finalTotal.toFixed(2)}
-                    </ThemedText>
-                </View>
-                <ThemedButton
-                    label={`${t('saleForm.cart')} →`}
-                    onPress={() => setMobileStep('cart')}
-                    style={styles.goToCartButton}
-                />
-            </View>
+        <View style={{ flex: 1 }}>
+            {layoutContent}
+            <ComboConfigModal
+                visible={comboModalVisible}
+                productName={selectedComboProduct?.name ?? ''}
+                productPrice={selectedComboProduct ? Number(selectedComboProduct.price) : 0}
+                comboGroups={selectedComboProduct?.comboGroups ?? []}
+                palette={palette}
+                productsMap={productsMap}
+                recipeByProductId={recipeByProductId}
+                additionalOptionsByProductId={additionalOptionsByProductId}
+                initialSelections={comboInitialSelections}
+                initialCustomizations={comboInitialCustomizations}
+                onConfirm={handleComboConfirm}
+                onCancel={() => {
+                    setComboModalVisible(false);
+                    setSelectedComboProduct(null);
+                    setEditingCartItemId(null);
+                    setComboInitialSelections(undefined);
+                    setComboInitialCustomizations(undefined);
+                }}
+            />
         </View>
     );
 }
@@ -829,10 +1121,16 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         gap: 2,
     },
+    productNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
     productName: {
         fontWeight: '500',
         fontSize: 13,
         lineHeight: 17,
+        flex: 1,
     },
     productPrice: {
         fontSize: 12,
@@ -952,6 +1250,11 @@ const styles = StyleSheet.create({
         alignItems: 'baseline',
         gap: 4,
     },
+    cartItemNameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flexShrink: 1,
+    },
     cartItemName: {
         fontWeight: '600',
         fontSize: 13,
@@ -971,6 +1274,55 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontStyle: 'italic',
         paddingLeft: 22,
+    },
+
+    /* ── Combo sub-items ── */
+    comboSubSummary: {
+        paddingLeft: 26,
+        paddingBottom: 2,
+        borderLeftWidth: 2,
+        marginLeft: 8,
+        marginTop: 2,
+        gap: 1,
+    },
+    comboSubSummaryText: {
+        fontSize: 11,
+    },
+    editComboBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 4,
+    },
+    editComboBtnExpanded: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        alignSelf: 'flex-start',
+    },
+    comboGroupBlock: {
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 8,
+        gap: 6,
+    },
+    comboSubItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingLeft: 4,
+    },
+    comboSubItemName: {
+        fontSize: 12,
+        fontWeight: '500',
+        flex: 1,
+    },
+    comboSubItemPrice: {
+        fontSize: 11,
     },
 
     /* ── Expanded accordion ── */

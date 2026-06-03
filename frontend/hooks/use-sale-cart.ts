@@ -30,16 +30,17 @@ export function useSaleCart(additionalOptionsByProductId: AdditionalOptionsByPro
         [additionalOptionsByProductId],
     );
 
-    const addToCart = useCallback((productId: string, name: string, basePrice: number) => {
+    const addToCart = useCallback((productId: string, name: string, basePrice: number, options?: { comboItems?: SaleFormCartItem[] }) => {
         setCart((prev) => {
             const existing = prev.find(
                 (item) =>
                     item.productId === productId &&
                     !item.observation &&
                     item.removedIngredientIds.length === 0 &&
-                    item.additionalIngredients.length === 0,
+                    item.additionalIngredients.length === 0 &&
+                    !item.comboItems,
             );
-            if (existing) {
+            if (existing && !options?.comboItems) {
                 return prev.map((item) => (item.id === existing.id ? { ...item, quantity: item.quantity + 1 } : item));
             }
             return [
@@ -54,6 +55,7 @@ export function useSaleCart(additionalOptionsByProductId: AdditionalOptionsByPro
                     observation: null,
                     removedIngredientIds: [],
                     additionalIngredients: [],
+                    comboItems: options?.comboItems,
                 },
             ];
         });

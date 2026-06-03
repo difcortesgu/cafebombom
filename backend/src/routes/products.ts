@@ -2,8 +2,12 @@ import {
     addCategory,
     createProduct,
     getHydrationData,
+    removeComboGroup,
+    removeComboGroupOption,
     removeProductAdditionalIngredient,
     removeProductIngredient,
+    setComboGroup,
+    setComboGroupOption,
     setProductAdditionalIngredient,
     setProductIngredient,
     updateProduct,
@@ -208,5 +212,175 @@ router.delete('/:id/ingredients/:ingredientId', requireRole('owner'), removeProd
  */
 router.put('/:id/additional-ingredients/:ingredientId', requireRole('owner'), setProductAdditionalIngredient);
 router.delete('/:id/additional-ingredients/:ingredientId', requireRole('owner'), removeProductAdditionalIngredient);
+
+/**
+ * @openapi
+ * /api/products/{id}/combo-groups:
+ *   post:
+ *     tags: [Products]
+ *     summary: Create a combo group for a combo product (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, minQuantity, maxQuantity]
+ *             properties:
+ *               name: { type: string }
+ *               minQuantity: { type: number }
+ *               maxQuantity: { type: number }
+ *     responses:
+ *       201:
+ *         description: Group created
+ *       403:
+ *         description: Forbidden
+ *   put:
+ *     tags: [Products]
+ *     summary: Update a combo group (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [groupId, name, minQuantity, maxQuantity]
+ *             properties:
+ *               groupId: { type: string }
+ *               name: { type: string }
+ *               minQuantity: { type: number }
+ *               maxQuantity: { type: number }
+ *     responses:
+ *       204:
+ *         description: Updated
+ *       403:
+ *         description: Forbidden
+ */
+router.post('/:id/combo-groups', requireRole('owner'), setComboGroup);
+router.put('/:id/combo-groups/:groupId', requireRole('owner'), setComboGroup);
+
+/**
+ * @openapi
+ * /api/products/{id}/combo-groups/{groupId}:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete a combo group (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Deleted
+ *       403:
+ *         description: Forbidden
+ */
+router.delete('/:id/combo-groups/:groupId', requireRole('owner'), removeComboGroup);
+
+/**
+ * @openapi
+ * /api/products/{id}/combo-groups/{groupId}/options:
+ *   post:
+ *     tags: [Products]
+ *     summary: Add an option to a combo group (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [productId, additionalPrice, isDefault]
+ *             properties:
+ *               productId: { type: string }
+ *               additionalPrice: { type: number }
+ *               isDefault: { type: boolean }
+ *     responses:
+ *       201:
+ *         description: Option created
+ *       403:
+ *         description: Forbidden
+ *   put:
+ *     tags: [Products]
+ *     summary: Update a combo group option (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [optionId, productId, additionalPrice, isDefault]
+ *             properties:
+ *               optionId: { type: string }
+ *               productId: { type: string }
+ *               additionalPrice: { type: number }
+ *               isDefault: { type: boolean }
+ *     responses:
+ *       204:
+ *         description: Updated
+ *       403:
+ *         description: Forbidden
+ */
+router.post('/:id/combo-groups/:groupId/options', requireRole('owner'), setComboGroupOption);
+router.put('/:id/combo-groups/:groupId/options/:optionId', requireRole('owner'), setComboGroupOption);
+
+/**
+ * @openapi
+ * /api/products/{id}/combo-groups/{groupId}/options/{optionId}:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete a combo group option (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: optionId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       204:
+ *         description: Deleted
+ *       403:
+ *         description: Forbidden
+ */
+router.delete('/:id/combo-groups/:groupId/options/:optionId', requireRole('owner'), removeComboGroupOption);
 
 export default router;
