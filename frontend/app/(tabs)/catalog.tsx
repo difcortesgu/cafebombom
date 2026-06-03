@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { IngredientPanelForm } from '@/components/catalog/ingredient-panel-form';
 import { IngredientsTab } from '@/components/catalog/ingredients-tab';
-import { ProductPanelForm } from '@/components/catalog/product-panel-form';
+import { ProductForm } from '@/components/catalog/product-form';
 import { ProductsTab } from '@/components/catalog/products-tab';
 import { SupplierPanelForm } from '@/components/catalog/supplier-panel-form';
 import { SuppliersTab } from '@/components/catalog/suppliers-tab';
@@ -173,9 +173,9 @@ export default function CatalogScreen() {
                     ) : panelMode?.type === 'supplier-edit' ? (
                         <SupplierPanelForm mode={{ supplierId: panelMode.supplierId }} onClose={panel.close} />
                     ) : panelMode?.type === 'product-create' ? (
-                        <ProductPanelForm mode="create" onClose={panel.close} />
+                        <ProductForm mode="create" onClose={panel.close} />
                     ) : panelMode?.type === 'product-edit' ? (
-                        <ProductPanelForm mode={{ productId: panelMode.productId }} onClose={panel.close} />
+                        <ProductForm mode={{ productId: panelMode.productId }} onClose={panel.close} />
                     ) : null}
                 </SlidePanelShell>
             ) : null}

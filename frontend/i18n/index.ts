@@ -681,10 +681,10 @@ const catalogs: Record<Locale, Record<string, string>> = {
     // Catalog tab
     'catalog.title': 'Catálogo',
     'catalog.subtitle': 'Gestiona productos, ingredientes y proveedores.',
-    'catalog.panel.editSupplier': 'Editar proveedor',
-    'catalog.panel.sectionGeneral': 'Datos generales',
-    'catalog.panel.sectionRecipe': 'Receta',
-    'catalog.panel.sectionAdditional': 'Adicionales',
+    'catalog.editSupplier': 'Editar proveedor',
+    'catalog.sectionGeneral': 'Datos generales',
+    'catalog.sectionRecipe': 'Receta',
+    'catalog.sectionAdditional': 'Adicionales',
 
     // Operations tab
     'operations.title': 'Operaciones',

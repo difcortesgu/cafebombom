@@ -13,12 +13,12 @@ import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
 
-export type ProductPanelFormProps = {
+export type ProductFormProps = {
     mode: 'create' | { productId: string };
     onClose: () => void;
 };
 
-export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
+export function ProductForm({ mode, onClose }: ProductFormProps) {
     const palette = useAppColors();
     const { ingredients } = useInventoryStore();
     const {
@@ -156,13 +156,18 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
         }
     }
 
+    function getIngredient(id: string) {
+        return ingredients.find((i) => i.id === id);
+    }
+
     return (
         <>
-            <View style={[styles.panelHeader, { borderBottomColor: palette.border }]}>
-                <View style={styles.panelHeaderTitle}>
+            {/* Header del Formulario */}
+            <View style={[styles.Header, { borderBottomColor: palette.border }]}>
+                <View style={styles.HeaderTitle}>
                     <Ionicons name="storefront-outline" size={20} color={palette.tint} />
                     <ThemedText type="subtitle">
-                        {isEdit ? t('productForm.title.edit') : t('productForm.title.create')}
+                        {mode === 'create' ? t('productForm.title.create') : t('productForm.title.edit')}
                     </ThemedText>
                 </View>
                 <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
@@ -170,7 +175,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                 </Pressable>
             </View>
 
-            <ScrollView contentContainerStyle={styles.panelContent} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={styles.Content} keyboardShouldPersistTaps="handled">
                 {message ? (
                     <View style={[styles.messageBanner, { backgroundColor: palette.danger + '22', borderColor: palette.danger + '44' }]}>
                         <ThemedText style={{ color: palette.danger, fontSize: 13 }}>{message}</ThemedText>
@@ -184,7 +189,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                 >
                     <View style={styles.collapsibleHeaderLeft}>
                         <Ionicons name="information-circle-outline" size={16} color={palette.tint} />
-                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.panel.sectionGeneral')}</ThemedText>
+                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.sectionGeneral')}</ThemedText>
                     </View>
                     <Ionicons name={sections.general ? 'chevron-up' : 'chevron-down'} size={16} color={palette.mutedText} />
                 </Pressable>
@@ -228,9 +233,9 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                                 <ThemedText style={styles.smallLabel}>{t('productForm.image')}</ThemedText>
                             </View>
                             {productForm.imageUri ? (
-                                <View style={styles.panelImageRow}>
-                                    <Image source={{ uri: productForm.imageUri }} style={styles.panelImageThumb} resizeMode="cover" />
-                                    <ThemedButton variant="secondary" style={styles.smallPanelBtn} label={t('productForm.removeImage')} onPress={() => setProductForm((f) => ({ ...f, imageUri: null }))} />
+                                <View style={styles.ImageRow}>
+                                    <Image source={{ uri: productForm.imageUri }} style={styles.ImageThumb} resizeMode="cover" />
+                                    <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.removeImage')} onPress={() => setProductForm((f) => ({ ...f, imageUri: null }))} />
                                 </View>
                             ) : (
                                 <ThemedButton variant="secondary" style={styles.input} label={t('productForm.pickImage')} onPress={() => void pickImage()} />
@@ -246,7 +251,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                 >
                     <View style={styles.collapsibleHeaderLeft}>
                         <Ionicons name="flask-outline" size={16} color={palette.tint} />
-                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.panel.sectionRecipe')}</ThemedText>
+                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.sectionRecipe')}</ThemedText>
                     </View>
                     <Ionicons name={sections.recipe ? 'chevron-up' : 'chevron-down'} size={16} color={palette.mutedText} />
                 </Pressable>
@@ -257,10 +262,10 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                             return recipeLinks.length === 0 ? (
                                 <ThemedText style={styles.smallLabel}>{t('productForm.noDirectIngredients')}</ThemedText>
                             ) : recipeLinks.map((link) => (
-                                <View key={link.id} style={[styles.panelListItem, { borderColor: palette.border }]}>
+                                <View key={link.id} style={[styles.ListItem, { borderColor: palette.border }]}>
                                     <View style={styles.flex1}>
                                         <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{link.ingredientName}</ThemedText>
-                                        <ThemedText style={styles.smallLabel}>{link.quantityUsed} {t('productForm.perUnit')}</ThemedText>
+                                        <ThemedText style={styles.smallLabel}>{link.quantityUsed} {getIngredient(link.ingredientId)?.unit}</ThemedText>
                                     </View>
                                     <Pressable
                                         hitSlop={8}
@@ -282,6 +287,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                             const reservedIds = recipeItems.filter((_, i) => i !== index).map((d) => d.ingredientId).filter(Boolean);
                             const usedIds = productId ? productIngredients.filter((l) => l.productId === productId).map((l) => l.ingredientId) : [];
                             const available = ingredients.filter((ing) => ![...usedIds, ...reservedIds].includes(ing.id) || ing.id === item.ingredientId);
+                            const ingredient = getIngredient(item.ingredientId);
                             return (
                                 <View key={`recipe-draft-${index}`} style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground }]}>
                                     <View style={styles.ingredientCardHeader}>
@@ -301,7 +307,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                                     />
                                     <View style={styles.labelRow}>
                                         <Ionicons name="scale-outline" size={13} color={palette.mutedText} />
-                                        <ThemedText style={styles.smallLabel}>{t('common.qtyShort')}</ThemedText>
+                                        <ThemedText style={styles.smallLabel}>{t('common.qtyShort')} {ingredient ? `(${ingredient.unit})` : ""}</ThemedText>
                                     </View>
                                     <ThemedInput
                                         placeholder="0"
@@ -313,10 +319,10 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                                 </View>
                             );
                         })}
-                        <View style={styles.panelRowActions}>
-                            <ThemedButton variant="secondary" style={styles.smallPanelBtn} label={t('productForm.addIngredient')} onPress={addRecipeDraft} />
+                        <View style={styles.RowActions}>
+                            <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.addIngredient')} onPress={addRecipeDraft} />
                             {isEdit ? (
-                                <ThemedButton style={styles.smallPanelBtn} label={t('productForm.saveRecipeItems')} onPress={() => void saveRecipe()} />
+                                <ThemedButton style={styles.smallBtn} label={t('productForm.saveRecipeItems')} onPress={() => void saveRecipe()} />
                             ) : null}
                         </View>
                     </View>
@@ -329,7 +335,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                 >
                     <View style={styles.collapsibleHeaderLeft}>
                         <Ionicons name="add-circle-outline" size={16} color={palette.tint} />
-                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.panel.sectionAdditional')}</ThemedText>
+                        <ThemedText type="defaultSemiBold" style={styles.collapsibleHeaderText}>{t('catalog.sectionAdditional')}</ThemedText>
                     </View>
                     <Ionicons name={sections.additional ? 'chevron-up' : 'chevron-down'} size={16} color={palette.mutedText} />
                 </Pressable>
@@ -341,10 +347,10 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                             return additionalLinks.length === 0 ? (
                                 <ThemedText style={styles.smallLabel}>{t('productForm.noAdditionalIngredients')}</ThemedText>
                             ) : additionalLinks.map((link) => (
-                                <View key={link.id} style={[styles.panelListItem, { borderColor: palette.border }]}>
+                                <View key={link.id} style={[styles.ListItem, { borderColor: palette.border }]}>
                                     <View style={styles.flex1}>
                                         <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{link.ingredientName}</ThemedText>
-                                        <ThemedText style={styles.smallLabel}>{link.quantityUsed} {t('productForm.perUnit')} · +${link.additionalPrice.toFixed(2)}</ThemedText>
+                                        <ThemedText style={styles.smallLabel}>{link.quantityUsed} {getIngredient(link.ingredientId)?.unit} · +${link.additionalPrice.toFixed(2)}</ThemedText>
                                     </View>
                                     <Pressable
                                         hitSlop={8}
@@ -363,6 +369,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                             const reservedIds = additionalItems.filter((_, i) => i !== index).map((d) => d.ingredientId).filter(Boolean);
                             const usedIds = productId ? productAdditionalIngredients.filter((l) => l.productId === productId).map((l) => l.ingredientId) : [];
                             const available = ingredients.filter((ing) => ![...usedIds, ...reservedIds].includes(ing.id) || ing.id === item.ingredientId);
+                            const ingredient = getIngredient(item.ingredientId);
                             return (
                                 <View key={`additional-draft-${index}`} style={[styles.ingredientCard, { borderColor: palette.tint + '66', backgroundColor: palette.inputBackground }]}>
                                     <View style={styles.ingredientCardHeader}>
@@ -384,7 +391,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                                         <View style={styles.ingredientCardField}>
                                             <View style={styles.labelRow}>
                                                 <Ionicons name="scale-outline" size={13} color={palette.mutedText} />
-                                                <ThemedText style={styles.smallLabel}>{t('common.qtyShort')}</ThemedText>
+                                                <ThemedText style={styles.smallLabel}>{t('common.qtyShort')} {ingredient ? `(${ingredient.unit})` : ""}</ThemedText>
                                             </View>
                                             <ThemedInput
                                                 placeholder="0"
@@ -411,17 +418,17 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
                                 </View>
                             );
                         })}
-                        <View style={styles.panelRowActions}>
-                            <ThemedButton variant="secondary" style={styles.smallPanelBtn} label={t('productForm.addAdditionalIngredient')} onPress={addAdditionalDraft} />
+                        <View style={styles.RowActions}>
+                            <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.addAdditionalIngredient')} onPress={addAdditionalDraft} />
                             {isEdit ? (
-                                <ThemedButton style={styles.smallPanelBtn} label={t('productForm.saveAdditionalItems')} onPress={() => void saveAdditional()} />
+                                <ThemedButton style={styles.smallBtn} label={t('productForm.saveAdditionalItems')} onPress={() => void saveAdditional()} />
                             ) : null}
                         </View>
                     </View>
                 ) : null}
             </ScrollView>
 
-            <View style={[styles.panelFooter, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
+            <View style={[styles.Footer, { borderTopColor: palette.border, backgroundColor: palette.background }]}>
                 <ThemedButton
                     style={styles.saveButton}
                     label={isEdit ? t('common.saveChanges') : t('productForm.title.create')}
@@ -440,7 +447,7 @@ export function ProductPanelForm({ mode, onClose }: ProductPanelFormProps) {
 }
 
 const styles = StyleSheet.create({
-    panelHeader: {
+    Header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -448,7 +455,7 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         borderBottomWidth: 1,
     },
-    panelHeaderTitle: {
+    HeaderTitle: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
@@ -457,7 +464,7 @@ const styles = StyleSheet.create({
     closeButton: {
         padding: 4,
     },
-    panelContent: {
+    Content: {
         padding: 16,
         gap: 14,
     },
@@ -507,7 +514,7 @@ const styles = StyleSheet.create({
         gap: 8,
         paddingBottom: 4,
     },
-    panelListItem: {
+    ListItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
@@ -534,26 +541,26 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 4,
     },
-    panelRowActions: {
+    RowActions: {
         flexDirection: 'row',
         gap: 8,
         marginTop: 4,
     },
-    smallPanelBtn: {
+    smallBtn: {
         paddingVertical: 8,
         paddingHorizontal: 10,
     },
-    panelImageRow: {
+    ImageRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
     },
-    panelImageThumb: {
+    ImageThumb: {
         width: 56,
         height: 56,
         borderRadius: 8,
     },
-    panelFooter: {
+    Footer: {
         padding: 14,
         borderTopWidth: 1,
         flexDirection: 'row',
