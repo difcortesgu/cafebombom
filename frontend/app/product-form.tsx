@@ -11,11 +11,10 @@ function normalizeParam(value?: string | string[]) {
 
 export default function ProductFormScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const params = useLocalSearchParams<{ id?: string | string[]; combo?: string }>();
   const productId = normalizeParam(params.id);
 
-  // Definimos el modo basado en si existe un ID en la URL de la ruta
-  const mode = productId ? { productId } : 'create';
+  const mode = productId ? { productId } : params.combo === 'true' ? 'combo-create' : 'create';
 
   return (
     <FormScreen contentStyle={styles.screenContent}>

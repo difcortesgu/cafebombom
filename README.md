@@ -34,12 +34,12 @@ See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
 
-Cambiar los mensajes de la app para usar toasts
+[] Cambiar los mensajes de la app para usar toasts
 
-Imprimir comanda para la cocina
-Organizar ingredientes y productos alfabéticamente y agrupar productos por categoría
+[] Imprimir comanda para la cocina
+[] Organizar ingredientes y productos alfabéticamente y agrupar productos por categoría
 
-Mostrar la diferencia entre el cierre de caja esperado y el real
-Agregar módulo de propinas
-Editar métodos de pago
+[] Mostrar la diferencia entre el cierre de caja esperado y el real
+[] Agregar módulo de propinas
+[] Editar métodos de pago
 

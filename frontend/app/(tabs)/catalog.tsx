@@ -98,7 +98,7 @@ export default function CatalogScreen() {
                             <ThemedButton
                                 icon="layers-outline"
                                 label="Combo"
-                                onPress={() => openOrNavigate(() => openPanel({ type: 'combo-create' }), '/product-form')}
+                                onPress={() => openOrNavigate(() => openPanel({ type: 'combo-create' }), { pathname: '/product-form', params: { combo: 'true' } })}
                             />
                         )}
                         <ThemedButton
