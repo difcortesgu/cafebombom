@@ -156,50 +156,38 @@ jobs:
           cd backend
           bun install
 
-          # Compilar binario de Bun
           bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
 
-          # Preparar carpeta
           New-Item -ItemType Directory -Force -Path release-windows
           Move-Item pos-app.exe release-windows/
           Copy-Item -Recurse ./public release-windows/public
           Copy-Item -Recurse ./src/database/migrations release-windows/migrations
 
-          # Generar VBScript (En PowerShell)
-          @"
-          Set WshShell = CreateObject("WScript.Shell")
-          WshShell.Run chr(34) & "pos-app.exe" & Chr(34), 0
-          Set WshShell = Nothing
-          "@ | Out-File -FilePath release-windows/Iniciar_POS.vbs -Encoding utf8
+          @(
+            'Set WshShell = CreateObject("WScript.Shell")',
+            'WshShell.Run chr(34) & "pos-app.exe" & Chr(34), 0',
+            'Set WshShell = Nothing'
+          ) | Set-Content -Path release-windows/Iniciar_POS.vbs -Encoding utf8
 
-          # Generar Configuración de Inno Setup
-          @"
-          [Setup]
-          AppName=Cafe BomBom POS
-          AppVersion=1.0
-          DefaultDirName={autopf}\CafeBomBom
-          OutputBaseFilename=Instalar_CafeBomBom_Windows
-          Compression=lzma
-          SolidCompression=yes
-          OutputDir=..\
-          SetupIconFile=..\assets\icon.ico 
-
-          [Files]
-          Source: "*"; Excludes: "installer.iss"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-          # 2. Asegurarnos de que el ícono se copie en la carpeta de instalación
-          Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
-
-          [Icons]
-          # 3. Asignar el ícono copiado a los accesos directos
-          Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\icon.ico"
-          Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\icon.ico"
-          "@ | Out-File -FilePath release-windows/installer.iss -Encoding utf8          [Files]
-          Source: "*"; Excludes: "installer.iss"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-
-          [Icons]
-          Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"
-          Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"
-          "@ | Out-File -FilePath release-windows/installer.iss -Encoding utf8
+          @(
+            '[Setup]',
+            'AppName=Cafe BomBom POS',
+            'AppVersion=1.0',
+            'DefaultDirName={autopf}\CafeBomBom',
+            'OutputBaseFilename=Instalar_CafeBomBom_Windows',
+            'Compression=lzma',
+            'SolidCompression=yes',
+            'OutputDir=..\ ',
+            'SetupIconFile=..\assets\icon.ico',
+            '',
+            '[Files]',
+            'Source: "*"; Excludes: "installer.iss"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs',
+            'Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion',
+            '',
+            '[Icons]',
+            'Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\icon.ico"',
+            'Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\icon.ico"'
+          ) | Set-Content -Path release-windows/installer.iss -Encoding utf8
 
       - name: Ejecutar Inno Setup Nativo
         shell: cmd
