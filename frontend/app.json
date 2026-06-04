@@ -23,6 +23,7 @@
         "BLUETOOTH_SCAN",
         "ACCESS_FINE_LOCATION"
       ],
+      "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.CafeBomBom"
     },
