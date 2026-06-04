@@ -7,9 +7,40 @@ on:
 
 jobs:
   # ==========================================
+  # JOB 0: Leer versión canónica y decidir si publicar
+  # ==========================================
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lee la versión canónica del archivo VERSION en la raíz del repo
+      - name: Leer VERSION
+        id: read
+        run: echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      # Si ya existe un release con ese tag, no reconstruimos ni republicamos
+      - name: Verificar si el release ya existe
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.read.outputs.version }}" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::El release v${{ steps.read.outputs.version }} ya existe. Sube la versión en el archivo VERSION para publicar uno nuevo."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ==========================================
   # JOB 1: Compilar Frontend (Con Caché Inteligente)
   # ==========================================
   build-frontend:
+    needs: setup
+    if: needs.setup.outputs.exists != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +78,11 @@ jobs:
   # JOB 2: Empaquetar para Linux (Nativo)
   # ==========================================
   build-linux:
-    needs: build-frontend
+    needs: [setup, build-frontend]
+    if: needs.setup.outputs.exists != 'true'
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Bun
@@ -67,8 +101,10 @@ jobs:
           cd backend
           bun install
 
-          # Compilar binario de Bun
-          bun build ./src/index.ts --compile --target=bun-linux-x64 --outfile=pos-app-linux
+          # Compilar binario de Bun, inyectando la versión en tiempo de compilación
+          bun build ./src/index.ts --compile --target=bun-linux-x64 \
+            --define "process.env.APP_VERSION=\"$VERSION\"" \
+            --outfile=pos-app-linux
           chmod +x pos-app-linux
 
           # Preparar carpeta
@@ -102,7 +138,7 @@ jobs:
           Comment=Sistema de Punto de Venta
           Exec=$APP_DIR/pos-app-linux
           Path=$APP_DIR
-          Icon=$APP_DIR/icon.png 
+          Icon=$APP_DIR/icon.png
           Terminal=false
           Type=Application
           Categories=Utility;
@@ -135,8 +171,11 @@ jobs:
   # JOB 3: Empaquetar para Windows (Nativo)
   # ==========================================
   build-windows:
-    needs: build-frontend
+    needs: [setup, build-frontend]
+    if: needs.setup.outputs.exists != 'true'
     runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Bun
@@ -156,7 +195,9 @@ jobs:
           cd backend
           bun install
 
-          bun build ./src/index.ts --compile --target=bun-windows-x64 --outfile=pos-app.exe
+          # Inyectar la versión en tiempo de compilación
+          $define = 'process.env.APP_VERSION="' + $env:VERSION + '"'
+          bun build ./src/index.ts --compile --target=bun-windows-x64 --define $define --outfile=pos-app.exe
 
           New-Item -ItemType Directory -Force -Path release-windows
           Move-Item pos-app.exe release-windows/
@@ -172,11 +213,15 @@ jobs:
           @(
             '[Setup]',
             'AppName=Cafe BomBom POS',
-            'AppVersion=1.0',
-            'DefaultDirName={autopf}\CafeBomBom',
+            "AppVersion=$env:VERSION",
+            '; Instalación por usuario (sin admin) para permitir auto-actualización',
+            'PrivilegesRequired=lowest',
+            'DefaultDirName={localappdata}\CafeBomBom',
             'OutputBaseFilename=Instalar_CafeBomBom_Windows',
             'Compression=lzma',
             'SolidCompression=yes',
+            'CloseApplications=yes',
+            'RestartApplications=no',
             'OutputDir=..\',
             'SetupIconFile=..\assets\favicon.ico',
             '',
@@ -205,7 +250,11 @@ jobs:
   # JOB 4: Generar APK para Android
   # ==========================================
   build-android:
+    needs: setup
+    if: needs.setup.outputs.exists != 'true'
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -229,6 +278,13 @@ jobs:
         run: |
           cd frontend
           npm ci
+
+      # Sincronizar la versión canónica en app.json antes del prebuild
+      - name: Sincronizar versión en app.json
+        run: |
+          cd frontend
+          tmp="$(mktemp)"
+          jq --arg v "$VERSION" '.expo.version = $v' app.json > "$tmp" && mv "$tmp" app.json
 
       - name: Generar proyecto Android nativo (prebuild)
         run: |
@@ -269,7 +325,8 @@ jobs:
   # JOB 5: Publicar el Release en GitHub
   # ==========================================
   publish-release:
-    needs: [build-linux, build-windows, build-android]
+    needs: [setup, build-linux, build-windows, build-android]
+    if: needs.setup.outputs.exists != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -292,15 +349,11 @@ jobs:
           name: android-apk
           path: final-assets
 
-      - name: Generate Dynamic Version Tag
-        id: version_tag
-        run: echo "tag_name=v$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
-
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version_tag.outputs.tag_name }}
-          name: "POS System Release ${{ steps.version_tag.outputs.tag_name }}"
+          tag_name: v${{ needs.setup.outputs.version }}
+          name: "POS System Release v${{ needs.setup.outputs.version }}"
           draft: false
           prerelease: false
           files: |

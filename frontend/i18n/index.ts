@@ -763,6 +763,16 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'accountsForm.expense.required': 'Completa la categoría y un monto mayor que 0.',
     'accountsForm.expense.saved': 'Gasto registrado.',
     'accountsForm.payroll.saved': 'Pago de nómina registrado.',
+
+    // Updates
+    'update.title': 'Actualización disponible',
+    'update.message': 'Hay una nueva versión disponible. Versión actual: {current}. Nueva versión: {latest}.',
+    'update.install': 'Actualizar ahora',
+    'update.later': 'Más tarde',
+    'update.downloading': 'Descargando… {percent}%',
+    'update.installing': 'Abriendo el instalador…',
+    'update.restarting': 'Actualizando y reiniciando…',
+    'update.error': 'No se pudo descargar la actualización. Inténtalo de nuevo.',
   },
 };
 

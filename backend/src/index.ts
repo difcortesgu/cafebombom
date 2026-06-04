@@ -18,6 +18,7 @@ import setupRouter from './routes/setup';
 import usersRouter from './routes/users';
 import { AuthSqliteService } from './services/auth';
 import { getJwtExpiresIn, signAccessToken } from './services/jwt';
+import { applyUpdate, checkForUpdate } from './services/updater';
 import { logger } from './utils/logger';
 import { resolvePairingInfo } from './utils/network';
 
@@ -186,6 +187,39 @@ app.post('/api/auth/logout', authMiddleware, async (req: Request, res: Response)
 
 // Add this after your middleware setup
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
+// ── App version ───────────────────────────────────────────────────────────────
+// APP_VERSION is inlined at compile time by `bun build --define` (see CI).
+// Falls back to the env var (dev) or 'dev' when running uncompiled.
+const APP_VERSION = process.env.APP_VERSION || 'dev';
+app.get('/api/version', (_req: Request, res: Response) => {
+    res.json({ version: APP_VERSION });
+});
+
+// ── Self-update (desktop) ─────────────────────────────────────────────────────
+// Reports whether a newer GitHub release exists.
+app.get('/api/update/check', async (_req: Request, res: Response) => {
+    try {
+        const result = await checkForUpdate();
+        res.json(result);
+    } catch (error) {
+        logger.error('[UPDATE] Falló la verificación de actualización.', error);
+        res.status(502).json({ error: 'No se pudo verificar actualizaciones.' });
+    }
+});
+
+// Downloads the latest release and applies it; the process exits to let a helper
+// swap the files and relaunch. Requires authentication to avoid drive-by triggers.
+app.post('/api/update/apply', authMiddleware, async (_req: Request, res: Response) => {
+    try {
+        const { latestVersion } = await applyUpdate();
+        res.json({ status: 'updating', version: latestVersion });
+    } catch (error) {
+        logger.error('[UPDATE] Falló la actualización.', error);
+        const message = error instanceof Error ? error.message : 'No se pudo aplicar la actualización.';
+        res.status(500).json({ error: message });
+    }
+});
 
 // ── Domain routes ─────────────────────────────────────────────────────────────
 app.use('/api/users', usersRouter);

@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 // Hidrata settings al inicio y espera a que esté listo antes de renderizar la app
 import 'react-native-reanimated';
 
+import { UpdateChecker } from '@/components/update-checker';
 import { useAppColors, useThemeMode } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 
@@ -87,6 +88,7 @@ export default function RootLayout() {
         <Stack.Screen name="user-form" options={{ title: t('nav.stack.user') }} />
         <Stack.Screen name="cash-register-adjust-form" options={{ title: t('nav.stack.cashRegisterAdjust') }} />
       </Stack>
+      <UpdateChecker />
       <StatusBar style="auto" />
     </ThemeProvider>
   );

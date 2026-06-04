@@ -26,3 +26,13 @@ export {
     validateSetupStatus
 } from './connection';
 
+export {
+    applyDesktopUpdate,
+    assetForCurrentPlatform,
+    checkForUpdate,
+    fetchLatestRelease,
+    getCurrentVersion,
+    isNewerVersion
+} from './updates';
+export type { ReleasePlatform, UpdateAssets, UpdateInfo } from './updates';
+

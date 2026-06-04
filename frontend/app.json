@@ -2,7 +2,7 @@
   "expo": {
     "name": "CafeBomBom",
     "slug": "CafeBomBom",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "cafebombom",
@@ -21,7 +21,8 @@
         "BLUETOOTH_ADMIN",
         "BLUETOOTH_CONNECT",
         "BLUETOOTH_SCAN",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "REQUEST_INSTALL_PACKAGES"
       ],
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.CafeBomBom"
