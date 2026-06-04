@@ -236,7 +236,7 @@ jobs:
 
       - name: Decodificar Keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > frontend/android/app/cafebombom.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d ' \n\r' | base64 --decode > frontend/android/app/cafebombom.keystore
 
       - name: Construir APK release
         env:
