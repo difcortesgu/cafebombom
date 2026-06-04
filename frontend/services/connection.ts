@@ -47,7 +47,7 @@ export function parsePairingPayload(payload: string): ConnectionTarget | null {
 export async function validateSetupStatus(baseUrl: string): Promise<void> {
     const response = await fetch(`${baseUrl}/setup/status`, {
         method: 'GET',
-        signal: withTimeout(5000),
+        signal: withTimeout(3000),
     });
 
     if (!response.ok) {

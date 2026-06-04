@@ -66,6 +66,7 @@ type ApiResponse<T> = {
 type RequestOptions = {
   headers?: Record<string, string>;
   body?: unknown;
+  signal?: AbortSignal;
 };
 
 type DownloadedFile = {
@@ -173,6 +174,7 @@ class ApiClient {
         ...this.getAuthHeaders(),
         ...options?.headers,
       },
+      signal: options?.signal,
     });
 
     return this.handleResponse<T>(response);

@@ -117,8 +117,19 @@ function normalizeAssetUrl(rawUrl?: string): string | undefined {
 
 export class SetupService {
   async getSetupStatus(): Promise<SetupStatus> {
-    const response = await apiClient.get<SetupStatus>('/setup/status');
-    return response || { isSetupDone: false, activeOwnerCount: 0 };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+      const response = await apiClient.get<SetupStatus>('/setup/status', { signal: controller.signal });
+      return response || { isSetupDone: false, activeOwnerCount: 0 };
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        throw new Error('Network request failed: connection timed out');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async importSeedFromExcel(content: Uint8Array): Promise<SeedImportResult> {
