@@ -53,18 +53,24 @@ export default function TeamScreen() {
     }
 
     function handleEditEmployee(employee: Employee) {
-        setEditingEmployee(employee);
-        panel.open();
+        openOrNavigate(
+            () => { setEditingEmployee(employee); panel.open(); },
+            { pathname: '/employee-form', params: { id: employee.id } },
+        );
     }
 
     function handleAddUser() {
-        setEditingUser(undefined);
-        userPanel.open();
+        openOrNavigate(
+            () => { setEditingUser(undefined); userPanel.open(); },
+            '/user-form',
+        );
     }
 
     function handleEditUser(user: import('@/types/auth').ManagedUser) {
-        setEditingUser(user);
-        userPanel.open();
+        openOrNavigate(
+            () => { setEditingUser(user); userPanel.open(); },
+            { pathname: '/user-form', params: { id: user.id } },
+        );
     }
 
     return (
@@ -102,7 +108,7 @@ export default function TeamScreen() {
                         <ThemedButton
                             icon="add"
                             label={t('accounts.payroll.add')}
-                            onPress={() => payrollPanel.open()}
+                            onPress={() => openOrNavigate(() => payrollPanel.open(), '/payroll-form')}
                         />
                     </View>
                 ) : null}

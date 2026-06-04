@@ -6,6 +6,24 @@ export type ProductDetail = {
   price: number;
   imageUri: string | null;
   isActive: boolean;
+  isCombo?: boolean;
+  comboGroups?: ComboGroup[];
+};
+
+export type ComboGroup = {
+  id: string;
+  name: string;
+  minQuantity: number;
+  maxQuantity: number;
+  options: ComboGroupOption[];
+};
+
+export type ComboGroupOption = {
+  id: string;
+  productId: string;
+  productName?: string;
+  additionalPrice: number;
+  isDefault: boolean;
 };
 
 export type CategoryOption = {
@@ -45,8 +63,23 @@ export type CreateProductPayload = {
   categoryId?: string;
   price: number;
   imageUri?: string;
-  recipe: [ProductRecipeInput, ...ProductRecipeInput[]];
+  isCombo?: boolean;
+  recipe?: [ProductRecipeInput, ...ProductRecipeInput[]];
   additionalIngredients?: ProductAdditionalIngredientInput[];
+  comboGroups?: CreateComboGroupInput[];
+};
+
+export type CreateComboGroupInput = {
+  name: string;
+  minQuantity: number;
+  maxQuantity: number;
+  options: CreateComboGroupOptionInput[];
+};
+
+export type CreateComboGroupOptionInput = {
+  productId: string;
+  additionalPrice: number;
+  isDefault: boolean;
 };
 
 export type ProductRecipeInput = {

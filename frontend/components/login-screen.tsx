@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -16,20 +17,46 @@ interface LoginScreenProps {
   loading: boolean;
   error: string | null;
   login: (payload: LoginPayload) => Promise<boolean>;
+  refreshConnection: () => Promise<void>;
 }
 
-export function LoginScreen({ users, loading, error, login }: LoginScreenProps) {
+export function LoginScreen({ users, loading, error, login, refreshConnection }: LoginScreenProps) {
   const palette = useAppColors();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(
     users.length > 0 ? users[0].id : null,
   );
   const [pin, setPin] = useState('');
+  const [hasConnectionFailure, setHasConnectionFailure] = useState(false);
 
   useEffect(() => {
     if (users.length > 0 && selectedUserId === null) {
       setSelectedUserId(users[0].id);
     }
   }, [users, selectedUserId]);
+
+  useEffect(() => {
+    if (!error) {
+      setHasConnectionFailure(false);
+      return;
+    }
+
+    const normalized = error.toLowerCase();
+    const looksLikeConnectionFailure =
+      normalized.includes('failed to fetch') ||
+      normalized.includes('network request failed') ||
+      normalized.includes('http ') ||
+      normalized.includes('conexion') ||
+      normalized.includes('conexión') ||
+      normalized.includes('backend') ||
+      normalized.includes('setup/status');
+
+    if (looksLikeConnectionFailure) {
+      setHasConnectionFailure(true);
+      return;
+    }
+
+    setHasConnectionFailure(false);
+  }, [error]);
 
   const roleLabel = (role: 'owner' | 'staff') =>
     t(role === 'owner' ? 'auth.role.owner' : 'auth.role.staff');
@@ -45,6 +72,23 @@ export function LoginScreen({ users, loading, error, login }: LoginScreenProps) 
       setPin('');
     }
   };
+
+  if (hasConnectionFailure) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText type="title">{t('app.name')}</ThemedText>
+        <View style={[styles.connectionPanel, { borderColor: palette.border, backgroundColor: palette.inputBackground }]}>
+          {error ? <ThemedText style={[styles.errorText, { color: palette.danger }]}>{error}</ThemedText> : null}
+          <ThemedText type="defaultSemiBold">{t('settings.connection.title')}</ThemedText>
+          <ThemedText style={styles.hint}>{t('settings.connection.subtitle')}</ThemedText>
+          <BackendConnectionForm
+            onConnected={refreshConnection}
+            showScanner={Platform.OS !== 'web'}
+          />
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -97,15 +141,10 @@ export function LoginScreen({ users, loading, error, login }: LoginScreenProps) 
 
       <ThemedButton
         style={styles.loginButton}
+        label={loading ? t('auth.login.signingIn') : t('auth.login.unlock')}
         disabled={!canUnlock}
-        onPress={handleUnlock}>
-        <View style={styles.loginButtonContent}>
-          <IconSymbol name="lock.fill" size={16} color={palette.card} />
-          <ThemedText style={[styles.buttonText, { color: palette.card }]}>
-            {loading ? t('auth.login.signingIn') : t('auth.login.unlock')}
-          </ThemedText>
-        </View>
-      </ThemedButton>
+        onPress={handleUnlock}
+      />
 
       <ThemedText style={[styles.hint, { color: palette.mutedText }]}>
         {t('auth.login.hint')}
@@ -160,21 +199,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingVertical: 12,
   },
-  loginButtonContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
   errorText: {
     fontWeight: '600',
   },
   hint: {
     opacity: 0.9,
     fontSize: 13,
+  },
+  connectionPanel: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
   },
 });

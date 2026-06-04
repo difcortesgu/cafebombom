@@ -1,5 +1,5 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -15,10 +15,18 @@ import { useAccountsStore } from '@/stores/accounts';
 export default function EmployeeFormScreen() {
     const router = useRouter();
     const palette = useAppColors();
+    const params = useLocalSearchParams<{ id?: string }>();
 
-    const { addEmployee, hydrate } = useAccountsStore();
+    const { addEmployee, updateEmployee, employees, hydrate } = useAccountsStore();
 
-    const [form, setForm] = useState({ name: '', salaryType: 'hourly' as 'hourly' | 'monthly', rate: '' });
+    const editingEmployee = params.id ? employees.find((e) => e.id === params.id) : undefined;
+    const isEditing = editingEmployee !== undefined;
+
+    const [form, setForm] = useState({
+        name: editingEmployee?.name ?? '',
+        salaryType: (editingEmployee?.salary_type ?? 'hourly') as 'hourly' | 'monthly',
+        rate: editingEmployee ? String(editingEmployee.rate) : '',
+    });
     const [message, setMessage] = useState('');
 
     useFocusEffect(
@@ -27,9 +35,21 @@ export default function EmployeeFormScreen() {
         }, [hydrate]),
     );
 
+    useEffect(() => {
+        if (!editingEmployee) return;
+        setForm({
+            name: editingEmployee.name,
+            salaryType: editingEmployee.salary_type,
+            rate: String(editingEmployee.rate),
+        });
+        setMessage('');
+    }, [editingEmployee]);
+
     return (
         <FormScreen>
-            <ThemedText type="title">{t('accounts.employees.add')}</ThemedText>
+            <ThemedText type="title">
+                {isEditing ? t('accounts.employees.edit') : t('accounts.employees.add')}
+            </ThemedText>
 
             {message ? (
                 <ThemedCard style={styles.card}>
@@ -62,14 +82,18 @@ export default function EmployeeFormScreen() {
                     <ThemedButton
                         style={styles.primaryButton}
                         icon="checkmark-circle"
-                        label={t('accounts.employees.add')}
+                        label={isEditing ? t('accounts.employees.save') : t('accounts.employees.add')}
                         onPress={async () => {
                             const rate = Number(form.rate);
                             if (!form.name.trim() || !Number.isFinite(rate) || rate <= 0) {
                                 setMessage(t('accounts.employees.invalid'));
                                 return;
                             }
-                            await addEmployee({ name: form.name.trim(), salaryType: form.salaryType, rate });
+                            if (isEditing && editingEmployee) {
+                                await updateEmployee({ id: editingEmployee.id, name: form.name.trim(), salaryType: form.salaryType, rate });
+                            } else {
+                                await addEmployee({ name: form.name.trim(), salaryType: form.salaryType, rate });
+                            }
                             router.back();
                         }}
                     />

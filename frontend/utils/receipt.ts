@@ -8,23 +8,46 @@ function getShortOrderId(orderId: string): string {
 }
 
 function mapReceiptItems(inputItems: BuildReceiptInput['items']): ReceiptLineItem[] {
-  return inputItems.map((item) => ({
-    id: item.id,
-    name: item.product_name,
-    observation: item.observation,
-    quantity: Number(item.quantity),
-    unitPrice: Number(item.unit_price),
-    lineSubtotal: Number(item.line_subtotal),
-    discountAmount: Number(item.discount_amount),
-    lineTotal: Number(item.final_line_total),
-    discountName: item.discount_name,
-    additionalIngredients: (item.selected_additional_ingredient_details ?? []).map((additional) => ({
-      name: additional.ingredient_name,
-      quantity: Number(additional.quantity),
-      unitAdditionalPrice: Number(additional.unit_additional_price),
-      totalAdditionalPrice: Number(additional.total_additional_price),
-    })),
-  }));
+  const childrenByParentId = new Map<string, NonNullable<ReceiptLineItem['children']>>();
+  for (const item of inputItems) {
+    if (item.parent_sale_item_id) {
+      const list = childrenByParentId.get(item.parent_sale_item_id) ?? [];
+      list.push({
+        name: item.product_name,
+        quantity: Number(item.quantity),
+        extraPrice: Number(item.unit_price),
+        additionalIngredients: (item.selected_additional_ingredient_details ?? []).map((d) => ({
+          name: d.ingredient_name,
+          quantity: Number(d.quantity),
+          totalAdditionalPrice: Number(d.total_additional_price),
+        })),
+        removedIngredientIds: item.removed_ingredient_ids ?? [],
+        observation: item.observation,
+      });
+      childrenByParentId.set(item.parent_sale_item_id, list);
+    }
+  }
+
+  return inputItems
+    .filter((item) => !item.parent_sale_item_id)
+    .map((item) => ({
+      id: item.id,
+      name: item.product_name,
+      observation: item.observation,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unit_price),
+      lineSubtotal: Number(item.line_subtotal),
+      discountAmount: Number(item.discount_amount),
+      lineTotal: Number(item.final_line_total),
+      discountName: item.discount_name,
+      additionalIngredients: (item.selected_additional_ingredient_details ?? []).map((additional) => ({
+        name: additional.ingredient_name,
+        quantity: Number(additional.quantity),
+        unitAdditionalPrice: Number(additional.unit_additional_price),
+        totalAdditionalPrice: Number(additional.total_additional_price),
+      })),
+      children: childrenByParentId.get(item.id),
+    }));
 }
 
 export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
@@ -57,6 +80,7 @@ export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
       phone: safeBusinessPhone,
       nit: safeBusinessNit,
       logoUri: input.business.logoUri,
+      logoRasterUrl: input.business.logoRasterUrl ?? null,
       footerMessage: safeFooterMessage,
     },
     metadata: {
@@ -102,7 +126,8 @@ type BuildPartialReceiptInput = {
 export function buildPartialReceiptData(input: BuildPartialReceiptInput): ReceiptData {
   const itemsById = new Map(input.saleItems.map((item) => [item.id, item]));
 
-  const items: SaleItemDetail[] = input.payment.lines.map((line) => {
+  // Map payment lines to parent SaleItemDetail entries
+  const parentItems: SaleItemDetail[] = input.payment.lines.map((line) => {
     const originalItem = itemsById.get(line.sale_item_id);
     const quantityPaid = Number(line.quantity_paid);
     const finalUnitPrice = quantityPaid > 0 ? Number(line.line_total) / quantityPaid : Number(line.unit_price);
@@ -110,6 +135,7 @@ export function buildPartialReceiptData(input: BuildPartialReceiptInput): Receip
     return {
       id: line.payment_item_id,
       product_id: line.product_id,
+      parent_sale_item_id: null,
       product_name: originalItem?.product_name ?? line.product_name,
       observation: originalItem?.observation ?? null,
       quantity: quantityPaid,
@@ -128,6 +154,23 @@ export function buildPartialReceiptData(input: BuildPartialReceiptInput): Receip
       discount_amount: Number(line.discount_amount),
     };
   });
+
+  // Collect the original sale_item_ids for the paid lines so we can find their children
+  const paidSaleItemIds = new Set(input.payment.lines.map((l) => l.sale_item_id));
+
+  // Include child items whose parent was paid in this payment, rebinding parent_sale_item_id
+  // to the payment_item_id so mapReceiptItems can group them correctly.
+  const paymentItemIdBySaleItemId = new Map(
+    input.payment.lines.map((l) => [l.sale_item_id, l.payment_item_id]),
+  );
+  const childItems: SaleItemDetail[] = input.saleItems
+    .filter((item) => item.parent_sale_item_id && paidSaleItemIds.has(item.parent_sale_item_id))
+    .map((item) => ({
+      ...item,
+      parent_sale_item_id: paymentItemIdBySaleItemId.get(item.parent_sale_item_id!) ?? item.parent_sale_item_id!,
+    }));
+
+  const items = [...parentItems, ...childItems];
 
   return buildReceiptData({
     sale: {

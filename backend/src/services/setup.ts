@@ -1,19 +1,19 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../database';
 import {
-    categories,
-    discounts,
-    employees,
-    ingredients,
-    ingredientUnits,
-    paymentMethods,
-    productAdditionalIngredients,
-    productIngredients,
-    products,
-    receiptPreferences,
-    restaurantTables,
-    suppliers,
-    surcharges,
+  categories,
+  discounts,
+  employees,
+  ingredients,
+  ingredientUnits,
+  paymentMethods,
+  productAdditionalIngredients,
+  productIngredients,
+  products,
+  receiptPreferences,
+  restaurantTables,
+  suppliers,
+  surcharges,
 } from '../database/schema';
 import { ReceiptPreferences } from '../types/receipt';
 import { SeedImportEntitySummary, SeedImportIssue, SeedImportResult, SeedImportSummary } from '../types/setup';
@@ -26,6 +26,8 @@ const DEFAULT_RECEIPT_PREFERENCES: ReceiptPreferences = {
   businessPhone: '',
   businessNit: '',
   businessLogoUri: null,
+  logoId: null,
+  logoVersion: null,
   footerMessage: 'Gracias por tu compra',
   paperWidth: 80,
   taxRate: 0.08,
@@ -61,6 +63,8 @@ export class SetupSqliteService {
         businessPhone: receiptPreferences.businessPhone,
         businessNit: receiptPreferences.businessNit,
         businessLogoUri: receiptPreferences.businessLogoUri,
+        logoId: receiptPreferences.logoId,
+        logoVersion: receiptPreferences.logoVersion,
         footerMessage: receiptPreferences.footerMessage,
         paperWidth: receiptPreferences.paperWidth,
         taxRate: receiptPreferences.taxRate,
@@ -82,14 +86,28 @@ export class SetupSqliteService {
       businessPhone: record.businessPhone,
       businessNit: record.businessNit,
       businessLogoUri: record.businessLogoUri,
+      logoId: record.logoId,
+      logoVersion: record.logoVersion,
       footerMessage: record.footerMessage,
       paperWidth,
       taxRate,
     };
   }
 
-  async saveReceiptPreferences(payload: ReceiptPreferences): Promise<void> {
+  async saveReceiptPreferences(payload: Omit<ReceiptPreferences, 'logoId' | 'logoVersion'> & { logoId?: string | null; logoVersion?: string | null }): Promise<void> {
     const now = Math.floor(Date.now() / 1000);
+    const existing = db
+      .select({
+        logoId: receiptPreferences.logoId,
+        logoVersion: receiptPreferences.logoVersion,
+      })
+      .from(receiptPreferences)
+      .where(eq(receiptPreferences.id, RECEIPT_PREFERENCES_ID))
+      .get();
+
+    const nextLogoId = payload.logoId ?? existing?.logoId ?? null;
+    const nextLogoVersion = payload.logoVersion ?? existing?.logoVersion ?? null;
+
     db.insert(receiptPreferences)
       .values({
         id: RECEIPT_PREFERENCES_ID,
@@ -98,6 +116,8 @@ export class SetupSqliteService {
         businessPhone: payload.businessPhone,
         businessNit: payload.businessNit,
         businessLogoUri: payload.businessLogoUri,
+        logoId: nextLogoId,
+        logoVersion: nextLogoVersion,
         footerMessage: payload.footerMessage,
         paperWidth: payload.paperWidth,
         taxRate: payload.taxRate,
@@ -111,6 +131,8 @@ export class SetupSqliteService {
           businessPhone: payload.businessPhone,
           businessNit: payload.businessNit,
           businessLogoUri: payload.businessLogoUri,
+          logoId: nextLogoId,
+          logoVersion: nextLogoVersion,
           footerMessage: payload.footerMessage,
           paperWidth: payload.paperWidth,
           taxRate: payload.taxRate,

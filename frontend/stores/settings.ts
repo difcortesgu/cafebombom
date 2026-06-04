@@ -94,6 +94,11 @@ type SettingsState = {
   businessPhone: string;
   businessNit: string;
   businessLogoUri: string | null;
+  businessLogoId: string | null;
+  businessLogoVersion: string | null;
+  businessLogoPreviewUrl: string | null;
+  businessLogoRaster58Url: string | null;
+  businessLogoRaster80Url: string | null;
   receiptFooterMessage: string;
   printerPaperWidth: ReceiptPaperWidth;
   taxRate: number;
@@ -103,6 +108,7 @@ type SettingsState = {
   themeHydrated: boolean;
   hydrateTheme: () => Promise<void>;
   hydrateFromDb: () => Promise<void>;
+  refreshLogoManifest: () => Promise<void>;
   setTheme: (themeId: AppThemeId) => void;
   setThemeModePreference: (mode: ThemeModePreference) => void;
   setDeliverySurcharge: (value: number) => void;
@@ -123,6 +129,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   businessPhone: '',
   businessNit: '',
   businessLogoUri: null,
+  businessLogoId: null,
+  businessLogoVersion: null,
+  businessLogoPreviewUrl: null,
+  businessLogoRaster58Url: null,
+  businessLogoRaster80Url: null,
   receiptFooterMessage: 'Gracias por tu compra',
   printerPaperWidth: 80,
   taxRate: COLOMBIAN_IVA_RATE,
@@ -149,11 +160,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     });
   },
   hydrateFromDb: async () => {
-    const [config, receiptConfig, storedPrinter] = await Promise.all([
+    const [config, receiptConfig, storedPrinter, logoManifest] = await Promise.all([
       salesService.getOrderTypeSurchargeConfig(),
       setupService.getReceiptPreferences(),
       readStoredPrinterDevice(),
+      setupService.getLogoManifest(),
     ]);
+
+    const hasReadyLogo = logoManifest.status === 'ready';
     set({
       deliverySurcharge: config.deliverySurcharge,
       toGoSurcharge: config.toGoSurcharge,
@@ -162,12 +176,28 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessPhone: receiptConfig.businessPhone,
       businessNit: receiptConfig.businessNit,
       businessLogoUri: receiptConfig.businessLogoUri,
+      businessLogoId: receiptConfig.logoId,
+      businessLogoVersion: receiptConfig.logoVersion,
+      businessLogoPreviewUrl: hasReadyLogo ? logoManifest.previewUrl ?? null : null,
+      businessLogoRaster58Url: hasReadyLogo ? logoManifest.raster58Url ?? null : null,
+      businessLogoRaster80Url: hasReadyLogo ? logoManifest.raster80Url ?? null : null,
       receiptFooterMessage: receiptConfig.footerMessage,
       printerPaperWidth: receiptConfig.paperWidth,
       taxRate: receiptConfig.taxRate,
       printerDeviceName: storedPrinter?.name ?? '',
       printerDeviceAddress: storedPrinter?.address ?? '',
       settingsHydrated: true,
+    });
+  },
+  refreshLogoManifest: async () => {
+    const logoManifest = await setupService.getLogoManifest();
+    const hasReadyLogo = logoManifest.status === 'ready';
+    set({
+      businessLogoId: logoManifest.logoId,
+      businessLogoVersion: logoManifest.logoVersion,
+      businessLogoPreviewUrl: hasReadyLogo ? logoManifest.previewUrl ?? null : null,
+      businessLogoRaster58Url: hasReadyLogo ? logoManifest.raster58Url ?? null : null,
+      businessLogoRaster80Url: hasReadyLogo ? logoManifest.raster80Url ?? null : null,
     });
   },
   setTheme: (themeId) => {
@@ -225,6 +255,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessPhone: state.businessPhone,
       businessNit: state.businessNit,
       businessLogoUri: state.businessLogoUri,
+      logoId: state.businessLogoId,
+      logoVersion: state.businessLogoVersion,
       footerMessage: state.receiptFooterMessage,
       paperWidth: state.printerPaperWidth,
       taxRate: state.taxRate,
@@ -239,6 +271,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessPhone: state.businessPhone,
       businessNit: state.businessNit,
       businessLogoUri: state.businessLogoUri,
+      logoId: state.businessLogoId,
+      logoVersion: state.businessLogoVersion,
       footerMessage: state.receiptFooterMessage,
       paperWidth: width,
       taxRate: state.taxRate,
@@ -254,6 +288,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       businessPhone: state.businessPhone,
       businessNit: state.businessNit,
       businessLogoUri: state.businessLogoUri,
+      logoId: state.businessLogoId,
+      logoVersion: state.businessLogoVersion,
       footerMessage: state.receiptFooterMessage,
       paperWidth: state.printerPaperWidth,
       taxRate: normalized,

@@ -81,6 +81,11 @@ export function PendingPaymentItemRow({
                 <ThemedText style={rowStyles.itemMeta}>
                     x{availableQty} · ${unitTotal.toFixed(2)} c/u
                 </ThemedText>
+                {item.children?.map((child, idx) => (
+                    <ThemedText key={idx} style={[rowStyles.itemMeta, { paddingLeft: 4 }]}>
+                        · {child.product_name}{child.quantity > 1 ? ` x${child.quantity}` : ''}{child.extra_price > 0 ? ` +$${child.extra_price.toFixed(2)}` : ''}{child.additional_ingredient_names.length > 0 ? ` (${child.additional_ingredient_names.join(', ')})` : ''}
+                    </ThemedText>
+                ))}
             </View>
             {showButtons && (
                 <View style={rowStyles.itemActions}>
@@ -116,6 +121,11 @@ export function SelectedPaymentItemRow({ item, qty, rowStyles, onRemove, onAdjus
             <View style={rowStyles.itemInfo}>
                 <ThemedText style={rowStyles.itemName}>{item.product_name}</ThemedText>
                 <ThemedText style={rowStyles.itemMeta}>${(unitTotal * qty).toFixed(2)}</ThemedText>
+                {item.children?.map((child, idx) => (
+                    <ThemedText key={idx} style={[rowStyles.itemMeta, { paddingLeft: 4 }]}>
+                        · {child.product_name}{child.quantity > 1 ? ` x${child.quantity}` : ''}{child.extra_price > 0 ? ` +$${child.extra_price.toFixed(2)}` : ''}{child.additional_ingredient_names.length > 0 ? ` (${child.additional_ingredient_names.join(', ')})` : ''}
+                    </ThemedText>
+                ))}
             </View>
             <View style={rowStyles.itemActions}>
                 <ThemedButton label="-" style={rowStyles.smallBtn} onPress={() => onAdjust(-1)} disabled={qty <= 1} />

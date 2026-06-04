@@ -1,5 +1,6 @@
 import { AccountsSqliteService } from './accounts';
 import { InventorySqliteService } from './inventory';
+import { LogoProcessingService } from './logo';
 import { PaymentMethodsSqliteService } from './payment-methods';
 import { ProductsSqliteService } from './products';
 import { SalesSqliteService } from './sales';
@@ -13,3 +14,4 @@ export const accountsService = new AccountsSqliteService();
 export const setupService = new SetupSqliteService();
 export const usersService = new UsersSqliteService();
 export const paymentMethodsService = new PaymentMethodsSqliteService();
+export const logoService = new LogoProcessingService();

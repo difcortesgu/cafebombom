@@ -9,8 +9,10 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
-import { CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
+import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
+import { CashRegisterAdjustPanelContent, CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
 import { PaymentMethodPanelForm } from '@/components/operations/payment-method-panel-form';
@@ -30,11 +32,13 @@ import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { printService, setupService } from '@/services';
+import { loadPairingInfoFromBackend, printService, setupService } from '@/services';
+import type { PairingInfo } from '@/services/connection';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
+import type { CashRegisterHistoryDay } from '@/types/accounts';
 import type { Discount } from '@/types/types';
 
 const GRID_GAP = 12;
@@ -46,6 +50,7 @@ type OperationsPanelMode =
     | { type: 'discount-add-global' }
     | { type: 'discount-add-product' }
     | { type: 'discount-edit'; discount: Discount }
+    | { type: 'cash-register-adjust'; day: CashRegisterHistoryDay }
     | { type: 'import' };
 
 export default function OperationsScreen() {
@@ -73,12 +78,14 @@ export default function OperationsScreen() {
         businessPhone,
         businessNit,
         businessLogoUri,
+        businessLogoPreviewUrl,
         receiptFooterMessage,
         printerPaperWidth,
         taxRate,
         printerDeviceName,
         printerDeviceAddress,
         hydrateFromDb,
+        refreshLogoManifest,
         setDeliverySurcharge,
         setToGoSurcharge,
         setBusinessInfo,
@@ -103,6 +110,8 @@ export default function OperationsScreen() {
     const [printerStatusMessage, setPrinterStatusMessage] = useState<string | null>(null);
     const [bondedPrintersBusy, setBondedPrintersBusy] = useState(false);
     const [bondedPrinters, setBondedPrinters] = useState<{ label: string; value: string }[]>([]);
+    const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
+    const [pairingBusy, setPairingBusy] = useState(false);
     const [logoBusy, setLogoBusy] = useState(false);
     const [logoMessage, setLogoMessage] = useState<string | null>(null);
     const [importBusy, setImportBusy] = useState(false);
@@ -118,6 +127,7 @@ export default function OperationsScreen() {
         { key: 'discounts', label: t('products.discounts.title') },
         { key: 'receipt', label: t('settings.receipt.title') },
         { key: 'printer', label: t('settings.printer.title') },
+        { key: 'connection', label: t('settings.connection.title') },
     ];
 
     useEffect(() => {
@@ -136,7 +146,7 @@ export default function OperationsScreen() {
     useEffect(() => { setBusinessAddressInput(businessAddress); }, [businessAddress]);
     useEffect(() => { setBusinessPhoneInput(businessPhone); }, [businessPhone]);
     useEffect(() => { setBusinessNitInput(businessNit); }, [businessNit]);
-    useEffect(() => { setBusinessLogoUriInput(businessLogoUri ?? ''); }, [businessLogoUri]);
+    useEffect(() => { setBusinessLogoUriInput(businessLogoPreviewUrl ?? businessLogoUri ?? ''); }, [businessLogoPreviewUrl, businessLogoUri]);
     useEffect(() => { setReceiptFooterInput(receiptFooterMessage); }, [receiptFooterMessage]);
     useEffect(() => { setTaxRateInput((taxRate * 100).toFixed(2)); }, [taxRate]);
     useEffect(() => { setPrinterNameInput(printerDeviceName); }, [printerDeviceName]);
@@ -145,7 +155,7 @@ export default function OperationsScreen() {
     useEffect(() => {
         const requestedSection = Array.isArray(params.section) ? params.section[0] : params.section;
         if (!requestedSection) return;
-        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer') {
+        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer' || requestedSection === 'connection') {
             setSection(requestedSection);
         }
     }, [params.section]);
@@ -164,6 +174,24 @@ export default function OperationsScreen() {
                 setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
             } finally {
                 setBondedPrintersBusy(false);
+            }
+        })();
+    }, [section]);
+
+    useEffect(() => {
+        if (section !== 'connection') {
+            return;
+        }
+
+        void (async () => {
+            try {
+                setPairingBusy(true);
+                const info = await loadPairingInfoFromBackend();
+                setPairingInfo(info);
+            } catch {
+                setPairingInfo(null);
+            } finally {
+                setPairingBusy(false);
             }
         })();
     }, [section]);
@@ -191,7 +219,6 @@ export default function OperationsScreen() {
             address: businessAddressInput.trim(),
             phone: businessPhoneInput.trim(),
             nit: businessNitInput.trim(),
-            logoUri: businessLogoUriInput.trim() || null,
             footerMessage: receiptFooterInput.trim(),
         });
     };
@@ -270,28 +297,20 @@ export default function OperationsScreen() {
             });
             if (result.canceled || result.assets.length === 0) return;
             const selected = result.assets[0];
-            const targetWidth = printerPaperWidth === 58 ? 256 : 384;
+            const targetWidth = printerPaperWidth === 58 ? 384 : 576;
             const transformed = await manipulateAsync(
                 selected.uri,
                 [{ resize: { width: targetWidth } }],
-                { compress: 0.92, format: SaveFormat.PNG, base64: Platform.OS === 'web' },
+                { compress: 0.92, format: SaveFormat.PNG, base64: false },
             );
-            let persistedUri = transformed.uri;
-            if (businessLogoUriInput && Platform.OS !== 'web' && FileSystem.documentDirectory && businessLogoUriInput.startsWith(FileSystem.documentDirectory)) {
-                try { await FileSystem.deleteAsync(businessLogoUriInput, { idempotent: true }); } catch { /* ignore */ }
-            }
-            if (Platform.OS === 'web') {
-                if (transformed.base64) persistedUri = `data:image/png;base64,${transformed.base64}`;
-            } else if (FileSystem.documentDirectory) {
-                const logoDir = `${FileSystem.documentDirectory}receipt-logo/`;
-                await FileSystem.makeDirectoryAsync(logoDir, { intermediates: true });
-                const ext = resolveLogoExtension(transformed.uri, selected.mimeType);
-                const destination = `${logoDir}logo-${Date.now()}.${ext}`;
-                await FileSystem.copyAsync({ from: transformed.uri, to: destination });
-                persistedUri = destination;
-            }
-            setBusinessLogoUriInput(persistedUri);
-            setBusinessInfo({ logoUri: persistedUri });
+            const response = await fetch(transformed.uri);
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            const ext = resolveLogoExtension(selected.uri, selected.mimeType);
+            const fileName = `logo-${Date.now()}.${ext}`;
+            await setupService.uploadBusinessLogo(bytes, fileName);
+            await refreshLogoManifest();
+            setBusinessLogoUriInput(transformed.uri);
+            setBusinessInfo({ logoUri: null });
             setLogoMessage(t('settings.receipt.logoOptimized'));
         } catch (error) {
             setLogoMessage(String((error as Error).message || t('sales.receipt.error')));
@@ -301,9 +320,6 @@ export default function OperationsScreen() {
     };
 
     const removeBusinessLogo = () => {
-        if (businessLogoUriInput && Platform.OS !== 'web' && FileSystem.documentDirectory && businessLogoUriInput.startsWith(FileSystem.documentDirectory)) {
-            void FileSystem.deleteAsync(businessLogoUriInput, { idempotent: true });
-        }
         setBusinessLogoUriInput('');
         setBusinessInfo({ logoUri: null });
         setLogoMessage(null);
@@ -398,7 +414,10 @@ export default function OperationsScreen() {
                         variant="secondary"
                         icon="cloud-upload-outline"
                         label={t('operations.importData')}
-                        onPress={() => { setPanelMode({ type: 'import' }); panel.open(); }}
+                        onPress={() => openOrNavigate(
+                            () => { setPanelMode({ type: 'import' }); panel.open(); },
+                            '/import-data',
+                        )}
                     />
                 </View>
 
@@ -437,7 +456,7 @@ export default function OperationsScreen() {
                         gap={GRID_GAP}
                         onAdd={() => openOrNavigate(
                             () => { setPanelMode({ type: 'payment-method-add' }); panel.open(); },
-                            '/payment-methods',
+                            '/payment-method-form',
                         )}
                     />
                 ) : null}
@@ -453,7 +472,14 @@ export default function OperationsScreen() {
                     />
                 ) : null}
 
-                {section === 'cash-register' ? <CashRegisterHistorySection /> : null}
+                {section === 'cash-register' ? (
+                    <CashRegisterHistorySection
+                        onAdjustDay={(day) => openOrNavigate(
+                            () => { setPanelMode({ type: 'cash-register-adjust', day }); panel.open(); },
+                            { pathname: '/cash-register-adjust-form', params: { sessionId: day.id } },
+                        )}
+                    />
+                ) : null}
 
                 {section === 'discounts' ? (
                     <DiscountsSection
@@ -461,15 +487,15 @@ export default function OperationsScreen() {
                         gap={GRID_GAP}
                         onAddGlobal={() => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-add-global' }); panel.open(); },
-                            '/discount-form',
+                            { pathname: '/discount-form', params: { scope: 'global' } },
                         )}
                         onAddProduct={() => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-add-product' }); panel.open(); },
-                            '/discount-form',
+                            { pathname: '/discount-form', params: { scope: 'product' } },
                         )}
                         onEdit={(discount) => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-edit', discount }); panel.open(); },
-                            '/discount-form',
+                            { pathname: '/discount-form', params: { id: discount.id } },
                         )}
                     />
                 ) : null}
@@ -662,6 +688,35 @@ export default function OperationsScreen() {
                     </ThemedCard>
                 ) : null}
 
+                {section === 'connection' ? (
+                    <ThemedCard style={styles.card}>
+                        <ThemedText type="subtitle">{t('settings.connection.title')}</ThemedText>
+                        <ThemedText style={styles.muted}>{t('settings.connection.subtitle')}</ThemedText>
+
+                        {Platform.OS === 'web' ? (
+                            <View style={styles.connectionQrWrap}>
+                                {pairingBusy ? (
+                                    <ThemedText style={styles.muted}>{t('settings.connection.loadingPairing')}</ThemedText>
+                                ) : pairingInfo?.payload ? (
+                                    <>
+                                        <QRCode value={pairingInfo.payload} size={220} />
+                                        <ThemedText style={styles.connectionPayloadText}>{pairingInfo.payload}</ThemedText>
+                                        <ThemedText style={styles.muted}>{t('settings.connection.desktopHint')}</ThemedText>
+                                    </>
+                                ) : (
+                                    <ThemedText style={styles.muted}>{t('settings.connection.pairingUnavailable')}</ThemedText>
+                                )}
+                            </View>
+                        ) : (
+                            <>
+                                <BackendConnectionForm showScanner />
+                            </>
+                        )}
+
+                        {Platform.OS === 'web' ? <BackendConnectionForm showScanner={false} /> : null}
+                    </ThemedCard>
+                ) : null}
+
 
             </ScrollView>
             {panel.mounted ? (
@@ -689,6 +744,8 @@ export default function OperationsScreen() {
                             discount={panelMode.discount}
                             onClose={panel.close}
                         />
+                    ) : panelMode?.type === 'cash-register-adjust' ? (
+                        <CashRegisterAdjustPanelContent day={panelMode.day} onClose={panel.close} />
                     ) : panelMode?.type === 'import' ? (
                         <View style={styles.importPanel}>
                             <View style={[styles.importPanelHeader, { borderBottomColor: palette.border }]}>
@@ -918,6 +975,14 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 12,
         opacity: 0.95,
+    },
+    connectionQrWrap: {
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 8,
+    },
+    connectionPayloadText: {
+        fontWeight: '700',
     },
     importPanel: {
         flex: 1,

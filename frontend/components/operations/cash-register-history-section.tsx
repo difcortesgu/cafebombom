@@ -1,14 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FormFeedback } from '@/components/ui/form-feedback';
-import { SlidePanel } from '@/components/ui/slide-panel';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
-import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
@@ -78,64 +76,42 @@ function HistoryCard({
     );
 }
 
-export function CashRegisterHistorySection() {
+export type CashRegisterAdjustPanelContentProps = {
+    day: CashRegisterHistoryDay;
+    onClose: () => void;
+};
+
+export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdjustPanelContentProps) {
     const palette = useAppColors();
-    const { width: screenWidth } = useWindowDimensions();
-    const panel = usePanelLifecycle();
     const { cashRegisterHistory, loadCashRegisterHistory, addCashRegisterAdjustment } = useAccountsStore();
-    const [selectedDay, setSelectedDay] = useState<CashRegisterHistoryDay | null>(null);
     const [openingForm, setOpeningForm] = useState({ amount: '0', reason: '' });
     const [closingForm, setClosingForm] = useState({ amount: '0', reason: '' });
     const [message, setMessage] = useState<string | null>(null);
     const [savingTarget, setSavingTarget] = useState<DayAdjustmentTarget | null>(null);
 
-    useEffect(() => {
-        void loadCashRegisterHistory();
-    }, [loadCashRegisterHistory]);
+    const selectedDayData = useMemo(() => {
+        return cashRegisterHistory.find((d) => d.id === day.id) ?? day;
+    }, [cashRegisterHistory, day]);
 
     useEffect(() => {
-        if (!selectedDay) return;
         setOpeningForm({ amount: '0', reason: '' });
         setClosingForm({ amount: '0', reason: '' });
         setMessage(null);
-    }, [selectedDay?.id]);
-
-    const selectedDayData = useMemo(() => {
-        if (!selectedDay) return null;
-        return cashRegisterHistory.find((day) => day.id === selectedDay.id) ?? selectedDay;
-    }, [cashRegisterHistory, selectedDay]);
-
-    const openAdjustPanel = (day: CashRegisterHistoryDay) => {
-        setSelectedDay(day);
-        panel.open();
-    };
-
-    const closeAdjustPanel = () => {
-        panel.close();
-    };
-
-    const handlePanelExited = () => {
-        setSelectedDay(null);
-        panel.onExited();
-    };
+    }, [day.id]);
 
     const openingAdjustmentsTotal = useMemo(() => {
-        if (!selectedDayData) return 0;
         return selectedDayData.adjustments
             .filter((adjustment) => adjustment.reason.toUpperCase().startsWith('[APERTURA]'))
             .reduce((sum, adjustment) => sum + Number(adjustment.amount), 0);
     }, [selectedDayData]);
 
     const closingAdjustmentsTotal = useMemo(() => {
-        if (!selectedDayData) return 0;
         return selectedDayData.adjustments
             .filter((adjustment) => adjustment.reason.toUpperCase().startsWith('[CIERRE]'))
             .reduce((sum, adjustment) => sum + Number(adjustment.amount), 0);
     }, [selectedDayData]);
 
     const handleSave = async (target: DayAdjustmentTarget) => {
-        if (!selectedDayData) return;
-
         const form = target === 'opening' ? openingForm : closingForm;
         const amount = parseAmount(form.amount);
         const reason = form.reason.trim();
@@ -169,133 +145,146 @@ export function CashRegisterHistorySection() {
 
     return (
         <>
-            <ThemedCard style={styles.card}>
-                <View style={styles.sectionHeaderRow}>
-                    <View>
-                        <ThemedText type="subtitle">{t('cashRegister.historyTitle')}</ThemedText>
-                        <ThemedText style={styles.muted}>{t('cashRegister.historySubtitle')}</ThemedText>
-                    </View>
-                    <ThemedText style={styles.muted}>{cashRegisterHistory.length}</ThemedText>
+            <View style={[styles.panelHeader, { borderBottomColor: palette.border }]}>
+                <View style={styles.panelHeaderTitle}>
+                    <Ionicons name="cash-outline" size={20} color={palette.tint} />
+                    <ThemedText type="subtitle">{t('cashRegister.adjustDayPanelTitle')}</ThemedText>
                 </View>
+                <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+                    <Ionicons name="close" size={22} color={palette.text} />
+                </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.panelContent} keyboardShouldPersistTaps="handled">
+                <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
+                    <ThemedText type="defaultSemiBold">{selectedDayData.day_label}</ThemedText>
+                    <ThemedText style={styles.muted}>
+                        {selectedDayData.closed_at
+                            ? t('accountsForm.caja.alreadyClosed')
+                            : t('accountsForm.caja.openTitle')}
+                    </ThemedText>
+                    <ThemedText style={styles.muted}>
+                        {t('accountsForm.caja.openingAmountLabel')}: ${selectedDayData.opening_amount.toFixed(2)}
+                    </ThemedText>
+                    <ThemedText style={styles.muted}>
+                        {t('accountsForm.caja.closingAmountLabel')}: {selectedDayData.closing_amount == null ? '—' : `$${selectedDayData.closing_amount.toFixed(2)}`}
+                    </ThemedText>
+                    <ThemedText style={styles.muted}>
+                        {t('cashRegister.adjustmentTotal')}: {selectedDayData.adjustment_total >= 0 ? '+' : ''}${selectedDayData.adjustment_total.toFixed(2)}
+                    </ThemedText>
+                </ThemedCard>
 
-                {cashRegisterHistory.length === 0 ? (
-                    <ThemedText style={styles.muted}>{t('cashRegister.historyEmpty')}</ThemedText>
-                ) : (
-                    <View style={styles.historyList}>
-                        {cashRegisterHistory.map((day) => (
-                            <HistoryCard key={day.day_key} day={day} onAdjust={openAdjustPanel} />
-                        ))}
+                <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
+                    <ThemedText type="defaultSemiBold">Ajustar apertura</ThemedText>
+                    <ThemedText style={styles.muted}>Total ajustes apertura: {openingAdjustmentsTotal >= 0 ? '+' : ''}${openingAdjustmentsTotal.toFixed(2)}</ThemedText>
+                    <ThemedInput
+                        label="Monto"
+                        value={openingForm.amount}
+                        onChangeText={(value) => setOpeningForm((current) => ({ ...current, amount: value }))}
+                        keyboardType="decimal-pad"
+                        placeholder={t('cashRegister.adjustmentAmount')}
+                    />
+                    <ThemedInput
+                        label="Motivo"
+                        value={openingForm.reason}
+                        onChangeText={(value) => setOpeningForm((current) => ({ ...current, reason: value }))}
+                        placeholder={t('cashRegister.adjustmentReason')}
+                    />
+                    <View style={styles.inlineActions}>
+                        <ThemedButton
+                            variant="secondary"
+                            icon="checkmark-circle-outline"
+                            label={savingTarget === 'opening' ? 'Guardando...' : 'Guardar ajuste apertura'}
+                            disabled={savingTarget !== null}
+                            onPress={() => void handleSave('opening')}
+                        />
                     </View>
-                )}
-            </ThemedCard>
+                </ThemedCard>
 
-            {panel.mounted && selectedDayData ? (
-                <SlidePanel
-                    visible={panel.visible}
-                    title={t('cashRegister.adjustDayPanelTitle')}
-                    icon="cash-outline"
-                    onClose={closeAdjustPanel}
-                    onExited={handlePanelExited}
-                    width={Math.min(Math.floor(screenWidth * 0.4), 520)}
-                    contentContainerStyle={styles.panelContent}
-                >
-                    <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
-                        <ThemedText type="defaultSemiBold">{selectedDayData.day_label}</ThemedText>
-                        <ThemedText style={styles.muted}>
-                            {selectedDayData.closed_at
-                                ? t('accountsForm.caja.alreadyClosed')
-                                : t('accountsForm.caja.openTitle')}
-                        </ThemedText>
-                        <ThemedText style={styles.muted}>
-                            {t('accountsForm.caja.openingAmountLabel')}: ${selectedDayData.opening_amount.toFixed(2)}
-                        </ThemedText>
-                        <ThemedText style={styles.muted}>
-                            {t('accountsForm.caja.closingAmountLabel')}: {selectedDayData.closing_amount == null ? '—' : `$${selectedDayData.closing_amount.toFixed(2)}`}
-                        </ThemedText>
-                        <ThemedText style={styles.muted}>
-                            {t('cashRegister.adjustmentTotal')}: {selectedDayData.adjustment_total >= 0 ? '+' : ''}${selectedDayData.adjustment_total.toFixed(2)}
-                        </ThemedText>
-                    </ThemedCard>
-
-                    <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
-                        <ThemedText type="defaultSemiBold">Ajustar apertura</ThemedText>
-                        <ThemedText style={styles.muted}>Total ajustes apertura: {openingAdjustmentsTotal >= 0 ? '+' : ''}${openingAdjustmentsTotal.toFixed(2)}</ThemedText>
-                        <ThemedInput
-                            label="Monto"
-                            value={openingForm.amount}
-                            onChangeText={(value) => setOpeningForm((current) => ({ ...current, amount: value }))}
-                            keyboardType="decimal-pad"
-                            placeholder={t('cashRegister.adjustmentAmount')}
+                <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
+                    <ThemedText type="defaultSemiBold">Ajustar cierre</ThemedText>
+                    <ThemedText style={styles.muted}>Total ajustes cierre: {closingAdjustmentsTotal >= 0 ? '+' : ''}${closingAdjustmentsTotal.toFixed(2)}</ThemedText>
+                    <ThemedInput
+                        label="Monto"
+                        value={closingForm.amount}
+                        onChangeText={(value) => setClosingForm((current) => ({ ...current, amount: value }))}
+                        keyboardType="decimal-pad"
+                        placeholder={t('cashRegister.adjustmentAmount')}
+                    />
+                    <ThemedInput
+                        label="Motivo"
+                        value={closingForm.reason}
+                        onChangeText={(value) => setClosingForm((current) => ({ ...current, reason: value }))}
+                        placeholder={t('cashRegister.adjustmentReason')}
+                    />
+                    <View style={styles.inlineActions}>
+                        <ThemedButton
+                            variant="secondary"
+                            icon="checkmark-circle-outline"
+                            label={savingTarget === 'closing' ? 'Guardando...' : 'Guardar ajuste cierre'}
+                            disabled={savingTarget !== null}
+                            onPress={() => void handleSave('closing')}
                         />
-                        <ThemedInput
-                            label="Motivo"
-                            value={openingForm.reason}
-                            onChangeText={(value) => setOpeningForm((current) => ({ ...current, reason: value }))}
-                            placeholder={t('cashRegister.adjustmentReason')}
-                        />
-                        <View style={styles.inlineActions}>
-                            <ThemedButton
-                                variant="secondary"
-                                icon="checkmark-circle-outline"
-                                label={savingTarget === 'opening' ? 'Guardando...' : 'Guardar ajuste apertura'}
-                                disabled={savingTarget !== null}
-                                onPress={() => void handleSave('opening')}
-                            />
-                        </View>
-                    </ThemedCard>
+                    </View>
+                </ThemedCard>
 
-                    <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
-                        <ThemedText type="defaultSemiBold">Ajustar cierre</ThemedText>
-                        <ThemedText style={styles.muted}>Total ajustes cierre: {closingAdjustmentsTotal >= 0 ? '+' : ''}${closingAdjustmentsTotal.toFixed(2)}</ThemedText>
-                        <ThemedInput
-                            label="Monto"
-                            value={closingForm.amount}
-                            onChangeText={(value) => setClosingForm((current) => ({ ...current, amount: value }))}
-                            keyboardType="decimal-pad"
-                            placeholder={t('cashRegister.adjustmentAmount')}
-                        />
-                        <ThemedInput
-                            label="Motivo"
-                            value={closingForm.reason}
-                            onChangeText={(value) => setClosingForm((current) => ({ ...current, reason: value }))}
-                            placeholder={t('cashRegister.adjustmentReason')}
-                        />
-                        <View style={styles.inlineActions}>
-                            <ThemedButton
-                                variant="secondary"
-                                icon="checkmark-circle-outline"
-                                label={savingTarget === 'closing' ? 'Guardando...' : 'Guardar ajuste cierre'}
-                                disabled={savingTarget !== null}
-                                onPress={() => void handleSave('closing')}
-                            />
-                        </View>
-                    </ThemedCard>
+                <FormFeedback message={message} />
 
-                    <FormFeedback message={message} />
-
-                    <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
-                        <ThemedText type="defaultSemiBold">Historial completo de ajustes</ThemedText>
-                        {selectedDayData.adjustments.length === 0 ? (
-                            <ThemedText style={styles.muted}>{t('cashRegister.noAdjustments')}</ThemedText>
-                        ) : (
-                            <View style={styles.adjustmentList}>
-                                {selectedDayData.adjustments.map((adjustment) => (
-                                    <View key={adjustment.id} style={[styles.adjustmentItem, { borderColor: palette.border }]}>
-                                        <View style={styles.adjustmentItemTop}>
-                                            <ThemedText type="defaultSemiBold">
-                                                {adjustment.amount >= 0 ? '+' : ''}${Number(adjustment.amount).toFixed(2)}
-                                            </ThemedText>
-                                            <ThemedText style={styles.muted}>{formatTimeLabel(adjustment.created_at)}</ThemedText>
-                                        </View>
-                                        <ThemedText style={styles.muted}>{adjustment.reason}</ThemedText>
+                <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
+                    <ThemedText type="defaultSemiBold">Historial completo de ajustes</ThemedText>
+                    {selectedDayData.adjustments.length === 0 ? (
+                        <ThemedText style={styles.muted}>{t('cashRegister.noAdjustments')}</ThemedText>
+                    ) : (
+                        <View style={styles.adjustmentList}>
+                            {selectedDayData.adjustments.map((adjustment) => (
+                                <View key={adjustment.id} style={[styles.adjustmentItem, { borderColor: palette.border }]}>
+                                    <View style={styles.adjustmentItemTop}>
+                                        <ThemedText type="defaultSemiBold">
+                                            {adjustment.amount >= 0 ? '+' : ''}${Number(adjustment.amount).toFixed(2)}
+                                        </ThemedText>
+                                        <ThemedText style={styles.muted}>{formatTimeLabel(adjustment.created_at)}</ThemedText>
                                     </View>
-                                ))}
-                            </View>
-                        )}
-                    </ThemedCard>
-                </SlidePanel>
-            ) : null}
+                                    <ThemedText style={styles.muted}>{adjustment.reason}</ThemedText>
+                                </View>
+                            ))}
+                        </View>
+                    )}
+                </ThemedCard>
+            </ScrollView>
         </>
+    );
+}
+
+export type CashRegisterHistorySectionProps = {
+    onAdjustDay: (day: CashRegisterHistoryDay) => void;
+};
+
+export function CashRegisterHistorySection({ onAdjustDay }: CashRegisterHistorySectionProps) {
+    const { cashRegisterHistory, loadCashRegisterHistory } = useAccountsStore();
+
+    useEffect(() => {
+        void loadCashRegisterHistory();
+    }, [loadCashRegisterHistory]);
+
+    return (
+        <ThemedCard style={styles.card}>
+            <View style={styles.sectionHeaderRow}>
+                <View>
+                    <ThemedText type="subtitle">{t('cashRegister.historyTitle')}</ThemedText>
+                    <ThemedText style={styles.muted}>{t('cashRegister.historySubtitle')}</ThemedText>
+                </View>
+                <ThemedText style={styles.muted}>{cashRegisterHistory.length}</ThemedText>
+            </View>
+
+            {cashRegisterHistory.length === 0 ? (
+                <ThemedText style={styles.muted}>{t('cashRegister.historyEmpty')}</ThemedText>
+            ) : (
+                <View style={styles.historyList}>
+                    {cashRegisterHistory.map((day) => (
+                        <HistoryCard key={day.day_key} day={day} onAdjust={onAdjustDay} />
+                    ))}
+                </View>
+            )}
+        </ThemedCard>
     );
 }
 
@@ -308,6 +297,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: 8,
+    },
+    panelHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+    },
+    panelHeaderTitle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    closeButton: {
+        padding: 4,
     },
     historyList: {
         gap: 8,

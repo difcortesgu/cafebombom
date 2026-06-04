@@ -5,10 +5,12 @@ import { exec } from 'child_process';
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import fs from 'fs';
+import { ensureLogosDir } from './database';
 import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
 import inventoryRouter from './routes/inventory';
+import pairingRouter from './routes/pairing';
 import paymentMethodsRouter from './routes/payment-methods';
 import productsRouter from './routes/products';
 import salesRouter from './routes/sales';
@@ -17,12 +19,21 @@ import usersRouter from './routes/users';
 import { AuthSqliteService } from './services/auth';
 import { getJwtExpiresIn, signAccessToken } from './services/jwt';
 import { logger } from './utils/logger';
+import { resolvePairingInfo } from './utils/network';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || '10mb';
 const authService = new AuthSqliteService();
+
+try {
+    const logosDir = ensureLogosDir();
+    logger.info(`[STARTUP] Carpeta de logos: ${logosDir}`);
+} catch (error) {
+    logger.error('No se pudo preparar la carpeta de logos.', error);
+    process.exit(1);
+}
 
 // Middleware
 app.use(cors(CORS_ORIGIN ? { origin: CORS_ORIGIN } : undefined));
@@ -184,6 +195,7 @@ app.use('/api/inventory', inventoryRouter);
 app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
+app.use('/api/pairing', pairingRouter);
 
 const exeDir = path.dirname(process.execPath);
 const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'public'));
@@ -199,6 +211,13 @@ app.get(/^(?!\/api).*/, (req, res) => {
 
 app.listen(PORT, () => {
     logger.info(`✅ Servidor POS Iniciado en puerto ${PORT}`);
+    const pairing = resolvePairingInfo(PORT);
+    if (pairing.payload && pairing.url) {
+        logger.info(`📲 Pairing QR payload: ${pairing.payload}`);
+        logger.info(`🌐 Backend LAN URL: ${pairing.url}`);
+    } else {
+        logger.info('⚠️ No se detectó IPv4 LAN para pairing automático.');
+    }
 
     if (isProduction) {
         const url = `http://localhost:${PORT}`;

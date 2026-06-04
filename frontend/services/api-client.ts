@@ -3,7 +3,59 @@
  * Handles authentication headers, token management, and common HTTP operations
  */
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
+const API_BASE_URL_FALLBACK = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+export const API_BASE_URL_STORAGE_KEY = 'settings.api-base-url';
+
+function isWeb(): boolean {
+  return typeof window !== 'undefined' && Platform.OS === 'web';
+}
+
+function normalizeApiBaseUrl(input: string): string {
+  const raw = input.trim();
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+  const parsed = new URL(withProtocol);
+  const pathname = parsed.pathname.replace(/\/+$/, '');
+  const nextPathname = pathname === '' || pathname === '/' ? '/api' : pathname.endsWith('/api') ? pathname : `${pathname}/api`;
+  return `${parsed.origin}${nextPathname}`;
+}
+
+async function readStoredApiBaseUrl(): Promise<string | null> {
+  try {
+    if (isWeb()) {
+      return window.localStorage.getItem(API_BASE_URL_STORAGE_KEY);
+    }
+
+    return await AsyncStorage.getItem(API_BASE_URL_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+async function writeStoredApiBaseUrl(value: string | null): Promise<void> {
+  try {
+    if (isWeb()) {
+      if (!value) {
+        window.localStorage.removeItem(API_BASE_URL_STORAGE_KEY);
+        return;
+      }
+
+      window.localStorage.setItem(API_BASE_URL_STORAGE_KEY, value);
+      return;
+    }
+
+    if (!value) {
+      await AsyncStorage.removeItem(API_BASE_URL_STORAGE_KEY);
+      return;
+    }
+
+    await AsyncStorage.setItem(API_BASE_URL_STORAGE_KEY, value);
+  } catch {
+    // Ignore persistence errors to keep API calls functional.
+  }
+}
 
 type ApiResponse<T> = {
   data?: T;
@@ -14,6 +66,7 @@ type ApiResponse<T> = {
 type RequestOptions = {
   headers?: Record<string, string>;
   body?: unknown;
+  signal?: AbortSignal;
 };
 
 type DownloadedFile = {
@@ -24,6 +77,40 @@ type DownloadedFile = {
 
 class ApiClient {
   private token: string | null = null;
+  private baseUrl = normalizeApiBaseUrl(API_BASE_URL_FALLBACK);
+  private baseUrlHydrated = false;
+
+  async hydrateBaseUrl(): Promise<void> {
+    if (this.baseUrlHydrated) {
+      return;
+    }
+
+    const stored = await readStoredApiBaseUrl();
+    if (stored) {
+      try {
+        this.baseUrl = normalizeApiBaseUrl(stored);
+      } catch {
+        this.baseUrl = normalizeApiBaseUrl(API_BASE_URL_FALLBACK);
+      }
+    }
+
+    this.baseUrlHydrated = true;
+  }
+
+  setBaseUrl(baseUrl: string): void {
+    this.baseUrl = normalizeApiBaseUrl(baseUrl);
+  }
+
+  async persistBaseUrl(baseUrl: string): Promise<void> {
+    const normalized = normalizeApiBaseUrl(baseUrl);
+    this.baseUrl = normalized;
+    await writeStoredApiBaseUrl(normalized);
+  }
+
+  async resetBaseUrl(): Promise<void> {
+    this.baseUrl = normalizeApiBaseUrl(API_BASE_URL_FALLBACK);
+    await writeStoredApiBaseUrl(null);
+  }
 
   setToken(token: string | null): void {
     this.token = token;
@@ -34,7 +121,7 @@ class ApiClient {
   }
 
   getBaseUrl(): string {
-    return API_BASE_URL;
+    return this.baseUrl;
   }
 
   private getAuthHeaders(): Record<string, string> {
@@ -80,20 +167,21 @@ class ApiClient {
   }
 
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         ...this.getAuthHeaders(),
         ...options?.headers,
       },
+      signal: options?.signal,
     });
 
     return this.handleResponse<T>(response);
   }
 
   async post<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -107,7 +195,7 @@ class ApiClient {
   }
 
   async put<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -121,7 +209,7 @@ class ApiClient {
   }
 
   async patch<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -135,7 +223,7 @@ class ApiClient {
   }
 
   async delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       method: 'DELETE',
       headers: {
@@ -148,7 +236,7 @@ class ApiClient {
   }
 
   async uploadFile<T>(endpoint: string, file: Uint8Array, fileName: string, options?: RequestOptions): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const formData = new FormData();
     // Force an ArrayBuffer-backed copy to satisfy strict BlobPart typing.
     const fileCopy = new Uint8Array(file);
@@ -168,7 +256,7 @@ class ApiClient {
   }
 
   async downloadFile(endpoint: string, fallbackFileName: string, options?: RequestOptions): Promise<DownloadedFile> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {

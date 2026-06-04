@@ -77,15 +77,28 @@ export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps)
                                     <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
                                         {t('sales.items')}
                                     </ThemedText>
-                                    {items.map((item) => (
-                                        <View key={item.id} style={[styles.itemRow, { borderColor: palette.border }]}>
-                                            <View style={styles.itemInfo}>
-                                                <ThemedText style={styles.itemName}>{item.product_name}</ThemedText>
-                                                <ThemedText style={styles.itemMeta}>x{item.quantity}</ThemedText>
-                                            </View>
-                                            <ThemedText style={styles.itemPrice}>${Number(item.final_line_total ?? 0).toFixed(2)}</ThemedText>
-                                        </View>
-                                    ))}
+                                    {items
+                                        .filter((item) => !item.parent_sale_item_id)
+                                        .map((item) => {
+                                            const children = items.filter((c) => c.parent_sale_item_id === item.id);
+                                            return (
+                                                <View key={item.id} style={[styles.itemRow, { borderColor: palette.border }]}>
+                                                    <View style={styles.itemInfo}>
+                                                        <ThemedText style={styles.itemName}>{item.product_name}</ThemedText>
+                                                        <ThemedText style={styles.itemMeta}>x{item.quantity}</ThemedText>
+                                                        {children.map((child) => {
+                                                            const addedNames = (child.selected_additional_ingredient_details ?? []).map((d) => `+${d.ingredient_name}`);
+                                                            return (
+                                                                <ThemedText key={child.id} style={[styles.itemMeta, { paddingLeft: 4 }]}>
+                                                                    · {child.product_name}{Number(child.unit_price) > 0 ? ` +$${Number(child.unit_price).toFixed(2)}` : ''}{addedNames.length > 0 ? ` (${addedNames.join(', ')})` : ''}
+                                                                </ThemedText>
+                                                            );
+                                                        })}
+                                                    </View>
+                                                    <ThemedText style={styles.itemPrice}>${Number(item.final_line_total ?? 0).toFixed(2)}</ThemedText>
+                                                </View>
+                                            );
+                                        })}
                                 </View>
                             )}
 

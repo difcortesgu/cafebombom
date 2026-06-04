@@ -1,3 +1,4 @@
+import { apiClient } from '@/services/api-client';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
@@ -15,7 +16,7 @@ export function useBootHydration() {
 
     useEffect(() => {
         let cancelled = false;
-        void hydrateAuth().finally(() => {
+        void apiClient.hydrateBaseUrl().then(hydrateAuth).finally(() => {
             if (!cancelled) setBootHydrated(true);
         });
         return () => {

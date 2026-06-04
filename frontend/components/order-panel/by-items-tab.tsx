@@ -173,6 +173,7 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
                     phone: business.phone,
                     nit: business.nit,
                     logoUri: business.logoUri,
+                    logoRasterUrl: business.logoRasterUrl ?? null,
                     footerMessage: business.footerMessage,
                 },
                 taxConfig: { label: 'IVA', rate: business.taxRate, inclusive: true },

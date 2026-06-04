@@ -80,6 +80,8 @@ export type ReceiptPreferences = {
   businessPhone: string;
   businessNit: string;
   businessLogoUri: string | null;
+  logoId: string | null;
+  logoVersion: string | null;
   footerMessage: string;
   paperWidth: ReceiptPaperWidth;
   taxRate: number;

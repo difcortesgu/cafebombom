@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -27,8 +27,11 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
-    const activeMethods = methods.filter((m) => m.is_active);
-    const displayMethods = activeMethods.length > 0 ? activeMethods : methods;
+    const activeMethods = useMemo(() => methods.filter((m) => m.is_active), [methods]);
+    const displayMethods = useMemo(
+        () => (activeMethods.length > 0 ? activeMethods : methods),
+        [activeMethods, methods],
+    );
 
     const alreadyPaid = !!sale.paid_at;
     const [numParts, setNumParts] = useState(2);

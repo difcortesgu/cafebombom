@@ -34,19 +34,12 @@ See the respective README in each folder for setup and usage instructions.
 
 ## Next Features To Implement
 
-Arreglar formulario de ajustes de caja, la pantalla se recorta por alguna razon
-Arreglar logo en el recibo
-Mostrar unidades en formulario de productos
-Cambiar los mensajes de la app para usar toasts
-Los formularios laterales deberían tener los nuevos ingredientes arriba
+[] Cambiar los mensajes de la app para usar toasts
 
-Agregar icono
-Imprimir comanda para la cocina
-Organizar ingredientes y productos alfabéticamente y agrupar productos por categoría
+[] Imprimir comanda para la cocina
+[] Organizar ingredientes y productos alfabéticamente y agrupar productos por categoría
 
-Revisar vinculacion de android, especificamente buscar la direccion ip del servidor, se puede con un qr que se escanee desde el celular?
-
-Mostrar la diferencia entre el cierre de caja esperado y el real
-Agregar módulo de propinas
-Editar métodos de pago
+[] Mostrar la diferencia entre el cierre de caja esperado y el real
+[] Agregar módulo de propinas
+[] Editar métodos de pago
 

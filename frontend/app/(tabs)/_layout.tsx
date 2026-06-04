@@ -64,7 +64,7 @@ export default function TabLayout() {
     managedUsers,
     currentUser,
     isSetupDone,
-    // hydrate: hydrateAuth,
+    hydrate: hydrateAuth,
     setupCreateUser,
     setupDeleteUser,
     setupReactivateUser,
@@ -201,6 +201,7 @@ export default function TabLayout() {
         loading={loading}
         error={error}
         login={login}
+        refreshConnection={hydrateAuth}
       />
     );
   }

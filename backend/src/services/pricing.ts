@@ -16,6 +16,8 @@ export type SaleItemDiscountBreakdown = {
     discountValue: number | null;
     discountAmount: number;
   };
+  // 1. NUEVO: Agregamos la propiedad al tipo de retorno
+  comboItems?: SaleItemInput[];
 };
 
 export type SaleDiscountBreakdown = {
@@ -121,6 +123,8 @@ export function calculateSaleDiscountBreakdown(
         discountValue: itemDiscount > 0 && selectedProductDiscount ? selectedProductDiscount.value : null,
         discountAmount: itemDiscount,
       },
+      // 2. NUEVO: Transferimos los comboItems del input original al objeto ya procesado
+      comboItems: item.comboItems,
     };
   });
 

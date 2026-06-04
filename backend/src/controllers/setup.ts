@@ -1,10 +1,19 @@
 import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { setupService, usersService } from '../services';
+import { logoService, setupService, usersService } from '../services';
 import { getSetupStatus as getBootstrapStatus } from '../services/bootstrap';
 import { SeedImportParseError, SeedImportValidationError } from '../services/seed-import';
 import { logger } from '../utils/logger';
+
+function buildSetupAssetUrls(req: Request, logoId: string, logoVersion: string) {
+  const baseUrl = `${req.protocol}://${req.get('host')}/api/setup`;
+  return {
+    raster58Url: `${baseUrl}/logo/${logoId}/raster/58?v=${logoVersion}`,
+    raster80Url: `${baseUrl}/logo/${logoId}/raster/80?v=${logoVersion}`,
+    previewUrl: `${baseUrl}/logo/${logoId}/preview?v=${logoVersion}`,
+  };
+}
 
 export function getSetupStatus(req: Request, res: Response): void {
   try {
@@ -27,7 +36,18 @@ export async function getReceiptPreferences(req: Request, res: Response): Promis
 }
 
 export async function saveReceiptPreferences(req: Request, res: Response): Promise<void> {
-  const { businessName, businessAddress, businessPhone, businessNit, businessLogoUri, footerMessage, paperWidth, taxRate } = req.body;
+  const {
+    businessName,
+    businessAddress,
+    businessPhone,
+    businessNit,
+    businessLogoUri,
+    logoId,
+    logoVersion,
+    footerMessage,
+    paperWidth,
+    taxRate,
+  } = req.body;
 
   if (!businessName) {
     res.status(400).json({ error: 'businessName is required.' });
@@ -51,6 +71,8 @@ export async function saveReceiptPreferences(req: Request, res: Response): Promi
       businessPhone: businessPhone ?? '',
       businessNit: businessNit ?? '',
       businessLogoUri: businessLogoUri ?? null,
+      logoId: typeof logoId === 'string' ? logoId : undefined,
+      logoVersion: typeof logoVersion === 'string' ? logoVersion : undefined,
       footerMessage: footerMessage ?? '',
       paperWidth,
       taxRate,
@@ -115,6 +137,150 @@ export function downloadImportTemplate(req: Request, res: Response): void {
   }
 
   res.download(templatePath, 'import-template-v2.xlsx');
+}
+
+export async function uploadBusinessLogo(req: Request, res: Response): Promise<void> {
+  const upload = req as Request & { file?: { path?: string; originalname?: string; mimetype?: string } };
+  const filePath = upload.file?.path;
+
+  if (!filePath) {
+    res.status(400).json({ error: 'Logo file is required.' });
+    return;
+  }
+
+  try {
+    const processed = await logoService.processUploadedLogo({
+      tempFilePath: filePath,
+      originalFileName: upload.file?.originalname ?? 'logo.png',
+      mimeType: upload.file?.mimetype ?? 'image/png',
+    });
+
+    const currentPreferences = await setupService.getReceiptPreferences();
+    await setupService.saveReceiptPreferences({
+      businessName: currentPreferences.businessName,
+      businessAddress: currentPreferences.businessAddress,
+      businessPhone: currentPreferences.businessPhone,
+      businessNit: currentPreferences.businessNit,
+      businessLogoUri: currentPreferences.businessLogoUri,
+      logoId: processed.logoId,
+      logoVersion: processed.logoVersion,
+      footerMessage: currentPreferences.footerMessage,
+      paperWidth: currentPreferences.paperWidth,
+      taxRate: currentPreferences.taxRate,
+    });
+
+    const urls = buildSetupAssetUrls(req, processed.logoId, processed.logoVersion);
+
+    res.status(201).json({
+      logoId: processed.logoId,
+      logoVersion: processed.logoVersion,
+      updatedAt: processed.metadata.createdAt,
+      ...urls,
+    });
+  } catch (error) {
+    logger.error('[setup] uploadBusinessLogo failed:', error);
+    res.status(500).json({ error: 'Failed to process logo upload.' });
+  } finally {
+    try {
+      fs.rmSync(filePath, { force: true });
+    } catch {
+      // ignore temp cleanup failures
+    }
+  }
+}
+
+export async function getLogoManifest(req: Request, res: Response): Promise<void> {
+  try {
+    const prefs = await setupService.getReceiptPreferences();
+    if (!prefs.logoId || !prefs.logoVersion) {
+      res.status(200).json({
+        status: prefs.businessLogoUri ? 'unmanaged' : 'empty',
+        logoId: null,
+        logoVersion: null,
+      });
+      return;
+    }
+
+    const manifest = logoService.readManifest(prefs.logoId);
+    if (!manifest) {
+      res.status(404).json({ error: 'Logo metadata not found.' });
+      return;
+    }
+
+    const urls = buildSetupAssetUrls(req, manifest.logoId, manifest.logoVersion);
+    res.status(200).json({
+      status: 'ready',
+      logoId: manifest.logoId,
+      logoVersion: manifest.logoVersion,
+      updatedAt: manifest.updatedAt,
+      ...urls,
+    });
+  } catch (error) {
+    logger.error('[setup] getLogoManifest failed:', error);
+    res.status(500).json({ error: 'Failed to fetch logo manifest.' });
+  }
+}
+
+export async function getLogoRaster(req: Request, res: Response): Promise<void> {
+  const { id, width } = req.params as Record<string, string>;
+  const parsedWidth = Number(width);
+
+  if (parsedWidth !== 58 && parsedWidth !== 80) {
+    res.status(400).json({ error: 'width must be 58 or 80.' });
+    return;
+  }
+
+  try {
+    const prefs = await setupService.getReceiptPreferences();
+    if (!prefs.logoId || id !== prefs.logoId) {
+      res.status(404).json({ error: 'Logo not configured.' });
+      return;
+    }
+
+    const rasterPath = logoService.getRasterPath(id, parsedWidth);
+    if (!fs.existsSync(rasterPath)) {
+      res.status(404).json({ error: 'Raster payload not found.' });
+      return;
+    }
+
+    if (prefs.logoVersion) {
+      res.setHeader('ETag', `"${prefs.logoVersion}-${parsedWidth}"`);
+    }
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.sendFile(path.resolve(rasterPath), { dotfiles: 'allow' });
+  } catch (error) {
+    logger.error('[setup] getLogoRaster failed:', error);
+    res.status(500).json({ error: 'Failed to fetch logo raster payload.' });
+  }
+}
+
+export async function getLogoPreview(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+
+  try {
+    const prefs = await setupService.getReceiptPreferences();
+    if (!prefs.logoId || id !== prefs.logoId) {
+      res.status(404).json({ error: 'Logo not configured.' });
+      return;
+    }
+
+    const previewPath = logoService.getPreviewPath(id);
+    if (!fs.existsSync(previewPath)) {
+      res.status(404).json({ error: 'Logo preview not found.' });
+      return;
+    }
+
+    if (prefs.logoVersion) {
+      res.setHeader('ETag', `"${prefs.logoVersion}-preview"`);
+    }
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(path.resolve(previewPath), { dotfiles: 'allow' });
+  } catch (error) {
+    logger.error('[setup] getLogoPreview failed:', error);
+    res.status(500).json({ error: 'Failed to fetch logo preview.' });
+  }
 }
 
 // ── Setup-phase user management (no actor checks) ────────────────────────────

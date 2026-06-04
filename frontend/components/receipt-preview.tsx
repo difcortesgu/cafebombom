@@ -57,6 +57,23 @@ export function ReceiptPreview({ receipt }: ReceiptPreviewProps) {
               <ThemedText style={styles.metaText}>{item.quantity} x {formatCurrency(item.unitPrice)}</ThemedText>
               {item.discountAmount > 0 ? <ThemedText style={styles.metaText}>-{formatCurrency(item.discountAmount)}</ThemedText> : null}
             </View>
+            {item.children?.map((child, idx) => (
+              <View key={`${item.id}-child-${idx}`} style={styles.additionalDetailRow}>
+                <View style={styles.row}>
+                  <ThemedText style={[styles.additionalDetailText, { flex: 1 }]}>· {child.name}{child.quantity > 1 ? ` x${child.quantity}` : ''}</ThemedText>
+                  {child.extraPrice > 0 && <ThemedText style={styles.additionalDetailText}>+{formatCurrency(child.extraPrice)}</ThemedText>}
+                </View>
+                {child.additionalIngredients.map((add, addIdx) => (
+                  <View key={addIdx} style={[styles.row, { paddingLeft: 8 }]}>
+                    <ThemedText style={styles.additionalDetailText}>+ {add.name} x{add.quantity}</ThemedText>
+                    {add.totalAdditionalPrice > 0 && <ThemedText style={styles.additionalDetailText}>+{formatCurrency(add.totalAdditionalPrice)}</ThemedText>}
+                  </View>
+                ))}
+                {child.observation ? (
+                  <ThemedText style={[styles.additionalDetailText, { fontStyle: 'italic' }]}>📝 {child.observation}</ThemedText>
+                ) : null}
+              </View>
+            ))}
             {item.observation ? (
               <View style={styles.row}>
                 <ThemedText style={styles.metaText}>{t('sales.receipt.observationLabel')}: {item.observation}</ThemedText>

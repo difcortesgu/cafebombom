@@ -15,6 +15,7 @@ export type BusinessInfo = {
   phone: string;
   nit: string;
   logoUri: string | null;
+  logoRasterUrl?: string | null;
   footerMessage: string;
 };
 
@@ -33,6 +34,14 @@ export type ReceiptLineItem = {
     quantity: number;
     unitAdditionalPrice: number;
     totalAdditionalPrice: number;
+  }>;
+  children?: Array<{
+    name: string;
+    quantity: number;
+    extraPrice: number;
+    additionalIngredients: Array<{ name: string; quantity: number; totalAdditionalPrice: number }>;
+    removedIngredientIds: string[];
+    observation: string | null;
   }>;
 };
 

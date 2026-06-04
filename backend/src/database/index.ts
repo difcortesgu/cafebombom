@@ -7,27 +7,30 @@ import path from 'path';
 
 const exeDir = path.dirname(process.execPath);
 const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'migrations'));
+const appDataDir = process.platform === 'win32'
+    ? process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+    : path.join(os.homedir(), '.config');
+
+export const appDataBaseFolder = path.join(appDataDir, 'CafeBomBom');
+export const logosPath = path.join(appDataBaseFolder, 'logos');
+
+function ensureDirectoryOrExit(targetPath: string, label: string): void {
+    try {
+        if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+        }
+    } catch {
+        console.error(`[ERROR FATAL] No se pudo crear ${label} en: ${targetPath}`);
+        process.exit(1);
+    }
+}
 
 let dbPath = "";
 let migrationsPath = "";
 
 if (isProduction) {
-    const appDataDir = process.platform === 'win32'
-        ? process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
-        : path.join(os.homedir(), '.config');
-
-    const baseFolder = path.join(appDataDir, 'CafeBomBom');
-
-    try {
-        if (!fs.existsSync(baseFolder)) {
-            fs.mkdirSync(baseFolder, { recursive: true });
-        }
-    } catch (err) {
-        console.error(`[ERROR FATAL] No se pudo crear la carpeta en: ${baseFolder}`);
-        process.exit(1);
-    }
-
-    dbPath = path.join(baseFolder, 'sqlite.db');
+    ensureDirectoryOrExit(appDataBaseFolder, 'la carpeta de datos');
+    dbPath = path.join(appDataBaseFolder, 'sqlite.db');
     migrationsPath = path.join(exeDir, 'migrations');
 } else {
     dbPath = path.join(process.cwd(), 'sqlite.db');
@@ -61,6 +64,11 @@ try {
     }
 } catch (error) {
     console.error(`[ERROR DE MIGRACIONES] Fallo al ejecutar migraciones:`, error);
+}
+
+export function ensureLogosDir(): string {
+    ensureDirectoryOrExit(logosPath, 'la carpeta de logos');
+    return logosPath;
 }
 
 // 4. Exportar la base de datos para que el resto de la app la use

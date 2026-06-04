@@ -53,6 +53,7 @@ type SaleItemAdditionalIngredientDetail = {
 export type SaleItemDetail = {
   id: string;
   product_id: string;
+  parent_sale_item_id: string | null;
   product_name: string;
   observation: string | null;
   quantity: number;
@@ -175,6 +176,7 @@ export type SalePaymentBoardItem = {
   quantity_total: number;
   quantity_paid: number;
   quantity_pending: number;
+  children?: { product_name: string; quantity: number; extra_price: number; additional_ingredient_names: string[] }[];
 };
 
 export type SalePaymentBoard = {

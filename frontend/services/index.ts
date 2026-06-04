@@ -17,3 +17,12 @@ export const productsService = new ProductsService();
 export const salesService = new SalesService();
 export const setupService = new SetupService();
 export const paymentMethodsService = new PaymentMethodsService();
+
+export {
+    buildApiBaseUrl,
+    loadPairingInfoFromBackend,
+    parsePairingPayload,
+    saveConnection,
+    validateSetupStatus
+} from './connection';
+

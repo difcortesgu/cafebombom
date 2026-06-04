@@ -1,4 +1,5 @@
 import { Image, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -16,6 +17,7 @@ type ProductsTabProps = {
         border: string;
         mutedText: string;
         tint: string;
+        accent: string;
         success: string;
     };
     onEditProduct: (productId: string) => void;
@@ -50,7 +52,7 @@ export function ProductsTab({
                             {
                                 width: cardWidth,
                                 backgroundColor: product.isActive ? palette.card : palette.inputBackground,
-                                borderColor: palette.border,
+                                borderColor: product.isCombo ? palette.accent : palette.border,
                                 opacity: product.isActive ? 1 : 0.7,
                             },
                         ]}
@@ -59,7 +61,12 @@ export function ProductsTab({
                             <Image source={{ uri: product.imageUri }} style={styles.productImage} resizeMode="cover" />
                         ) : null}
                         <View style={styles.cardHeader}>
-                            <ThemedText style={styles.cardName} numberOfLines={1}>{product.name}</ThemedText>
+                            <View style={styles.nameWithIcon}>
+                                <ThemedText style={styles.cardName} numberOfLines={1}>{product.name}</ThemedText>
+                                {product.isCombo && (
+                                    <Ionicons name="layers-outline" size={14} color={palette.accent} />
+                                )}
+                            </View>
                             <ThemedButton
                                 icon="create-outline"
                                 label={t('products.list.edit')}
@@ -118,6 +125,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 6,
+    },
+    nameWithIcon: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
     cardName: {
         flex: 1,

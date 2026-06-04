@@ -64,9 +64,21 @@ export type ReceiptPreferences = {
   businessPhone: string;
   businessNit: string;
   businessLogoUri: string | null;
+  logoId?: string | null;
+  logoVersion?: string | null;
   footerMessage: string;
   paperWidth: 58 | 80;
   taxRate: number;
+};
+
+export type LogoManifest = {
+  status: 'ready' | 'unmanaged' | 'empty';
+  logoId: string | null;
+  logoVersion: string | null;
+  updatedAt?: number;
+  raster58Url?: string;
+  raster80Url?: string;
+  previewUrl?: string;
 };
 
 export type SetupStatus = {
@@ -80,10 +92,44 @@ export type SeedImportTemplateFile = {
   contentType: string | null;
 };
 
+function normalizeAssetUrl(rawUrl?: string): string | undefined {
+  if (!rawUrl) {
+    return rawUrl;
+  }
+
+  try {
+    const apiUrl = new URL(apiClient.getBaseUrl());
+    const candidate = new URL(rawUrl, `${apiUrl.origin}/`);
+    const loopbackHosts = new Set(['localhost', '127.0.0.1', '::1']);
+    const candidateIsLoopback = loopbackHosts.has(candidate.hostname);
+    const apiIsLoopback = loopbackHosts.has(apiUrl.hostname);
+
+    if (candidateIsLoopback && !apiIsLoopback) {
+      candidate.protocol = apiUrl.protocol;
+      candidate.host = apiUrl.host;
+    }
+
+    return candidate.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 export class SetupService {
   async getSetupStatus(): Promise<SetupStatus> {
-    const response = await apiClient.get<SetupStatus>('/setup/status');
-    return response || { isSetupDone: false, activeOwnerCount: 0 };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+      const response = await apiClient.get<SetupStatus>('/setup/status', { signal: controller.signal });
+      return response || { isSetupDone: false, activeOwnerCount: 0 };
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') {
+        throw new Error('Network request failed: connection timed out');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async importSeedFromExcel(content: Uint8Array): Promise<SeedImportResult> {
@@ -113,6 +159,8 @@ export class SetupService {
       businessPhone: '',
       businessNit: '',
       businessLogoUri: null,
+      logoId: null,
+      logoVersion: null,
       footerMessage: '',
       paperWidth: 58,
       taxRate: 0,
@@ -121,6 +169,57 @@ export class SetupService {
 
   async saveReceiptPreferences(payload: ReceiptPreferences): Promise<void> {
     await apiClient.put('/setup/receipt-prefs', payload);
+  }
+
+  async uploadBusinessLogo(content: Uint8Array, fileName = 'logo.png'): Promise<LogoManifest> {
+    const response = await apiClient.uploadFile<{
+      logoId: string;
+      logoVersion: string;
+      updatedAt: number;
+      raster58Url: string;
+      raster80Url: string;
+      previewUrl: string;
+    }>('/setup/logo', content, fileName);
+
+    return {
+      status: 'ready',
+      logoId: response.logoId,
+      logoVersion: response.logoVersion,
+      updatedAt: response.updatedAt,
+      raster58Url: normalizeAssetUrl(response.raster58Url),
+      raster80Url: normalizeAssetUrl(response.raster80Url),
+      previewUrl: normalizeAssetUrl(response.previewUrl),
+    };
+  }
+
+  async getLogoManifest(): Promise<LogoManifest> {
+    try {
+      const response = await apiClient.get<LogoManifest>('/setup/logo/manifest');
+      if (!response) {
+        return {
+          status: 'empty',
+          logoId: null,
+          logoVersion: null,
+        };
+      }
+
+      return {
+        ...response,
+        raster58Url: normalizeAssetUrl(response.raster58Url),
+        raster80Url: normalizeAssetUrl(response.raster80Url),
+        previewUrl: normalizeAssetUrl(response.previewUrl),
+      };
+    } catch (error) {
+      const message = String((error as Error).message || '');
+      if (message.includes('404')) {
+        return {
+          status: 'empty',
+          logoId: null,
+          logoVersion: null,
+        };
+      }
+      throw error;
+    }
   }
 
   async downloadImportTemplate(): Promise<SeedImportTemplateFile> {

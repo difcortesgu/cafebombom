@@ -52,6 +52,20 @@ function formatReceiptItem(item: ReceiptLineItem, width: number): string[] {
   const qtyAndPrice = `${item.quantity} x ${formatCurrency(item.unitPrice)}`;
   const mainLine = formatReceiptLine(item.name, formatCurrency(item.lineTotal), width);
   const detailLine = formatReceiptLine(qtyAndPrice, '', width);
+  const childLines = (item.children ?? []).flatMap((child) => {
+    const childLabel = `  . ${child.name}${child.quantity > 1 ? ` x${child.quantity}` : ''}`;
+    const childPrice = child.extraPrice > 0 ? `+${formatCurrency(child.extraPrice)}` : '';
+    const lines = [formatReceiptLine(childLabel, childPrice, width)];
+    for (const add of child.additionalIngredients) {
+      const addLabel = `    + ${add.name} x${add.quantity}`;
+      const addPrice = add.totalAdditionalPrice > 0 ? `+${formatCurrency(add.totalAdditionalPrice)}` : '';
+      lines.push(formatReceiptLine(addLabel, addPrice, width));
+    }
+    if (child.observation) {
+      lines.push(formatReceiptLine(`    ${t('sales.receipt.observationLabel')}`, child.observation, width));
+    }
+    return lines;
+  });
   const observationLine = item.observation
     ? [formatReceiptLine(t('sales.receipt.observationLabel'), item.observation, width)]
     : [];
@@ -67,14 +81,14 @@ function formatReceiptItem(item: ReceiptLineItem, width: number): string[] {
     ));
 
   if (item.discountAmount <= 0) {
-    return [mainLine, detailLine, ...observationLine, ...additionalSummaryLine, ...additionalLines];
+    return [mainLine, detailLine, ...childLines, ...observationLine, ...additionalSummaryLine, ...additionalLines];
   }
 
   const discountLabel = item.discountName
     ? t('sales.receipt.discountNamed', { name: item.discountName })
     : t('sales.receipt.discount');
   const discountLine = formatReceiptLine(discountLabel, `-${formatCurrency(item.discountAmount)}`, width);
-  return [mainLine, detailLine, ...observationLine, ...additionalSummaryLine, ...additionalLines, discountLine];
+  return [mainLine, detailLine, ...childLines, ...observationLine, ...additionalSummaryLine, ...additionalLines, discountLine];
 }
 
 function paymentMethodLabel(method: string | null): string {

@@ -1,8 +1,10 @@
 import { db } from '../database';
-import { categories, ingredients, productAdditionalIngredients, productIngredients, products } from '../database/schema';
+import { categories, comboGroupOptions, comboGroups, ingredients, productAdditionalIngredients, productIngredients, products } from '../database/schema';
 import type {
   AddCategoryPayload,
   CategoryOption,
+  ComboGroupOption,
+  CreateComboGroupInput,
   CreateProductPayload,
   ProductAdditionalIngredientInput,
   ProductAdditionalIngredientLink,
@@ -64,6 +66,7 @@ export class ProductsSqliteService {
         price: products.price,
         imageUri: products.imageUri,
         isActive: products.isActive,
+        isCombo: products.isCombo,
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
@@ -101,48 +104,104 @@ export class ProductsSqliteService {
       .orderBy(productAdditionalIngredients.productId, ingredients.name)
       .all() as ProductAdditionalIngredientLink[];
 
+    const comboGroupsList = db
+      .select({
+        id: comboGroups.id,
+        comboProductId: comboGroups.comboProductId,
+        name: comboGroups.name,
+        minQuantity: comboGroups.minQuantity,
+        maxQuantity: comboGroups.maxQuantity,
+      })
+      .from(comboGroups)
+      .orderBy(comboGroups.comboProductId, comboGroups.id)
+      .all();
+
+    const comboGroupOptionsList = db
+      .select({
+        id: comboGroupOptions.id,
+        groupId: comboGroupOptions.groupId,
+        productId: comboGroupOptions.productId,
+        additionalPrice: comboGroupOptions.additionalPrice,
+        isDefault: comboGroupOptions.isDefault,
+      })
+      .from(comboGroupOptions)
+      .orderBy(comboGroupOptions.groupId)
+      .all();
+
     return {
       categories: categoryOptions,
       products: productsList,
       productIngredients: ingredientLinks,
       productAdditionalIngredients: productAdditionalIngredientLinks,
+      comboGroups: comboGroupsList,
+      comboGroupOptions: comboGroupOptionsList,
     };
   }
 
-  async createProduct({ name, categoryId, price, imageUri, recipe, additionalIngredients = [] }: CreateProductPayload): Promise<string | null> {
-    const normalizedRecipe = this.normalizeRecipe(recipe);
-    if (normalizedRecipe.length === 0) {
-      return null;
+  async createProduct({ name, categoryId, price, imageUri, isCombo = false, recipe, additionalIngredients = [], comboGroups: groupsInput = [] }: CreateProductPayload): Promise<string | null> {
+    if (!isCombo) {
+      const normalizedRecipe = this.normalizeRecipe(recipe || []);
+      if (normalizedRecipe.length === 0) {
+        return null;
+      }
     }
-    const normalizedAdditionalIngredients = this.normalizeAdditionalIngredients(additionalIngredients);
 
     const productId = randomUUID();
     db.transaction((tx) => {
       tx.insert(products)
-        .values({ id: productId, name, categoryId: categoryId ?? null, price, imageUri: imageUri ?? null, isActive: true })
+        .values({ id: productId, name, categoryId: categoryId ?? null, price, imageUri: imageUri ?? null, isActive: true, isCombo })
         .run();
 
-      tx.insert(productIngredients)
-        .values(
-          normalizedRecipe.map((entry) => ({
-            productId,
-            ingredientId: entry.ingredientId,
-            quantityUsed: entry.quantityUsed,
-          })),
-        )
-        .run();
-
-      if (normalizedAdditionalIngredients.length > 0) {
-        tx.insert(productAdditionalIngredients)
+      if (!isCombo) {
+        const normalizedRecipe = this.normalizeRecipe(recipe || []);
+        tx.insert(productIngredients)
           .values(
-            normalizedAdditionalIngredients.map((entry) => ({
+            normalizedRecipe.map((entry) => ({
               productId,
               ingredientId: entry.ingredientId,
               quantityUsed: entry.quantityUsed,
-              additionalPrice: entry.additionalPrice,
             })),
           )
           .run();
+
+        const normalizedAdditionalIngredients = this.normalizeAdditionalIngredients(additionalIngredients);
+        if (normalizedAdditionalIngredients.length > 0) {
+          tx.insert(productAdditionalIngredients)
+            .values(
+              normalizedAdditionalIngredients.map((entry) => ({
+                productId,
+                ingredientId: entry.ingredientId,
+                quantityUsed: entry.quantityUsed,
+                additionalPrice: entry.additionalPrice,
+              })),
+            )
+            .run();
+        }
+      } else {
+        for (const group of groupsInput) {
+          const groupId = randomUUID();
+          tx.insert(comboGroups)
+            .values({
+              id: groupId,
+              comboProductId: productId,
+              name: group.name,
+              minQuantity: group.minQuantity,
+              maxQuantity: group.maxQuantity,
+            })
+            .run();
+
+          tx.insert(comboGroupOptions)
+            .values(
+              group.options.map((opt) => ({
+                id: randomUUID(),
+                groupId,
+                productId: opt.productId,
+                additionalPrice: opt.additionalPrice,
+                isDefault: opt.isDefault,
+              })),
+            )
+            .run();
+        }
       }
     });
 
@@ -248,6 +307,47 @@ export class ProductsSqliteService {
     db.delete(productAdditionalIngredients)
       .where(and(eq(productAdditionalIngredients.productId, productId), eq(productAdditionalIngredients.ingredientId, ingredientId)))
       .run();
+  }
+
+  async setComboGroup({ comboProductId, name, minQuantity, maxQuantity, groupId }: { comboProductId: string; name: string; minQuantity: number; maxQuantity: number; groupId?: string }): Promise<string> {
+    if (groupId) {
+      db.update(comboGroups)
+        .set({ name, minQuantity, maxQuantity, updatedAt: sql`cast(strftime('%s', 'now') as int)` })
+        .where(eq(comboGroups.id, groupId))
+        .run();
+      return groupId;
+    }
+
+    const newGroupId = randomUUID();
+    db.insert(comboGroups)
+      .values({ id: newGroupId, comboProductId, name, minQuantity, maxQuantity })
+      .run();
+    return newGroupId;
+  }
+
+  async removeComboGroup(groupId: string): Promise<void> {
+    db.delete(comboGroupOptions).where(eq(comboGroupOptions.groupId, groupId)).run();
+    db.delete(comboGroups).where(eq(comboGroups.id, groupId)).run();
+  }
+
+  async setComboGroupOption({ groupId, productId, additionalPrice, isDefault, optionId }: { groupId: string; productId: string; additionalPrice: number; isDefault: boolean; optionId?: string }): Promise<string> {
+    if (optionId) {
+      db.update(comboGroupOptions)
+        .set({ productId, additionalPrice, isDefault, updatedAt: sql`cast(strftime('%s', 'now') as int)` })
+        .where(eq(comboGroupOptions.id, optionId))
+        .run();
+      return optionId;
+    }
+
+    const newOptionId = randomUUID();
+    db.insert(comboGroupOptions)
+      .values({ id: newOptionId, groupId, productId, additionalPrice, isDefault })
+      .run();
+    return newOptionId;
+  }
+
+  async removeComboGroupOption(optionId: string): Promise<void> {
+    db.delete(comboGroupOptions).where(eq(comboGroupOptions.id, optionId)).run();
   }
 
 }

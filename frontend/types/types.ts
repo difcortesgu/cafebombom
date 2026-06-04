@@ -40,7 +40,25 @@ export type Product = {
   category: string;
   price: number;
   imageUri: string | null;
+  isCombo?: boolean;
   additionalIngredients: ProductAdditionalIngredientOption[];
+  comboGroups?: ComboGroup[];
+};
+
+export type ComboGroup = {
+  id: string;
+  name: string;
+  minQuantity: number;
+  maxQuantity: number;
+  options: ComboGroupOption[];
+};
+
+export type ComboGroupOption = {
+  id: string;
+  productId: string;
+  productName?: string;
+  additionalPrice: number;
+  isDefault: boolean;
 };
 
 type ProductAdditionalIngredientOption = {
@@ -74,6 +92,7 @@ export type SaleItemInput = {
   observation?: string | null;
   removedIngredientIds?: string[];
   additionalIngredients?: SaleItemAdditionalIngredientInput[];
+  comboItems?: SaleItemInput[];
 };
 
 export type Sale = {

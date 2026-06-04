@@ -87,6 +87,9 @@ export default function SalesScreen() {
     businessPhone,
     businessNit,
     businessLogoUri,
+    businessLogoPreviewUrl,
+    businessLogoRaster58Url,
+    businessLogoRaster80Url,
     receiptFooterMessage,
     printerPaperWidth,
     taxRate,
@@ -209,8 +212,10 @@ export default function SalesScreen() {
   };
 
   const openOrderPanel = (sale: Sale) => {
-    setOrderPanelSale(sale);
-    orderPanel.open();
+    openOrNavigate(
+      () => { setOrderPanelSale(sale); orderPanel.open(); },
+      { pathname: '/sale-detail', params: { saleId: sale.id } },
+    );
   };
 
   const isWeb = Platform.OS === 'web';
@@ -326,7 +331,8 @@ export default function SalesScreen() {
               address: businessAddress,
               phone: businessPhone,
               nit: businessNit,
-              logoUri: businessLogoUri,
+              logoUri: businessLogoPreviewUrl ?? businessLogoUri,
+              logoRasterUrl: printerPaperWidth === 58 ? businessLogoRaster58Url : businessLogoRaster80Url,
               footerMessage: receiptFooterMessage,
               taxRate,
               paperWidth: printerPaperWidth,
@@ -419,7 +425,8 @@ export default function SalesScreen() {
             address: businessAddress,
             phone: businessPhone,
             nit: businessNit,
-            logoUri: businessLogoUri,
+            logoUri: businessLogoPreviewUrl ?? businessLogoUri,
+            logoRasterUrl: printerPaperWidth === 58 ? businessLogoRaster58Url : businessLogoRaster80Url,
             footerMessage: receiptFooterMessage,
             taxRate,
             paperWidth: printerPaperWidth,

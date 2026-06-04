@@ -12,6 +12,7 @@ export type PaymentModalBusiness = {
     phone: string;
     nit: string;
     logoUri: string | null;
+    logoRasterUrl?: string | null;
     footerMessage: string;
     taxRate: number;
     paperWidth: ReceiptPaperWidth;
