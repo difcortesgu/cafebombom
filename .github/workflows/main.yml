@@ -214,10 +214,67 @@ jobs:
           path: backend/Instalar_CafeBomBom_Windows.exe
 
   # ==========================================
-  # JOB 4: Publicar el Release en GitHub
+  # JOB 4: Generar APK para Android
+  # ==========================================
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar dependencias del frontend
+        run: |
+          cd frontend
+          npm install
+
+      - name: Generar proyecto Android nativo (prebuild)
+        run: |
+          cd frontend
+          echo "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000/api" > .env
+          npx expo prebuild --platform android --no-install
+
+      - name: Decodificar Keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > frontend/android/app/cafebombom.keystore
+
+      - name: Construir APK release
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd frontend/android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$(pwd)/app/cafebombom.keystore" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Subir APK como Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: frontend/android/app/build/outputs/apk/release/app-release.apk
+
+  # ==========================================
+  # JOB 5: Publicar el Release en GitHub
   # ==========================================
   publish-release:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -234,6 +291,12 @@ jobs:
           name: windows-installer
           path: final-assets
 
+      - name: Descargar APK Android
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: final-assets
+
       - name: Generate Dynamic Version Tag
         id: version_tag
         run: echo "tag_name=v$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
@@ -248,5 +311,6 @@ jobs:
           files: |
             final-assets/Instalar_CafeBomBom_Windows.exe
             final-assets/Instalador_CafeBomBom_Linux.tar.gz
+            final-assets/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
