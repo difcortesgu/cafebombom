@@ -177,16 +177,16 @@ jobs:
             'OutputBaseFilename=Instalar_CafeBomBom_Windows',
             'Compression=lzma',
             'SolidCompression=yes',
-            'OutputDir=..\ ',
-            'SetupIconFile=..\assets\icon.ico',
+            'OutputDir=..\',
+            'SetupIconFile=..\assets\favicon.ico',
             '',
             '[Files]',
             'Source: "*"; Excludes: "installer.iss"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs',
-            'Source: "..\assets\icon.ico"; DestDir: "{app}"; Flags: ignoreversion',
+            'Source: "..\assets\favicon.ico"; DestDir: "{app}"; Flags: ignoreversion',
             '',
             '[Icons]',
-            'Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\icon.ico"',
-            'Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\icon.ico"'
+            'Name: "{autoprograms}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\favicon.ico"',
+            'Name: "{autodesktop}\Cafe BomBom"; Filename: "{app}\Iniciar_POS.vbs"; IconFilename: "{app}\favicon.ico"'
           ) | Set-Content -Path release-windows/installer.iss -Encoding utf8
 
       - name: Ejecutar Inno Setup Nativo
