@@ -1,25 +1,18 @@
 import type { Request, Response } from 'express';
 import { paymentMethodsService } from '../services';
-import { logger } from '../utils/logger';
+
+// Unique-constraint conflicts are thrown by the service as a 409 AppError and
+// handled by the central error handler (see utils/errors.ts). Unexpected errors
+// propagate there too and become a logged 500.
 
 export async function getAllPaymentMethods(req: Request, res: Response): Promise<void> {
-    try {
-        const methods = await paymentMethodsService.getAll();
-        res.status(200).json(methods);
-    } catch (error) {
-        logger.error('[payment-methods] getAllPaymentMethods failed:', error);
-        res.status(500).json({ error: 'Failed to fetch payment methods.' });
-    }
+    const methods = await paymentMethodsService.getAll();
+    res.status(200).json(methods);
 }
 
 export async function getActivePaymentMethods(req: Request, res: Response): Promise<void> {
-    try {
-        const methods = await paymentMethodsService.getActive();
-        res.status(200).json(methods);
-    } catch (error) {
-        logger.error('[payment-methods] getActivePaymentMethods failed:', error);
-        res.status(500).json({ error: 'Failed to fetch active payment methods.' });
-    }
+    const methods = await paymentMethodsService.getActive();
+    res.status(200).json(methods);
 }
 
 export async function getPaymentMethodById(req: Request, res: Response): Promise<void> {
@@ -30,17 +23,12 @@ export async function getPaymentMethodById(req: Request, res: Response): Promise
         return;
     }
 
-    try {
-        const method = await paymentMethodsService.getById(id);
-        if (!method) {
-            res.status(404).json({ error: 'Payment method not found.' });
-            return;
-        }
-        res.status(200).json(method);
-    } catch (error) {
-        logger.error('[payment-methods] getPaymentMethodById failed:', error);
-        res.status(500).json({ error: 'Failed to fetch payment method.' });
+    const method = await paymentMethodsService.getById(id);
+    if (!method) {
+        res.status(404).json({ error: 'Payment method not found.' });
+        return;
     }
+    res.status(200).json(method);
 }
 
 export async function createPaymentMethod(req: Request, res: Response): Promise<void> {
@@ -53,17 +41,8 @@ export async function createPaymentMethod(req: Request, res: Response): Promise<
 
     const iconValue = icon && typeof icon === 'string' ? icon.trim() : 'wallet';
 
-    try {
-        const id = await paymentMethodsService.create(name.trim(), iconValue);
-        res.status(201).json({ id, name: name.trim(), icon: iconValue, is_active: true });
-    } catch (error) {
-        logger.error('[payment-methods] createPaymentMethod failed:', error);
-        if ((error as any)?.message?.includes('unique')) {
-            res.status(409).json({ error: 'Payment method already exists.' });
-            return;
-        }
-        res.status(500).json({ error: 'Failed to create payment method.' });
-    }
+    const id = await paymentMethodsService.create(name.trim(), iconValue);
+    res.status(201).json({ id, name: name.trim(), icon: iconValue, is_active: true });
 }
 
 export async function updatePaymentMethod(req: Request, res: Response): Promise<void> {
@@ -85,21 +64,12 @@ export async function updatePaymentMethod(req: Request, res: Response): Promise<
         return;
     }
 
-    try {
-        const updated = await paymentMethodsService.update(id, name.trim(), isActive, icon);
-        if (!updated) {
-            res.status(404).json({ error: 'Payment method not found.' });
-            return;
-        }
-        res.status(204).send();
-    } catch (error) {
-        logger.error('[payment-methods] updatePaymentMethod failed:', error);
-        if ((error as any)?.message?.includes('unique')) {
-            res.status(409).json({ error: 'Payment method name already exists.' });
-            return;
-        }
-        res.status(500).json({ error: 'Failed to update payment method.' });
+    const updated = await paymentMethodsService.update(id, name.trim(), isActive, icon);
+    if (!updated) {
+        res.status(404).json({ error: 'Payment method not found.' });
+        return;
     }
+    res.status(204).send();
 }
 
 export async function deletePaymentMethod(req: Request, res: Response): Promise<void> {
@@ -110,15 +80,10 @@ export async function deletePaymentMethod(req: Request, res: Response): Promise<
         return;
     }
 
-    try {
-        const deleted = await paymentMethodsService.delete(id);
-        if (!deleted) {
-            res.status(404).json({ error: 'Payment method not found.' });
-            return;
-        }
-        res.status(204).send();
-    } catch (error) {
-        logger.error('[payment-methods] deletePaymentMethod failed:', error);
-        res.status(500).json({ error: 'Failed to delete payment method.' });
+    const deleted = await paymentMethodsService.delete(id);
+    if (!deleted) {
+        res.status(404).json({ error: 'Payment method not found.' });
+        return;
     }
+    res.status(204).send();
 }

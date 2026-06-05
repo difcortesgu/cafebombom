@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { productImageService, productsService } from '../services';
 import { logger } from '../utils/logger';
-import { handleControllerError } from '../utils/errors';
 import {
   validateAddCategory,
   validateCreateProduct,
@@ -11,14 +10,12 @@ import {
 } from '../validators/products';
 import type { Request, Response } from 'express';
 
+// Unexpected errors thrown here propagate to the central error handler
+// (see utils/errors.ts), which logs them and responds with a 500.
 
 export async function getHydrationData(req: Request, res: Response): Promise<void> {
-  try {
-    const data = await productsService.getHydrationData();
-    res.status(200).json(data);
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] getHydrationData', fallbackMessage: 'Failed to fetch products data.' });
-  }
+  const data = await productsService.getHydrationData();
+  res.status(200).json(data);
 }
 
 export async function createProduct(req: Request, res: Response): Promise<void> {
@@ -29,24 +26,20 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
   }
   const { name, categoryId, price, imageUri, isCombo, recipe, additionalIngredients } = v.data;
 
-  try {
-    const id = await productsService.createProduct({
-      name,
-      categoryId,
-      price,
-      imageUri,
-      isCombo,
-      recipe,
-      additionalIngredients,
-    });
-    if (!id) {
-      res.status(422).json({ error: 'Could not create product. Recipe may have no valid items.' });
-      return;
-    }
-    res.status(201).json({ id });
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] createProduct', fallbackMessage: 'Failed to create product.' });
+  const id = await productsService.createProduct({
+    name,
+    categoryId,
+    price,
+    imageUri,
+    isCombo,
+    recipe,
+    additionalIngredients,
+  });
+  if (!id) {
+    res.status(422).json({ error: 'Could not create product. Recipe may have no valid items.' });
+    return;
   }
+  res.status(201).json({ id });
 }
 
 export async function uploadProductImage(req: Request, res: Response): Promise<void> {
@@ -67,9 +60,9 @@ export async function uploadProductImage(req: Request, res: Response): Promise<v
 
     const imageUrl = `${req.protocol}://${req.get('host')}/api/products/images/${imageId}?v=${version}`;
     res.status(201).json({ imageId, version, imageUrl });
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] uploadProductImage', fallbackMessage: 'Failed to process product image upload.' });
   } finally {
+    // Always clean up the multer temp file, even when the upload fails and the
+    // error propagates to the central handler.
     try {
       fs.rmSync(filePath, { force: true });
     } catch {
@@ -117,28 +110,20 @@ export async function addCategory(req: Request, res: Response): Promise<void> {
   }
   const { name } = v.data;
 
-  try {
-    const id = await productsService.addCategory({ name });
-    if (!id) {
-      res.status(409).json({ error: 'A category with that name already exists.' });
-      return;
-    }
-    res.status(201).json({ id });
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] addCategory', fallbackMessage: 'Failed to create category.' });
+  const id = await productsService.addCategory({ name });
+  if (!id) {
+    res.status(409).json({ error: 'A category with that name already exists.' });
+    return;
   }
+  res.status(201).json({ id });
 }
 
 export async function updateProduct(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
   const { name, categoryId, price, imageUri, isActive } = req.body;
 
-  try {
-    await productsService.updateProduct({ id, name, categoryId, price, imageUri, isActive });
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] updateProduct', fallbackMessage: 'Failed to update product.' });
-  }
+  await productsService.updateProduct({ id, name, categoryId, price, imageUri, isActive });
+  res.status(204).send();
 }
 
 export async function setProductIngredient(req: Request, res: Response): Promise<void> {
@@ -150,23 +135,15 @@ export async function setProductIngredient(req: Request, res: Response): Promise
   }
   const { ingredientId, quantityUsed } = v.data;
 
-  try {
-    await productsService.setProductIngredient({ productId: id, ingredientId, quantityUsed });
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] setProductIngredient', fallbackMessage: 'Failed to set product ingredient.' });
-  }
+  await productsService.setProductIngredient({ productId: id, ingredientId, quantityUsed });
+  res.status(204).send();
 }
 
 export async function removeProductIngredient(req: Request, res: Response): Promise<void> {
   const { id, ingredientId } = req.params as Record<string, string>;
 
-  try {
-    await productsService.removeProductIngredient({ productId: id, ingredientId });
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] removeProductIngredient', fallbackMessage: 'Failed to remove product ingredient.' });
-  }
+  await productsService.removeProductIngredient({ productId: id, ingredientId });
+  res.status(204).send();
 }
 
 export async function setProductAdditionalIngredient(req: Request, res: Response): Promise<void> {
@@ -181,28 +158,20 @@ export async function setProductAdditionalIngredient(req: Request, res: Response
   }
   const { quantityUsed, additionalPrice } = v.data;
 
-  try {
-    await productsService.setProductAdditionalIngredient({
-      productId: id,
-      ingredientId,
-      quantityUsed,
-      additionalPrice,
-    });
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] setProductAdditionalIngredient', fallbackMessage: 'Failed to set product additional ingredient.' });
-  }
+  await productsService.setProductAdditionalIngredient({
+    productId: id,
+    ingredientId,
+    quantityUsed,
+    additionalPrice,
+  });
+  res.status(204).send();
 }
 
 export async function removeProductAdditionalIngredient(req: Request, res: Response): Promise<void> {
   const { id, ingredientId } = req.params as Record<string, string>;
 
-  try {
-    await productsService.removeProductAdditionalIngredient({ productId: id, ingredientId });
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] removeProductAdditionalIngredient', fallbackMessage: 'Failed to remove product additional ingredient.' });
-  }
+  await productsService.removeProductAdditionalIngredient({ productId: id, ingredientId });
+  res.status(204).send();
 }
 
 export async function setComboGroup(req: Request, res: Response): Promise<void> {
@@ -214,29 +183,21 @@ export async function setComboGroup(req: Request, res: Response): Promise<void> 
     return;
   }
 
-  try {
-    const newGroupId = await productsService.setComboGroup({
-      comboProductId: id,
-      name: String(name),
-      minQuantity: Number(minQuantity),
-      maxQuantity: Number(maxQuantity),
-      groupId,
-    });
-    res.status(groupId ? 204 : 201).json(groupId ? undefined : { id: newGroupId });
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] setComboGroup', fallbackMessage: 'Failed to set combo group.' });
-  }
+  const newGroupId = await productsService.setComboGroup({
+    comboProductId: id,
+    name: String(name),
+    minQuantity: Number(minQuantity),
+    maxQuantity: Number(maxQuantity),
+    groupId,
+  });
+  res.status(groupId ? 204 : 201).json(groupId ? undefined : { id: newGroupId });
 }
 
 export async function removeComboGroup(req: Request, res: Response): Promise<void> {
   const { groupId } = req.params as Record<string, string>;
 
-  try {
-    await productsService.removeComboGroup(groupId);
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] removeComboGroup', fallbackMessage: 'Failed to remove combo group.' });
-  }
+  await productsService.removeComboGroup(groupId);
+  res.status(204).send();
 }
 
 export async function setComboGroupOption(req: Request, res: Response): Promise<void> {
@@ -248,27 +209,19 @@ export async function setComboGroupOption(req: Request, res: Response): Promise<
     return;
   }
 
-  try {
-    const newOptionId = await productsService.setComboGroupOption({
-      groupId,
-      productId: String(productId),
-      additionalPrice: Number(additionalPrice),
-      isDefault: Boolean(isDefault),
-      optionId,
-    });
-    res.status(optionId ? 204 : 201).json(optionId ? undefined : { id: newOptionId });
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] setComboGroupOption', fallbackMessage: 'Failed to set combo option.' });
-  }
+  const newOptionId = await productsService.setComboGroupOption({
+    groupId,
+    productId: String(productId),
+    additionalPrice: Number(additionalPrice),
+    isDefault: Boolean(isDefault),
+    optionId,
+  });
+  res.status(optionId ? 204 : 201).json(optionId ? undefined : { id: newOptionId });
 }
 
 export async function removeComboGroupOption(req: Request, res: Response): Promise<void> {
   const { optionId } = req.params as Record<string, string>;
 
-  try {
-    await productsService.removeComboGroupOption(optionId);
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res, { label: '[products] removeComboGroupOption', fallbackMessage: 'Failed to remove combo option.' });
-  }
+  await productsService.removeComboGroupOption(optionId);
+  res.status(204).send();
 }

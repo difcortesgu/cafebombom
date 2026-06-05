@@ -1,5 +1,6 @@
 import type { PaymentMethodConfig } from '@/types/payment-methods';
 import { apiClient } from './api-client';
+import { logger } from './logger';
 
 export class PaymentMethodsService {
     async getAll(): Promise<PaymentMethodConfig[]> {
@@ -7,7 +8,7 @@ export class PaymentMethodsService {
             const response = await apiClient.get<PaymentMethodConfig[]>('/payment-methods/all');
             return response || [];
         } catch (error) {
-            console.error('Failed to fetch payment methods:', error);
+            logger.error('Failed to fetch payment methods:', error);
             return [];
         }
     }
@@ -17,7 +18,7 @@ export class PaymentMethodsService {
             const response = await apiClient.get<PaymentMethodConfig[]>('/payment-methods/active');
             return response || [];
         } catch (error) {
-            console.error('Failed to fetch active payment methods:', error);
+            logger.error('Failed to fetch active payment methods:', error);
             return [];
         }
     }
@@ -27,7 +28,7 @@ export class PaymentMethodsService {
             const response = await apiClient.get<PaymentMethodConfig>(`/payment-methods/${id}`);
             return response || null;
         } catch (error) {
-            console.error('Failed to fetch payment method:', error);
+            logger.error('Failed to fetch payment method:', error);
             return null;
         }
     }
@@ -37,7 +38,7 @@ export class PaymentMethodsService {
             const response = await apiClient.post<{ id: string }>('/payment-methods', { name, icon });
             return response.id || null;
         } catch (error) {
-            console.error('Failed to create payment method:', error);
+            logger.error('Failed to create payment method:', error);
             return null;
         }
     }
@@ -47,7 +48,7 @@ export class PaymentMethodsService {
             await apiClient.put(`/payment-methods/${id}`, { name, isActive, ...(icon && { icon }) });
             return true;
         } catch (error) {
-            console.error('Failed to update payment method:', error);
+            logger.error('Failed to update payment method:', error);
             return false;
         }
     }
@@ -57,7 +58,7 @@ export class PaymentMethodsService {
             await apiClient.delete(`/payment-methods/${id}`);
             return true;
         } catch (error) {
-            console.error('Failed to delete payment method:', error);
+            logger.error('Failed to delete payment method:', error);
             return false;
         }
     }

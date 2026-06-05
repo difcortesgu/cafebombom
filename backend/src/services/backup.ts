@@ -192,6 +192,7 @@ export async function createBackup(): Promise<CreateBackupResult> {
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido';
         recordBackupOutcome(new Date().toISOString(), `error: ${message}`);
+        logger.error('[BACKUP] Falló la creación del respaldo.', error);
         throw error;
     }
 }

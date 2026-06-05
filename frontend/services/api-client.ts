@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { logger } from './logger';
 
 const API_BASE_URL_FALLBACK = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
 export const API_BASE_URL_STORAGE_KEY = 'settings.api-base-url';
@@ -136,6 +137,16 @@ class ApiClient {
     return headers;
   }
 
+  /** Wraps fetch so network-layer failures (no response) are logged centrally. */
+  private async loggedFetch(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, init);
+    } catch (error) {
+      logger.error(`Network error ${init.method || 'GET'} ${url}`, error);
+      throw error;
+    }
+  }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     const contentType = response.headers.get('content-type');
     const isJson = contentType?.includes('application/json');
@@ -152,6 +163,7 @@ class ApiClient {
         }
       }
 
+      logger.warn(`API ${response.status} ${response.url}`, errorMessage);
       throw new Error(errorMessage);
     }
 
@@ -168,7 +180,7 @@ class ApiClient {
 
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'GET',
       headers: {
         ...this.getAuthHeaders(),
@@ -182,7 +194,7 @@ class ApiClient {
 
   async post<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'POST',
       headers: {
         ...this.getAuthHeaders(),
@@ -196,7 +208,7 @@ class ApiClient {
 
   async put<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'PUT',
       headers: {
         ...this.getAuthHeaders(),
@@ -210,7 +222,7 @@ class ApiClient {
 
   async patch<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'PATCH',
       headers: {
         ...this.getAuthHeaders(),
@@ -224,7 +236,7 @@ class ApiClient {
 
   async delete<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'DELETE',
       headers: {
         ...this.getAuthHeaders(),
@@ -243,7 +255,7 @@ class ApiClient {
     const blob = new Blob([fileCopy.buffer]);
     formData.append('file', blob, fileName);
 
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'POST',
       headers: {
         Authorization: this.token ? `Bearer ${this.token}` : '',
@@ -257,7 +269,7 @@ class ApiClient {
 
   async downloadFile(endpoint: string, fallbackFileName: string, options?: RequestOptions): Promise<DownloadedFile> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
+    const response = await this.loggedFetch(url, {
       method: 'GET',
       headers: {
         ...this.getAuthHeaders(),

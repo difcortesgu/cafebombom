@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 export class WebUSBPrinter {
     private device: USBDevice | null = null;
     private endpointNumber: number | null = null;
@@ -47,7 +49,7 @@ export class WebUSBPrinter {
             this.device = null;
             this.interfaceNumber = null;
             this.endpointNumber = null;
-            console.error('WebUSB Connection Error:', error);
+            logger.error('WebUSB Connection Error:', error);
             if (error.message.includes('claim')) {
                 throw new Error('Driver error. Remember to use Zadig to change to WinUSB.');
             }

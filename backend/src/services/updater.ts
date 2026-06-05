@@ -82,10 +82,14 @@ async function fetchLatestRelease(): Promise<GitHubRelease> {
 export async function checkForUpdate(): Promise<UpdateCheckResult> {
   const release = await fetchLatestRelease();
   const latestVersion = release.tag_name.replace(/^v/i, '');
+  const updateAvailable = isNewer(latestVersion, APP_VERSION);
+  if (updateAvailable) {
+    logger.info(`[UPDATE] Actualización disponible: v${APP_VERSION} → v${latestVersion}`);
+  }
   return {
     currentVersion: APP_VERSION,
     latestVersion,
-    updateAvailable: isNewer(latestVersion, APP_VERSION),
+    updateAvailable,
     releaseUrl: release.html_url,
     notes: release.body,
   };

@@ -712,6 +712,15 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'backups.error.save': 'No se pudo guardar la configuración.',
     'backups.error.run': 'No se pudo crear el respaldo.',
     'backups.error.restore': 'No se pudo restaurar el respaldo.',
+
+    // Diagnostics / logs
+    'diagnostics.title': 'Diagnóstico',
+    'diagnostics.help': 'Exporta los registros recientes de la aplicación para enviarlos a soporte si ocurre una falla.',
+    'diagnostics.export': 'Exportar registros',
+    'diagnostics.clear': 'Borrar registros',
+    'diagnostics.exported': 'Registros exportados: {name}',
+    'diagnostics.cleared': 'Registros borrados.',
+    'diagnostics.error': 'No se pudieron exportar los registros.',
     'nav.tab.cashRegister': 'Caja',
     'nav.tab.restock': 'Inventario',
     'nav.tab.expenses': 'Gastos',

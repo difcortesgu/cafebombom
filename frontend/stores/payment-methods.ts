@@ -1,4 +1,5 @@
 import { paymentMethodsService } from '@/services';
+import { logger } from '@/services/logger';
 import type { PaymentMethodConfig } from '@/types/payment-methods';
 import { create } from 'zustand';
 
@@ -23,7 +24,7 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
             const methods = await paymentMethodsService.getActive();
             set({ methods, loading: false });
         } catch (error) {
-            console.error('Failed to hydrate payment methods:', error);
+            logger.error('Failed to hydrate payment methods:', error);
             set({ loading: false });
         }
     },
@@ -34,7 +35,7 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
             const methods = await paymentMethodsService.getAll();
             set({ methods, loading: false });
         } catch (error) {
-            console.error('Failed to hydrate all payment methods:', error);
+            logger.error('Failed to hydrate all payment methods:', error);
             set({ loading: false });
         }
     },
@@ -49,7 +50,7 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
             }
             return id;
         } catch (error) {
-            console.error('Failed to add payment method:', error);
+            logger.error('Failed to add payment method:', error);
             return null;
         }
     },
@@ -64,7 +65,7 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
             }
             return success;
         } catch (error) {
-            console.error('Failed to update payment method:', error);
+            logger.error('Failed to update payment method:', error);
             return false;
         }
     },
@@ -83,7 +84,7 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
             }
             return success;
         } catch (error) {
-            console.error('Failed to toggle payment method:', error);
+            logger.error('Failed to toggle payment method:', error);
             return false;
         }
     },
@@ -98,7 +99,7 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
             }
             return success;
         } catch (error) {
-            console.error('Failed to delete payment method:', error);
+            logger.error('Failed to delete payment method:', error);
             return false;
         }
     },

@@ -4,6 +4,7 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { logger } from '../utils/logger';
 
 const exeDir = path.dirname(process.execPath);
 const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'migrations'));
@@ -20,8 +21,8 @@ function ensureDirectoryOrExit(targetPath: string, label: string): void {
         if (!fs.existsSync(targetPath)) {
             fs.mkdirSync(targetPath, { recursive: true });
         }
-    } catch {
-        console.error(`[ERROR FATAL] No se pudo crear ${label} en: ${targetPath}`);
+    } catch (error) {
+        logger.error(`[ERROR FATAL] No se pudo crear ${label} en: ${targetPath}`, error);
         process.exit(1);
     }
 }
@@ -38,17 +39,15 @@ if (isProduction) {
     migrationsPath = path.join(process.cwd(), 'src', 'database', 'migrations');
 }
 
-console.log(`=========================================`);
-console.log(`[MODO] ${isProduction ? 'PRODUCCIÓN' : 'DESARROLLO'}`);
-console.log(`[STARTUP] Ruta de Base de Datos: ${dbPath}`);
-console.log(`[STARTUP] Ruta de Migraciones: ${migrationsPath}`);
-console.log(`=========================================`);
+logger.info(`[MODO] ${isProduction ? 'PRODUCCIÓN' : 'DESARROLLO'}`);
+logger.info(`[STARTUP] Ruta de Base de Datos: ${dbPath}`);
+logger.info(`[STARTUP] Ruta de Migraciones: ${migrationsPath}`);
 
 let sqlite;
 try {
     sqlite = new Database(dbPath, { create: true });
 } catch (error) {
-    console.error(`[ERROR FATAL DE BD] No se pudo abrir/crear el archivo en: ${dbPath}`);
+    logger.error(`[ERROR FATAL DE BD] No se pudo abrir/crear el archivo en: ${dbPath}`, error);
     process.exit(1);
 }
 
@@ -57,14 +56,14 @@ const db = drizzle(sqlite);
 // 3. Ejecutar Migraciones
 try {
     if (fs.existsSync(migrationsPath)) {
-        console.log(`⏳ Corriendo migraciones...`);
+        logger.info(`⏳ Corriendo migraciones...`);
         migrate(db, { migrationsFolder: migrationsPath });
-        console.log(`✅ Base de datos lista y migrada.`);
+        logger.info(`✅ Base de datos lista y migrada.`);
     } else {
-        console.error(`[ALERTA] Carpeta de migraciones NO encontrada en: ${migrationsPath}`);
+        logger.error(`[ALERTA] Carpeta de migraciones NO encontrada en: ${migrationsPath}`);
     }
 } catch (error) {
-    console.error(`[ERROR DE MIGRACIONES] Fallo al ejecutar migraciones:`, error);
+    logger.error(`[ERROR DE MIGRACIONES] Fallo al ejecutar migraciones:`, error);
 }
 
 export function ensureLogosDir(): string {

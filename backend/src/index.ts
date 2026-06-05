@@ -7,6 +7,7 @@ import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { ensureLogosDir, ensureProductImagesDir } from './database';
 import { authMiddleware } from './middleware/auth';
+import { requestLogger } from './middleware/request-logger';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
 import backupRouter from './routes/backup';
@@ -22,6 +23,7 @@ import { getJwtExpiresIn, signAccessToken } from './services/jwt';
 import { startBackupScheduler } from './services/backup';
 import { applyUpdate, checkForUpdate } from './services/updater';
 import { logger } from './utils/logger';
+import { errorHandler } from './utils/errors';
 import { resolvePairingInfo } from './utils/network';
 
 const app = express();
@@ -43,6 +45,7 @@ try {
 // Middleware
 app.use(cors(CORS_ORIGIN ? { origin: CORS_ORIGIN } : undefined));
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(requestLogger);
 
 /**
  * @openapi
@@ -99,32 +102,29 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
         return;
     }
 
-    try {
-        const user = await authService.authenticate({ userId, pin });
-        if (!user) {
-            res.status(401).json({ error: 'Invalid credentials.' });
-            return;
-        }
-
-        const sessionId = await authService.startSession(user.id);
-        const token = signAccessToken({
-            sub: user.id,
-            role: user.role,
-            name: user.name,
-            sid: sessionId,
-        });
-
-        res.status(200).json({
-            token,
-            tokenType: 'Bearer',
-            expiresIn: getJwtExpiresIn(),
-            user,
-            sessionId,
-        });
-    } catch (error) {
-        logger.error('Login failed:', error);
-        res.status(500).json({ error: 'Failed to login user.' });
+    const user = await authService.authenticate({ userId, pin });
+    if (!user) {
+        logger.warn(`[AUTH] Login fallido para userId=${userId}`);
+        res.status(401).json({ error: 'Invalid credentials.' });
+        return;
     }
+
+    const sessionId = await authService.startSession(user.id);
+    logger.info(`[AUTH] Login exitoso user=${user.id} role=${user.role}`);
+    const token = signAccessToken({
+        sub: user.id,
+        role: user.role,
+        name: user.name,
+        sid: sessionId,
+    });
+
+    res.status(200).json({
+        token,
+        tokenType: 'Bearer',
+        expiresIn: getJwtExpiresIn(),
+        user,
+        sessionId,
+    });
 });
 
 /**
@@ -180,13 +180,9 @@ app.post('/api/auth/logout', authMiddleware, async (req: Request, res: Response)
         return;
     }
 
-    try {
-        await authService.endOpenSession(req.auth.userId);
-        res.status(204).send();
-    } catch (error) {
-        logger.error('Logout failed:', error);
-        res.status(500).json({ error: 'Failed to logout user.' });
-    }
+    await authService.endOpenSession(req.auth.userId);
+    logger.info(`[AUTH] Logout user=${req.auth.userId}`);
+    res.status(204).send();
 });
 
 // Add this after your middleware setup
@@ -248,6 +244,9 @@ app.use(express.static(frontendDistPath));
 app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
 });
+
+// Central error handler — must be registered last, after all routes.
+app.use(errorHandler);
 
 app.listen(PORT, () => {
     logger.info(`✅ Servidor POS Iniciado en puerto ${PORT}`);

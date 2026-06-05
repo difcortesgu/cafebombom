@@ -3,6 +3,7 @@ import { sales, sessions, users } from '../database/schema';
 import { hashPin } from '../services/hash';
 import type { CreateUserPayload, ManagedUser, SetupUpdateUserPayload, UpdateOwnProfilePayload } from '../types/auth';
 import type { User } from '../types/types';
+import { AppError } from '../utils/errors';
 import { and, asc, eq, or, sql } from 'drizzle-orm';
 
 export class UsersSqliteService {
@@ -93,7 +94,7 @@ export class UsersSqliteService {
 
   async deactivateUser(actorUserId: string, targetUserId: string): Promise<void> {
     if (actorUserId === targetUserId) {
-      throw new Error('You cannot remove your own account.');
+      throw new AppError('You cannot remove your own account.', 422);
     }
 
     const actor = db
@@ -103,7 +104,7 @@ export class UsersSqliteService {
       .get();
 
     if (!actor || !actor.isActive || actor.role !== 'owner') {
-      throw new Error('Only owner accounts can remove users.');
+      throw new AppError('Only owner accounts can remove users.', 422);
     }
 
     const target = db
@@ -113,7 +114,7 @@ export class UsersSqliteService {
       .get();
 
     if (!target || !target.isActive) {
-      throw new Error('Target account is not active.');
+      throw new AppError('Target account is not active.', 422);
     }
 
     if (target.role === 'owner') {
@@ -124,7 +125,7 @@ export class UsersSqliteService {
         .all();
       const activeOwnerCount = Number(ownerRows[0]?.total ?? 0);
       if (activeOwnerCount <= 1) {
-        throw new Error('Cannot remove the last owner account.');
+        throw new AppError('Cannot remove the last owner account.', 422);
       }
     }
 
@@ -139,7 +140,7 @@ export class UsersSqliteService {
 
   async reactivateUser(actorUserId: string, targetUserId: string): Promise<void> {
     if (actorUserId === targetUserId) {
-      throw new Error('You cannot reactivate your own account this way.');
+      throw new AppError('You cannot reactivate your own account this way.', 422);
     }
 
     const actor = db
@@ -149,7 +150,7 @@ export class UsersSqliteService {
       .get();
 
     if (!actor || !actor.isActive || actor.role !== 'owner') {
-      throw new Error('Only owner accounts can reactivate users.');
+      throw new AppError('Only owner accounts can reactivate users.', 422);
     }
 
     const target = db
@@ -159,7 +160,7 @@ export class UsersSqliteService {
       .get();
 
     if (!target || target.isActive) {
-      throw new Error('Target account is already active or missing.');
+      throw new AppError('Target account is already active or missing.', 422);
     }
 
     db.update(users)
@@ -173,7 +174,7 @@ export class UsersSqliteService {
 
   async hardDeleteUser(actorUserId: string, targetUserId: string): Promise<void> {
     if (actorUserId === targetUserId) {
-      throw new Error('You cannot permanently delete your own account.');
+      throw new AppError('You cannot permanently delete your own account.', 422);
     }
 
     const actor = db
@@ -183,7 +184,7 @@ export class UsersSqliteService {
       .get();
 
     if (!actor || !actor.isActive || actor.role !== 'owner') {
-      throw new Error('Only owner accounts can permanently delete users.');
+      throw new AppError('Only owner accounts can permanently delete users.', 422);
     }
 
     const target = db
@@ -193,7 +194,7 @@ export class UsersSqliteService {
       .get();
 
     if (!target) {
-      throw new Error('Target account does not exist.');
+      throw new AppError('Target account does not exist.', 422);
     }
 
     if (target.isActive && target.role === 'owner') {
@@ -204,7 +205,7 @@ export class UsersSqliteService {
         .all();
       const activeOwnerCount = Number(ownerRows[0]?.total ?? 0);
       if (activeOwnerCount <= 1) {
-        throw new Error('Cannot delete the last owner account.');
+        throw new AppError('Cannot delete the last owner account.', 422);
       }
     }
 
@@ -216,7 +217,7 @@ export class UsersSqliteService {
     const linkedSalesCount = Number(salesRows[0]?.total ?? 0);
 
     if (linkedSalesCount > 0) {
-      throw new Error('Cannot permanently delete a user with linked sales history.');
+      throw new AppError('Cannot permanently delete a user with linked sales history.', 422);
     }
 
     db.transaction(() => {
@@ -240,11 +241,11 @@ export class UsersSqliteService {
     const nextPin = payload.pin?.trim();
 
     if (!nextName) {
-      throw new Error('Name cannot be empty.');
+      throw new AppError('Name cannot be empty.', 422);
     }
 
     if (nextPin !== undefined && nextPin.length > 0 && nextPin.length < 4) {
-      throw new Error('PIN must be at least 4 digits.');
+      throw new AppError('PIN must be at least 4 digits.', 422);
     }
 
     const duplicate = db
@@ -254,7 +255,7 @@ export class UsersSqliteService {
       .get();
 
     if (duplicate && duplicate.id !== userId) {
-      throw new Error('Another active account already uses this name.');
+      throw new AppError('Another active account already uses this name.', 422);
     }
 
     const updates: Partial<typeof users.$inferInsert> = {
@@ -311,7 +312,7 @@ export class UsersSqliteService {
     const linkedSalesCount = Number(salesRows[0]?.total ?? 0);
 
     if (linkedSalesCount > 0) {
-      throw new Error('Cannot permanently delete a user with linked sales history.');
+      throw new AppError('Cannot permanently delete a user with linked sales history.', 422);
     }
 
     db.transaction(() => {
@@ -336,11 +337,11 @@ export class UsersSqliteService {
     const nextRole = payload.role ?? existing.role;
 
     if (!nextName) {
-      throw new Error('Name cannot be empty.');
+      throw new AppError('Name cannot be empty.', 422);
     }
 
     if (nextPin !== undefined && nextPin.length > 0 && nextPin.length < 4) {
-      throw new Error('PIN must be at least 4 digits.');
+      throw new AppError('PIN must be at least 4 digits.', 422);
     }
 
     const duplicate = db
@@ -350,7 +351,7 @@ export class UsersSqliteService {
       .get();
 
     if (duplicate && duplicate.id !== userId) {
-      throw new Error('Another active account already uses this name.');
+      throw new AppError('Another active account already uses this name.', 422);
     }
 
     const updates: Partial<typeof users.$inferInsert> = {

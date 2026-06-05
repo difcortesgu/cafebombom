@@ -13,6 +13,7 @@ import QRCode from 'react-native-qrcode-svg';
 
 import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
 import { BackupsSection } from '@/components/operations/backups-section';
+import { DiagnosticsSection } from '@/components/operations/diagnostics-section';
 import { CashRegisterAdjustPanelContent, CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
@@ -711,7 +712,10 @@ export default function OperationsScreen() {
                 ) : null}
 
                 {section === 'backups' && isWide && isOwner ? (
-                    <BackupsSection />
+                    <>
+                        <BackupsSection />
+                        <DiagnosticsSection />
+                    </>
                 ) : null}
 
                 {section === 'connection' ? (
