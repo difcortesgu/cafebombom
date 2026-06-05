@@ -209,8 +209,9 @@ app.get('/api/update/check', async (_req: Request, res: Response) => {
 });
 
 // Downloads the latest release and applies it; the process exits to let a helper
-// swap the files and relaunch. Requires authentication to avoid drive-by triggers.
-app.post('/api/update/apply', authMiddleware, async (_req: Request, res: Response) => {
+// swap the files and relaunch. Left unauthenticated so the update can run before
+// the user logs in (the update prompt appears on launch).
+app.post('/api/update/apply', async (_req: Request, res: Response) => {
     try {
         const { latestVersion } = await applyUpdate();
         res.json({ status: 'updating', version: latestVersion });
