@@ -40,6 +40,17 @@ export const receiptPreferences = sqliteTable('receipt_preferences', {
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
 
+export const backupSettings = sqliteTable('backup_settings', {
+  id: text('id').primaryKey(),
+  destinationPath: text('destination_path'),
+  scheduleEnabled: integer('schedule_enabled', { mode: 'boolean' }).notNull().default(false),
+  frequency: text('frequency').notNull().default('daily'),
+  retention: integer('retention').notNull().default(7),
+  lastBackupAt: text('last_backup_at'),
+  lastBackupStatus: text('last_backup_status'),
+  updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
+});
+
 export const paymentMethods = sqliteTable('payment_methods', {
   id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),

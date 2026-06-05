@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedChip } from '@/components/ui/themed-chip';
 
-export type OperationsSection = 'tables' | 'payment-methods' | 'surcharges' | 'cash-register' | 'discounts' | 'receipt' | 'printer' | 'connection';
+export type OperationsSection = 'tables' | 'payment-methods' | 'surcharges' | 'cash-register' | 'discounts' | 'receipt' | 'printer' | 'connection' | 'backups';
 
 type SectionTabsProps = {
     section: OperationsSection;

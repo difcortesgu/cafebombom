@@ -5,13 +5,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
+import { BackupsSection } from '@/components/operations/backups-section';
 import { CashRegisterAdjustPanelContent, CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
@@ -34,6 +35,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { loadPairingInfoFromBackend, printService, setupService } from '@/services';
 import type { PairingInfo } from '@/services/connection';
+import { useAuthStore } from '@/stores/auth';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
@@ -57,7 +59,10 @@ export default function OperationsScreen() {
     const palette = useAppColors();
     const params = useLocalSearchParams<{ section?: string | string[] }>();
     const { cardWidth } = useCatalogGrid();
-    const { openOrNavigate } = useResponsiveOpen();
+    const { openOrNavigate, isWide } = useResponsiveOpen();
+    const router = useRouter();
+    const currentUser = useAuthStore((s) => s.currentUser);
+    const isOwner = currentUser?.role === 'owner';
     const panel = usePanelLifecycle();
     const [panelMode, setPanelMode] = useState<OperationsPanelMode | null>(null);
     const [section, setSection] = useState<OperationsSection>('tables');
@@ -128,7 +133,18 @@ export default function OperationsScreen() {
         { key: 'receipt', label: t('settings.receipt.title') },
         { key: 'printer', label: t('settings.printer.title') },
         { key: 'connection', label: t('settings.connection.title') },
+        ...(isOwner ? [{ key: 'backups' as const, label: t('backups.title') }] : []),
     ];
+
+    // Backups render inline as a section on wide screens, but navigate to a
+    // dedicated stacked screen on small screens (where the full panel is roomier).
+    const handleSectionChange = (next: OperationsSection) => {
+        if (next === 'backups' && !isWide) {
+            router.push('/backups' as never);
+            return;
+        }
+        setSection(next);
+    };
 
     useEffect(() => {
         void hydrateFromDb();
@@ -157,8 +173,14 @@ export default function OperationsScreen() {
         if (!requestedSection) return;
         if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer' || requestedSection === 'connection') {
             setSection(requestedSection);
+        } else if (requestedSection === 'backups' && isOwner) {
+            if (isWide) {
+                setSection('backups');
+            } else {
+                router.push('/backups' as never);
+            }
         }
-    }, [params.section]);
+    }, [params.section, isOwner, isWide, router]);
 
     useEffect(() => {
         if (section !== 'printer' || Platform.OS !== 'android') return;
@@ -421,7 +443,7 @@ export default function OperationsScreen() {
                     />
                 </View>
 
-                <SectionTabs section={section} labels={sectionLabels} onChange={setSection} />
+                <SectionTabs section={section} labels={sectionLabels} onChange={handleSectionChange} />
 
                 {section === 'tables' ? (
                     <TablesSection
@@ -686,6 +708,10 @@ export default function OperationsScreen() {
                             <ThemedText style={styles.printerHintText}>{t('settings.receipt.printerHint')}</ThemedText>
                         </View>
                     </ThemedCard>
+                ) : null}
+
+                {section === 'backups' && isWide && isOwner ? (
+                    <BackupsSection />
                 ) : null}
 
                 {section === 'connection' ? (

@@ -87,6 +87,7 @@ export default function RootLayout() {
         <Stack.Screen name="import-data" options={{ title: t('nav.stack.importData') }} />
         <Stack.Screen name="user-form" options={{ title: t('nav.stack.user') }} />
         <Stack.Screen name="cash-register-adjust-form" options={{ title: t('nav.stack.cashRegisterAdjust') }} />
+        <Stack.Screen name="backups" options={{ title: t('nav.stack.backups') }} />
       </Stack>
       <UpdateChecker />
       <StatusBar style="auto" />

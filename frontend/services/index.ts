@@ -1,6 +1,7 @@
 // Barrel export for all services
 import { AccountsService } from './accounts';
 import { AuthService } from './auth';
+import { BackupService } from './backup';
 import { InventoryService } from './inventory';
 import { PaymentMethodsService } from './payment-methods';
 import { PrintService } from './printing';
@@ -17,6 +18,7 @@ export const productsService = new ProductsService();
 export const salesService = new SalesService();
 export const setupService = new SetupService();
 export const paymentMethodsService = new PaymentMethodsService();
+export const backupService = new BackupService();
 
 export {
     buildApiBaseUrl,

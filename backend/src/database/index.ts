@@ -77,5 +77,15 @@ export function ensureProductImagesDir(): string {
     return productImagesPath;
 }
 
+/** Absolute path to the live SQLite file (used by the backup service). */
+export function getDatabasePath(): string {
+    return dbPath;
+}
+
+/** Runs `VACUUM INTO` to write a consistent snapshot of the live DB to destPath. */
+export function snapshotDatabaseTo(destPath: string): void {
+    sqlite!.exec(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`);
+}
+
 // 4. Exportar la base de datos para que el resto de la app la use
 export { db };

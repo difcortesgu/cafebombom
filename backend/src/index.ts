@@ -9,6 +9,7 @@ import { ensureLogosDir, ensureProductImagesDir } from './database';
 import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
+import backupRouter from './routes/backup';
 import inventoryRouter from './routes/inventory';
 import pairingRouter from './routes/pairing';
 import paymentMethodsRouter from './routes/payment-methods';
@@ -18,6 +19,7 @@ import setupRouter from './routes/setup';
 import usersRouter from './routes/users';
 import { AuthSqliteService } from './services/auth';
 import { getJwtExpiresIn, signAccessToken } from './services/jwt';
+import { startBackupScheduler } from './services/backup';
 import { applyUpdate, checkForUpdate } from './services/updater';
 import { logger } from './utils/logger';
 import { resolvePairingInfo } from './utils/network';
@@ -233,6 +235,7 @@ app.use('/api/accounts', accountsRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 app.use('/api/pairing', pairingRouter);
+app.use('/api/backup', backupRouter);
 
 const exeDir = path.dirname(process.execPath);
 const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'public'));
@@ -248,6 +251,7 @@ app.get(/^(?!\/api).*/, (req, res) => {
 
 app.listen(PORT, () => {
     logger.info(`✅ Servidor POS Iniciado en puerto ${PORT}`);
+    startBackupScheduler();
     const pairing = resolvePairingInfo(PORT);
     if (pairing.payload && pairing.url) {
         logger.info(`📲 Pairing QR payload: ${pairing.payload}`);
