@@ -1,4 +1,7 @@
-import { productsService } from '../services';
+import fs from 'fs';
+import path from 'path';
+import { productImageService, productsService } from '../services';
+import { logger } from '../utils/logger';
 import { handleControllerError } from '../utils/errors';
 import {
   validateAddCategory,
@@ -44,6 +47,66 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
   } catch (error) {
     handleControllerError(error, res, { label: '[products] createProduct', fallbackMessage: 'Failed to create product.' });
   }
+}
+
+export async function uploadProductImage(req: Request, res: Response): Promise<void> {
+  const upload = req as Request & { file?: { path?: string; originalname?: string; mimetype?: string } };
+  const filePath = upload.file?.path;
+
+  if (!filePath) {
+    res.status(400).json({ error: 'Product image file is required.' });
+    return;
+  }
+
+  try {
+    const { imageId, version } = await productImageService.saveUploadedImage({
+      tempFilePath: filePath,
+      originalFileName: upload.file?.originalname ?? 'image.jpg',
+      mimeType: upload.file?.mimetype ?? 'image/jpeg',
+    });
+
+    const imageUrl = `${req.protocol}://${req.get('host')}/api/products/images/${imageId}?v=${version}`;
+    res.status(201).json({ imageId, version, imageUrl });
+  } catch (error) {
+    handleControllerError(error, res, { label: '[products] uploadProductImage', fallbackMessage: 'Failed to process product image upload.' });
+  } finally {
+    try {
+      fs.rmSync(filePath, { force: true });
+    } catch {
+      // ignore temp cleanup failures
+    }
+  }
+}
+
+export function getProductImage(req: Request, res: Response): void {
+  const { id } = req.params as Record<string, string>;
+
+  // Guard against path traversal: stored ids are UUIDs.
+  if (!/^[a-zA-Z0-9-]+$/.test(id)) {
+    res.status(400).json({ error: 'Invalid image id.' });
+    return;
+  }
+
+  const imagePath = productImageService.getImagePath(id);
+  if (!fs.existsSync(imagePath)) {
+    res.status(404).json({ error: 'Product image not found.' });
+    return;
+  }
+
+  const version = typeof req.query.v === 'string' ? req.query.v : null;
+  if (version) {
+    res.setHeader('ETag', `"${version}"`);
+  }
+  res.setHeader('Cache-Control', 'private, max-age=86400');
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.sendFile(path.resolve(imagePath), { dotfiles: 'allow' }, (error) => {
+    if (error) {
+      logger.error('[products] getProductImage failed:', error);
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    }
+  });
 }
 
 export async function addCategory(req: Request, res: Response): Promise<void> {

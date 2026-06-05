@@ -5,7 +5,7 @@ import { exec } from 'child_process';
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import fs from 'fs';
-import { ensureLogosDir } from './database';
+import { ensureLogosDir, ensureProductImagesDir } from './database';
 import { authMiddleware } from './middleware/auth';
 import { swaggerDocs, swaggerUi } from './middleware/swagger';
 import accountsRouter from './routes/accounts';
@@ -31,8 +31,10 @@ const authService = new AuthSqliteService();
 try {
     const logosDir = ensureLogosDir();
     logger.info(`[STARTUP] Carpeta de logos: ${logosDir}`);
+    const productImagesDir = ensureProductImagesDir();
+    logger.info(`[STARTUP] Carpeta de imágenes de productos: ${productImagesDir}`);
 } catch (error) {
-    logger.error('No se pudo preparar la carpeta de logos.', error);
+    logger.error('No se pudo preparar las carpetas de datos.', error);
     process.exit(1);
 }
 

@@ -511,6 +511,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'productForm.image': 'Imagen del producto',
     'productForm.pickImage': 'Seleccionar imagen',
     'productForm.removeImage': 'Quitar imagen',
+    'productForm.imageUploading': 'Subiendo imagen…',
+    'productForm.imageUploadError': 'No se pudo subir la imagen',
     'productForm.recipeRequiredTitle': 'Ingredientes de receta (obligatorio)',
     'productForm.recipeRequiredHelp': 'Agrega al menos un ingrediente antes de crear el producto.',
     'productForm.selectIngredient': 'Selecciona ingrediente',

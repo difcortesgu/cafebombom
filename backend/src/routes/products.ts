@@ -1,7 +1,13 @@
+import type { NextFunction, Request, Response } from 'express';
+import { Router } from 'express';
+import fs from 'fs';
+import multer from 'multer';
+import path from 'path';
 import {
     addCategory,
     createProduct,
     getHydrationData,
+    getProductImage,
     removeComboGroup,
     removeComboGroupOption,
     removeProductAdditionalIngredient,
@@ -11,14 +17,121 @@ import {
     setProductAdditionalIngredient,
     setProductIngredient,
     updateProduct,
+    uploadProductImage,
 } from '../controllers/products';
+import { ensureProductImagesDir } from '../database';
 import { authMiddleware, requireRole } from '../middleware/auth';
-import { Router } from 'express';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
-// All product routes require auth
+const productImagesRoot = ensureProductImagesDir();
+const productImagesTmpDir = path.join(productImagesRoot, '.tmp');
+if (!fs.existsSync(productImagesTmpDir)) {
+    fs.mkdirSync(productImagesTmpDir, { recursive: true });
+}
+
+const imageUpload = multer({
+    storage: multer.diskStorage({
+        destination: (_req, _file, cb) => {
+            cb(null, productImagesTmpDir);
+        },
+        filename: (_req, file, cb) => {
+            const timestamp = Date.now();
+            const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+            cb(null, `${timestamp}-${sanitizedName}`);
+        },
+    }),
+    limits: {
+        fileSize: 8 * 1024 * 1024,
+    },
+    fileFilter: (_req, file, cb) => {
+        const acceptedMimeTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
+        const lowerName = file.originalname.toLowerCase();
+        const validExtension = lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.webp');
+
+        if (validExtension || acceptedMimeTypes.has(file.mimetype)) {
+            cb(null, true);
+            return;
+        }
+
+        cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'file'));
+    },
+});
+
+function imageUploadMiddleware(req: Request, res: Response, next: NextFunction): void {
+    imageUpload.single('file')(req, res, (error: unknown) => {
+        if (!error) {
+            next();
+            return;
+        }
+
+        logger.error('Product image upload error:', error);
+        if (error instanceof multer.MulterError) {
+            if (error.code === 'LIMIT_FILE_SIZE') {
+                res.status(400).json({ error: 'Image file exceeds maximum size of 8MB.', code: error.code });
+                return;
+            }
+
+            res.status(400).json({ error: 'Invalid image file upload.', code: error.code });
+            return;
+        }
+
+        res.status(400).json({ error: 'Invalid image file upload.', code: 'UPLOAD_FAILED' });
+    });
+}
+
+/**
+ * @openapi
+ * /api/products/images/{id}:
+ *   get:
+ *     tags: [Products]
+ *     summary: Serve a stored product image (public so <Image> can load it without auth headers)
+ *     security: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: JPEG image
+ *       404:
+ *         description: Not found
+ */
+router.get('/images/:id', getProductImage);
+
+// All other product routes require auth
 router.use(authMiddleware);
+
+/**
+ * @openapi
+ * /api/products/images:
+ *   post:
+ *     tags: [Products]
+ *     summary: Upload a product image (owner only); returns a stable server URL
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Stored image reference
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 imageId: { type: string }
+ *                 version: { type: string }
+ *                 imageUrl: { type: string }
+ */
+router.post('/images', requireRole('owner'), imageUploadMiddleware, uploadProductImage);
 
 /**
  * @openapi

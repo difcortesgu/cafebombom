@@ -18,6 +18,9 @@ import type {
   UpdateProductPayload,
 } from '../types/products';
 import { randomUUID } from 'crypto';
+import { extractManagedImageId, ProductImageService } from './product-image';
+
+const productImages = new ProductImageService();
 import { and, eq, sql } from 'drizzle-orm';
 
 export class ProductsSqliteService {
@@ -240,6 +243,15 @@ export class ProductsSqliteService {
       })
       .where(eq(products.id, id))
       .run();
+
+    // If the image was replaced/removed, delete the now-orphaned server file.
+    if (payload.imageUri !== undefined && payload.imageUri !== existing.imageUri) {
+      const oldImageId = extractManagedImageId(existing.imageUri);
+      const newImageId = extractManagedImageId(payload.imageUri);
+      if (oldImageId && oldImageId !== newImageId) {
+        productImages.deleteImage(oldImageId);
+      }
+    }
   }
 
   async setProductIngredient({ productId, ingredientId, quantityUsed }: SetProductIngredientPayload): Promise<void> {

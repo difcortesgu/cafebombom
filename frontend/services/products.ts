@@ -13,6 +13,7 @@ import type {
   UpdateProductPayload,
 } from '@/types/products';
 import { apiClient } from './api-client';
+import { normalizeAssetUrl } from './setup';
 
 export type ProductsHydrationData = {
   categories: CategoryOption[];
@@ -52,6 +53,16 @@ export class ProductsService {
     } catch {
       return null;
     }
+  }
+
+  /** Uploads a picked image to the server and returns a stable, renderable URL. */
+  async uploadProductImage(content: Uint8Array, fileName = 'image.jpg'): Promise<string> {
+    const response = await apiClient.uploadFile<{ imageId: string; version: string; imageUrl: string }>(
+      '/products/images',
+      content,
+      fileName,
+    );
+    return normalizeAssetUrl(response.imageUrl) ?? response.imageUrl;
   }
 
   async updateProduct(payload: UpdateProductPayload): Promise<void> {

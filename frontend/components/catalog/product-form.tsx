@@ -9,6 +9,7 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { productsService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
@@ -57,6 +58,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
 
     const [sections, setSections] = useState({ general: true, recipe: true, additional: false });
     const [message, setMessage] = useState('');
+    const [imageBusy, setImageBusy] = useState(false);
     const isEdit = typeof mode === 'object';
     const isCombo = mode === 'combo-create' || (typeof mode === 'object' && products.find(p => p.id === mode.productId)?.isCombo);
 
@@ -297,8 +299,25 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
 
     async function pickImage() {
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-        if (!result.canceled && result.assets[0]) {
-            setProductForm((f) => ({ ...f, imageUri: result.assets[0].uri }));
+        if (result.canceled || !result.assets[0]) {
+            return;
+        }
+        const selected = result.assets[0];
+        try {
+            setImageBusy(true);
+            setMessage('');
+            // Upload the picked image to the server so it persists across devices
+            // and can be backed up; store the returned server URL, not the local URI.
+            const response = await fetch(selected.uri);
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            const ext = (selected.mimeType?.split('/')[1] || selected.uri.split('.').pop() || 'jpg').toLowerCase();
+            const fileName = `product-${Date.now()}.${ext}`;
+            const imageUrl = await productsService.uploadProductImage(bytes, fileName);
+            setProductForm((f) => ({ ...f, imageUri: imageUrl }));
+        } catch (error) {
+            setMessage(String((error as Error).message || t('productForm.imageUploadError')));
+        } finally {
+            setImageBusy(false);
         }
     }
 
@@ -383,7 +402,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                     <ThemedButton variant="secondary" style={styles.smallBtn} label={t('productForm.removeImage')} onPress={() => setProductForm((f) => ({ ...f, imageUri: null }))} />
                                 </View>
                             ) : (
-                                <ThemedButton variant="secondary" style={styles.input} label={t('productForm.pickImage')} onPress={() => void pickImage()} />
+                                <ThemedButton variant="secondary" style={styles.input} disabled={imageBusy} label={imageBusy ? t('productForm.imageUploading') : t('productForm.pickImage')} onPress={() => void pickImage()} />
                             )}
                         </View>
                     </View>

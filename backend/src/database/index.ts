@@ -13,6 +13,7 @@ const appDataDir = process.platform === 'win32'
 
 export const appDataBaseFolder = path.join(appDataDir, 'CafeBomBom');
 export const logosPath = path.join(appDataBaseFolder, 'logos');
+export const productImagesPath = path.join(appDataBaseFolder, 'product-images');
 
 function ensureDirectoryOrExit(targetPath: string, label: string): void {
     try {
@@ -69,6 +70,11 @@ try {
 export function ensureLogosDir(): string {
     ensureDirectoryOrExit(logosPath, 'la carpeta de logos');
     return logosPath;
+}
+
+export function ensureProductImagesDir(): string {
+    ensureDirectoryOrExit(productImagesPath, 'la carpeta de imágenes de productos');
+    return productImagesPath;
 }
 
 // 4. Exportar la base de datos para que el resto de la app la use

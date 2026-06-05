@@ -92,7 +92,7 @@ export type SeedImportTemplateFile = {
   contentType: string | null;
 };
 
-function normalizeAssetUrl(rawUrl?: string): string | undefined {
+export function normalizeAssetUrl(rawUrl?: string): string | undefined {
   if (!rawUrl) {
     return rawUrl;
   }
