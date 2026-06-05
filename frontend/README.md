@@ -1,23 +1,29 @@
 # CafeBomBom Frontend
 
+Expo + React Native app for the CafeBomBom POS. Runs on Android, iOS, and web.
+
 ## Requirements
 
 - Node.js 18 LTS (minimum)
 - npm
 - Expo-compatible environment
-  - Android: Android Studio / emulator (optional if you use Expo Go)
-  - iOS: Xcode / simulator on macOS (optional if you use Expo Go)
-- Modern browser for web development
+  - Android: Android Studio / emulator (or Expo Go)
+  - iOS: Xcode / simulator on macOS (or Expo Go)
+  - Web: a modern browser
+- A running CafeBomBom backend (see [../backend/README.md](../backend/README.md))
 
 ## Tech Stack
 
-- Expo + React Native + Expo Router
+- Expo + React Native + Expo Router (file-based routing)
 - TypeScript
 - Zustand for state management
+- Custom lightweight i18n (Spanish)
+- `react-native-gifted-charts` for dashboards
+- Receipt printing over Bluetooth (`react-native-bluetooth-classic`) and Web USB
 
 ## Installation (Development)
 
-1. Install dependencies:
+Install dependencies:
 
 ```bash
 npm install
@@ -25,7 +31,7 @@ npm install
 
 ## How To Run
 
-Start Expo dev server:
+Start the Expo dev server:
 
 ```bash
 npm start
@@ -39,49 +45,43 @@ npm run ios
 npm run web
 ```
 
+> The app talks to the backend API. Make sure the backend is running and the API base URL is reachable from your device/emulator.
+
 ## Available Commands
 
 | Command | Description |
 | --- | --- |
 | `npm start` | Start Expo development server |
-| `npm run android` | Start app on Android |
-| `npm run ios` | Start app on iOS |
-| `npm run web` | Start app on web |
+| `npm run android` | Build and run on Android |
+| `npm run ios` | Build and run on iOS |
+| `npm run web` | Start the app on web |
 | `npm run lint` | Run Expo ESLint configuration |
 
-## Production Build Notes (Expo EAS)
+## Project Structure
 
-For production builds and distribution, use Expo EAS.
+- `app/` — Expo Router screens
+  - `(tabs)/` — Main tabbed screens (sales, catalog, restock, expenses, cash register, dashboard, team, operations, appearance)
+  - Form/detail routes (product, ingredient, expense, payroll, sale, user, backups, import, …)
+- `components/` — UI components (order panel, receipt preview, setup screen, restock/expense/payroll panels, etc.)
+- `services/` — API client and feature services (sales, products, inventory, accounts, auth, backup, printing, updates, Bluetooth/Web USB printers)
+- `stores/` — Zustand stores (auth, sales, products, inventory, accounts, payment methods, settings)
+- `utils/` — Pricing, discounts, tax, surcharge, receipt formatting, date helpers
+- `hooks/`, `constants/`, `types/` — Shared hooks, constants, and types
+- `i18n/` — Localized strings (Spanish)
 
-Typical flow:
+## Features
 
-1. Install EAS CLI globally:
-
-```bash
-npm install -g eas-cli
-```
-
-2. Login to Expo:
-
-```bash
-eas login
-```
-
-3. Configure EAS in the project:
-
-```bash
-eas build:configure
-```
-
-4. Build for a platform:
-
-```bash
-eas build --platform android
-eas build --platform ios
-```
-
-If you also plan to publish web, use your preferred static hosting provider for the Expo web output.
+- Sales/order panel with split payments, discounts, surcharges, and tax
+- Product, combo, and category management
+- Inventory and restocking
+- Customer accounts, expenses, cash register, and payroll
+- Dashboard charts and reporting
+- Receipt printing via Bluetooth (Android) and Web USB
+- Excel data import
+- Database backups
+- In-app update checking and APK install (Android)
 
 ## Testing Status
 
 - No automated test script is currently configured in package scripts.
+- `npm run lint` is available for static checks.

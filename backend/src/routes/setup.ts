@@ -197,7 +197,7 @@ router.post('/logo', logoUploadMiddleware, uploadBusinessLogo);
  * /api/setup/import-template:
  *   get:
  *     tags: [Setup]
- *     summary: Download the official Excel import template (v2)
+ *     summary: Download the official Excel import template
  *     security:
  *       - {}
  *       - bearerAuth: []

@@ -129,14 +129,17 @@ export async function importSeedFromExcel(req: Request, res: Response): Promise<
 }
 
 export function downloadImportTemplate(req: Request, res: Response): void {
-  const templatePath = path.resolve(process.cwd(), '../../../docs/import-template-v2.xlsx');
+  const exeDir = path.dirname(process.execPath);
+  const isProduction = process.execPath.endsWith('.exe') || fs.existsSync(path.join(exeDir, 'public'));
+  const baseDir = isProduction ? exeDir : process.cwd();
+  const templatePath = path.join(baseDir, 'assets', 'import-template.xlsx');
 
   if (!fs.existsSync(templatePath)) {
     res.status(404).json({ error: 'Import template not found.' });
     return;
   }
 
-  res.download(templatePath, 'import-template-v2.xlsx');
+  res.download(templatePath, 'import-template.xlsx');
 }
 
 export async function uploadBusinessLogo(req: Request, res: Response): Promise<void> {

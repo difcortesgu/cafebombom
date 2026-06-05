@@ -1,45 +1,43 @@
-eas login
-eas build:configure
-eas build --platform android
-eas build --platform ios
 # CafeBomBom
 
-Cross-platform cafe management app for web and mobile.
+Cross-platform point-of-sale (POS) and cafe management system for desktop, web, and mobile.
 
 ## Overview
 
-CafeBomBom is a full-stack solution for daily cafe operations, including sales, inventory, products, accounts, and staff authentication. It is built with Expo/React Native (frontend) and Express/TypeScript (backend).
+CafeBomBom is a full-stack solution for daily cafe operations: sales and order management, inventory and restocking, products and combos, customer accounts, expenses, cash register, payroll, staff authentication, and receipt printing. It is built with Expo / React Native (frontend) and Express + TypeScript running on Bun (backend).
+
+The backend can be compiled into a standalone executable (Windows/Linux) that also serves the built web frontend, so the whole system can run on a single machine without an external runtime.
 
 ## Monorepo Structure
 
-- `frontend/` — Expo + React Native app (mobile/web)
-- `backend/` — Express + TypeScript API server
+- `frontend/` — Expo + React Native app (Android, iOS, web)
+- `backend/` — Express + TypeScript API server (runs on Bun)
 
 ## Documentation
 
 - Frontend: [frontend/README.md](frontend/README.md)
 - Backend: [backend/README.md](backend/README.md)
-- Import template v2: [docs/import-template-v2.xlsx](docs/import-template-v2.xlsx)
-- Import template guide: [docs/import-template-v2.md](docs/import-template-v2.md)
 
 ## Quick Start
 
-See the respective README in each folder for setup and usage instructions.
+See the README in each folder for setup and usage instructions:
 
-## Excel Seed Import v2
+1. Start the backend (`backend/`) — see [backend/README.md](backend/README.md).
+2. Start the frontend (`frontend/`) — see [frontend/README.md](frontend/README.md).
 
-- Use the official template in [docs/import-template-v2.xlsx](docs/import-template-v2.xlsx).
-- Import mode is upsert with transaction fail-fast behavior.
-- API template download endpoint: GET /api/setup/import-template
+## Features
 
-## Next Features To Implement
+- Sales and order panel with split payments, discounts, surcharges, and tax
+- Products, ingredients, categories, and combos
+- Inventory tracking and restocking
+- Customer accounts and tabs
+- Expenses, cash register reconciliation, and payroll
+- Configurable payment methods
+- Receipt printing via Bluetooth (Android) and Web USB
+- Excel seed import (upsert with fail-fast transactions)
+- Database backups and restore
+- Auto-update (the app can check for and install new releases)
 
-[] Cambiar los mensajes de la app para usar toasts
+## Versioning
 
-[] Imprimir comanda para la cocina
-[] Organizar ingredientes y productos alfabéticamente y agrupar productos por categoría
-
-[] Mostrar la diferencia entre el cierre de caja esperado y el real
-[] Agregar módulo de propinas
-[] Editar métodos de pago
-
+The current release version is tracked in the [VERSION](VERSION) file and exposed by the backend at `GET /api/version`.
