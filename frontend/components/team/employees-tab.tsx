@@ -15,12 +15,15 @@ type EmployeesTabProps = {
         border: string;
         mutedText: string;
         inputBackground: string;
+        danger: string;
+        success: string;
     };
     onEdit: (employee: Employee) => void;
     onDelete: (id: string) => void;
+    onToggleActive: (id: string, isActive: boolean) => void;
 };
 
-export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDelete }: EmployeesTabProps) {
+export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDelete, onToggleActive }: EmployeesTabProps) {
     if (employees.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -32,7 +35,7 @@ export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDel
     return (
         <View style={[styles.grid, { gap }]}>
             {employees.map((emp) => (
-                <View key={emp.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
+                <View key={emp.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border, opacity: emp.is_active ? 1 : 0.6 }]}>
                     <ThemedText type="defaultSemiBold" numberOfLines={1}>{emp.name}</ThemedText>
                     <ThemedText style={[styles.muted, { color: palette.mutedText }]}>
                         {emp.salary_type === 'hourly' ? t('accounts.employees.hourly') : t('accounts.employees.monthly')}
@@ -57,6 +60,14 @@ export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDel
                             onPress={() => onDelete(emp.id)}
                         />
                     </View>
+                    <ThemedButton
+                        variant="secondary"
+                        tone={emp.is_active ? 'warning' : 'success'}
+                        icon={emp.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                        style={styles.toggleBtn}
+                        label={emp.is_active ? t('common.disable') : t('common.enable')}
+                        onPress={() => onToggleActive(emp.id, emp.is_active)}
+                    />
                 </View>
             ))}
         </View>
@@ -94,5 +105,10 @@ const styles = StyleSheet.create({
     },
     actionBtn: {
         flex: 1,
+    },
+    toggleBtn: {
+        marginTop: 6,
+        paddingVertical: 7,
+        paddingHorizontal: 10,
     },
 });

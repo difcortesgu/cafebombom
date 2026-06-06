@@ -1,8 +1,9 @@
 import { asc, eq, sql } from 'drizzle-orm';
 import { db } from '../database';
-import { paymentMethods } from '../database/schema';
+import { expenses, payrollEntries, paymentMethods, restockLogs, salePayments, sales } from '../database/schema';
 import type { PaymentMethodConfig } from '../types/payment-methods';
 import { AppError } from '../utils/errors';
+import { deleteOrSoftDelete, notDeleted } from './soft-delete';
 
 /** Rethrows SQLite unique-constraint violations as a 409 AppError. */
 function rethrowAsConflict(error: unknown, message: string): never {
@@ -24,6 +25,7 @@ export class PaymentMethodsSqliteService {
                 updated_at: paymentMethods.updatedAt,
             })
             .from(paymentMethods)
+            .where(notDeleted(paymentMethods))
             .orderBy(asc(paymentMethods.name))
             .all() as PaymentMethodConfig[];
         return result;
@@ -40,7 +42,7 @@ export class PaymentMethodsSqliteService {
                 updated_at: paymentMethods.updatedAt,
             })
             .from(paymentMethods)
-            .where(eq(paymentMethods.isActive, true))
+            .where(notDeleted(paymentMethods, eq(paymentMethods.isActive, true)))
             .orderBy(asc(paymentMethods.name))
             .all() as PaymentMethodConfig[];
         return result;
@@ -57,7 +59,7 @@ export class PaymentMethodsSqliteService {
                 updated_at: paymentMethods.updatedAt,
             })
             .from(paymentMethods)
-            .where(eq(paymentMethods.id, id))
+            .where(notDeleted(paymentMethods, eq(paymentMethods.id, id)))
             .get() as PaymentMethodConfig | undefined;
         return result ?? null;
     }
@@ -93,12 +95,27 @@ export class PaymentMethodsSqliteService {
         }
     }
 
+    /**
+     * Deletes a payment method. Soft-deletes if it has any linked history
+     * (sales, payments, restocks, expenses, payroll); otherwise hard-deletes.
+     */
     async delete(id: string): Promise<boolean> {
-        const result = db
-            .delete(paymentMethods)
-            .where(eq(paymentMethods.id, id))
-            .run();
-        return result.changes > 0;
+        const existing = db
+            .select({ id: paymentMethods.id })
+            .from(paymentMethods)
+            .where(notDeleted(paymentMethods, eq(paymentMethods.id, id)))
+            .get();
+        if (!existing) {
+            return false;
+        }
+        deleteOrSoftDelete(paymentMethods, paymentMethods.id, id, [
+            { table: sales, column: sales.paymentMethodId, value: id },
+            { table: salePayments, column: salePayments.paymentMethodId, value: id },
+            { table: restockLogs, column: restockLogs.paymentMethodId, value: id },
+            { table: expenses, column: expenses.paymentMethodId, value: id },
+            { table: payrollEntries, column: payrollEntries.paymentMethodId, value: id },
+        ]);
+        return true;
     }
 
     async seedDefaultMethods(): Promise<void> {

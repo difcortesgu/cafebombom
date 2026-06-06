@@ -20,8 +20,12 @@ type ProductsTabProps = {
         tint: string;
         accent: string;
         success: string;
+        warning: string;
+        danger: string;
     };
     onEditProduct: (productId: string) => void;
+    onDeleteProduct: (productId: string) => void;
+    onToggleProductActive: (productId: string, isActive: boolean) => void;
 };
 
 export function ProductsTab({
@@ -31,6 +35,8 @@ export function ProductsTab({
     gap,
     palette,
     onEditProduct,
+    onDeleteProduct,
+    onToggleProductActive,
 }: ProductsTabProps) {
     if (products.length === 0) {
         return (
@@ -96,6 +102,24 @@ export function ProductsTab({
                                     {product.isActive ? t('products.list.active') : t('products.list.archived')}
                                 </ThemedText>
                             </View>
+                        </View>
+                        <View style={styles.actionsRow}>
+                            <ThemedButton
+                                variant="secondary"
+                                tone={product.isActive ? 'warning' : 'success'}
+                                icon={product.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                                style={styles.actionBtn}
+                                label={product.isActive ? t('common.disable') : t('common.enable')}
+                                onPress={() => onToggleProductActive(product.id, product.isActive)}
+                            />
+                            <ThemedButton
+                                icon="trash-outline"
+                                label={t('common.delete')}
+                                tone="danger"
+                                variant="secondary"
+                                style={styles.actionBtn}
+                                onPress={() => onDeleteProduct(product.id)}
+                            />
                         </View>
                     </View>
                 );
@@ -170,5 +194,15 @@ const styles = StyleSheet.create({
     tagText: {
         fontSize: 11,
         fontWeight: '500',
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        gap: 6,
+        marginTop: 4,
+    },
+    actionBtn: {
+        flex: 1,
+        paddingVertical: 7,
+        paddingHorizontal: 10,
     },
 });

@@ -1,5 +1,5 @@
 import { db } from '../database';
-import { categories, comboGroupOptions, comboGroups, ingredients, productAdditionalIngredients, productIngredients, products } from '../database/schema';
+import { categories, comboGroupOptions, comboGroups, discounts, ingredients, productAdditionalIngredients, productIngredients, products, saleItems } from '../database/schema';
 import type {
   AddCategoryPayload,
   CategoryOption,
@@ -21,7 +21,8 @@ import { randomUUID } from 'crypto';
 import { extractManagedImageId, ProductImageService } from './product-image';
 
 const productImages = new ProductImageService();
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { countDependencies, deleteOrSoftDelete, notDeleted } from './soft-delete';
 
 export class ProductsSqliteService {
   private normalizeRecipe(recipe: ProductRecipeInput[]): ProductRecipeInput[] {
@@ -73,6 +74,7 @@ export class ProductsSqliteService {
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
+      .where(notDeleted(products))
       .orderBy(products.name)
       .all()
       .map((row) => ({
@@ -225,7 +227,7 @@ export class ProductsSqliteService {
     const existing = db
       .select({ name: products.name, categoryId: products.categoryId, price: products.price, imageUri: products.imageUri, isActive: products.isActive })
       .from(products)
-      .where(eq(products.id, id))
+      .where(notDeleted(products, eq(products.id, id)))
       .get();
 
     if (!existing) {
@@ -360,6 +362,57 @@ export class ProductsSqliteService {
 
   async removeComboGroupOption(optionId: string): Promise<void> {
     db.delete(comboGroupOptions).where(eq(comboGroupOptions.id, optionId)).run();
+  }
+
+  /**
+   * Deletes a product. Soft-deletes if it has sales history or is used as an
+   * option inside another product's combo; otherwise hard-deletes, cleaning up
+   * its own recipe links, additional ingredients, owned combo groups/options
+   * and discounts first.
+   */
+  async deleteProduct(id: string): Promise<'soft' | 'hard' | 'not-found'> {
+    const existing = db
+      .select({ imageUri: products.imageUri })
+      .from(products)
+      .where(notDeleted(products, eq(products.id, id)))
+      .get();
+    if (!existing) {
+      return 'not-found';
+    }
+
+    const result = deleteOrSoftDelete(
+      products,
+      products.id,
+      id,
+      [
+        { table: saleItems, column: saleItems.productId, value: id },
+        { table: comboGroupOptions, column: comboGroupOptions.productId, value: id },
+      ],
+      () => {
+        // Owned children, safe to drop on a true hard delete.
+        db.delete(productIngredients).where(eq(productIngredients.productId, id)).run();
+        db.delete(productAdditionalIngredients).where(eq(productAdditionalIngredients.productId, id)).run();
+        db.delete(discounts).where(eq(discounts.productId, id)).run();
+        const ownedGroups = db
+          .select({ id: comboGroups.id })
+          .from(comboGroups)
+          .where(eq(comboGroups.comboProductId, id))
+          .all();
+        if (ownedGroups.length > 0) {
+          const groupIds = ownedGroups.map((g) => g.id);
+          db.delete(comboGroupOptions).where(inArray(comboGroupOptions.groupId, groupIds)).run();
+          db.delete(comboGroups).where(eq(comboGroups.comboProductId, id)).run();
+        }
+      },
+    );
+
+    if (result === 'hard') {
+      const imageId = extractManagedImageId(existing.imageUri);
+      if (imageId) {
+        productImages.deleteImage(imageId);
+      }
+    }
+    return result;
   }
 
 }

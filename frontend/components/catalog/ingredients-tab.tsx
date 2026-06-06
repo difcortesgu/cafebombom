@@ -11,6 +11,7 @@ type IngredientListItem = {
     quantity: number;
     unit: string;
     low_stock_threshold: number;
+    is_active: boolean;
 };
 
 type IngredientsTabProps = {
@@ -28,9 +29,11 @@ type IngredientsTabProps = {
         inputBackground: string;
     };
     onEditIngredient: (ingredientId: string) => void;
+    onDeleteIngredient: (ingredientId: string) => void;
+    onToggleIngredientActive: (ingredientId: string, isActive: boolean) => void;
 };
 
-export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIngredient }: IngredientsTabProps) {
+export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIngredient, onDeleteIngredient, onToggleIngredientActive }: IngredientsTabProps) {
     if (ingredients.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -54,7 +57,7 @@ export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIng
                 const displayQty = qty % 1 === 0 ? qty.toFixed(0) : qty.toFixed(2);
 
                 return (
-                    <View key={ingredient.id} style={[styles.card, { width: cardWidth, backgroundColor: cardBg, borderColor }]}>
+                    <View key={ingredient.id} style={[styles.card, { width: cardWidth, backgroundColor: cardBg, borderColor, opacity: ingredient.is_active ? 1 : 0.6 }]}>
                         <View style={styles.cardHeader}>
                             <View style={styles.cardHeaderLeft}>
                                 <ThemedText style={styles.cardName} numberOfLines={1}>{ingredient.name}</ThemedText>
@@ -79,6 +82,24 @@ export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIng
                         </ThemedText>
                         <View style={[styles.progressTrack, { backgroundColor: `${statusColor}30` }]}>
                             <View style={[styles.progressBar, { width: `${Math.round(progress * 100)}%` as `${number}%`, backgroundColor: statusColor }]} />
+                        </View>
+                        <View style={styles.actionsRow}>
+                            <ThemedButton
+                                variant="secondary"
+                                tone={ingredient.is_active ? 'warning' : 'success'}
+                                icon={ingredient.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                                style={styles.actionBtn}
+                                label={ingredient.is_active ? t('common.disable') : t('common.enable')}
+                                onPress={() => onToggleIngredientActive(ingredient.id, ingredient.is_active)}
+                            />
+                            <ThemedButton
+                                icon="trash-outline"
+                                label={t('common.delete')}
+                                tone="danger"
+                                variant="secondary"
+                                style={styles.actionBtn}
+                                onPress={() => onDeleteIngredient(ingredient.id)}
+                            />
                         </View>
                     </View>
                 );
@@ -150,5 +171,15 @@ const styles = StyleSheet.create({
     progressBar: {
         height: '100%',
         borderRadius: 99,
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        gap: 6,
+        marginTop: 4,
+    },
+    actionBtn: {
+        flex: 1,
+        paddingVertical: 7,
+        paddingHorizontal: 10,
     },
 });

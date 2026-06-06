@@ -20,6 +20,7 @@ export type Ingredient = {
   quantity: number;
   low_stock_threshold: number;
   supplier_id: string | null;
+  is_active: boolean;
 };
 
 export type IngredientUnit = {
@@ -32,6 +33,7 @@ export type Supplier = {
   name: string;
   phone: string | null;
   notes: string | null;
+  is_active: boolean;
 };
 
 export type Product = {
@@ -112,6 +114,7 @@ export type RestaurantTable = {
   name: string;
   table_type: TableType;
   created_at: number;
+  is_active: boolean;
 };
 
 export type Expense = {
@@ -156,6 +159,7 @@ export type Employee = {
   name: string;
   salary_type: 'hourly' | 'monthly';
   rate: number;
+  is_active: boolean;
 };
 
 export type PayrollEntry = {

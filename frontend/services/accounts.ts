@@ -60,6 +60,15 @@ export class AccountsService {
     }
   }
 
+  async setEmployeeActive(id: string, isActive: boolean): Promise<boolean> {
+    try {
+      await apiClient.patch<{ ok: boolean }>(`/accounts/employees/${id}/active`, { isActive });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async addPayroll(payload: AddPayrollPayload): Promise<string> {
     const response = await apiClient.post<{ id: string }>('/accounts/payroll', payload);
     return response.id || '';

@@ -120,6 +120,16 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
   res.status(204).send();
 }
 
+export async function deleteProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const result = await productsService.deleteProduct(id);
+  if (result === 'not-found') {
+    res.status(404).json({ error: 'Product not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true, mode: result });
+}
+
 export async function setProductIngredient(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
   const { ingredientId, quantityUsed } = setIngredientSchema.parse(req.body);

@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { IngredientPanelForm } from '@/components/catalog/ingredient-panel-form';
 import { IngredientsTab } from '@/components/catalog/ingredients-tab';
@@ -42,8 +42,8 @@ export default function CatalogScreen() {
 
     const [section, setSection] = useState<Section>('products');
 
-    const { suppliers, ingredients, hydrate: hydrateInventory } = useInventoryStore();
-    const { products, categories, hydrate: hydrateProducts } = useProductsStore();
+    const { suppliers, ingredients, hydrate: hydrateInventory, deleteIngredient, setIngredientActive, deleteSupplier, setSupplierActive } = useInventoryStore();
+    const { products, categories, hydrate: hydrateProducts, deleteProduct, setProductActive } = useProductsStore();
 
     // Panel state
     const panel = usePanelLifecycle();
@@ -135,6 +135,8 @@ export default function CatalogScreen() {
                             () => openPanel({ type: 'product-edit', productId }),
                             { pathname: '/product-form', params: { id: productId } },
                         )}
+                        onDeleteProduct={(productId) => { void deleteProduct(productId); }}
+                        onToggleProductActive={(productId, isActive) => { void setProductActive(productId, !isActive); }}
                     />
                 ) : null}
 
@@ -148,6 +150,18 @@ export default function CatalogScreen() {
                             () => openPanel({ type: 'ingredient-edit', ingredientId }),
                             { pathname: '/ingredient-form', params: { id: ingredientId } },
                         )}
+                        onDeleteIngredient={(ingredientId) => {
+                            void (async () => {
+                                const error = await deleteIngredient(ingredientId);
+                                if (error) Alert.alert(t('common.delete'), error);
+                            })();
+                        }}
+                        onToggleIngredientActive={(ingredientId, isActive) => {
+                            void (async () => {
+                                const error = await setIngredientActive(ingredientId, !isActive);
+                                if (error) Alert.alert(t('common.disable'), error);
+                            })();
+                        }}
                     />
                 ) : null}
 
@@ -161,6 +175,18 @@ export default function CatalogScreen() {
                             () => openPanel({ type: 'supplier-edit', supplierId }),
                             { pathname: '/inventory-form', params: { section: 'suppliers' } },
                         )}
+                        onDeleteSupplier={(supplierId) => {
+                            void (async () => {
+                                const error = await deleteSupplier(supplierId);
+                                if (error) Alert.alert(t('common.delete'), error);
+                            })();
+                        }}
+                        onToggleSupplierActive={(supplierId, isActive) => {
+                            void (async () => {
+                                const error = await setSupplierActive(supplierId, !isActive);
+                                if (error) Alert.alert(t('common.disable'), error);
+                            })();
+                        }}
                     />
                 ) : null}
             </ScrollView>

@@ -61,6 +61,56 @@ export async function updateSupplier(req: Request, res: Response): Promise<void>
   res.status(204).end();
 }
 
+export async function deleteIngredient(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const deleted = await inventoryService.deleteIngredient(id);
+  if (!deleted) {
+    res.status(404).json({ error: 'Ingredient not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true });
+}
+
+export async function setIngredientActive(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const { isActive } = req.body as { isActive?: boolean };
+  if (typeof isActive !== 'boolean') {
+    res.status(400).json({ error: 'isActive (boolean) is required.' });
+    return;
+  }
+  const updated = await inventoryService.setIngredientActive(id, isActive);
+  if (!updated) {
+    res.status(404).json({ error: 'Ingredient not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true });
+}
+
+export async function deleteSupplier(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const deleted = await inventoryService.deleteSupplier(id);
+  if (!deleted) {
+    res.status(404).json({ error: 'Supplier not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true });
+}
+
+export async function setSupplierActive(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const { isActive } = req.body as { isActive?: boolean };
+  if (typeof isActive !== 'boolean') {
+    res.status(400).json({ error: 'isActive (boolean) is required.' });
+    return;
+  }
+  const updated = await inventoryService.setSupplierActive(id, isActive);
+  if (!updated) {
+    res.status(404).json({ error: 'Supplier not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true });
+}
+
 export async function addUnit(req: Request, res: Response): Promise<void> {
   const { name } = addUnitSchema.parse(req.body);
 

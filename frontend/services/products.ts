@@ -69,6 +69,15 @@ export class ProductsService {
     await apiClient.put(`/products/${payload.id}`, payload);
   }
 
+  async deleteProduct(id: string): Promise<void> {
+    await apiClient.delete(`/products/${id}`);
+  }
+
+  /** Enable/disable a product (admin toggle). Reuses the update endpoint. */
+  async setProductActive(id: string, isActive: boolean): Promise<void> {
+    await apiClient.put(`/products/${id}`, { isActive });
+  }
+
   async setProductIngredient(payload: SetProductIngredientPayload): Promise<void> {
     await apiClient.put(`/products/${payload.productId}/ingredients/${payload.ingredientId}`, payload);
   }

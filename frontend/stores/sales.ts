@@ -27,6 +27,7 @@ type SalesState = {
   createTable: (payload: { name: string; tableType: TableType }) => Promise<void>;
   updateTable: (payload: { id: string; name: string; tableType: TableType }) => Promise<void>;
   deleteTable: (id: string) => Promise<void>;
+  setTableActive: (id: string, isActive: boolean) => Promise<void>;
   getTodayRevenue: () => number;
   getDashboardSummary: (startUnix: number, endUnix: number, bucket?: DashboardTrendBucket) => Promise<DashboardSalesSummary>;
   getTopSelling: (limit?: number) => Promise<Array<{ name: string; quantity: number }>>;
@@ -106,6 +107,11 @@ export const useSalesStore = create<SalesState>((set, get) => ({
 
   deleteTable: async (id: string) => {
     await salesService.deleteTable(id);
+    await get().hydrate();
+  },
+
+  setTableActive: async (id: string, isActive: boolean) => {
+    await salesService.setTableActive(id, isActive);
     await get().hydrate();
   },
 

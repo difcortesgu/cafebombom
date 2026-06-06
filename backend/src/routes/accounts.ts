@@ -12,6 +12,7 @@ import {
     getTodayCashRegister,
     getTodayCashRegisterSummary,
     openCashRegister,
+    setEmployeeActive,
     updateEmployee,
 } from '../controllers/accounts';
 import { authMiddleware, requireRole } from '../middleware/auth';
@@ -123,6 +124,7 @@ router.get('/expenses/total', getExpensesTotal);
 router.post('/employees', requireRole('owner'), addEmployee);
 router.put('/employees/:id', requireRole('owner'), updateEmployee);
 router.delete('/employees/:id', requireRole('owner'), deleteEmployee);
+router.patch('/employees/:id/active', requireRole('owner'), setEmployeeActive);
 
 /**
  * @openapi

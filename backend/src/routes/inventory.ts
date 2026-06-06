@@ -3,8 +3,12 @@ import {
     addRestock,
     addSupplier,
     addUnit,
+    deleteIngredient,
+    deleteSupplier,
     deleteUnit,
     getHydrationData,
+    setIngredientActive,
+    setSupplierActive,
     updateIngredient,
     updateSupplier,
 } from '../controllers/inventory';
@@ -92,6 +96,46 @@ router.put('/ingredients/:id', requireRole('owner'), updateIngredient);
 
 /**
  * @openapi
+ * /api/inventory/ingredients/{id}:
+ *   delete:
+ *     tags: [Inventory]
+ *     summary: Delete an ingredient (owner only). Soft-deletes if used by a product (even soft-deleted) or with restock history; otherwise hard-deletes.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.delete('/ingredients/:id', requireRole('owner'), deleteIngredient);
+
+/**
+ * @openapi
+ * /api/inventory/ingredients/{id}/active:
+ *   patch:
+ *     tags: [Inventory]
+ *     summary: Enable/disable an ingredient (owner only). Disabling is rejected if products still depend on it.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, required: [isActive], properties: { isActive: { type: boolean } } }
+ *     responses:
+ *       200: { description: Updated }
+ *       422: { description: Ingredient still used by products }
+ */
+router.patch('/ingredients/:id/active', requireRole('owner'), setIngredientActive);
+
+/**
+ * @openapi
  * /api/inventory/suppliers:
  *   post:
  *     tags: [Inventory]
@@ -149,6 +193,45 @@ router.post('/suppliers', requireRole('owner'), addSupplier);
  *         description: Forbidden
  */
 router.put('/suppliers/:id', requireRole('owner'), updateSupplier);
+
+/**
+ * @openapi
+ * /api/inventory/suppliers/{id}:
+ *   delete:
+ *     tags: [Inventory]
+ *     summary: Delete a supplier (owner only). Soft-deletes if it has linked ingredients/restocks/expenses; otherwise hard-deletes.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.delete('/suppliers/:id', requireRole('owner'), deleteSupplier);
+
+/**
+ * @openapi
+ * /api/inventory/suppliers/{id}/active:
+ *   patch:
+ *     tags: [Inventory]
+ *     summary: Enable/disable a supplier (owner only)
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { type: object, required: [isActive], properties: { isActive: { type: boolean } } }
+ *     responses:
+ *       200: { description: Updated }
+ */
+router.patch('/suppliers/:id/active', requireRole('owner'), setSupplierActive);
 
 /**
  * @openapi

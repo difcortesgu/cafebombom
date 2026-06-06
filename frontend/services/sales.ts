@@ -76,6 +76,10 @@ export class SalesService {
     await apiClient.delete(`/sales/tables/${id}`);
   }
 
+  async setTableActive(id: string, isActive: boolean): Promise<void> {
+    await apiClient.patch(`/sales/tables/${id}/active`, { isActive });
+  }
+
   async createSale(payload: CreateSalePayload): Promise<string | null> {
     try {
       const response = await apiClient.post<{ id: string }>('/sales', payload);

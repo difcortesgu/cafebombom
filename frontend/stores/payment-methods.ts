@@ -93,8 +93,8 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
         try {
             const success = await paymentMethodsService.delete(id);
             if (success) {
-                // Refresh the list
-                const methods = await paymentMethodsService.getActive();
+                // Refresh the list (getAll so disabled methods remain visible to admin)
+                const methods = await paymentMethodsService.getAll();
                 set({ methods });
             }
             return success;

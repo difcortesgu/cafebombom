@@ -13,11 +13,12 @@ type PaymentMethodsSectionProps = {
     cardWidth: number;
     gap: number;
     onAdd: () => void;
+    onEdit: (method: { id: string; name: string; icon: string; is_active: boolean }) => void;
 };
 
-export function PaymentMethodsSection({ cardWidth, gap, onAdd }: PaymentMethodsSectionProps) {
+export function PaymentMethodsSection({ cardWidth, gap, onAdd, onEdit }: PaymentMethodsSectionProps) {
     const palette = useAppColors();
-    const { methods, hydrateAll, toggleMethod } = usePaymentMethodsStore();
+    const { methods, hydrateAll, toggleMethod, deleteMethod } = usePaymentMethodsStore();
 
     useEffect(() => {
         void hydrateAll();
@@ -56,17 +57,29 @@ export function PaymentMethodsSection({ cardWidth, gap, onAdd }: PaymentMethodsS
                             </View>
                             <ThemedButton
                                 variant="secondary"
-                                style={[
-                                    styles.toggleButton,
-                                    {
-                                        borderColor: method.is_active ? palette.danger : palette.success,
-                                        backgroundColor: method.is_active ? `${palette.danger}18` : `${palette.success}18`,
-                                    },
-                                ]}
-                                labelStyle={{ color: method.is_active ? palette.danger : palette.success }}
+                                tone={method.is_active ? 'warning' : 'success'}
+                                icon={method.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                                style={styles.toggleButton}
                                 label={method.is_active ? t('common.disable') : t('common.enable')}
                                 onPress={() => void toggleMethod(method.id, method.is_active)}
                             />
+                            <View style={styles.actionsRow}>
+                                <ThemedButton
+                                    variant="secondary"
+                                    icon="create-outline"
+                                    style={styles.actionBtn}
+                                    label={t('products.list.edit')}
+                                    onPress={() => onEdit({ id: method.id, name: method.name, icon: method.icon, is_active: method.is_active })}
+                                />
+                                <ThemedButton
+                                    variant="secondary"
+                                    tone="danger"
+                                    icon="trash-outline"
+                                    style={styles.actionBtn}
+                                    label={t('common.delete')}
+                                    onPress={() => void deleteMethod(method.id)}
+                                />
+                            </View>
                         </View>
                     ))}
                 </View>
@@ -105,6 +118,15 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     toggleButton: {
+        paddingVertical: 7,
+        paddingHorizontal: 10,
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        gap: 6,
+    },
+    actionBtn: {
+        flex: 1,
         paddingVertical: 7,
         paddingHorizontal: 10,
     },

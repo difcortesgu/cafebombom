@@ -29,6 +29,15 @@ export class InventoryService {
     await apiClient.put(`/inventory/ingredients/${payload.id}`, payload);
   }
 
+  async deleteIngredient(id: string): Promise<void> {
+    await apiClient.delete(`/inventory/ingredients/${id}`);
+  }
+
+  /** Enable/disable an ingredient. Throws if disabling while products depend on it. */
+  async setIngredientActive(id: string, isActive: boolean): Promise<void> {
+    await apiClient.patch(`/inventory/ingredients/${id}/active`, { isActive });
+  }
+
   async addSupplier(payload: AddSupplierPayload): Promise<string | null> {
     try {
       const response = await apiClient.post<{ id: string }>('/inventory/suppliers', payload);
@@ -40,6 +49,14 @@ export class InventoryService {
 
   async updateSupplier(payload: UpdateSupplierPayload): Promise<void> {
     await apiClient.put(`/inventory/suppliers/${payload.id}`, payload);
+  }
+
+  async deleteSupplier(id: string): Promise<void> {
+    await apiClient.delete(`/inventory/suppliers/${id}`);
+  }
+
+  async setSupplierActive(id: string, isActive: boolean): Promise<void> {
+    await apiClient.patch(`/inventory/suppliers/${id}/active`, { isActive });
   }
 
   async addRestock(payload: AddRestockPayload): Promise<string> {

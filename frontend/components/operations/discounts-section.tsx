@@ -66,16 +66,9 @@ function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDe
             <View style={styles.cardActions}>
                 <ThemedButton
                     variant="secondary"
-                    style={[
-                        styles.toggleButton,
-                        {
-                            borderColor: discount.isActive ? palette.danger : palette.success,
-                            backgroundColor: discount.isActive ? `${palette.danger}18` : `${palette.success}18`,
-                        },
-                    ]}
+                    tone={discount.isActive ? 'warning' : 'success'}
+                    style={styles.toggleButton}
                     icon={discount.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                    iconColor={discount.isActive ? palette.danger : palette.success}
-                    labelStyle={{ color: discount.isActive ? palette.danger : palette.success }}
                     label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
                     onPress={onToggle}
                 />

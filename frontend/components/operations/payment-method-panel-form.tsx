@@ -8,9 +8,10 @@ import { t } from '@/i18n';
 
 type PaymentMethodPanelFormProps = {
     onClose: () => void;
+    method?: { id: string; name: string; icon: string; is_active: boolean };
 };
 
-export function PaymentMethodPanelForm({ onClose }: PaymentMethodPanelFormProps) {
+export function PaymentMethodPanelForm({ onClose, method }: PaymentMethodPanelFormProps) {
     const palette = useAppColors();
 
     return (
@@ -18,7 +19,7 @@ export function PaymentMethodPanelForm({ onClose }: PaymentMethodPanelFormProps)
             <View style={[styles.panelHeader, { borderBottomColor: palette.border }]}>
                 <View style={styles.panelHeaderTitle}>
                     <Ionicons name="card-outline" size={20} color={palette.tint} />
-                    <ThemedText type="subtitle">{t('settings.paymentMethods.add')}</ThemedText>
+                    <ThemedText type="subtitle">{method ? t('products.list.edit') : t('settings.paymentMethods.add')}</ThemedText>
                 </View>
                 <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
                     <Ionicons name="close" size={22} color={palette.text} />
@@ -26,7 +27,7 @@ export function PaymentMethodPanelForm({ onClose }: PaymentMethodPanelFormProps)
             </View>
 
             <ScrollView contentContainerStyle={styles.panelContent} keyboardShouldPersistTaps="handled">
-                <PaymentMethodForm onClose={onClose} />
+                <PaymentMethodForm onClose={onClose} method={method} />
             </ScrollView>
         </>
     );

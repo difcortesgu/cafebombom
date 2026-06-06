@@ -56,6 +56,7 @@ export const paymentMethods = sqliteTable('payment_methods', {
   name: text('name').notNull().unique(),
   icon: text('icon').notNull().default('wallet'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
@@ -65,6 +66,8 @@ export const suppliers = sqliteTable('suppliers', {
   name: text('name').notNull().unique(),
   phone: text('phone'),
   notes: text('notes'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
@@ -85,6 +88,8 @@ export const ingredients = sqliteTable('ingredients', {
   quantity: real('quantity').notNull().default(0),
   lowStockThreshold: real('low_stock_threshold').notNull().default(10),
   supplierId: text('supplier_id').references(() => suppliers.id),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 }, (t) => [
@@ -106,6 +111,7 @@ export const products = sqliteTable('products', {
   imageUri: text('image_uri'),
   isCombo: integer('is_combo', { mode: 'boolean' }).notNull().default(false), // <-- NUEVO: Identifica si es un combo
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 });
@@ -157,6 +163,8 @@ export const restaurantTables = sqliteTable('restaurant_tables', {
   id: text('id').primaryKey().$defaultFn(() => randomUUID()),
   name: text('name').notNull().unique(),
   tableType: text('table_type', { enum: ['dine-in', 'to-go', 'delivery'] }).notNull().default('dine-in'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 }, (t) => [
@@ -173,6 +181,7 @@ export const discounts = sqliteTable('discounts', {
   startsAt: integer('starts_at').notNull(),
   endsAt: integer('ends_at'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
   createdAt: integer('created_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   updatedAt: integer('updated_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
 }, (t) => [
@@ -294,6 +303,8 @@ export const employees = sqliteTable('employees', {
   name: text('name').notNull().unique(),
   salaryType: text('salary_type', { enum: ['hourly', 'monthly'] }).notNull(),
   rate: real('rate').notNull(),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  deletedAt: integer('deleted_at'),
 });
 
 export const payrollEntries = sqliteTable('payroll_entries', {

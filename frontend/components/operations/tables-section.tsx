@@ -15,9 +15,10 @@ type TablesSectionProps = {
     onAdd: () => void;
     onEdit: (tableId: string) => void;
     onDelete: (tableId: string) => void;
+    onToggleActive: (tableId: string, isActive: boolean) => void;
 };
 
-export function TablesSection({ tables, message, cardWidth, gap, onAdd, onEdit, onDelete }: TablesSectionProps) {
+export function TablesSection({ tables, message, cardWidth, gap, onAdd, onEdit, onDelete, onToggleActive }: TablesSectionProps) {
     const palette = useAppColors();
 
     return (
@@ -32,7 +33,7 @@ export function TablesSection({ tables, message, cardWidth, gap, onAdd, onEdit, 
             ) : (
                 <View style={[styles.grid, { gap }]}>
                     {tables.map((table) => (
-                        <View key={table.id} style={[styles.tableCard, { width: cardWidth, borderColor: palette.border }]}>
+                        <View key={table.id} style={[styles.tableCard, { width: cardWidth, borderColor: palette.border, opacity: table.is_active ? 1 : 0.6 }]}>
                             <View style={styles.tableInfo}>
                                 <ThemedText type="defaultSemiBold" numberOfLines={1}>{table.name}</ThemedText>
                                 <ThemedText style={styles.muted}>
@@ -60,6 +61,14 @@ export function TablesSection({ tables, message, cardWidth, gap, onAdd, onEdit, 
                                     onPress={() => onDelete(table.id)}
                                 />
                             </View>
+                            <ThemedButton
+                                variant="secondary"
+                                tone={table.is_active ? 'warning' : 'success'}
+                                icon={table.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                                style={styles.toggleButton}
+                                label={table.is_active ? t('common.disable') : t('common.enable')}
+                                onPress={() => onToggleActive(table.id, table.is_active)}
+                            />
                         </View>
                     ))}
                 </View>
@@ -98,6 +107,10 @@ const styles = StyleSheet.create({
     },
     editActionButton: {
         flex: 1,
+    },
+    toggleButton: {
+        paddingVertical: 7,
+        paddingHorizontal: 10,
     },
     muted: {
         opacity: 0.9,

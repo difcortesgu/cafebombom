@@ -6,6 +6,7 @@ import path from 'path';
 import {
     addCategory,
     createProduct,
+    deleteProduct,
     getHydrationData,
     getProductImage,
     removeComboGroup,
@@ -224,6 +225,27 @@ router.post('/categories', requireRole('owner'), addCategory);
  *         description: Forbidden
  */
 router.put('/:id', requireRole('owner'), updateProduct);
+
+/**
+ * @openapi
+ * /api/products/{id}:
+ *   delete:
+ *     tags: [Products]
+ *     summary: Delete a product (owner only). Soft-deletes if it has sales history or is used in a combo; otherwise hard-deletes.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Deleted (body indicates 'soft' or 'hard')
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Not found
+ */
+router.delete('/:id', requireRole('owner'), deleteProduct);
 
 /**
  * @openapi

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run *)",
+      "Bash(sed -n *)",
+      "Bash(grep -n *)",
+      "Bash(cut -d: -f1 *)"
+    ]
+  }
+}

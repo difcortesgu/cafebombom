@@ -50,6 +50,7 @@ type OperationsPanelMode =
     | { type: 'table-create' }
     | { type: 'table-edit'; tableId: string }
     | { type: 'payment-method-add' }
+    | { type: 'payment-method-edit'; method: { id: string; name: string; icon: string; is_active: boolean } }
     | { type: 'discount-add-global' }
     | { type: 'discount-add-product' }
     | { type: 'discount-edit'; discount: Discount }
@@ -73,6 +74,7 @@ export default function OperationsScreen() {
         hydrate: hydrateSales,
         tables,
         deleteTable,
+        setTableActive,
     } = useSalesStore();
     const hydrateInventory = useInventoryStore((state) => state.hydrate);
     const { hydrate: hydrateProducts } = useProductsStore();
@@ -470,6 +472,12 @@ export default function OperationsScreen() {
                                 }
                             })();
                         }}
+                        onToggleActive={(tableId, isActive) => {
+                            void (async () => {
+                                await setTableActive(tableId, !isActive);
+                                setTablesMessage(null);
+                            })();
+                        }}
                     />
                 ) : null}
 
@@ -480,6 +488,10 @@ export default function OperationsScreen() {
                         onAdd={() => openOrNavigate(
                             () => { setPanelMode({ type: 'payment-method-add' }); panel.open(); },
                             '/payment-method-form',
+                        )}
+                        onEdit={(method) => openOrNavigate(
+                            () => { setPanelMode({ type: 'payment-method-edit', method }); panel.open(); },
+                            { pathname: '/payment-method-form', params: { id: method.id } },
                         )}
                     />
                 ) : null}
@@ -765,6 +777,8 @@ export default function OperationsScreen() {
                         />
                     ) : panelMode?.type === 'payment-method-add' ? (
                         <PaymentMethodPanelForm onClose={panel.close} />
+                    ) : panelMode?.type === 'payment-method-edit' ? (
+                        <PaymentMethodPanelForm method={panelMode.method} onClose={panel.close} />
                     ) : panelMode?.type === 'discount-add-global' ? (
                         <DiscountPanelForm initialScope="global" onClose={panel.close} />
                     ) : panelMode?.type === 'discount-add-product' ? (

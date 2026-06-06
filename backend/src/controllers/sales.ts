@@ -183,6 +183,21 @@ export async function deleteTable(req: Request, res: Response): Promise<void> {
   res.status(204).send();
 }
 
+export async function setTableActive(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as Record<string, string>;
+  const { isActive } = req.body as { isActive?: boolean };
+  if (typeof isActive !== 'boolean') {
+    res.status(400).json({ error: 'isActive (boolean) is required.' });
+    return;
+  }
+  const updated = await salesService.setTableActive(id, isActive);
+  if (!updated) {
+    res.status(404).json({ error: 'Table not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true });
+}
+
 // ── Surcharges ───────────────────────────────────────────────────────────────
 
 export async function getSurchargeConfig(req: Request, res: Response): Promise<void> {

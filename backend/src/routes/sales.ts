@@ -23,6 +23,7 @@ import {
     removeItemFromOrder,
     saveSurchargeConfig,
     sendToKitchen,
+    setTableActive,
     updateDiscount,
     updateDraftOrder,
     updateTable,
@@ -563,6 +564,7 @@ router.post('/tables', requireRole('owner'), createTable);
  */
 router.put('/tables/:id', requireRole('owner'), updateTable);
 router.delete('/tables/:id', requireRole('owner'), deleteTable);
+router.patch('/tables/:id/active', requireRole('owner'), setTableActive);
 
 /**
  * @openapi

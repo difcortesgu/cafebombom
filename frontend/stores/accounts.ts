@@ -18,6 +18,7 @@ type AccountsState = {
   addEmployee: (payload: AddEmployeePayload) => Promise<void>;
   updateEmployee: (payload: UpdateEmployeePayload) => Promise<void>;
   deleteEmployee: (id: string) => Promise<void>;
+  setEmployeeActive: (id: string, isActive: boolean) => Promise<void>;
   addPayroll: (payload: AddPayrollPayload) => Promise<void>;
   getPnL: (payload: GetPnLPayload) => Promise<PnLSummary>;
   openCashRegister: (payload: OpenCashRegisterPayload) => Promise<void>;
@@ -76,6 +77,11 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
 
   deleteEmployee: async (id: string) => {
     await accountsService.deleteEmployee(id);
+    await get().hydrate();
+  },
+
+  setEmployeeActive: async (id: string, isActive: boolean) => {
+    await accountsService.setEmployeeActive(id, isActive);
     await get().hydrate();
   },
 

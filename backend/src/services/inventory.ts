@@ -1,8 +1,10 @@
 import { db } from '../database';
-import { expenses, ingredientUnits, ingredients, restockLogs, suppliers } from '../database/schema';
+import { expenses, ingredientUnits, ingredients, productAdditionalIngredients, productIngredients, restockLogs, suppliers } from '../database/schema';
 import type { AddIngredientPayload, AddRestockPayload, AddSupplierPayload, AddUnitPayload, DeleteUnitPayload, InventoryUnit, RestockLog, UpdateIngredientPayload, UpdateSupplierPayload } from '../types/inventory';
 import type { Ingredient, Supplier } from '../types/types';
 import { asc, desc, eq, sql } from 'drizzle-orm';
+import { AppError } from '../utils/errors';
+import { countDependencies, deleteOrSoftDelete, notDeleted } from './soft-delete';
 
 export class InventorySqliteService {
   async getHydrationData() {
@@ -14,14 +16,17 @@ export class InventorySqliteService {
         quantity: ingredients.quantity,
         low_stock_threshold: ingredients.lowStockThreshold,
         supplier_id: ingredients.supplierId,
+        is_active: ingredients.isActive,
       })
       .from(ingredients)
+      .where(notDeleted(ingredients))
       .orderBy(asc(ingredients.name))
       .all() as Ingredient[];
 
     const suppliersList = db
-      .select({ id: suppliers.id, name: suppliers.name, phone: suppliers.phone, notes: suppliers.notes })
+      .select({ id: suppliers.id, name: suppliers.name, phone: suppliers.phone, notes: suppliers.notes, is_active: suppliers.isActive })
       .from(suppliers)
+      .where(notDeleted(suppliers))
       .orderBy(asc(suppliers.name))
       .all() as Supplier[];
 
@@ -83,7 +88,7 @@ export class InventorySqliteService {
         supplierId: ingredients.supplierId,
       })
       .from(ingredients)
-      .where(eq(ingredients.id, id))
+      .where(notDeleted(ingredients, eq(ingredients.id, id)))
       .get();
 
     if (!existing) {
@@ -102,6 +107,49 @@ export class InventorySqliteService {
       .run();
   }
 
+  /** Number of products (recipes/additionals) that reference this ingredient,
+   * counting even soft-deleted products. */
+  private ingredientProductUsage(id: string): number {
+    return countDependencies([
+      { table: productIngredients, column: productIngredients.ingredientId, value: id },
+      { table: productAdditionalIngredients, column: productAdditionalIngredients.ingredientId, value: id },
+    ]);
+  }
+
+  /**
+   * Soft-deletes if the ingredient belongs to any product (even soft-deleted) or
+   * has restock history; otherwise hard-deletes.
+   */
+  async deleteIngredient(id: string): Promise<boolean> {
+    const existing = db
+      .select({ id: ingredients.id })
+      .from(ingredients)
+      .where(notDeleted(ingredients, eq(ingredients.id, id)))
+      .get();
+    if (!existing) {
+      return false;
+    }
+    deleteOrSoftDelete(ingredients, ingredients.id, id, [
+      { table: productIngredients, column: productIngredients.ingredientId, value: id },
+      { table: productAdditionalIngredients, column: productAdditionalIngredients.ingredientId, value: id },
+      { table: restockLogs, column: restockLogs.ingredientId, value: id },
+    ]);
+    return true;
+  }
+
+  /** Toggles the ingredient's enabled flag. Disabling is rejected if any
+   * product still depends on it. */
+  async setIngredientActive(id: string, isActive: boolean): Promise<boolean> {
+    if (!isActive && this.ingredientProductUsage(id) > 0) {
+      throw new AppError('No se puede deshabilitar un ingrediente que pertenece a uno o más productos.');
+    }
+    const result = db.update(ingredients)
+      .set({ isActive, updatedAt: sql`cast(strftime('%s', 'now') as int)` })
+      .where(notDeleted(ingredients, eq(ingredients.id, id)))
+      .run();
+    return result.changes > 0;
+  }
+
   async addSupplier({ name, phone, notes }: AddSupplierPayload): Promise<string | null> {
     const [inserted] = db.insert(suppliers)
       .values({ name, phone: phone ?? null, notes: notes ?? null })
@@ -116,7 +164,7 @@ export class InventorySqliteService {
     const existing = db
       .select({ name: suppliers.name, phone: suppliers.phone, notes: suppliers.notes })
       .from(suppliers)
-      .where(eq(suppliers.id, id))
+      .where(notDeleted(suppliers, eq(suppliers.id, id)))
       .get();
 
     if (!existing) return;
@@ -129,6 +177,33 @@ export class InventorySqliteService {
       })
       .where(eq(suppliers.id, id))
       .run();
+  }
+
+  /** Soft-deletes if the supplier has linked ingredients, restocks or expenses;
+   * otherwise hard-deletes. */
+  async deleteSupplier(id: string): Promise<boolean> {
+    const existing = db
+      .select({ id: suppliers.id })
+      .from(suppliers)
+      .where(notDeleted(suppliers, eq(suppliers.id, id)))
+      .get();
+    if (!existing) {
+      return false;
+    }
+    deleteOrSoftDelete(suppliers, suppliers.id, id, [
+      { table: ingredients, column: ingredients.supplierId, value: id },
+      { table: restockLogs, column: restockLogs.supplierId, value: id },
+      { table: expenses, column: expenses.supplierId, value: id },
+    ]);
+    return true;
+  }
+
+  async setSupplierActive(id: string, isActive: boolean): Promise<boolean> {
+    const result = db.update(suppliers)
+      .set({ isActive })
+      .where(notDeleted(suppliers, eq(suppliers.id, id)))
+      .run();
+    return result.changes > 0;
   }
 
   async addUnit({ name }: AddUnitPayload): Promise<InventoryUnit | null> {

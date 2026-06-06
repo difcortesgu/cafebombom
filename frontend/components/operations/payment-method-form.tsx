@@ -15,14 +15,16 @@ import { paymentMethodFormSchema } from '@/utils/validation/schemas';
 
 export type PaymentMethodFormProps = {
     onClose: () => void;
+    method?: { id: string; name: string; icon: string; is_active: boolean };
 };
 
-export function PaymentMethodForm({ onClose }: PaymentMethodFormProps) {
+export function PaymentMethodForm({ onClose, method }: PaymentMethodFormProps) {
     const palette = useAppColors();
-    const { addMethod, hydrateAll } = usePaymentMethodsStore();
+    const { addMethod, updateMethod, hydrateAll } = usePaymentMethodsStore();
+    const isEditing = !!method;
 
-    const [name, setName] = useState('');
-    const [selectedIcon, setSelectedIcon] = useState('wallet');
+    const [name, setName] = useState(method?.name ?? '');
+    const [selectedIcon, setSelectedIcon] = useState(method?.icon ?? 'wallet');
     const [message, setMessage] = useState('');
     const [nameError, setNameError] = useState('');
 
@@ -33,10 +35,18 @@ export function PaymentMethodForm({ onClose }: PaymentMethodFormProps) {
             return;
         }
         setNameError('');
-        const id = await addMethod(name.trim(), selectedIcon);
-        if (!id) {
-            setMessage(t('common.error'));
-            return;
+        if (isEditing && method) {
+            const ok = await updateMethod(method.id, name.trim(), method.is_active, selectedIcon);
+            if (!ok) {
+                setMessage(t('common.error'));
+                return;
+            }
+        } else {
+            const id = await addMethod(name.trim(), selectedIcon);
+            if (!id) {
+                setMessage(t('common.error'));
+                return;
+            }
         }
         await hydrateAll();
         onClose();
@@ -93,7 +103,7 @@ export function PaymentMethodForm({ onClose }: PaymentMethodFormProps) {
 
             <View style={styles.actionsRow}>
                 <PanelActionRow
-                    primaryLabel={t('settings.paymentMethods.addButton')}
+                    primaryLabel={isEditing ? t('common.saveChanges') : t('settings.paymentMethods.addButton')}
                     secondaryLabel={t('common.back')}
                     onPrimaryPress={() => void submit()}
                     onSecondaryPress={onClose}

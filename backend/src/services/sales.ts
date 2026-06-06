@@ -27,6 +27,7 @@ import { allocateProportionally, clampQuantity, normalizeObservation, roundMoney
 import { buildDashboardSalesSummary, RECOGNIZED_REVENUE_STATUSES } from './analytics';
 import { salesErrorMessage } from './messages';
 import { calculateSaleDiscountBreakdown } from './pricing';
+import { deleteOrSoftDelete, notDeleted } from './soft-delete';
 
 export class SalesSqliteService {
   private async resolveSaleItems(items: SaleItemInput[]): Promise<SaleItemInput[]> {
@@ -165,6 +166,7 @@ export class SalesSqliteService {
         isActive: discounts.isActive,
       })
       .from(discounts)
+      .where(notDeleted(discounts))
       .all() as Discount[];
 
     const createdAt = Math.floor(Date.now() / 1000);
@@ -276,6 +278,7 @@ export class SalesSqliteService {
         isActive: discounts.isActive,
       })
       .from(discounts)
+      .where(notDeleted(discounts))
       .all() as Discount[];
 
     const now = Math.floor(Date.now() / 1000);
@@ -423,7 +426,7 @@ export class SalesSqliteService {
       })
       .from(products)
       .leftJoin(categories, eq(categories.id, products.categoryId))
-      .where(eq(products.isActive, true))
+      .where(notDeleted(products, eq(products.isActive, true)))
       .orderBy(products.name)
       .all();
 
@@ -530,8 +533,10 @@ export class SalesSqliteService {
         name: restaurantTables.name,
         table_type: restaurantTables.tableType,
         created_at: restaurantTables.createdAt,
+        is_active: restaurantTables.isActive,
       })
       .from(restaurantTables)
+      .where(notDeleted(restaurantTables))
       .orderBy(restaurantTables.name)
       .all() as RestaurantTable[];
 
@@ -548,6 +553,7 @@ export class SalesSqliteService {
         isActive: discounts.isActive,
       })
       .from(discounts)
+      .where(notDeleted(discounts))
       .orderBy(discounts.name)
       .all() as Discount[];
 
@@ -568,6 +574,7 @@ export class SalesSqliteService {
         isActive: discounts.isActive,
       })
       .from(discounts)
+      .where(notDeleted(discounts))
       .orderBy(discounts.name)
       .all() as Discount[];
   }
@@ -616,7 +623,17 @@ export class SalesSqliteService {
   }
 
   async deleteDiscount(id: string): Promise<void> {
-    db.delete(discounts).where(eq(discounts.id, id)).run();
+    const existing = db
+      .select({ id: discounts.id })
+      .from(discounts)
+      .where(notDeleted(discounts, eq(discounts.id, id)))
+      .get();
+    if (!existing) {
+      return;
+    }
+    // Sales store discount data denormalized (no FK), so discounts have no hard
+    // dependencies and are hard-deleted; the helper keeps behaviour consistent.
+    deleteOrSoftDelete(discounts, discounts.id, id, []);
   }
 
   async getTables(): Promise<RestaurantTable[]> {
@@ -626,8 +643,10 @@ export class SalesSqliteService {
         name: restaurantTables.name,
         table_type: restaurantTables.tableType,
         created_at: restaurantTables.createdAt,
+        is_active: restaurantTables.isActive,
       })
       .from(restaurantTables)
+      .where(notDeleted(restaurantTables))
       .orderBy(restaurantTables.name)
       .all() as RestaurantTable[];
   }
@@ -660,20 +679,31 @@ export class SalesSqliteService {
         tableType,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
       })
-      .where(eq(restaurantTables.id, id))
+      .where(notDeleted(restaurantTables, eq(restaurantTables.id, id)))
       .run();
   }
 
+  /** Soft-deletes if the table has linked sales; otherwise hard-deletes. */
   async deleteTable(id: string): Promise<void> {
-    try {
-      db.delete(restaurantTables).where(eq(restaurantTables.id, id)).run();
-    } catch (err: any) {
-      const msg = String(err?.message ?? '');
-      if (msg.includes('FOREIGN KEY constraint failed')) {
-        throw new AppError(salesErrorMessage('tableHasLinkedSales'));
-      }
-      throw err;
+    const existing = db
+      .select({ id: restaurantTables.id })
+      .from(restaurantTables)
+      .where(notDeleted(restaurantTables, eq(restaurantTables.id, id)))
+      .get();
+    if (!existing) {
+      return;
     }
+    deleteOrSoftDelete(restaurantTables, restaurantTables.id, id, [
+      { table: sales, column: sales.tableId, value: id },
+    ]);
+  }
+
+  async setTableActive(id: string, isActive: boolean): Promise<boolean> {
+    const result = db.update(restaurantTables)
+      .set({ isActive, updatedAt: sql`cast(strftime('%s', 'now') as int)` })
+      .where(notDeleted(restaurantTables, eq(restaurantTables.id, id)))
+      .run();
+    return result.changes > 0;
   }
 
   async getTopSelling(limit = 5): Promise<{ name: string; quantity: number }[]> {

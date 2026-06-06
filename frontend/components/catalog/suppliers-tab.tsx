@@ -10,6 +10,7 @@ type SupplierListItem = {
     name: string;
     phone: string | null;
     notes: string | null;
+    is_active: boolean;
 };
 
 type SuppliersTabProps = {
@@ -21,11 +22,15 @@ type SuppliersTabProps = {
         border: string;
         mutedText: string;
         inputBackground: string;
+        danger: string;
+        success: string;
     };
     onEditSupplier: (supplierId: string) => void;
+    onDeleteSupplier: (supplierId: string) => void;
+    onToggleSupplierActive: (supplierId: string, isActive: boolean) => void;
 };
 
-export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplier }: SuppliersTabProps) {
+export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplier, onDeleteSupplier, onToggleSupplierActive }: SuppliersTabProps) {
     if (suppliers.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -37,7 +42,7 @@ export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplie
     return (
         <View style={[styles.grid, { gap }]}>
             {suppliers.map((supplier) => (
-                <View key={supplier.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
+                <View key={supplier.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border, opacity: supplier.is_active ? 1 : 0.6 }]}>
                     <View style={styles.cardHeader}>
                         <ThemedText style={styles.cardName} numberOfLines={1}>{supplier.name}</ThemedText>
                         <ThemedButton
@@ -63,6 +68,24 @@ export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplie
                     {!supplier.phone && !supplier.notes ? (
                         <ThemedText style={[styles.infoText, { color: palette.mutedText }]}>{t('inventory.suppliers.noNotes')}</ThemedText>
                     ) : null}
+                    <View style={styles.actionsRow}>
+                        <ThemedButton
+                            variant="secondary"
+                            tone={supplier.is_active ? 'warning' : 'success'}
+                            icon={supplier.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
+                            style={styles.actionBtn}
+                            label={supplier.is_active ? t('common.disable') : t('common.enable')}
+                            onPress={() => onToggleSupplierActive(supplier.id, supplier.is_active)}
+                        />
+                        <ThemedButton
+                            icon="trash-outline"
+                            label={t('common.delete')}
+                            tone="danger"
+                            variant="secondary"
+                            style={styles.actionBtn}
+                            onPress={() => onDeleteSupplier(supplier.id)}
+                        />
+                    </View>
                 </View>
             ))}
         </View>
@@ -112,5 +135,15 @@ const styles = StyleSheet.create({
     infoText: {
         fontSize: 12,
         flex: 1,
+    },
+    actionsRow: {
+        flexDirection: 'row',
+        gap: 6,
+        marginTop: 4,
+    },
+    actionBtn: {
+        flex: 1,
+        paddingVertical: 7,
+        paddingHorizontal: 10,
     },
 });

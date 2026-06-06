@@ -38,6 +38,8 @@ type ProductsState = {
   addCategory: (payload: AddCategoryPayload) => Promise<string | null>;
   createProduct: (payload: CreateProductPayload) => Promise<string | null>;
   updateProduct: (payload: UpdateProductPayload) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  setProductActive: (id: string, isActive: boolean) => Promise<void>;
   setProductIngredient: (payload: SetProductIngredientPayload) => Promise<void>;
   removeProductIngredient: (payload: RemoveProductIngredientPayload) => Promise<void>;
   setProductAdditionalIngredient: (payload: SetProductAdditionalIngredientPayload) => Promise<void>;
@@ -112,6 +114,16 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 
   updateProduct: async (payload) => {
     await productsService.updateProduct(payload);
+    await Promise.all([get().hydrate(), syncSalesStore()]);
+  },
+
+  deleteProduct: async (id) => {
+    await productsService.deleteProduct(id);
+    await Promise.all([get().hydrate(), syncSalesStore()]);
+  },
+
+  setProductActive: async (id, isActive) => {
+    await productsService.setProductActive(id, isActive);
     await Promise.all([get().hydrate(), syncSalesStore()]);
   },
 

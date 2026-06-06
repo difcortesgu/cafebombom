@@ -69,6 +69,25 @@ export async function deleteEmployee(req: Request, res: Response): Promise<void>
   res.status(200).json({ ok: true });
 }
 
+export async function setEmployeeActive(req: Request, res: Response): Promise<void> {
+  const id = String(req.params['id'] ?? '');
+  if (!id) {
+    res.status(400).json({ error: 'id is required.' });
+    return;
+  }
+  const { isActive } = req.body as { isActive?: boolean };
+  if (typeof isActive !== 'boolean') {
+    res.status(400).json({ error: 'isActive (boolean) is required.' });
+    return;
+  }
+  const updated = await accountsService.setEmployeeActive(id, isActive);
+  if (!updated) {
+    res.status(404).json({ error: 'Employee not found.' });
+    return;
+  }
+  res.status(200).json({ ok: true });
+}
+
 export async function addPayroll(req: Request, res: Response): Promise<void> {
   const { employeeId, periodStart, periodEnd, amount, paymentMethodId } = addPayrollSchema.parse(req.body);
 

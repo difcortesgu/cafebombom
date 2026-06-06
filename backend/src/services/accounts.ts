@@ -1,6 +1,7 @@
 import { and, between, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../database';
 import { cashRegisterAdjustments, cashRegisterSessions, employees, expenses, payrollEntries, salePayments } from '../database/schema';
+import { deleteOrSoftDelete, notDeleted } from './soft-delete';
 import type { AddCashRegisterAdjustmentPayload, AddEmployeePayload, AddExpensePayload, AddPayrollPayload, CloseCashRegisterPayload, DailyCashRegisterSummary, OpenCashRegisterPayload, PaymentMethodAmountSummary, UpdateEmployeePayload } from '../types/accounts';
 import type { CashRegisterAdjustment, CashRegisterHistoryDay, CashRegisterSession, Employee, Expense, PayrollEntry } from '../types/types';
 import { AppError } from '../utils/errors';
@@ -27,8 +28,10 @@ export class AccountsSqliteService {
         name: employees.name,
         salary_type: employees.salaryType,
         rate: employees.rate,
+        is_active: employees.isActive,
       })
       .from(employees)
+      .where(notDeleted(employees))
       .orderBy(employees.name)
       .all() as Employee[];
 
@@ -143,9 +146,26 @@ export class AccountsSqliteService {
     return result.changes > 0;
   }
 
+  /** Soft-deletes if the employee has payroll history; otherwise hard-deletes. */
   async deleteEmployee(id: string): Promise<boolean> {
-    const result = db.delete(employees)
-      .where(eq(employees.id, id))
+    const existing = db
+      .select({ id: employees.id })
+      .from(employees)
+      .where(notDeleted(employees, eq(employees.id, id)))
+      .get();
+    if (!existing) {
+      return false;
+    }
+    deleteOrSoftDelete(employees, employees.id, id, [
+      { table: payrollEntries, column: payrollEntries.employeeId, value: id },
+    ]);
+    return true;
+  }
+
+  async setEmployeeActive(id: string, isActive: boolean): Promise<boolean> {
+    const result = db.update(employees)
+      .set({ isActive })
+      .where(notDeleted(employees, eq(employees.id, id)))
       .run();
     return result.changes > 0;
   }

@@ -38,7 +38,7 @@ export default function TeamScreen() {
     const [editingUser, setEditingUser] = useState<import('@/types/auth').ManagedUser | undefined>(undefined);
 
     const { hydrateManagedUsers, managedUsers, currentUser, deactivateUser, reactivateUser, hardDeleteUser } = useAuthStore();
-    const { hydrate, employees, payroll, deleteEmployee } = useAccountsStore();
+    const { hydrate, employees, payroll, deleteEmployee, setEmployeeActive } = useAccountsStore();
     const { hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
     useFocusEffect(
@@ -145,6 +145,7 @@ export default function TeamScreen() {
                         palette={palette}
                         onEdit={handleEditEmployee}
                         onDelete={(id) => void deleteEmployee(id)}
+                        onToggleActive={(id, isActive) => void setEmployeeActive(id, !isActive)}
                     />
                 ) : null}
                 {section === 'payroll' ? (
