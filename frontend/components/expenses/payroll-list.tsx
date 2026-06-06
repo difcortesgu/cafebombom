@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { t } from '@/i18n';
 import type { Employee, PayrollEntry } from '@/types/types';
+import { money } from '@/utils/money';
 
 type PayrollListProps = {
     payroll: PayrollEntry[];
@@ -38,7 +39,7 @@ export function PayrollList({ payroll, employees, palette }: PayrollListProps) {
                         </ThemedText>
                     </View>
                     <ThemedText style={[styles.listItemAmount, { color: palette.accent }]}>
-                        ${Number(entry.amount).toFixed(2)}
+                        {money(entry.amount)}
                     </ThemedText>
                 </View>
             ))}

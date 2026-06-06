@@ -1,15 +1,49 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { useAppColors } from '@/hooks/use-theme-color';
+import { useSettingsStore } from '@/stores/settings';
+import { type NumericMode, formatNumericDisplay, sanitizeNumeric } from '@/utils/format/number';
 
 type ThemedInputProps = TextInputProps & {
   label?: string;
   error?: string | null;
+  /**
+   * Turns the input into a numeric field: non-numeric characters are rejected as
+   * the user types and `onChangeText` always receives the raw numeric string.
+   * `currency`/`percent` additionally show a formatted display value.
+   */
+  numeric?: NumericMode;
 };
 
-export function ThemedInput({ style, placeholderTextColor, label, error, ...props }: ThemedInputProps) {
+const KEYBOARD_BY_MODE: Record<NumericMode, TextInputProps['keyboardType']> = {
+  integer: 'number-pad',
+  decimal: 'decimal-pad',
+  currency: 'decimal-pad',
+  percent: 'decimal-pad',
+};
+
+export function ThemedInput({
+  style,
+  placeholderTextColor,
+  label,
+  error,
+  numeric,
+  value,
+  onChangeText,
+  keyboardType,
+  ...props
+}: ThemedInputProps) {
   const palette = useAppColors();
-  const hasValue = typeof props.value === 'string' ? props.value.length > 0 : false;
+  const currency = useSettingsStore((s) => s.currency);
+
+  const rawValue = typeof value === 'string' ? value : '';
+  const displayValue = numeric ? formatNumericDisplay(rawValue, numeric, currency) : value;
+
+  const handleChangeText = numeric
+    ? (text: string) => onChangeText?.(sanitizeNumeric(text, numeric))
+    : onChangeText;
+
+  const hasValue = typeof displayValue === 'string' ? displayValue.length > 0 : false;
   const hasError = !!error;
 
   const borderColor = hasError
@@ -41,6 +75,9 @@ export function ThemedInput({ style, placeholderTextColor, label, error, ...prop
           style,
         ]}
         placeholderTextColor={placeholderTextColor ?? palette.placeholder}
+        value={displayValue}
+        onChangeText={handleChangeText}
+        keyboardType={keyboardType ?? (numeric ? KEYBOARD_BY_MODE[numeric] : undefined)}
         {...props}
       />
       {hasError ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}

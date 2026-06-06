@@ -6,8 +6,10 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { ThemedText } from '@/components/themed-text';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { useSettingsStore } from '@/stores/settings';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
 import type { OrderStatus, RestaurantTable, Sale } from '@/types/types';
+import { formatCurrency } from '@/utils/format/number';
 import { getSaleSurchargeLines } from '@/utils/surcharge';
 
 type OrderDetailViewProps = {
@@ -75,6 +77,8 @@ export function OrderDetailView({
 }: OrderDetailViewProps) {
     const palette = useAppColors();
     const router = useRouter();
+    const currency = useSettingsStore((s) => s.currency);
+    const money = (value: unknown) => formatCurrency(Number(value), currency);
     const [menuVisible, setMenuVisible] = useState(false);
 
     const statusTone = getStatusTone(sale.status, palette);
@@ -135,7 +139,7 @@ export function OrderDetailView({
                                                     {item.product_name} x{item.quantity}
                                                 </ThemedText>
                                                 <ThemedText style={styles.detailRowValue}>
-                                                    ${Number(item.final_line_total).toFixed(2)}
+                                                    {money(item.final_line_total)}
                                                 </ThemedText>
                                             </View>
                                             {children.map((child) => {
@@ -146,7 +150,7 @@ export function OrderDetailView({
                                                         <Ionicons name="return-down-forward-outline" size={12} color={palette.mutedText} />
                                                         <View style={{ flex: 1 }}>
                                                             <ThemedText style={[styles.detailRowLabel, { color: palette.mutedText, fontSize: 12 }]}>
-                                                                {child.product_name} x{child.quantity}{Number(child.unit_price) > 0 ? `  +$${Number(child.unit_price).toFixed(2)}` : ''}
+                                                                {child.product_name} x{child.quantity}{Number(child.unit_price) > 0 ? `  +${money(child.unit_price)}` : ''}
                                                             </ThemedText>
                                                             {addedNames.length > 0 && (
                                                                 <ThemedText style={[styles.detailRowLabel, { color: palette.mutedText, fontSize: 11, paddingLeft: 4 }]}>
@@ -171,13 +175,13 @@ export function OrderDetailView({
                             <View style={[styles.section, { borderColor: palette.border }]}>
                                 <View style={styles.detailRow}>
                                     <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.subtotal')}</ThemedText>
-                                    <ThemedText style={styles.detailRowValue}>${Number(pricing.subtotal).toFixed(2)}</ThemedText>
+                                    <ThemedText style={styles.detailRowValue}>{money(pricing.subtotal)}</ThemedText>
                                 </View>
                                 {Number(pricing.item_discount_total) > 0 && (
                                     <View style={styles.detailRow}>
                                         <ThemedText style={styles.detailRowLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
                                         <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
-                                            -${Number(pricing.item_discount_total).toFixed(2)}
+                                            -{money(pricing.item_discount_total)}
                                         </ThemedText>
                                     </View>
                                 )}
@@ -187,7 +191,7 @@ export function OrderDetailView({
                                             {pricing.global_discount_name ?? t('sales.pricing.globalDiscount')}
                                         </ThemedText>
                                         <ThemedText style={[styles.detailRowValue, { color: palette.danger }]}>
-                                            -${Number(pricing.global_discount_amount).toFixed(2)}
+                                            -{money(pricing.global_discount_amount)}
                                         </ThemedText>
                                     </View>
                                 )}
@@ -196,7 +200,7 @@ export function OrderDetailView({
                                 ))}
                                 <View style={[styles.detailRow, styles.totalRow, { borderTopColor: palette.border }]}>
                                     <ThemedText type="defaultSemiBold">{t('sales.pricing.finalTotal')}</ThemedText>
-                                    <ThemedText type="defaultSemiBold">${Number(pricing.total).toFixed(2)}</ThemedText>
+                                    <ThemedText type="defaultSemiBold">{money(pricing.total)}</ThemedText>
                                 </View>
                             </View>
                         )}
@@ -207,7 +211,7 @@ export function OrderDetailView({
             <View style={[styles.footer, { borderTopColor: palette.border }]}>
                 <View style={styles.footerTotal}>
                     <ThemedText style={styles.totalLabel}>{t('sales.pricing.finalTotal')}</ThemedText>
-                    <ThemedText style={styles.totalValue}>${detailTotal.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.totalValue}>{money(detailTotal)}</ThemedText>
                 </View>
 
                 <View style={styles.footerActions}>

@@ -11,6 +11,7 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
+import { useFieldErrors } from '@/hooks/use-field-errors';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { validateForm } from '@/utils/validation';
 import { expenseFormSchema } from '@/utils/validation/schemas';
@@ -24,7 +25,7 @@ export default function ExpenseFormScreen() {
 
     const [form, setForm] = useState({ category: 'Insumos', amount: '', description: '', paymentMethodId: '' });
     const [message, setMessage] = useState('');
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const { errors, setErrors, validate } = useFieldErrors(expenseFormSchema);
     const paymentInitRef = useRef(false);
 
     useFocusEffect(
@@ -61,6 +62,7 @@ export default function ExpenseFormScreen() {
                     value={form.category}
                     placeholder={t('accountsForm.expense.category')}
                     onChangeText={(val) => setForm((f) => ({ ...f, category: val }))}
+                    onBlur={() => validate('category', form)}
                     error={errors.category}
                     style={styles.input}
                 />
@@ -71,9 +73,10 @@ export default function ExpenseFormScreen() {
                 </View>
                 <ThemedInput
                     value={form.amount}
-                    keyboardType="decimal-pad"
+                    numeric="currency"
                     placeholder={t('accountsForm.expense.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                    onBlur={() => validate('amount', form)}
                     error={errors.amount}
                     style={styles.input}
                 />

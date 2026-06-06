@@ -22,6 +22,7 @@ import {
     removeSelectedLine,
 } from '@/utils/payment-allocation';
 import { buildPartialReceiptData } from '@/utils/receipt';
+import { money } from '@/utils/money';
 import { buildFallbackPricingSummary } from '@/utils/sale-pricing';
 
 import type { PaymentModalBusiness } from './types';
@@ -56,12 +57,12 @@ function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: P
                     <ThemedText style={byItemsStyles.paidLineName}>
                         {line.product_name} x{line.quantity_paid}
                     </ThemedText>
-                    <ThemedText style={byItemsStyles.paidLineAmount}>${line.line_total.toFixed(2)}</ThemedText>
+                    <ThemedText style={byItemsStyles.paidLineAmount}>{money(line.line_total)}</ThemedText>
                 </View>
             ))}
             <View style={[byItemsStyles.paidLine, byItemsStyles.paidTotalRow]}>
                 <ThemedText type="defaultSemiBold">{t('sales.receipt.totalLabel')}</ThemedText>
-                <ThemedText type="defaultSemiBold">${payment.total.toFixed(2)}</ThemedText>
+                <ThemedText type="defaultSemiBold">{money(payment.total)}</ThemedText>
             </View>
             {printMessage ? <ThemedText style={byItemsStyles.paidPrintMessage}>{printMessage}</ThemedText> : null}
             <ThemedButton
@@ -250,26 +251,26 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
                                 {pricing.item_discount_total > 0 && (
                                     <View style={byItemsStyles.pricingRow}>
                                         <ThemedText style={byItemsStyles.pricingLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
-                                        <ThemedText style={{ color: palette.tint, fontSize: 12 }}>-${pricing.item_discount_total.toFixed(2)}</ThemedText>
+                                        <ThemedText style={{ color: palette.tint, fontSize: 12 }}>-{money(pricing.item_discount_total)}</ThemedText>
                                     </View>
                                 )}
                                 {pricing.global_discount_amount > 0 && (
                                     <View style={byItemsStyles.pricingRow}>
                                         <ThemedText style={byItemsStyles.pricingLabel}>{pricing.global_discount_name || t('sales.pricing.globalDiscount')}</ThemedText>
-                                        <ThemedText style={{ color: palette.tint, fontSize: 12 }}>-${pricing.global_discount_amount.toFixed(2)}</ThemedText>
+                                        <ThemedText style={{ color: palette.tint, fontSize: 12 }}>-{money(pricing.global_discount_amount)}</ThemedText>
                                     </View>
                                 )}
                                 {pricing.order_type_surcharge > 0 && (
                                     <View style={byItemsStyles.pricingRow}>
                                         <ThemedText style={byItemsStyles.pricingLabel}>{t('sales.surcharge.generic')}</ThemedText>
-                                        <ThemedText style={{ color: palette.danger, fontSize: 12 }}>+${pricing.order_type_surcharge.toFixed(2)}</ThemedText>
+                                        <ThemedText style={{ color: palette.danger, fontSize: 12 }}>+{money(pricing.order_type_surcharge)}</ThemedText>
                                     </View>
                                 )}
                             </View>
                         )}
                         <View style={[byItemsStyles.itemRow, byItemsStyles.totalRow, { borderColor: palette.border }]}>
                             <ThemedText type="defaultSemiBold">{t('sales.receipt.totalLabel')}</ThemedText>
-                            <ThemedText type="defaultSemiBold">${selectedTotal.toFixed(2)}</ThemedText>
+                            <ThemedText type="defaultSemiBold">{money(selectedTotal)}</ThemedText>
                         </View>
                         <ThemedText style={byItemsStyles.smallLabel}>{t('sales.paymentMethod')}</ThemedText>
                         <View style={byItemsStyles.paymentMethodsRow}>

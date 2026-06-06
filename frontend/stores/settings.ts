@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 // Utilidades de persistencia multiplataforma
 const THEME_STORAGE_KEY = 'settings.theme-preferences';
+const CURRENCY_STORAGE_KEY = 'settings.currency-config';
 
 function isWeb() {
   // Platform.OS === 'web' en React Native Web
@@ -40,7 +41,33 @@ async function readThemePreferences(): Promise<{ selectedThemeId: string; themeM
 import { type AppThemeId } from '@/constants/theme';
 import { salesService, setupService } from '@/services';
 import type { BusinessInfo, ReceiptPaperWidth } from '@/types/receipt';
+import { type CurrencyConfig, DEFAULT_CURRENCY } from '@/utils/format/number';
 import { COLOMBIAN_IVA_RATE } from '@/utils/tax';
+
+async function saveCurrencyConfig(config: CurrencyConfig) {
+  const data = JSON.stringify(config);
+  if (isWeb()) {
+    window.localStorage.setItem(CURRENCY_STORAGE_KEY, data);
+  } else {
+    await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, data);
+  }
+}
+
+async function readCurrencyConfig(): Promise<CurrencyConfig | null> {
+  try {
+    let raw: string | null = null;
+    if (isWeb()) {
+      raw = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
+    } else {
+      raw = await AsyncStorage.getItem(CURRENCY_STORAGE_KEY);
+    }
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CurrencyConfig>;
+    return { ...DEFAULT_CURRENCY, ...parsed };
+  } catch {
+    return null;
+  }
+}
 
 export type ThemeModePreference = 'system' | 'light' | 'dark';
 
@@ -102,6 +129,7 @@ type SettingsState = {
   receiptFooterMessage: string;
   printerPaperWidth: ReceiptPaperWidth;
   taxRate: number;
+  currency: CurrencyConfig;
   printerDeviceName: string;
   printerDeviceAddress: string;
   settingsHydrated: boolean;
@@ -116,6 +144,7 @@ type SettingsState = {
   setBusinessInfo: (patch: Partial<BusinessInfo>) => void;
   setPrinterPaperWidth: (width: ReceiptPaperWidth) => void;
   setTaxRate: (rate: number) => void;
+  setCurrency: (patch: Partial<CurrencyConfig>) => void;
   setPrinterDevice: (patch: { name?: string; address?: string }) => void;
 };
 
@@ -137,12 +166,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   receiptFooterMessage: 'Gracias por tu compra',
   printerPaperWidth: 80,
   taxRate: COLOMBIAN_IVA_RATE,
+  currency: DEFAULT_CURRENCY,
   printerDeviceName: '',
   printerDeviceAddress: '',
   settingsHydrated: false,
   themeHydrated: false,
   hydrateTheme: async () => {
-    const themePrefs = await readThemePreferences();
+    const [themePrefs, currencyConfig] = await Promise.all([
+      readThemePreferences(),
+      readCurrencyConfig(),
+    ]);
     const allowedThemeIds = ['teal-modern', 'cafe-classic', 'quiet-luxury', 'evergreen-ledger'] as const;
     const allowedThemeModes = ['system', 'light', 'dark'] as const;
     set({
@@ -156,6 +189,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
             : 'system',
         }
         : {}),
+      ...(currencyConfig ? { currency: currencyConfig } : {}),
       themeHydrated: true,
     });
   },
@@ -293,6 +327,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       footerMessage: state.receiptFooterMessage,
       paperWidth: state.printerPaperWidth,
       taxRate: normalized,
+    });
+  },
+  setCurrency: (patch) => {
+    set((state) => {
+      const next = { ...state.currency, ...patch };
+      void saveCurrencyConfig(next);
+      return { currency: next };
     });
   },
   setPrinterDevice: (patch) => {

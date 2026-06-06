@@ -157,7 +157,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                         <ThemedText style={styles.smallText}>{t('inventoryForm.restock.quantity')}</ThemedText>
                     </View>
                     <ThemedInput
-                        keyboardType="decimal-pad"
+                        numeric="decimal"
                         value={form.quantityAdded}
                         onChangeText={(v) => setForm((f) => ({ ...f, quantityAdded: v }))}
                         error={fieldErrors.quantityAdded}
@@ -170,7 +170,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                         <ThemedText style={styles.smallText}>{t('inventoryForm.restock.cost')}</ThemedText>
                     </View>
                     <ThemedInput
-                        keyboardType="decimal-pad"
+                        numeric="currency"
                         value={form.cost}
                         onChangeText={(v) => setForm((f) => ({ ...f, cost: v }))}
                         error={fieldErrors.cost}

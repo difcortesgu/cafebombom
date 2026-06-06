@@ -226,7 +226,7 @@ export function SetupStepTwo({
                     />
                     <ThemedInput
                         value={taxRatePercent}
-                        keyboardType="decimal-pad"
+                        numeric="percent"
                         placeholder={t('setup.restaurant.taxRatePercent')}
                         onChangeText={setTaxRatePercent}
                     />

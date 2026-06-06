@@ -13,6 +13,8 @@ import { productsService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
+import { useFieldErrors } from '@/hooks/use-field-errors';
+import { money } from '@/utils/money';
 import { validateForm } from '@/utils/validation';
 import { productFormSchema } from '@/utils/validation/schemas';
 
@@ -60,7 +62,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
 
     const [sections, setSections] = useState({ general: true, recipe: true, additional: false });
     const [message, setMessage] = useState('');
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const { errors, setErrors, validate } = useFieldErrors(productFormSchema);
     const [imageBusy, setImageBusy] = useState(false);
     const isEdit = typeof mode === 'object';
     const isCombo = mode === 'combo-create' || (typeof mode === 'object' && products.find(p => p.id === mode.productId)?.isCombo);
@@ -371,14 +373,14 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                 <Ionicons name="text-outline" size={14} color={palette.mutedText} />
                                 <ThemedText style={styles.smallLabel}>{t('productForm.name')}</ThemedText>
                             </View>
-                            <ThemedInput value={productForm.name} onChangeText={(v) => setProductForm((f) => ({ ...f, name: v }))} error={errors.name} style={styles.input} />
+                            <ThemedInput value={productForm.name} onChangeText={(v) => setProductForm((f) => ({ ...f, name: v }))} onBlur={() => validate('name', { name: productForm.name, price: productForm.price })} error={errors.name} style={styles.input} />
                         </View>
                         <View style={styles.fieldGroup}>
                             <View style={styles.labelRow}>
                                 <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
                                 <ThemedText style={styles.smallLabel}>{t('productForm.price')}</ThemedText>
                             </View>
-                            <ThemedInput keyboardType="decimal-pad" value={productForm.price} onChangeText={(v) => setProductForm((f) => ({ ...f, price: v }))} error={errors.price} style={styles.input} />
+                            <ThemedInput numeric="currency" value={productForm.price} onChangeText={(v) => setProductForm((f) => ({ ...f, price: v }))} onBlur={() => validate('price', { name: productForm.name, price: productForm.price })} error={errors.price} style={styles.input} />
                         </View>
                         <View style={styles.fieldGroup}>
                             <View style={styles.labelRow}>
@@ -459,7 +461,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                 </View>
                                 <ThemedInput
                                     placeholder="0"
-                                    keyboardType="decimal-pad"
+                                    numeric="decimal"
                                     value={draftRecipe.quantityUsed}
                                     onChangeText={(value) => setDraftRecipe(prev => prev ? { ...prev, quantityUsed: value } : null)}
                                     style={styles.input}
@@ -540,7 +542,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                         </View>
                                         <ThemedInput
                                             placeholder="0"
-                                            keyboardType="decimal-pad"
+                                            numeric="decimal"
                                             value={draftAdditional.quantityUsed}
                                             onChangeText={(value) => setDraftAdditional(prev => prev ? { ...prev, quantityUsed: value } : null)}
                                             style={styles.input}
@@ -553,7 +555,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                         </View>
                                         <ThemedInput
                                             placeholder="0.00"
-                                            keyboardType="decimal-pad"
+                                            numeric="currency"
                                             value={draftAdditional.additionalPrice}
                                             onChangeText={(value) => setDraftAdditional(prev => prev ? { ...prev, additionalPrice: value } : null)}
                                             style={styles.input}
@@ -582,7 +584,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                 <View key={`additional-${item.ingredientId}`} style={[styles.ListItem, { borderColor: palette.border, marginBottom: 4 }]}>
                                     <View style={styles.flex1}>
                                         <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{ingredient.name}</ThemedText>
-                                        <ThemedText style={styles.smallLabel}>{item.quantityUsed} {ingredient.unit} · +${Number(item.additionalPrice).toFixed(2)}</ThemedText>
+                                        <ThemedText style={styles.smallLabel}>{item.quantityUsed} {ingredient.unit} · +{money(item.additionalPrice)}</ThemedText>
                                     </View>
                                     <Pressable hitSlop={8} onPress={() => setAdditionalItems(items => items.filter(i => i.ingredientId !== item.ingredientId))}>
                                         <Ionicons name="trash-outline" size={16} color={palette.danger} />
@@ -630,14 +632,14 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                                     <Ionicons name="remove-outline" size={13} color={palette.mutedText} />
                                                     <ThemedText style={styles.smallLabel}>Mín</ThemedText>
                                                 </View>
-                                                <ThemedInput placeholder="1" keyboardType="decimal-pad" value={String(draftComboGroup.minQuantity)} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, minQuantity: Number(v) || 1 } : null)} style={styles.input} />
+                                                <ThemedInput placeholder="1" numeric="integer" value={String(draftComboGroup.minQuantity)} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, minQuantity: Number(v) || 1 } : null)} style={styles.input} />
                                             </View>
                                             <View style={styles.ingredientCardField}>
                                                 <View style={styles.labelRow}>
                                                     <Ionicons name="add-outline" size={13} color={palette.mutedText} />
                                                     <ThemedText style={styles.smallLabel}>Máx</ThemedText>
                                                 </View>
-                                                <ThemedInput placeholder="1" keyboardType="decimal-pad" value={String(draftComboGroup.maxQuantity)} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, maxQuantity: Number(v) || 1 } : null)} style={styles.input} />
+                                                <ThemedInput placeholder="1" numeric="integer" value={String(draftComboGroup.maxQuantity)} onChangeText={(v) => setDraftComboGroup(prev => prev ? { ...prev, maxQuantity: Number(v) || 1 } : null)} style={styles.input} />
                                             </View>
                                         </View>
                                     </View>
@@ -687,7 +689,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                                             <Ionicons name="pricetag-outline" size={13} color={palette.mutedText} />
                                                             <ThemedText style={styles.smallLabel}>Precio Adicional</ThemedText>
                                                         </View>
-                                                        <ThemedInput placeholder="0.00" keyboardType="decimal-pad" value={draftGroupOption.additionalPrice} onChangeText={(v) => setDraftGroupOption(prev => prev ? { ...prev, additionalPrice: v } : null)} style={styles.input} />
+                                                        <ThemedInput placeholder="0.00" numeric="currency" value={draftGroupOption.additionalPrice} onChangeText={(v) => setDraftGroupOption(prev => prev ? { ...prev, additionalPrice: v } : null)} style={styles.input} />
                                                     </View>
                                                 </View>
                                                 <View style={[styles.RowActions, { marginTop: 8 }]}>
@@ -708,7 +710,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                                         <View key={`${group.id}-opt-${idx}`} style={[styles.ListItem, { borderColor: palette.border, marginBottom: 4 }]}>
                                                             <View style={styles.flex1}>
                                                                 <ThemedText type="defaultSemiBold" style={{ fontSize: 13 }}>{optProduct?.name}</ThemedText>
-                                                                <ThemedText style={styles.smallLabel}>+${Number(opt.additionalPrice).toFixed(2)}</ThemedText>
+                                                                <ThemedText style={styles.smallLabel}>+{money(opt.additionalPrice)}</ThemedText>
                                                             </View>
                                                             <Pressable hitSlop={8} onPress={() => setComboGroupsData(items => items.map(g => g.id === group.id ? { ...g, options: g.options.filter((_, i) => i !== idx) } : g))}>
                                                                 <Ionicons name="trash-outline" size={16} color={palette.danger} />

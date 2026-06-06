@@ -119,7 +119,7 @@ export function UserAccountModal({
           <ThemedInput
             value={pin}
             secureTextEntry
-            keyboardType="number-pad"
+            numeric="integer"
             maxLength={6}
             placeholder={mode === 'edit' ? t('setup.account.pinPlaceholderEdit') : t('setup.account.pinPlaceholder')}
             error={errors.pin}

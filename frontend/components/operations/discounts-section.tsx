@@ -9,6 +9,7 @@ import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import type { Discount } from '@/types/types';
+import { money } from '@/utils/money';
 
 type DiscountsSectionProps = {
     cardWidth: number;
@@ -33,7 +34,7 @@ function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDe
     onDelete: () => void;
 }) {
     const palette = useAppColors();
-    const valueLabel = discount.type === 'percentage' ? `${discount.value}%` : `$${discount.value.toFixed(2)}`;
+    const valueLabel = discount.type === 'percentage' ? `${discount.value}%` : money(discount.value);
 
     return (
         <View style={[styles.discountCard, { width: cardWidth, borderColor: discount.isActive ? palette.border : `${palette.border}66` }]}>

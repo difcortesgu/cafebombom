@@ -12,7 +12,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
-import { validateForm } from '@/utils/validation';
+import { validateField, validateForm } from '@/utils/validation';
 import { payrollFormSchema } from '@/utils/validation/schemas';
 
 export default function PayrollFormScreen() {
@@ -100,9 +100,10 @@ export default function PayrollFormScreen() {
                 </View>
                 <ThemedInput
                     value={form.amount}
-                    keyboardType="decimal-pad"
+                    numeric="currency"
                     placeholder={t('accountsForm.payroll.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                    onBlur={() => setAmountError(validateField(payrollFormSchema, form, 'amount') ?? '')}
                     error={amountError}
                     style={styles.input}
                 />

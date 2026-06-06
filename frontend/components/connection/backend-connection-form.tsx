@@ -121,7 +121,7 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
                     placeholder={t('settings.connection.portPlaceholder')}
                     onChangeText={setPortInput}
                     style={[styles.input, styles.portInput]}
-                    keyboardType="number-pad"
+                    numeric="integer"
                 />
             </View>
             <ThemedButton

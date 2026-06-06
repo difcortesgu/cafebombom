@@ -293,14 +293,14 @@ export default function InventoryFormScreen() {
                 <Ionicons name="layers-outline" size={14} color={palette.mutedText} />
                 <ThemedText style={styles.smallText}>{t('inventoryForm.restock.quantity')}</ThemedText>
               </View>
-              <ThemedInput keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} error={restockErrors.quantityAdded} style={styles.input} />
+              <ThemedInput numeric="decimal" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} error={restockErrors.quantityAdded} style={styles.input} />
             </View>
             <View style={styles.flexItem}>
               <View style={styles.labelWithIcon}>
                 <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
                 <ThemedText style={styles.smallText}>{t('inventoryForm.restock.cost')}</ThemedText>
               </View>
-              <ThemedInput keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} error={restockErrors.cost} style={styles.input} />
+              <ThemedInput numeric="currency" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} error={restockErrors.cost} style={styles.input} />
             </View>
           </View>
 

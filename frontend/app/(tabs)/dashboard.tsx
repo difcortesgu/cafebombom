@@ -12,8 +12,10 @@ import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { useInventoryStore } from '@/stores/inventory';
 import { useSalesStore } from '@/stores/sales';
+import { useSettingsStore } from '@/stores/settings';
 import type { DashboardRangeKey, DashboardSalesSummary, DashboardTrendBucket } from '@/types/sales';
 import { dayRangeUnix, monthRangeUnix, previousRangeUnix, weekRangeUnix } from '@/utils/date';
+import { formatCurrency as formatCurrencyWith } from '@/utils/format/number';
 
 const PIE_COLORS = ['#14B8A6', '#F5C842', '#E05252', '#818CF8', '#34D399', '#FB923C'];
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
@@ -38,7 +40,7 @@ function getRangeConfig(rangeKey: DashboardRangeKey) {
 }
 
 function formatCurrency(value: number) {
-    return `$${Number(value).toFixed(2)}`;
+    return formatCurrencyWith(value, useSettingsStore.getState().currency);
 }
 
 function getChangeIndicator(current: number, previous: number, successColor: string, dangerColor: string) {

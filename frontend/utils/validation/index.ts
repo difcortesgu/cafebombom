@@ -86,3 +86,26 @@ export function validateForm<T>(schema: z.ZodType<T>, form: unknown): ValidateRe
     }
     return { ok: false, errors: fieldErrors };
 }
+
+/**
+ * Validate a single field against a full-object schema. Runs the schema and
+ * returns the first translated message whose issue path starts with `field`, or
+ * `null` if the field is currently valid. Useful for on-blur, per-field feedback
+ * without surfacing errors for fields the user hasn't touched yet.
+ */
+export function validateField(
+    schema: z.ZodType<unknown>,
+    form: unknown,
+    field: string,
+): string | null {
+    const result = schema.safeParse(form);
+    if (result.success) {
+        return null;
+    }
+    for (const issue of result.error.issues) {
+        if (issue.path[0] === field) {
+            return issue.message;
+        }
+    }
+    return null;
+}

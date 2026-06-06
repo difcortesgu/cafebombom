@@ -11,6 +11,7 @@ import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
 import type { SalePricingSummary } from '@/types/sales';
 import type { Sale } from '@/types/types';
+import { money } from '@/utils/money';
 import { buildFallbackPricingSummary } from '@/utils/sale-pricing';
 
 type EqualPart = {
@@ -107,7 +108,7 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
                         />
                     </View>
                     <ThemedText style={styles.perPart}>
-                        {t('sales.payment.equal.perPart')}: ${perPartAmount.toFixed(2)}
+                        {t('sales.payment.equal.perPart')}: {money(perPartAmount)}
                     </ThemedText>
                 </View>
             )}
@@ -116,33 +117,33 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
                 <View style={[styles.pricingSummary, { borderColor: palette.border }]}>
                     <View style={styles.pricingSummaryRow}>
                         <ThemedText style={styles.pricingSummaryLabel}>{t('sales.pricing.subtotal')}</ThemedText>
-                        <ThemedText>${pricing.subtotal.toFixed(2)}</ThemedText>
+                        <ThemedText>{money(pricing.subtotal)}</ThemedText>
                     </View>
 
                     {pricing.item_discount_total > 0 && (
                         <View style={styles.pricingSummaryRow}>
                             <ThemedText style={styles.pricingSummaryLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
-                            <ThemedText style={{ color: palette.tint }}>-${pricing.item_discount_total.toFixed(2)}</ThemedText>
+                            <ThemedText style={{ color: palette.tint }}>-{money(pricing.item_discount_total)}</ThemedText>
                         </View>
                     )}
 
                     {pricing.global_discount_amount > 0 && (
                         <View style={styles.pricingSummaryRow}>
                             <ThemedText style={styles.pricingSummaryLabel}>{pricing.global_discount_name || t('sales.pricing.globalDiscount')}</ThemedText>
-                            <ThemedText style={{ color: palette.tint }}>-${pricing.global_discount_amount.toFixed(2)}</ThemedText>
+                            <ThemedText style={{ color: palette.tint }}>-{money(pricing.global_discount_amount)}</ThemedText>
                         </View>
                     )}
 
                     {pricing.order_type_surcharge > 0 && (
                         <View style={styles.pricingSummaryRow}>
                             <ThemedText style={styles.pricingSummaryLabel}>{t('sales.surcharge.generic')}</ThemedText>
-                            <ThemedText style={{ color: palette.danger }}>+${pricing.order_type_surcharge.toFixed(2)}</ThemedText>
+                            <ThemedText style={{ color: palette.danger }}>+{money(pricing.order_type_surcharge)}</ThemedText>
                         </View>
                     )}
 
                     <View style={[styles.pricingSummaryRow, styles.totalRow, { borderColor: palette.border }]}>
                         <ThemedText type="defaultSemiBold">{t('sales.receipt.totalLabel')}</ThemedText>
-                        <ThemedText type="defaultSemiBold">${pricing.total.toFixed(2)}</ThemedText>
+                        <ThemedText type="defaultSemiBold">{money(pricing.total)}</ThemedText>
                     </View>
                 </View>
             )}
@@ -160,7 +161,7 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
                         <ThemedText type="defaultSemiBold" style={styles.partTitle}>
                             {t('sales.payment.equal.part')} {idx + 1}
                         </ThemedText>
-                        <ThemedText style={styles.partAmount}>${perPartAmount.toFixed(2)}</ThemedText>
+                        <ThemedText style={styles.partAmount}>{money(perPartAmount)}</ThemedText>
                     </View>
                     {part.confirmed ? (
                         <ThemedText style={[styles.confirmedLabel, { color: palette.tint }]}>{t('sales.payment.equal.confirmed')}</ThemedText>

@@ -76,7 +76,7 @@ export function UserForm({ editingUser, onClose }: UserFormProps) {
             <ThemedInput
                 value={pin}
                 placeholder={isEditing ? t('setup.account.pinPlaceholderEdit') : t('setup.account.pinPlaceholder')}
-                keyboardType="number-pad"
+                numeric="integer"
                 secureTextEntry
                 error={errors.pin}
                 onChangeText={setPin}

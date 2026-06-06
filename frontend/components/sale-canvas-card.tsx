@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { useAppColors } from '@/hooks/use-theme-color';
+import { money } from '@/utils/money';
 
 export type CanvasCardAction = {
   label: string;
@@ -115,7 +116,7 @@ export function SaleCanvasCard({
       {/* Meta: price (left) · staff name (right) */}
       <View style={styles.meta}>
         <View style={styles.metaLeft}>
-          <ThemedText style={styles.total}>${total.toFixed(2)}</ThemedText>
+          <ThemedText style={styles.total}>{money(total)}</ThemedText>
           {isPaid && (
             <View style={[styles.paidBadge, { backgroundColor: '#16a34a' }]}>
               <ThemedText style={styles.paidBadgeText}>Pagado</ThemedText>

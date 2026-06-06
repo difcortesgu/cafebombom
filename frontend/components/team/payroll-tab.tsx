@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { t } from '@/i18n';
 import type { Employee, PayrollEntry } from '@/types/types';
+import { money } from '@/utils/money';
 
 type PayrollTabProps = {
     payroll: PayrollEntry[];
@@ -35,7 +36,7 @@ export function PayrollTab({ payroll, employees, cardWidth, gap, palette }: Payr
                     <View key={entry.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
                         <ThemedText type="defaultSemiBold" numberOfLines={1}>{employeeName}</ThemedText>
                         <ThemedText style={[styles.amount, { color: palette.mutedText }]}>
-                            ${Number(entry.amount).toFixed(2)}
+                            {money(entry.amount)}
                         </ThemedText>
                         <ThemedText style={[styles.date, { color: palette.mutedText }]}>{date}</ThemedText>
                     </View>

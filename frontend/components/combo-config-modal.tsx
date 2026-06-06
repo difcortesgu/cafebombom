@@ -5,6 +5,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import type { ComboGroup, ComboGroupOption } from '@/types/types';
+import { money } from '@/utils/money';
 
 type SelectedOptions = Map<string, ComboGroupOption[]>;
 
@@ -162,7 +163,7 @@ export function ComboConfigModal({
                         <View style={styles.headerText}>
                             <ThemedText style={styles.productName}>{productName}</ThemedText>
                             <ThemedText style={[styles.productPrice, { color: palette.mutedText }]}>
-                                ${productPrice.toFixed(2)}
+                                {money(productPrice)}
                             </ThemedText>
                         </View>
                         <Pressable onPress={handleCancel} hitSlop={8} style={styles.closeBtn}>
@@ -232,7 +233,7 @@ export function ComboConfigModal({
                                                         </ThemedText>
                                                         {option.additionalPrice > 0 && (
                                                             <ThemedText style={[styles.optionPrice, { color: palette.mutedText }]}>
-                                                                +${option.additionalPrice.toFixed(2)}
+                                                                +{money(option.additionalPrice)}
                                                             </ThemedText>
                                                         )}
                                                     </View>
@@ -294,7 +295,7 @@ export function ComboConfigModal({
                                                                             <View style={{ flex: 1 }}>
                                                                                 <ThemedText style={styles.chipText}>{info.ingredientName}</ThemedText>
                                                                                 <ThemedText style={[styles.groupHint, { color: palette.mutedText }]}>
-                                                                                    +${info.additionalPrice.toFixed(2)}
+                                                                                    +{money(info.additionalPrice)}
                                                                                 </ThemedText>
                                                                             </View>
                                                                             <View style={styles.qtyRow}>

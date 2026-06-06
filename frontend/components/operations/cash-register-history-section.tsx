@@ -11,6 +11,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import type { CashRegisterHistoryDay } from '@/types/accounts';
+import { money } from '@/utils/money';
 
 const parseAmount = (raw: string) => {
     const amount = Number.parseFloat(raw);
@@ -45,11 +46,11 @@ function HistoryCard({
 
             <View style={styles.compactRow}>
                 <ThemedText style={styles.compactLabel}>{t('accountsForm.caja.openingAmountLabel')}</ThemedText>
-                <ThemedText type="defaultSemiBold">${day.opening_amount.toFixed(2)}</ThemedText>
+                <ThemedText type="defaultSemiBold">{money(day.opening_amount)}</ThemedText>
                 <ThemedText style={styles.compactLabel}>{t('accountsForm.caja.closingAmountLabel')}</ThemedText>
-                <ThemedText type="defaultSemiBold">{day.closing_amount == null ? '—' : `$${day.closing_amount.toFixed(2)}`}</ThemedText>
+                <ThemedText type="defaultSemiBold">{day.closing_amount == null ? '—' : money(day.closing_amount)}</ThemedText>
                 <ThemedText style={styles.compactLabel}>{t('cashRegister.adjustmentTotal')}</ThemedText>
-                <ThemedText type="defaultSemiBold">{adjustmentSign}${day.adjustment_total.toFixed(2)}</ThemedText>
+                <ThemedText type="defaultSemiBold">{adjustmentSign}{money(day.adjustment_total)}</ThemedText>
             </View>
 
             <View style={styles.adjustmentsBlock}>
@@ -57,11 +58,11 @@ function HistoryCard({
                     <ThemedText style={styles.muted}>{t('cashRegister.noAdjustments')}</ThemedText>
                 ) : (
                     <ThemedText style={styles.adjustmentText}>
-                        {firstAdjustments.map((adjustment) => `${formatTimeLabel(adjustment.created_at)} ${adjustment.amount >= 0 ? '+' : ''}$${Number(adjustment.amount).toFixed(2)} ${adjustment.reason}`).join(' · ')}
+                        {firstAdjustments.map((adjustment) => `${formatTimeLabel(adjustment.created_at)} ${adjustment.amount >= 0 ? '+' : ''}${money(adjustment.amount)} ${adjustment.reason}`).join(' · ')}
                         {day.adjustments.length > firstAdjustments.length ? ` · +${day.adjustments.length - firstAdjustments.length}` : ''}
                     </ThemedText>
                 )}
-                <ThemedText style={styles.muted}>{t('cashRegister.adjustedCash')}: ${netCash.toFixed(2)}</ThemedText>
+                <ThemedText style={styles.muted}>{t('cashRegister.adjustedCash')}: {money(netCash)}</ThemedText>
             </View>
 
             <View style={styles.cardActions}>
@@ -163,24 +164,24 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
                             : t('accountsForm.caja.openTitle')}
                     </ThemedText>
                     <ThemedText style={styles.muted}>
-                        {t('accountsForm.caja.openingAmountLabel')}: ${selectedDayData.opening_amount.toFixed(2)}
+                        {t('accountsForm.caja.openingAmountLabel')}: {money(selectedDayData.opening_amount)}
                     </ThemedText>
                     <ThemedText style={styles.muted}>
-                        {t('accountsForm.caja.closingAmountLabel')}: {selectedDayData.closing_amount == null ? '—' : `$${selectedDayData.closing_amount.toFixed(2)}`}
+                        {t('accountsForm.caja.closingAmountLabel')}: {selectedDayData.closing_amount == null ? '—' : money(selectedDayData.closing_amount)}
                     </ThemedText>
                     <ThemedText style={styles.muted}>
-                        {t('cashRegister.adjustmentTotal')}: {selectedDayData.adjustment_total >= 0 ? '+' : ''}${selectedDayData.adjustment_total.toFixed(2)}
+                        {t('cashRegister.adjustmentTotal')}: {selectedDayData.adjustment_total >= 0 ? '+' : ''}{money(selectedDayData.adjustment_total)}
                     </ThemedText>
                 </ThemedCard>
 
                 <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
                     <ThemedText type="defaultSemiBold">Ajustar apertura</ThemedText>
-                    <ThemedText style={styles.muted}>Total ajustes apertura: {openingAdjustmentsTotal >= 0 ? '+' : ''}${openingAdjustmentsTotal.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.muted}>Total ajustes apertura: {openingAdjustmentsTotal >= 0 ? '+' : ''}{money(openingAdjustmentsTotal)}</ThemedText>
                     <ThemedInput
                         label="Monto"
                         value={openingForm.amount}
                         onChangeText={(value) => setOpeningForm((current) => ({ ...current, amount: value }))}
-                        keyboardType="decimal-pad"
+                        numeric="currency"
                         placeholder={t('cashRegister.adjustmentAmount')}
                     />
                     <ThemedInput
@@ -202,12 +203,12 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
 
                 <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
                     <ThemedText type="defaultSemiBold">Ajustar cierre</ThemedText>
-                    <ThemedText style={styles.muted}>Total ajustes cierre: {closingAdjustmentsTotal >= 0 ? '+' : ''}${closingAdjustmentsTotal.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.muted}>Total ajustes cierre: {closingAdjustmentsTotal >= 0 ? '+' : ''}{money(closingAdjustmentsTotal)}</ThemedText>
                     <ThemedInput
                         label="Monto"
                         value={closingForm.amount}
                         onChangeText={(value) => setClosingForm((current) => ({ ...current, amount: value }))}
-                        keyboardType="decimal-pad"
+                        numeric="currency"
                         placeholder={t('cashRegister.adjustmentAmount')}
                     />
                     <ThemedInput
@@ -239,7 +240,7 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
                                 <View key={adjustment.id} style={[styles.adjustmentItem, { borderColor: palette.border }]}>
                                     <View style={styles.adjustmentItemTop}>
                                         <ThemedText type="defaultSemiBold">
-                                            {adjustment.amount >= 0 ? '+' : ''}${Number(adjustment.amount).toFixed(2)}
+                                            {adjustment.amount >= 0 ? '+' : ''}{money(adjustment.amount)}
                                         </ThemedText>
                                         <ThemedText style={styles.muted}>{formatTimeLabel(adjustment.created_at)}</ThemedText>
                                     </View>

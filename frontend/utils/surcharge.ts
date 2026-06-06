@@ -1,6 +1,12 @@
 import { t } from '@/i18n';
+import { useSettingsStore } from '@/stores/settings';
 import type { SalePricingSummary } from '@/types/sales';
 import type { RestaurantTable } from '@/types/types';
+import { formatCurrency } from '@/utils/format/number';
+
+function money(value: number): string {
+    return formatCurrency(value, useSettingsStore.getState().currency);
+}
 
 type SurchargeBreakdownEntry = {
     label: string;
@@ -66,14 +72,14 @@ export function getSaleSurchargeLines(
         const deliverySurcharge = Math.max(0, totalSurcharge - toGoSurcharge);
 
         return [
-            toGoSurcharge > 0 ? `${t('sales.surcharge.toGo')}: +$${toGoSurcharge.toFixed(2)}` : '',
-            deliverySurcharge > 0 ? `${t('sales.surcharge.delivery')}: +$${deliverySurcharge.toFixed(2)}` : '',
+            toGoSurcharge > 0 ? `${t('sales.surcharge.toGo')}: +${money(toGoSurcharge)}` : '',
+            deliverySurcharge > 0 ? `${t('sales.surcharge.delivery')}: +${money(deliverySurcharge)}` : '',
         ].filter(Boolean);
     }
 
     if (tableType === 'to-go') {
-        return [`${t('sales.surcharge.toGo')}: +$${totalSurcharge.toFixed(2)}`];
+        return [`${t('sales.surcharge.toGo')}: +${money(totalSurcharge)}`];
     }
 
-    return [`${t('sales.surcharge.generic')}: +$${totalSurcharge.toFixed(2)}`];
+    return [`${t('sales.surcharge.generic')}: +${money(totalSurcharge)}`];
 }

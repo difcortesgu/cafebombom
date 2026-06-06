@@ -9,6 +9,7 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { useFieldErrors } from '@/hooks/use-field-errors';
 import { useInventoryStore } from '@/stores/inventory';
 import { validateForm } from '@/utils/validation';
 import { ingredientFormSchema } from '@/utils/validation/schemas';
@@ -26,9 +27,10 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
     const [unit, setUnit] = useState('');
     const [lowStockThreshold, setLowStockThreshold] = useState('5');
     const [message, setMessage] = useState('');
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const { errors, setErrors, validate } = useFieldErrors(ingredientFormSchema);
 
     const isEdit = mode !== 'create';
+    const formValues = { name, unit, lowStockThreshold };
 
     const unitOptions = useMemo(
         () => units.map((u) => ({ value: u.name, label: u.name })),
@@ -78,7 +80,7 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
                     <Ionicons name="text-outline" size={14} color={palette.mutedText} />
                     <ThemedText style={styles.smallLabel}>{t('ingredientForm.name')}</ThemedText>
                 </View>
-                <ThemedInput value={name} onChangeText={setName} error={errors.name} />
+                <ThemedInput value={name} onChangeText={setName} onBlur={() => validate('name', formValues)} error={errors.name} />
             </View>
 
             <View style={styles.twoColRow}>
@@ -121,9 +123,10 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
                         <ThemedText style={styles.smallLabel}>{t('ingredientForm.lowStockThreshold')}</ThemedText>
                     </View>
                     <ThemedInput
-                        keyboardType="decimal-pad"
+                        numeric="decimal"
                         value={lowStockThreshold}
                         onChangeText={setLowStockThreshold}
+                        onBlur={() => validate('lowStockThreshold', formValues)}
                         error={errors.lowStockThreshold}
                     />
                 </View>

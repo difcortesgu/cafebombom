@@ -48,7 +48,7 @@ export function SetupOwnerAccount({ loading, onSubmit }: SetupOwnerAccountProps)
       <ThemedInput
         value={pin}
         secureTextEntry
-        keyboardType="number-pad"
+        numeric="integer"
         maxLength={6}
         placeholder={t('setup.ownerBootstrap.pinPlaceholder')}
         error={errors.pin}
@@ -58,7 +58,7 @@ export function SetupOwnerAccount({ loading, onSubmit }: SetupOwnerAccountProps)
       <ThemedInput
         value={pinConfirm}
         secureTextEntry
-        keyboardType="number-pad"
+        numeric="integer"
         maxLength={6}
         placeholder={t('setup.ownerBootstrap.pinConfirmPlaceholder')}
         error={errors.pinConfirm}

@@ -20,6 +20,7 @@ import {
     type SaleFormCartItem,
 } from '@/utils/cart-normalization';
 import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
+import { money } from '@/utils/money';
 import { formatSaleStatusLabel, getTableSurcharge } from '@/utils/sale-view';
 
 type CartItem = SaleFormCartItem;
@@ -130,7 +131,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             ...discounts
                 .filter((d) => d.scope === 'global' && d.isActive)
                 .map((d) => ({
-                    label: `${d.name} (${d.type === 'percentage' ? `${d.value}%` : `$${d.value.toFixed(2)}`})`,
+                    label: `${d.name} (${d.type === 'percentage' ? `${d.value}%` : money(d.value)})`,
                     value: d.id,
                 })),
         ],
@@ -283,7 +284,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                             )}
                                         </View>
                                         <ThemedText style={[styles.productPrice, { color: palette.mutedText }]}>
-                                            ${Number(product.price).toFixed(2)}
+                                            {money(product.price)}
                                         </ThemedText>
                                     </View>
                                 </Pressable>
@@ -355,7 +356,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                     onPress={() => setSelectedTableId(table.id)}
                                     disabled={Boolean(editingOrderId && !canEditDraft)}>
                                     <ThemedText style={[styles.tableButtonText, isActive && styles.tableButtonTextActive]}>
-                                        {table.name}{tableSurcharge.total > 0 ? ` (+$${tableSurcharge.total.toFixed(2)})` : ''}
+                                        {table.name}{tableSurcharge.total > 0 ? ` (+${money(tableSurcharge.total)})` : ''}
                                     </ThemedText>
                                 </Pressable>
                             );
@@ -363,7 +364,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                     </View>
                     {selectedTableId && surchargeBreakdown.total > 0 && (
                         <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
-                            {t('saleForm.selectedTableSurcharge')}: +${surchargeBreakdown.total.toFixed(2)}
+                            {t('saleForm.selectedTableSurcharge')}: +{money(surchargeBreakdown.total)}
                         </ThemedText>
                     )}
                 </>
@@ -410,10 +411,10 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                             <ThemedText style={styles.cartItemName} numberOfLines={1}>{item.name}</ThemedText>
                         </View>
                         <ThemedText style={[styles.cartItemUnitPrice, { color: palette.mutedText }]}>
-                            ${item.unitPrice.toFixed(2)} {t('saleForm.each')}
+                            {money(item.unitPrice)} {t('saleForm.each')}
                         </ThemedText>
                     </View>
-                    <ThemedText style={styles.cartItemTotal}>${itemTotal.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.cartItemTotal}>{money(itemTotal)}</ThemedText>
                 </Pressable>
 
                 {/* Combo sub-items summary (collapsed) */}
@@ -510,7 +511,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                                                 </ThemedText>
                                                                 {groupOption && groupOption.additionalPrice > 0 && (
                                                                     <ThemedText style={[styles.comboSubItemPrice, { color: palette.mutedText }]}>
-                                                                        +${groupOption.additionalPrice.toFixed(2)}
+                                                                        +{money(groupOption.additionalPrice)}
                                                                     </ThemedText>
                                                                 )}
                                                             </View>
@@ -624,7 +625,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                             <View style={styles.additionalOptionText}>
                                                 <ThemedText style={styles.ingredientChipText}>{additionalOption.ingredientName}</ThemedText>
                                                 <ThemedText style={[styles.cartItemMeta, { color: palette.mutedText }]}>
-                                                    +${Number(additionalOption.additionalPrice).toFixed(2)}
+                                                    +{money(additionalOption.additionalPrice)}
                                                 </ThemedText>
                                             </View>
                                             <View style={styles.qtyRow}>
@@ -730,30 +731,30 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             <View style={styles.pricingBlock}>
                 <View style={styles.pricingRow}>
                     <ThemedText style={[styles.pricingLabel, { color: palette.mutedText }]}>{t('sales.pricing.subtotal')}</ThemedText>
-                    <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>${pricing.subtotal.toFixed(2)}</ThemedText>
+                    <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>{money(pricing.subtotal)}</ThemedText>
                 </View>
                 {pricing.itemDiscountTotal > 0 && (
                     <View style={styles.pricingRow}>
                         <ThemedText style={[styles.pricingLabel, { color: palette.mutedText }]}>{t('sales.pricing.itemDiscounts')}</ThemedText>
-                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>-${pricing.itemDiscountTotal.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>-{money(pricing.itemDiscountTotal)}</ThemedText>
                     </View>
                 )}
                 {pricing.globalDiscountAmount > 0 && (
                     <View style={styles.pricingRow}>
                         <ThemedText style={[styles.pricingLabel, { color: palette.mutedText }]}>{t('sales.pricing.globalDiscount')}</ThemedText>
-                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>-${pricing.globalDiscountAmount.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>-{money(pricing.globalDiscountAmount)}</ThemedText>
                     </View>
                 )}
                 {surchargeBreakdown.toGo > 0 && (
                     <View style={styles.pricingRow}>
                         <ThemedText style={[styles.pricingLabel, { color: palette.mutedText }]}>{t('sales.surcharge.toGo')}</ThemedText>
-                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>+${surchargeBreakdown.toGo.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>+{money(surchargeBreakdown.toGo)}</ThemedText>
                     </View>
                 )}
                 {surchargeBreakdown.delivery > 0 && (
                     <View style={styles.pricingRow}>
                         <ThemedText style={[styles.pricingLabel, { color: palette.mutedText }]}>{t('sales.surcharge.delivery')}</ThemedText>
-                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>+${surchargeBreakdown.delivery.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.pricingValue, { color: palette.mutedText }]}>+{money(surchargeBreakdown.delivery)}</ThemedText>
                     </View>
                 )}
                 <View style={[styles.pricingRow, styles.totalRow, { borderTopColor: palette.border }]}>
@@ -761,7 +762,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                         <Ionicons name="wallet-outline" size={16} color={palette.text} />
                         <ThemedText style={styles.totalLabel}>{t('sales.total')}</ThemedText>
                     </View>
-                    <ThemedText style={styles.totalValue}>${finalTotal.toFixed(2)}</ThemedText>
+                    <ThemedText style={styles.totalValue}>{money(finalTotal)}</ThemedText>
                 </View>
             </View>
             {!selectedTableId && (
@@ -980,7 +981,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                             {totalCartItems} {totalCartItems === 1 ? 'item' : 'items'}
                         </ThemedText>
                         <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
-                            ${finalTotal.toFixed(2)}
+                            {money(finalTotal)}
                         </ThemedText>
                     </View>
                     <ThemedButton

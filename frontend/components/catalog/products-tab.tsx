@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { t } from '@/i18n';
 import type { CategoryOption, ProductDetail } from '@/types/products';
+import { money } from '@/utils/money';
 
 type ProductsTabProps = {
     products: ProductDetail[];
@@ -75,7 +76,7 @@ export function ProductsTab({
                                 onPress={() => onEditProduct(product.id)}
                             />
                         </View>
-                        <ThemedText style={[styles.productPrice, { color: palette.tint }]}>${Number(product.price).toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.productPrice, { color: palette.tint }]}>{money(product.price)}</ThemedText>
                         <View style={styles.tagRow}>
                             {categoryName ? (
                                 <View style={[styles.tag, { backgroundColor: `${palette.tint}22`, borderColor: `${palette.tint}44` }]}>

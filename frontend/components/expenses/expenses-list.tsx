@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { t } from '@/i18n';
 import type { Expense } from '@/types/types';
+import { money } from '@/utils/money';
 
 type ExpensesListProps = {
     expenses: Expense[];
@@ -43,7 +44,7 @@ export function ExpensesList({ expenses, palette }: ExpensesListProps) {
                         </ThemedText>
                     </View>
                     <ThemedText style={[styles.listItemAmount, { color: palette.tint }]}>
-                        ${Number(expense.amount).toFixed(2)}
+                        {money(expense.amount)}
                     </ThemedText>
                 </View>
             ))}

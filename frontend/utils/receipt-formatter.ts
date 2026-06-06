@@ -1,13 +1,14 @@
 import { t } from '@/i18n';
+import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData, ReceiptLineItem, ReceiptPaperWidth } from '@/types/receipt';
+import { formatCurrency as formatCurrencyWith } from '@/utils/format/number';
 
 function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
   return paperWidth === 58 ? 32 : 48;
 }
 
 export function formatCurrency(value: number): string {
-  const normalized = Number.isFinite(value) ? value : 0;
-  return `$${normalized.toFixed(2)}`;
+  return formatCurrencyWith(value, useSettingsStore.getState().currency);
 }
 
 function separatorLine(width: number, char = '-'): string {

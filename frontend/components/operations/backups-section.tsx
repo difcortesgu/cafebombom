@@ -240,7 +240,7 @@ export function BackupsSection() {
                     value={retentionDraft}
                     onChangeText={setRetentionDraft}
                     onBlur={() => void handleRetentionBlur()}
-                    keyboardType="number-pad"
+                    numeric="integer"
                 />
             </ThemedCard>
 

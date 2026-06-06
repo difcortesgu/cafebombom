@@ -597,7 +597,7 @@ export default function OperationsScreen() {
                             <ThemedText style={styles.feeLabel}>{t('settings.receipt.taxRate')}</ThemedText>
                             <ThemedInput
                                 style={styles.receiptTaxInput}
-                                keyboardType="decimal-pad"
+                                numeric="percent"
                                 value={taxRateInput}
                                 onChangeText={setTaxRateInput}
                                 onBlur={commitTaxRate}

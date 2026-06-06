@@ -154,7 +154,7 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
                 </View>
                 <ThemedInput
                     value={form.amount}
-                    keyboardType="decimal-pad"
+                    numeric="currency"
                     placeholder={t('accountsForm.payroll.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
                     error={fieldErrors.amount}

@@ -5,6 +5,7 @@ import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { t } from '@/i18n';
+import { useFieldErrors } from '@/hooks/use-field-errors';
 import { useAccountsStore } from '@/stores/accounts';
 import type { Employee } from '@/types/types';
 import { validateForm } from '@/utils/validation';
@@ -25,7 +26,7 @@ export function EmployeeForm({ employee, onClose }: EmployeeFormProps) {
         salaryType: (employee?.salary_type ?? 'hourly') as 'hourly' | 'monthly',
         rate: employee ? String(employee.rate) : '',
     });
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const { errors, setErrors, validate } = useFieldErrors(employeeFormSchema);
 
     async function handleSave() {
         const result = validateForm(employeeFormSchema, form);
@@ -49,6 +50,7 @@ export function EmployeeForm({ employee, onClose }: EmployeeFormProps) {
                 value={form.name}
                 placeholder={t('accounts.employees.namePlaceholder')}
                 error={errors.name}
+                onBlur={() => validate('name', form)}
                 onChangeText={(val) => setForm((prev) => ({ ...prev, name: val }))}
             />
             <ThemedSelect
@@ -62,8 +64,9 @@ export function EmployeeForm({ employee, onClose }: EmployeeFormProps) {
             <ThemedInput
                 value={form.rate}
                 placeholder={t('accounts.employees.ratePlaceholder')}
-                keyboardType="decimal-pad"
+                numeric="currency"
                 error={errors.rate}
+                onBlur={() => validate('rate', form)}
                 onChangeText={(val) => setForm((prev) => ({ ...prev, rate: val }))}
             />
             <View style={styles.actionsRow}>

@@ -125,7 +125,7 @@ export function LoginScreen({ users, loading, error, login, refreshConnection }:
       <ThemedInput
         value={pin}
         secureTextEntry
-        keyboardType="number-pad"
+        numeric="integer"
         maxLength={6}
         placeholder={t('auth.login.pinPlaceholder')}
         style={styles.pinInput}

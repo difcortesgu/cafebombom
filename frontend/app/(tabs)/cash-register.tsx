@@ -12,6 +12,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { money } from '@/utils/money';
 
 export default function CashRegisterScreen() {
     const palette = useAppColors();
@@ -78,11 +79,11 @@ export default function CashRegisterScreen() {
                 <View style={styles.kpiGrid}>
                     <View style={[styles.kpiCell, { backgroundColor: palette.success + '18', borderColor: palette.success + '55' }]}>
                         <ThemedText style={[styles.kpiLabel, { color: palette.success }]}>{t('accountsForm.caja.dailyIncomeLabel')}</ThemedText>
-                        <ThemedText style={[styles.kpiAmount, { color: palette.success }]}>${cashRegisterSummaryToday.incomeTotal.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.kpiAmount, { color: palette.success }]}>{money(cashRegisterSummaryToday.incomeTotal)}</ThemedText>
                     </View>
                     <View style={[styles.kpiCell, { backgroundColor: palette.danger + '18', borderColor: palette.danger + '55' }]}>
                         <ThemedText style={[styles.kpiLabel, { color: palette.danger }]}>{t('accountsForm.caja.dailyExpensesLabel')}</ThemedText>
-                        <ThemedText style={[styles.kpiAmount, { color: palette.danger }]}>-${cashRegisterSummaryToday.expensesTotal.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.kpiAmount, { color: palette.danger }]}>-{money(cashRegisterSummaryToday.expensesTotal)}</ThemedText>
                     </View>
                     <View style={[
                         styles.kpiCellFull,
@@ -90,14 +91,14 @@ export default function CashRegisterScreen() {
                         { backgroundColor: netColor + '18', borderColor: netColor + '55' },
                     ]}>
                         <ThemedText style={[styles.kpiLabel, { color: netColor }]}>{t('accountsForm.caja.dailyNetLabel')}</ThemedText>
-                        <ThemedText style={[styles.kpiAmountLarge, { color: netColor }]}>${net.toFixed(2)}</ThemedText>
+                        <ThemedText style={[styles.kpiAmountLarge, { color: netColor }]}>{money(net)}</ThemedText>
                     </View>
                     {cashRegisterToday ? (
                         <View style={[styles.kpiCellFull, { backgroundColor: expectedColor + '18', borderColor: expectedColor + '55' }]}>
                             <ThemedText style={[styles.kpiLabel, { color: expectedColor }]}>{t('accountsForm.caja.expectedCashLabel')}</ThemedText>
-                            <ThemedText style={[styles.kpiAmountLarge, { color: expectedColor }]}>${expectedCash.toFixed(2)}</ThemedText>
+                            <ThemedText style={[styles.kpiAmountLarge, { color: expectedColor }]}>{money(expectedCash)}</ThemedText>
                             <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
-                                ${cashRegisterToday.opening_amount.toFixed(2)} apertura + ${net >= 0 ? '' : '-'}${Math.abs(net).toFixed(2)} balance
+                                {money(cashRegisterToday.opening_amount)} apertura + {money(net)} balance
                             </ThemedText>
                         </View>
                     ) : null}
@@ -112,7 +113,7 @@ export default function CashRegisterScreen() {
                         <View key={adj.id} style={[styles.listItem, { borderColor: palette.border }]}>
                             <View style={styles.rowBetween}>
                                 <ThemedText type="defaultSemiBold" style={{ color: adj.amount >= 0 ? palette.success : palette.danger }}>
-                                    {adj.amount >= 0 ? '+' : ''}${Number(adj.amount).toFixed(2)}
+                                    {adj.amount >= 0 ? '+' : ''}{money(adj.amount)}
                                 </ThemedText>
                                 <ThemedText style={styles.smallText}>{new Date(adj.created_at * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
@@ -137,7 +138,7 @@ export default function CashRegisterScreen() {
                         <ThemedInput
                             value={cajaForm.amount}
                             onChangeText={(value) => setCajaForm((f) => ({ ...f, amount: value }))}
-                            keyboardType="decimal-pad"
+                            numeric="currency"
                             placeholder={t('accountsForm.caja.openingAmount')}
                         />
                         <ThemedInput
@@ -169,12 +170,12 @@ export default function CashRegisterScreen() {
                         <View style={styles.sessionRow}>
                             <View style={[styles.sessionCol, { backgroundColor: palette.success + '12', borderColor: palette.success + '44' }]}>
                                 <ThemedText style={[styles.sessionColLabel, { color: palette.mutedText }]}>{t('accountsForm.caja.openingAmountLabel')}</ThemedText>
-                                <ThemedText style={[styles.sessionColAmount, { color: palette.success }]}>${cashRegisterToday.opening_amount.toFixed(2)}</ThemedText>
+                                <ThemedText style={[styles.sessionColAmount, { color: palette.success }]}>{money(cashRegisterToday.opening_amount)}</ThemedText>
                                 <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{new Date(cashRegisterToday.opened_at * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
                             <View style={[styles.sessionCol, { backgroundColor: palette.danger + '12', borderColor: palette.danger + '44' }]}>
                                 <ThemedText style={[styles.sessionColLabel, { color: palette.mutedText }]}>{t('accountsForm.caja.closingAmountLabel')}</ThemedText>
-                                <ThemedText style={[styles.sessionColAmount, { color: palette.danger }]}>${cashRegisterToday.closing_amount?.toFixed(2) ?? '—'}</ThemedText>
+                                <ThemedText style={[styles.sessionColAmount, { color: palette.danger }]}>{cashRegisterToday.closing_amount == null ? '—' : money(cashRegisterToday.closing_amount)}</ThemedText>
                                 <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{new Date((cashRegisterToday.closed_at) * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
                         </View>
@@ -186,7 +187,7 @@ export default function CashRegisterScreen() {
                         <View style={styles.sessionRow}>
                             <View style={[styles.sessionCol, { backgroundColor: palette.success + '12', borderColor: palette.success + '44' }]}>
                                 <ThemedText style={[styles.sessionColLabel, { color: palette.mutedText }]}>{t('accountsForm.caja.openingAmountLabel')}</ThemedText>
-                                <ThemedText style={[styles.sessionColAmount, { color: palette.success }]}>${cashRegisterToday.opening_amount.toFixed(2)}</ThemedText>
+                                <ThemedText style={[styles.sessionColAmount, { color: palette.success }]}>{money(cashRegisterToday.opening_amount)}</ThemedText>
                                 <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{new Date(cashRegisterToday.opened_at * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
                             <View style={[styles.sessionCol, { borderColor: palette.border }]}>
@@ -198,7 +199,7 @@ export default function CashRegisterScreen() {
                         <ThemedInput
                             value={cajaForm.amount}
                             onChangeText={(value) => setCajaForm((f) => ({ ...f, amount: value }))}
-                            keyboardType="decimal-pad"
+                            numeric="currency"
                             placeholder={t('accountsForm.caja.closingAmount')}
                         />
                         <ThemedInput
@@ -247,7 +248,7 @@ export default function CashRegisterScreen() {
                                         containerStyle={{ gap: 6 }}
                                     />
                                     <View style={styles.methodAmountRow}>
-                                        <ThemedText style={[styles.methodAmount, { color: palette.success }]}>${row.total.toFixed(2)}</ThemedText>
+                                        <ThemedText style={[styles.methodAmount, { color: palette.success }]}>{money(row.total)}</ThemedText>
                                         <View style={styles.methodCountBadge}>
                                             <Ionicons name="swap-horizontal" size={11} color={palette.mutedText} />
                                             <ThemedText style={[styles.methodCount, { color: palette.mutedText }]}>{row.count} movimientos</ThemedText>
@@ -275,7 +276,7 @@ export default function CashRegisterScreen() {
                                         containerStyle={{ gap: 6 }}
                                     />
                                     <View style={styles.methodAmountRow}>
-                                        <ThemedText style={[styles.methodAmount, { color: palette.danger }]}>${row.total.toFixed(2)}</ThemedText>
+                                        <ThemedText style={[styles.methodAmount, { color: palette.danger }]}>{money(row.total)}</ThemedText>
                                         <View style={styles.methodCountBadge}>
                                             <Ionicons name="swap-horizontal" size={11} color={palette.mutedText} />
                                             <ThemedText style={[styles.methodCount, { color: palette.mutedText }]}>{row.count} movimientos</ThemedText>

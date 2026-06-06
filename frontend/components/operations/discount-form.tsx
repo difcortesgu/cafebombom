@@ -153,7 +153,7 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                 <ThemedInput
                     value={value}
                     onChangeText={setValue}
-                    keyboardType="decimal-pad"
+                    numeric={type === 'percentage' ? 'percent' : 'currency'}
                     placeholder={t('products.discounts.valuePlaceholder')}
                     error={errors.value}
                 />

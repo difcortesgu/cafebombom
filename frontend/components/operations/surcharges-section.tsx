@@ -34,7 +34,7 @@ export function SurchargesSection({
                 <ThemedText style={styles.feeLabel}>{t('settings.fees.delivery')}</ThemedText>
                 <ThemedInput
                     style={styles.compactInput}
-                    keyboardType="decimal-pad"
+                    numeric="currency"
                     value={deliveryInput}
                     onChangeText={onDeliveryChange}
                     onBlur={onDeliveryBlur}
@@ -45,7 +45,7 @@ export function SurchargesSection({
                 <ThemedText style={styles.feeLabel}>{t('settings.fees.toGo')}</ThemedText>
                 <ThemedInput
                     style={styles.compactInput}
-                    keyboardType="decimal-pad"
+                    numeric="currency"
                     value={toGoInput}
                     onChangeText={onToGoChange}
                     onBlur={onToGoBlur}

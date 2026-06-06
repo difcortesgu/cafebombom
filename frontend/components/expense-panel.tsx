@@ -119,7 +119,7 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
                 </View>
                 <ThemedInput
                     value={form.amount}
-                    keyboardType="decimal-pad"
+                    numeric="currency"
                     placeholder={t('accountsForm.expense.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
                     error={fieldErrors.amount}

@@ -11,6 +11,7 @@ import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
 import type { Sale } from '@/types/types';
+import { money } from '@/utils/money';
 import { buildFallbackPricingSummary } from '@/utils/sale-pricing';
 
 type FullPaymentTabProps = {
@@ -90,12 +91,12 @@ export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps)
                                                             const addedNames = (child.selected_additional_ingredient_details ?? []).map((d) => `+${d.ingredient_name}`);
                                                             return (
                                                                 <ThemedText key={child.id} style={[styles.itemMeta, { paddingLeft: 4 }]}>
-                                                                    · {child.product_name}{Number(child.unit_price) > 0 ? ` +$${Number(child.unit_price).toFixed(2)}` : ''}{addedNames.length > 0 ? ` (${addedNames.join(', ')})` : ''}
+                                                                    · {child.product_name}{Number(child.unit_price) > 0 ? ` +${money(child.unit_price)}` : ''}{addedNames.length > 0 ? ` (${addedNames.join(', ')})` : ''}
                                                                 </ThemedText>
                                                             );
                                                         })}
                                                     </View>
-                                                    <ThemedText style={styles.itemPrice}>${Number(item.final_line_total ?? 0).toFixed(2)}</ThemedText>
+                                                    <ThemedText style={styles.itemPrice}>{money(item.final_line_total ?? 0)}</ThemedText>
                                                 </View>
                                             );
                                         })}
@@ -106,27 +107,27 @@ export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps)
                                 <View style={[styles.pricingSection, { borderColor: palette.border }]}>
                                     <View style={styles.pricingRow}>
                                         <ThemedText style={styles.pricingLabel}>{t('sales.pricing.subtotal')}</ThemedText>
-                                        <ThemedText>${pricing.subtotal.toFixed(2)}</ThemedText>
+                                        <ThemedText>{money(pricing.subtotal)}</ThemedText>
                                     </View>
 
                                     {pricing.item_discount_total > 0 && (
                                         <View style={styles.pricingRow}>
                                             <ThemedText style={styles.pricingLabel}>{t('sales.pricing.itemDiscounts')}</ThemedText>
-                                            <ThemedText style={{ color: palette.tint }}>-${pricing.item_discount_total.toFixed(2)}</ThemedText>
+                                            <ThemedText style={{ color: palette.tint }}>-{money(pricing.item_discount_total)}</ThemedText>
                                         </View>
                                     )}
 
                                     {pricing.global_discount_amount > 0 && (
                                         <View style={styles.pricingRow}>
                                             <ThemedText style={styles.pricingLabel}>{pricing.global_discount_name || t('sales.pricing.globalDiscount')}</ThemedText>
-                                            <ThemedText style={{ color: palette.tint }}>-${pricing.global_discount_amount.toFixed(2)}</ThemedText>
+                                            <ThemedText style={{ color: palette.tint }}>-{money(pricing.global_discount_amount)}</ThemedText>
                                         </View>
                                     )}
 
                                     {pricing.order_type_surcharge > 0 && (
                                         <View style={styles.pricingRow}>
                                             <ThemedText style={styles.pricingLabel}>{t('sales.surcharge.generic')}</ThemedText>
-                                            <ThemedText style={{ color: palette.danger }}>+${pricing.order_type_surcharge.toFixed(2)}</ThemedText>
+                                            <ThemedText style={{ color: palette.danger }}>+{money(pricing.order_type_surcharge)}</ThemedText>
                                         </View>
                                     )}
 
@@ -135,7 +136,7 @@ export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps)
                                             {t('sales.receipt.totalLabel')}
                                         </ThemedText>
                                         <ThemedText type="defaultSemiBold" style={styles.totalValue}>
-                                            ${pricing.total.toFixed(2)}
+                                            {money(pricing.total)}
                                         </ThemedText>
                                     </View>
                                 </View>

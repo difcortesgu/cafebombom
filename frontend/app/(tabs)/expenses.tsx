@@ -16,6 +16,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { money } from '@/utils/money';
 
 type Section = 'expenses' | 'payroll';
 
@@ -85,7 +86,7 @@ export default function ExpensesScreen() {
                     <View style={styles.kpiRow}>
                         <View style={styles.kpiLeft}>
                             <ThemedText style={styles.kpiLabel}>{t('accounts.expenses.today')}</ThemedText>
-                            <ThemedText style={styles.kpiAmount}>${todayExpenses.toFixed(2)}</ThemedText>
+                            <ThemedText style={styles.kpiAmount}>{money(todayExpenses)}</ThemedText>
                             <ThemedText style={styles.kpiSub}>
                                 {expenses.length} {expenses.length === 1 ? 'registro' : 'registros'}
                             </ThemedText>

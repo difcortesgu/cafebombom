@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { t } from '@/i18n';
 import type { Employee } from '@/types/types';
+import { money } from '@/utils/money';
 
 type EmployeesTabProps = {
     employees: Employee[];
@@ -37,7 +38,7 @@ export function EmployeesTab({ employees, cardWidth, gap, palette, onEdit, onDel
                         {emp.salary_type === 'hourly' ? t('accounts.employees.hourly') : t('accounts.employees.monthly')}
                     </ThemedText>
                     <ThemedText style={[styles.rate, { color: palette.mutedText }]}>
-                        ${Number(emp.rate).toFixed(2)}
+                        {money(emp.rate)}
                     </ThemedText>
                     <View style={styles.actions}>
                         <ThemedButton

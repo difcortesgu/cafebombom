@@ -6,6 +6,7 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import type { SalePaymentBoardItem } from '@/types/sales';
+import { money } from '@/utils/money';
 
 type PaymentSplitRowStyles = {
     itemRow: StyleProp<ViewStyle>;
@@ -79,11 +80,11 @@ export function PendingPaymentItemRow({
             <View style={rowStyles.itemInfo}>
                 <ThemedText style={rowStyles.itemName}>{item.product_name}</ThemedText>
                 <ThemedText style={rowStyles.itemMeta}>
-                    x{availableQty} · ${unitTotal.toFixed(2)} c/u
+                    x{availableQty} · {money(unitTotal)} c/u
                 </ThemedText>
                 {item.children?.map((child, idx) => (
                     <ThemedText key={idx} style={[rowStyles.itemMeta, { paddingLeft: 4 }]}>
-                        · {child.product_name}{child.quantity > 1 ? ` x${child.quantity}` : ''}{child.extra_price > 0 ? ` +$${child.extra_price.toFixed(2)}` : ''}{child.additional_ingredient_names.length > 0 ? ` (${child.additional_ingredient_names.join(', ')})` : ''}
+                        · {child.product_name}{child.quantity > 1 ? ` x${child.quantity}` : ''}{child.extra_price > 0 ? ` +${money(child.extra_price)}` : ''}{child.additional_ingredient_names.length > 0 ? ` (${child.additional_ingredient_names.join(', ')})` : ''}
                     </ThemedText>
                 ))}
             </View>
@@ -120,10 +121,10 @@ export function SelectedPaymentItemRow({ item, qty, rowStyles, onRemove, onAdjus
         <View style={[rowStyles.itemRow, { borderColor: palette.border }]}>
             <View style={rowStyles.itemInfo}>
                 <ThemedText style={rowStyles.itemName}>{item.product_name}</ThemedText>
-                <ThemedText style={rowStyles.itemMeta}>${(unitTotal * qty).toFixed(2)}</ThemedText>
+                <ThemedText style={rowStyles.itemMeta}>{money(unitTotal * qty)}</ThemedText>
                 {item.children?.map((child, idx) => (
                     <ThemedText key={idx} style={[rowStyles.itemMeta, { paddingLeft: 4 }]}>
-                        · {child.product_name}{child.quantity > 1 ? ` x${child.quantity}` : ''}{child.extra_price > 0 ? ` +$${child.extra_price.toFixed(2)}` : ''}{child.additional_ingredient_names.length > 0 ? ` (${child.additional_ingredient_names.join(', ')})` : ''}
+                        · {child.product_name}{child.quantity > 1 ? ` x${child.quantity}` : ''}{child.extra_price > 0 ? ` +${money(child.extra_price)}` : ''}{child.additional_ingredient_names.length > 0 ? ` (${child.additional_ingredient_names.join(', ')})` : ''}
                     </ThemedText>
                 ))}
             </View>
