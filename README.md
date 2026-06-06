@@ -41,3 +41,12 @@ See the README in each folder for setup and usage instructions:
 ## Versioning
 
 The current release version is tracked in the [VERSION](VERSION) file and exposed by the backend at `GET /api/version`.
+
+
+## Notes on next fixes
+En todas estas paginas agregar iconos y labels para todos los campos:
+Mejorar pagina de respaldos
+Mejorar pagina de recibos e impresion, labels, iconos, distribucion, y ajustar ubicacion del logo
+Ocultar la configuracion manual de ip y puerto, hacerla collapsible, para el input de ip y de puerto hacer formato automatico igual que se hizo para campos de currency
+mejorar configuracion de impresora Ocultar direccion MAC de la impresora, en web solo ver botones de probar y borrar
+Mejorar pagina de login y setup para pantallas grandes, iconos, distribucion, labels, etc...
