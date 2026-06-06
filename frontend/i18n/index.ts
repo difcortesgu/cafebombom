@@ -179,6 +179,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'dashboard.paymentMix': 'Métodos de Pago',
     'dashboard.paymentMixEmpty': 'No hay pagos registrados en este periodo.',
     'dashboard.loading': 'Cargando...',
+    'dashboard.thresholdLabel': 'Umbral',
 
     // Accounts tab
     'accounts.title': 'Cuentas',

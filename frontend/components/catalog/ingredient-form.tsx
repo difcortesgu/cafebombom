@@ -62,11 +62,12 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
         }
         setErrors({});
         setMessage('');
-        const payload = { name: name.trim(), unit: unit as any, lowStockThreshold: Number(lowStockThreshold || '0') };
+        const trimmedName = name.trim();
+        const threshold = Number(lowStockThreshold || '0');
         if (mode === 'create') {
-            await addIngredient(payload);
+            await addIngredient({ name: trimmedName, unit: unit as any, lowStockThreshold: threshold });
         } else {
-            await updateIngredient({ id: mode.ingredientId, ...payload });
+            await updateIngredient({ id: mode.ingredientId, name: trimmedName, unit: unit as any, low_stock_threshold: threshold });
         }
         onClose();
     }
