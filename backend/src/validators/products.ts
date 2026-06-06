@@ -1,82 +1,65 @@
-import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '../types/products';
-import type { ValidationResult } from './types';
+import { z } from 'zod';
+import { id, money, nameField, nonNegativeQuantity, positiveQuantity } from './rules';
 
-export type CreateProductPayload = {
-    name: string;
-    categoryId: string | undefined;
-    price: number;
-    imageUri: string | undefined;
-    isCombo?: boolean;
-    recipe?: [ProductRecipeInput, ...ProductRecipeInput[]];
-    additionalIngredients: ProductAdditionalIngredientInput[];
-};
+const recipeItemSchema = z.object({
+    ingredientId: id('ingredientId'),
+    quantityUsed: positiveQuantity('quantityUsed'),
+});
 
-export function validateCreateProduct(body: Record<string, unknown>): ValidationResult<CreateProductPayload> {
-    const { name, categoryId, price, imageUri, isCombo, recipe, additionalIngredients } = body;
-    if (!name || price == null) {
-        return { valid: false, error: 'name and price are required.' };
-    }
-    // Recipe is required only for non-combo products
-    if (!isCombo && (!Array.isArray(recipe) || recipe.length === 0)) {
-        return { valid: false, error: 'recipe (non-empty array) is required for non-combo products.' };
-    }
-    return {
-        valid: true,
-        data: {
-            name: String(name),
-            categoryId: categoryId != null ? String(categoryId) : undefined,
-            price: Number(price),
-            imageUri: imageUri != null ? String(imageUri) : undefined,
-            isCombo: Boolean(isCombo),
-            recipe: Array.isArray(recipe) && recipe.length > 0 ? (recipe as [ProductRecipeInput, ...ProductRecipeInput[]]) : undefined,
-            additionalIngredients: Array.isArray(additionalIngredients)
-                ? (additionalIngredients as ProductAdditionalIngredientInput[])
-                : [],
-        },
-    };
-}
+export const createProductSchema = z
+    .object({
+        name: nameField,
+        categoryId: id('categoryId').optional(),
+        price: money('price'),
+        imageUri: z.string().trim().optional(),
+        isCombo: z.boolean().optional(),
+        recipe: z.array(recipeItemSchema).optional(),
+        additionalIngredients: z
+            .array(
+                z.object({
+                    ingredientId: id('ingredientId'),
+                    quantityUsed: positiveQuantity('quantityUsed'),
+                    additionalPrice: money('additionalPrice'),
+                }),
+            )
+            .default([]),
+    })
+    .refine((p) => p.isCombo || (Array.isArray(p.recipe) && p.recipe.length > 0), {
+        message: 'recipe (non-empty array) is required for non-combo products.',
+        path: ['recipe'],
+    });
+export type CreateProductPayload = z.infer<typeof createProductSchema>;
 
-export type AddCategoryPayload = { name: string };
+export const addCategorySchema = z.object({ name: nameField });
+export type AddCategoryPayload = z.infer<typeof addCategorySchema>;
 
-export function validateAddCategory(body: Record<string, unknown>): ValidationResult<AddCategoryPayload> {
-    const { name } = body;
-    if (!name) {
-        return { valid: false, error: 'name is required.' };
-    }
-    return { valid: true, data: { name: String(name) } };
-}
+export const setIngredientSchema = z.object({
+    ingredientId: id('ingredientId'),
+    quantityUsed: positiveQuantity('quantityUsed'),
+});
+export type SetIngredientPayload = z.infer<typeof setIngredientSchema>;
 
-export type SetIngredientPayload = { ingredientId: string; quantityUsed: number };
+export const setAdditionalIngredientSchema = z.object({
+    quantityUsed: positiveQuantity('quantityUsed'),
+    additionalPrice: money('additionalPrice'),
+});
+export type SetAdditionalIngredientPayload = z.infer<typeof setAdditionalIngredientSchema>;
 
-export function validateSetIngredient(body: Record<string, unknown>): ValidationResult<SetIngredientPayload> {
-    const { ingredientId, quantityUsed } = body;
-    if (!ingredientId || quantityUsed == null) {
-        return { valid: false, error: 'ingredientId and quantityUsed are required.' };
-    }
-    return { valid: true, data: { ingredientId: String(ingredientId), quantityUsed: Number(quantityUsed) } };
-}
+export const comboGroupSchema = z
+    .object({
+        name: nameField,
+        minQuantity: nonNegativeQuantity('minQuantity'),
+        maxQuantity: nonNegativeQuantity('maxQuantity'),
+    })
+    .refine((g) => g.minQuantity <= g.maxQuantity, {
+        message: 'minQuantity must be less than or equal to maxQuantity.',
+        path: ['maxQuantity'],
+    });
+export type ComboGroupPayload = z.infer<typeof comboGroupSchema>;
 
-export type SetAdditionalIngredientPayload = {
-    ingredientId: string;
-    quantityUsed: number;
-    additionalPrice: number;
-};
-
-export function validateSetAdditionalIngredient(
-    params: Record<string, unknown>,
-    body: Record<string, unknown>,
-): ValidationResult<SetAdditionalIngredientPayload> {
-    const { ingredientId } = params;
-    const { quantityUsed, additionalPrice } = body;
-    if (!ingredientId || quantityUsed == null || additionalPrice == null) {
-        return { valid: false, error: 'ingredientId, quantityUsed, and additionalPrice are required.' };
-    }
-    return {
-        valid: true,
-        data: {
-            ingredientId: String(ingredientId),
-            quantityUsed: Number(quantityUsed),
-            additionalPrice: Number(additionalPrice),
-        },
-    };
-}
+export const comboGroupOptionSchema = z.object({
+    productId: id('productId'),
+    additionalPrice: money('additionalPrice'),
+    isDefault: z.boolean({ message: 'isDefault is required.' }),
+});
+export type ComboGroupOptionPayload = z.infer<typeof comboGroupOptionSchema>;

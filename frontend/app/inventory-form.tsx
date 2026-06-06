@@ -12,6 +12,8 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { validateForm } from '@/utils/validation';
+import { restockFormSchema, supplierFormSchema } from '@/utils/validation/schemas';
 
 type Section = 'suppliers' | 'restock';
 
@@ -48,6 +50,8 @@ export default function InventoryFormScreen() {
   const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
   const [message, setMessage] = useState('');
+  const [supplierErrors, setSupplierErrors] = useState<Record<string, string>>({});
+  const [restockErrors, setRestockErrors] = useState<Record<string, string>>({});
   const [supplierForm, setSupplierForm] = useState({ name: '', phone: '', notes: '' });
   const [restockForm, setRestockForm] = useState({
     ingredientId: initialIngredientId,
@@ -178,14 +182,14 @@ export default function InventoryFormScreen() {
                 <Ionicons name="document-outline" size={14} color={palette.mutedText} />
                 <ThemedText style={styles.smallText}>{t('inventoryForm.suppliers.name')}</ThemedText>
               </View>
-              <ThemedInput value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} style={styles.input} />
+              <ThemedInput value={supplierForm.name} onChangeText={(value) => setSupplierForm((f) => ({ ...f, name: value }))} error={supplierErrors.name} style={styles.input} />
             </View>
             <View style={styles.flexItem}>
               <View style={styles.labelWithIcon}>
                 <Ionicons name="call-outline" size={14} color={palette.mutedText} />
                 <ThemedText style={styles.smallText}>{t('inventoryForm.suppliers.phone')}</ThemedText>
               </View>
-              <ThemedInput value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} style={styles.input} />
+              <ThemedInput value={supplierForm.phone} onChangeText={(value) => setSupplierForm((f) => ({ ...f, phone: value }))} error={supplierErrors.phone} style={styles.input} />
             </View>
           </View>
           <View style={styles.labelWithIcon}>
@@ -199,10 +203,12 @@ export default function InventoryFormScreen() {
               icon="checkmark-circle"
               label={t('inventoryForm.suppliers.save')}
               onPress={async () => {
-                if (!supplierForm.name.trim()) {
-                  setMessage(t('inventoryForm.suppliers.required'));
+                const result = validateForm(supplierFormSchema, supplierForm);
+                if (!result.ok) {
+                  setSupplierErrors(result.errors);
                   return;
                 }
+                setSupplierErrors({});
 
                 const supplierId = await addSupplier({ name: supplierForm.name.trim(), phone: supplierForm.phone, notes: supplierForm.notes });
                 if (!supplierId) {
@@ -287,14 +293,14 @@ export default function InventoryFormScreen() {
                 <Ionicons name="layers-outline" size={14} color={palette.mutedText} />
                 <ThemedText style={styles.smallText}>{t('inventoryForm.restock.quantity')}</ThemedText>
               </View>
-              <ThemedInput keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} style={styles.input} />
+              <ThemedInput keyboardType="decimal-pad" value={restockForm.quantityAdded} onChangeText={(value) => setRestockForm((f) => ({ ...f, quantityAdded: value }))} error={restockErrors.quantityAdded} style={styles.input} />
             </View>
             <View style={styles.flexItem}>
               <View style={styles.labelWithIcon}>
                 <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
                 <ThemedText style={styles.smallText}>{t('inventoryForm.restock.cost')}</ThemedText>
               </View>
-              <ThemedInput keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} style={styles.input} />
+              <ThemedInput keyboardType="decimal-pad" value={restockForm.cost} onChangeText={(value) => setRestockForm((f) => ({ ...f, cost: value }))} error={restockErrors.cost} style={styles.input} />
             </View>
           </View>
 
@@ -382,15 +388,21 @@ export default function InventoryFormScreen() {
               icon="checkmark-circle"
               label={t('inventoryForm.restock.save')}
               onPress={async () => {
-                if (!restockForm.ingredientId) {
-                  setMessage(t('inventoryForm.restock.required'));
+                const result = validateForm(restockFormSchema, restockForm);
+                if (!result.ok) {
+                  setRestockErrors(result.errors);
+                  if (result.errors.ingredientId || result.errors.paymentMethodId) {
+                    setMessage(t('inventoryForm.restock.required'));
+                  }
                   return;
                 }
+                setRestockErrors({});
+                setMessage('');
 
                 await addRestock({
                   ingredientId: restockForm.ingredientId,
-                  quantityAdded: Number(restockForm.quantityAdded || '0'),
-                  cost: Number(restockForm.cost || '0'),
+                  quantityAdded: result.data.quantityAdded,
+                  cost: result.data.cost,
                   supplierId: restockForm.supplierId || undefined,
                   paymentMethodId: restockForm.paymentMethodId,
                 });

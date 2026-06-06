@@ -12,6 +12,8 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { validateForm } from '@/utils/validation';
+import { expenseFormSchema } from '@/utils/validation/schemas';
 
 export default function ExpenseFormScreen() {
     const router = useRouter();
@@ -22,6 +24,7 @@ export default function ExpenseFormScreen() {
 
     const [form, setForm] = useState({ category: 'Insumos', amount: '', description: '', paymentMethodId: '' });
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const paymentInitRef = useRef(false);
 
     useFocusEffect(
@@ -58,6 +61,7 @@ export default function ExpenseFormScreen() {
                     value={form.category}
                     placeholder={t('accountsForm.expense.category')}
                     onChangeText={(val) => setForm((f) => ({ ...f, category: val }))}
+                    error={errors.category}
                     style={styles.input}
                 />
 
@@ -70,6 +74,7 @@ export default function ExpenseFormScreen() {
                     keyboardType="decimal-pad"
                     placeholder={t('accountsForm.expense.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                    error={errors.amount}
                     style={styles.input}
                 />
 
@@ -122,14 +127,17 @@ export default function ExpenseFormScreen() {
                         icon="checkmark-circle"
                         label={t('accountsForm.expense.save')}
                         onPress={async () => {
-                            const amount = Number(form.amount);
-                            if (!form.category.trim() || !Number.isFinite(amount) || amount <= 0 || !form.paymentMethodId) {
-                                setMessage(t('accountsForm.expense.required'));
+                            const result = validateForm(expenseFormSchema, form);
+                            if (!result.ok) {
+                                setErrors(result.errors);
+                                if (result.errors.paymentMethodId) setMessage(t('accountsForm.expense.required'));
                                 return;
                             }
+                            setErrors({});
+                            setMessage('');
                             await addExpense({
-                                category: form.category.trim(),
-                                amount,
+                                category: result.data.category,
+                                amount: result.data.amount,
                                 description: form.description,
                                 paymentMethodId: form.paymentMethodId,
                             });

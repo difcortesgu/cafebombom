@@ -13,6 +13,8 @@ import { productsService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import type { ProductAdditionalIngredientInput, ProductRecipeInput } from '@/types/products';
+import { validateForm } from '@/utils/validation';
+import { productFormSchema } from '@/utils/validation/schemas';
 
 export type ProductFormProps = {
     mode: 'create' | 'combo-create' | { productId: string };
@@ -58,6 +60,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
 
     const [sections, setSections] = useState({ general: true, recipe: true, additional: false });
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [imageBusy, setImageBusy] = useState(false);
     const isEdit = typeof mode === 'object';
     const isCombo = mode === 'combo-create' || (typeof mode === 'object' && products.find(p => p.id === mode.productId)?.isCombo);
@@ -108,9 +111,13 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
     }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function submit() {
-        if (!productForm.name.trim()) { setMessage(t('productForm.error.nameRequired')); return; }
-        const price = Number(productForm.price || '0');
-        if (price <= 0) { setMessage(t('productForm.error.pricePositive')); return; }
+        const baseResult = validateForm(productFormSchema, { name: productForm.name, price: productForm.price });
+        if (!baseResult.ok) {
+            setErrors(baseResult.errors);
+            return;
+        }
+        setErrors({});
+        const price = baseResult.data.price;
 
         const finalRecipe = [...recipeItems];
         if (draftRecipe && draftRecipe.ingredientId && Number(draftRecipe.quantityUsed) > 0) {
@@ -364,14 +371,14 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                                 <Ionicons name="text-outline" size={14} color={palette.mutedText} />
                                 <ThemedText style={styles.smallLabel}>{t('productForm.name')}</ThemedText>
                             </View>
-                            <ThemedInput value={productForm.name} onChangeText={(v) => setProductForm((f) => ({ ...f, name: v }))} style={styles.input} />
+                            <ThemedInput value={productForm.name} onChangeText={(v) => setProductForm((f) => ({ ...f, name: v }))} error={errors.name} style={styles.input} />
                         </View>
                         <View style={styles.fieldGroup}>
                             <View style={styles.labelRow}>
                                 <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
                                 <ThemedText style={styles.smallLabel}>{t('productForm.price')}</ThemedText>
                             </View>
-                            <ThemedInput keyboardType="decimal-pad" value={productForm.price} onChangeText={(v) => setProductForm((f) => ({ ...f, price: v }))} style={styles.input} />
+                            <ThemedInput keyboardType="decimal-pad" value={productForm.price} onChangeText={(v) => setProductForm((f) => ({ ...f, price: v }))} error={errors.price} style={styles.input} />
                         </View>
                         <View style={styles.fieldGroup}>
                             <View style={styles.labelRow}>

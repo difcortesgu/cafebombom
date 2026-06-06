@@ -9,6 +9,8 @@ import { PAYMENT_ICONS } from '@/constants/payment-icons';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { validateForm } from '@/utils/validation';
+import { paymentMethodFormSchema } from '@/utils/validation/schemas';
 
 type PaymentMethodPanelFormProps = {
     onClose: () => void;
@@ -21,9 +23,15 @@ export function PaymentMethodPanelForm({ onClose }: PaymentMethodPanelFormProps)
     const [name, setName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('wallet');
     const [message, setMessage] = useState('');
+    const [nameError, setNameError] = useState('');
 
     async function submit() {
-        if (!name.trim()) { setMessage(t('common.required')); return; }
+        const result = validateForm(paymentMethodFormSchema, { name, icon: selectedIcon });
+        if (!result.ok) {
+            setNameError(result.errors.name ?? '');
+            return;
+        }
+        setNameError('');
         const id = await addMethod(name.trim(), selectedIcon);
         if (!id) { setMessage(t('common.error')); return; }
         await hydrateAll();
@@ -58,6 +66,7 @@ export function PaymentMethodPanelForm({ onClose }: PaymentMethodPanelFormProps)
                         value={name}
                         onChangeText={setName}
                         placeholder={t('settings.paymentMethods.name')}
+                        error={nameError}
                         style={styles.input}
                     />
                 </View>

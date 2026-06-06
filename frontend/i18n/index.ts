@@ -816,6 +816,19 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'update.installing': 'Abriendo el instalador…',
     'update.restarting': 'Actualizando y reiniciando…',
     'update.error': 'No se pudo descargar la actualización. Inténtalo de nuevo.',
+
+    // Validation messages
+    'validation.required': 'Este campo es obligatorio.',
+    'validation.maxLength': 'Debe tener como máximo {max} caracteres.',
+    'validation.number': 'Ingresa un número válido.',
+    'validation.positive': 'Debe ser mayor que cero.',
+    'validation.nonNegative': 'Debe ser cero o mayor.',
+    'validation.pinFormat': 'La contraseña debe tener entre 4 y 8 dígitos.',
+    'validation.phoneFormat': 'El teléfono tiene un formato inválido.',
+    'validation.percentageMax': 'El porcentaje debe ser como máximo 100.',
+    'validation.dateRange': 'La fecha final debe ser posterior a la inicial.',
+    'validation.minMaxQuantity': 'La cantidad mínima no puede superar a la máxima.',
+    'validation.selectOption': 'Selecciona una opción.',
   },
 };
 

@@ -1,14 +1,14 @@
 import { salesService } from '../services';
 import {
-  validateAddItem,
-  validateDashboardQuery,
-  validateDateRange,
-  validateDiscount,
-  validateMarkPaid,
-  validateOrderPayload,
-  validatePartialPayment,
-  validateSurchargeConfig,
-  validateTablePayload,
+  addItemSchema,
+  dashboardQuerySchema,
+  dateRangeSchema,
+  discountSchema,
+  markPaidSchema,
+  orderSchema,
+  partialPaymentSchema,
+  surchargeConfigSchema,
+  tableSchema,
 } from '../validators/sales';
 import type { Request, Response } from 'express';
 
@@ -21,12 +21,7 @@ export async function getHydrationData(req: Request, res: Response): Promise<voi
 }
 
 export async function createSale(req: Request, res: Response): Promise<void> {
-  const v = validateOrderPayload(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = v.data;
+  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = orderSchema.parse(req.body);
 
   const id = await salesService.createSale({ staffId, items, tableId, globalDiscountId, orderTypeSurcharge });
   if (!id) {
@@ -38,12 +33,7 @@ export async function createSale(req: Request, res: Response): Promise<void> {
 
 export async function updateDraftOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateOrderPayload(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = v.data;
+  const { staffId, items, tableId, globalDiscountId, orderTypeSurcharge } = orderSchema.parse(req.body);
 
   await salesService.updateDraftOrder({ orderId: id, staffId, items, tableId, globalDiscountId, orderTypeSurcharge });
   res.status(204).send();
@@ -57,12 +47,7 @@ export async function getSaleItems(req: Request, res: Response): Promise<void> {
 
 export async function addItemToOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateAddItem(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { item } = v.data;
+  const { item } = addItemSchema.parse(req.body);
 
   const itemId = await salesService.addItemToOrder({ orderId: id, item });
   res.status(201).json({ id: itemId });
@@ -99,12 +84,7 @@ export async function markOrderReady(req: Request, res: Response): Promise<void>
 
 export async function markOrderPaid(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateMarkPaid(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { paymentMethodId } = v.data;
+  const { paymentMethodId } = markPaidSchema.parse(req.body);
 
   await salesService.markOrderPaid(id, paymentMethodId);
   res.status(204).send();
@@ -126,12 +106,7 @@ export async function getSalePayments(req: Request, res: Response): Promise<void
 
 export async function createPartialPayment(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validatePartialPayment(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { paymentMethodId, lines } = v.data;
+  const { paymentMethodId, lines } = partialPaymentSchema.parse(req.body);
 
   await salesService.createPartialPayment({
     orderId: id,
@@ -156,12 +131,7 @@ export async function getDiscounts(req: Request, res: Response): Promise<void> {
 }
 
 export async function createDiscount(req: Request, res: Response): Promise<void> {
-  const v = validateDiscount(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = v.data;
+  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = discountSchema.parse(req.body);
 
   const id = await salesService.createDiscount({ name, scope, productId, type, value, startsAt, endsAt, isActive });
   res.status(201).json({ id });
@@ -169,12 +139,7 @@ export async function createDiscount(req: Request, res: Response): Promise<void>
 
 export async function updateDiscount(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateDiscount(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = v.data;
+  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = discountSchema.parse(req.body);
 
   await salesService.updateDiscount({ id, name, scope, productId, type, value, startsAt, endsAt, isActive });
   res.status(204).send();
@@ -194,12 +159,7 @@ export async function getTables(req: Request, res: Response): Promise<void> {
 }
 
 export async function createTable(req: Request, res: Response): Promise<void> {
-  const v = validateTablePayload(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, tableType } = v.data;
+  const { name, tableType } = tableSchema.parse(req.body);
 
   const id = await salesService.createTable({ name, tableType });
   if (!id) {
@@ -211,12 +171,7 @@ export async function createTable(req: Request, res: Response): Promise<void> {
 
 export async function updateTable(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateTablePayload(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, tableType } = v.data;
+  const { name, tableType } = tableSchema.parse(req.body);
 
   await salesService.updateTable({ id, name, tableType });
   res.status(204).send();
@@ -236,12 +191,7 @@ export async function getSurchargeConfig(req: Request, res: Response): Promise<v
 }
 
 export async function saveSurchargeConfig(req: Request, res: Response): Promise<void> {
-  const v = validateSurchargeConfig(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { toGoSurcharge, deliverySurcharge } = v.data;
+  const { toGoSurcharge, deliverySurcharge } = surchargeConfigSchema.parse(req.body);
 
   await salesService.saveOrderTypeSurchargeConfig({ toGoSurcharge, deliverySurcharge });
   res.status(204).send();
@@ -250,24 +200,14 @@ export async function saveSurchargeConfig(req: Request, res: Response): Promise<
 // ── Analytics ────────────────────────────────────────────────────────────────
 
 export async function getDashboardSummary(req: Request, res: Response): Promise<void> {
-  const v = validateDashboardQuery(req.query as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { start, end, bucket } = v.data;
+  const { start, end, bucket } = dashboardQuerySchema.parse(req.query);
 
   const summary = await salesService.getDashboardSummary(start, end, bucket);
   res.status(200).json(summary);
 }
 
 export async function getRevenueInRange(req: Request, res: Response): Promise<void> {
-  const v = validateDateRange(req.query as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { start, end } = v.data;
+  const { start, end } = dateRangeSchema.parse(req.query);
 
   const revenue = await salesService.getRevenueInRange(start, end);
   res.status(200).json({ revenue });

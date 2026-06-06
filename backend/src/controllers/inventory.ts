@@ -1,12 +1,11 @@
 import { inventoryService } from '../services';
 import {
-  validateAddIngredient,
-  validateAddRestock,
-  validateAddSupplier,
-  validateAddUnit,
-  validateDeleteUnit,
-  validateUpdateIngredient,
-  validateUpdateSupplier,
+  addIngredientSchema,
+  addRestockSchema,
+  addSupplierSchema,
+  addUnitSchema,
+  updateIngredientSchema,
+  updateSupplierSchema,
 } from '../validators/inventory';
 import type { Request, Response } from 'express';
 
@@ -19,12 +18,7 @@ export async function getHydrationData(req: Request, res: Response): Promise<voi
 }
 
 export async function addIngredient(req: Request, res: Response): Promise<void> {
-  const v = validateAddIngredient(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, unit, lowStockThreshold, supplierId } = v.data;
+  const { name, unit, lowStockThreshold, supplierId } = addIngredientSchema.parse(req.body);
 
   if (!inventoryService.unitExists(unit)) {
     res.status(400).json({ error: 'unit must exist in units catalog.' });
@@ -37,12 +31,7 @@ export async function addIngredient(req: Request, res: Response): Promise<void> 
 
 export async function updateIngredient(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateUpdateIngredient(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, unit, low_stock_threshold, supplier_id } = v.data;
+  const { name, unit, low_stock_threshold, supplier_id } = updateIngredientSchema.parse(req.body);
 
   if (unit !== undefined && !inventoryService.unitExists(unit)) {
     res.status(400).json({ error: 'unit must exist in units catalog.' });
@@ -54,12 +43,7 @@ export async function updateIngredient(req: Request, res: Response): Promise<voi
 }
 
 export async function addSupplier(req: Request, res: Response): Promise<void> {
-  const v = validateAddSupplier(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, phone, notes } = v.data;
+  const { name, phone, notes } = addSupplierSchema.parse(req.body);
 
   const id = await inventoryService.addSupplier({ name, phone, notes });
   if (!id) {
@@ -70,24 +54,15 @@ export async function addSupplier(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateSupplier(req: Request, res: Response): Promise<void> {
-  const v = validateUpdateSupplier(req.params as Record<string, unknown>, req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { id, name, phone, notes } = v.data;
+  const { id } = req.params as Record<string, string>;
+  const { name, phone, notes } = updateSupplierSchema.parse(req.body);
 
   await inventoryService.updateSupplier({ id, name, phone, notes });
   res.status(204).end();
 }
 
 export async function addUnit(req: Request, res: Response): Promise<void> {
-  const v = validateAddUnit(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name } = v.data;
+  const { name } = addUnitSchema.parse(req.body);
 
   const unit = await inventoryService.addUnit({ name });
   if (!unit) {
@@ -99,12 +74,11 @@ export async function addUnit(req: Request, res: Response): Promise<void> {
 }
 
 export async function deleteUnit(req: Request, res: Response): Promise<void> {
-  const v = validateDeleteUnit(req.params as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
+  const { id } = req.params as Record<string, string>;
+  if (!id) {
+    res.status(400).json({ error: 'id is required.' });
     return;
   }
-  const { id } = v.data;
 
   const result = await inventoryService.deleteUnit({ id });
   if (result === 'not-found') {
@@ -121,12 +95,7 @@ export async function deleteUnit(req: Request, res: Response): Promise<void> {
 }
 
 export async function addRestock(req: Request, res: Response): Promise<void> {
-  const v = validateAddRestock(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { ingredientId, quantityAdded, cost, supplierId, paymentMethodId } = v.data;
+  const { ingredientId, quantityAdded, cost, supplierId, paymentMethodId } = addRestockSchema.parse(req.body);
 
   const id = await inventoryService.addRestock({ ingredientId, quantityAdded, cost, supplierId, paymentMethodId });
   res.status(201).json({ id });

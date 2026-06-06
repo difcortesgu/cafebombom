@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { usersService } from '../services';
+import { createUserSchema, updateProfileSchema } from '../validators/users';
 
 // Known business-rule violations are thrown by the service as AppError and
 // turned into 4xx responses by the central error handler (see utils/errors.ts).
@@ -16,17 +17,7 @@ export async function getAllUsers(req: Request, res: Response): Promise<void> {
 }
 
 export async function createUser(req: Request, res: Response): Promise<void> {
-  const { name, role, pin } = req.body as { name?: string; role?: string; pin?: string };
-
-  if (!name || !role || !pin) {
-    res.status(400).json({ error: 'name, role, and pin are required.' });
-    return;
-  }
-
-  if (role !== 'owner' && role !== 'staff') {
-    res.status(400).json({ error: 'role must be owner or staff.' });
-    return;
-  }
+  const { name, role, pin } = createUserSchema.parse(req.body);
 
   const user = await usersService.createUser({ name, role, pin });
   if (!user) {
@@ -62,7 +53,7 @@ export async function hardDeleteUser(req: Request, res: Response): Promise<void>
 
 export async function updateOwnProfile(req: Request, res: Response): Promise<void> {
   const userId = req.auth!.userId;
-  const { name, pin } = req.body as { name?: string; pin?: string };
+  const { name, pin } = updateProfileSchema.parse(req.body);
 
   const user = await usersService.updateOwnProfile(userId, { name, pin });
   if (!user) {

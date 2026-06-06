@@ -12,6 +12,8 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { validateForm } from '@/utils/validation';
+import { payrollFormSchema } from '@/utils/validation/schemas';
 
 export default function PayrollFormScreen() {
     const router = useRouter();
@@ -22,6 +24,7 @@ export default function PayrollFormScreen() {
 
     const [form, setForm] = useState({ employeeId: '', amount: '', paymentMethodId: '' });
     const [message, setMessage] = useState('');
+    const [amountError, setAmountError] = useState('');
     const paymentInitRef = useRef(false);
     const employeeInitRef = useRef(false);
 
@@ -100,6 +103,7 @@ export default function PayrollFormScreen() {
                     keyboardType="decimal-pad"
                     placeholder={t('accountsForm.payroll.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                    error={amountError}
                     style={styles.input}
                 />
 
@@ -141,17 +145,22 @@ export default function PayrollFormScreen() {
                         icon="checkmark-circle"
                         label={t('accountsForm.payroll.save')}
                         onPress={async () => {
-                            const amount = Number(form.amount);
-                            if (!form.employeeId || !Number.isFinite(amount) || amount <= 0 || !form.paymentMethodId) {
-                                setMessage(t('accountsForm.payroll.required'));
+                            const result = validateForm(payrollFormSchema, form);
+                            if (!result.ok) {
+                                setAmountError(result.errors.amount ?? '');
+                                if (result.errors.employeeId || result.errors.paymentMethodId) {
+                                    setMessage(t('accountsForm.payroll.required'));
+                                }
                                 return;
                             }
+                            setAmountError('');
+                            setMessage('');
                             const now = Math.floor(Date.now() / 1000);
                             await addPayroll({
                                 employeeId: form.employeeId,
                                 periodStart: now,
                                 periodEnd: now,
-                                amount,
+                                amount: result.data.amount,
                                 paymentMethodId: form.paymentMethodId,
                             });
                             router.back();

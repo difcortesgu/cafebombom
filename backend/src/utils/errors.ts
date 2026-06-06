@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { ZodError } from 'zod';
 import { logger } from './logger';
 
 /**
@@ -35,6 +36,13 @@ export function errorHandler(error: unknown, req: Request, res: Response, _next:
 
     if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: error.message });
+        return;
+    }
+
+    // Schema validation failures are client errors: respond 400 with the first
+    // issue's message (no error-level logging — bad input is not a bug).
+    if (error instanceof ZodError) {
+        res.status(400).json({ error: error.issues[0]?.message ?? 'Invalid request.' });
         return;
     }
 

@@ -9,6 +9,8 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useSalesStore } from '@/stores/sales';
 import type { TableType } from '@/types/types';
+import { validateForm } from '@/utils/validation';
+import { tableFormSchema } from '@/utils/validation/schemas';
 
 export type TablePanelFormProps = {
     mode: 'create' | { tableId: string };
@@ -22,6 +24,7 @@ export function TablePanelForm({ mode, onClose }: TablePanelFormProps) {
     const [name, setName] = useState('');
     const [tableType, setTableType] = useState<TableType>('dine-in');
     const [message, setMessage] = useState('');
+    const [nameError, setNameError] = useState('');
 
     const isEdit = mode !== 'create';
 
@@ -46,8 +49,13 @@ export function TablePanelForm({ mode, onClose }: TablePanelFormProps) {
     }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function submit() {
-        const normalized = name.trim();
-        if (!normalized) { setMessage(t('tableForm.nameRequired')); return; }
+        const result = validateForm(tableFormSchema, { name, tableType });
+        if (!result.ok) {
+            setNameError(result.errors.name ?? '');
+            return;
+        }
+        setNameError('');
+        const { name: normalized } = result.data;
         if (mode !== 'create') {
             await updateTable({ id: mode.tableId, name: normalized, tableType });
         } else {
@@ -86,6 +94,7 @@ export function TablePanelForm({ mode, onClose }: TablePanelFormProps) {
                         value={name}
                         onChangeText={setName}
                         placeholder={t('tableForm.example')}
+                        error={nameError}
                         style={styles.input}
                     />
                 </View>

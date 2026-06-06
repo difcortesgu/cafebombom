@@ -10,6 +10,8 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
 import type { ManagedUser } from '@/types/auth';
+import { validateForm } from '@/utils/validation';
+import { userFormSchema } from '@/utils/validation/schemas';
 
 type UserPanelFormProps = {
     visible: boolean;
@@ -33,7 +35,7 @@ const DEFAULT_FORM: UserForm = {
 export function UserPanelForm({ visible, onClose, onExited, editingUser }: UserPanelFormProps) {
     const palette = useAppColors();
     const { createUser, setupUpdateUser } = useAuthStore();
-    const { form, setForm, message, setMessage } = useFormPanel<UserForm>({
+    const { form, setForm, message, fieldErrors, setFieldErrors } = useFormPanel<UserForm>({
         visible,
         createDefaultForm: () =>
             editingUser
@@ -44,14 +46,12 @@ export function UserPanelForm({ visible, onClose, onExited, editingUser }: UserP
     const isEditing = !!editingUser;
 
     async function handleSave() {
-        if (!form.name.trim()) {
-            setMessage(t('setup.account.namePlaceholder'));
+        const result = validateForm(userFormSchema(isEditing), form);
+        if (!result.ok) {
+            setFieldErrors(result.errors);
             return;
         }
-        if (!isEditing && !form.pin.trim()) {
-            setMessage(t('setup.account.pinPlaceholder'));
-            return;
-        }
+        setFieldErrors({});
         if (isEditing) {
             const updated = await setupUpdateUser(editingUser.id, {
                 name: form.name.trim(),
@@ -85,6 +85,7 @@ export function UserPanelForm({ visible, onClose, onExited, editingUser }: UserP
             <ThemedInput
                 value={form.name}
                 placeholder={t('setup.account.namePlaceholder')}
+                error={fieldErrors.name}
                 onChangeText={(val) => setForm((prev) => ({ ...prev, name: val }))}
             />
             <View style={styles.chipRow}>
@@ -109,6 +110,7 @@ export function UserPanelForm({ visible, onClose, onExited, editingUser }: UserP
                 placeholder={isEditing ? t('setup.account.pinPlaceholderEdit') : t('setup.account.pinPlaceholder')}
                 keyboardType="number-pad"
                 secureTextEntry
+                error={fieldErrors.pin}
                 onChangeText={(val) => setForm((prev) => ({ ...prev, pin: val }))}
             />
             <FormFeedback message={message} />

@@ -9,6 +9,8 @@ import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
+import { validateForm } from '@/utils/validation';
+import { categoryFormSchema } from '@/utils/validation/schemas';
 
 export default function CategoryFormScreen() {
     const router = useRouter();
@@ -16,12 +18,15 @@ export default function CategoryFormScreen() {
 
     const [name, setName] = useState('');
     const [message, setMessage] = useState('');
+    const [nameError, setNameError] = useState('');
 
     const submitCategory = async () => {
-        if (!name.trim()) {
-            setMessage(t('categoryForm.required'));
+        const result = validateForm(categoryFormSchema, { name });
+        if (!result.ok) {
+            setNameError(result.errors.name ?? '');
             return;
         }
+        setNameError('');
 
         const categoryId = await addCategory({ name: name.trim() });
         if (!categoryId) {
@@ -47,6 +52,7 @@ export default function CategoryFormScreen() {
                     placeholder={t('categoryForm.name')}
                     value={name}
                     onChangeText={setName}
+                    error={nameError}
                     style={styles.input}
                 />
                 <View style={styles.actionsRow}>

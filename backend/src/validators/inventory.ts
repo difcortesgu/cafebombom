@@ -1,136 +1,56 @@
-import type { ValidationResult } from './types';
+import { z } from 'zod';
+import { id, money, nameField, nonNegativeQuantity, PHONE_REGEX, positiveQuantity } from './rules';
 
-export type AddIngredientPayload = {
-    name: string;
-    unit: string;
-    lowStockThreshold: number;
-    supplierId: string | undefined;
-};
+const unitField = z
+    .string({ message: 'unit is required.' })
+    .trim()
+    .min(1, 'unit is required.')
+    .transform((s) => s.toLowerCase());
 
-export function validateAddIngredient(body: Record<string, unknown>): ValidationResult<AddIngredientPayload> {
-    const { name, unit, lowStockThreshold, supplierId } = body;
-    if (!name || !unit || lowStockThreshold == null) {
-        return { valid: false, error: 'name, unit, and lowStockThreshold are required.' };
-    }
-    const normalizedUnit = String(unit).trim().toLowerCase();
-    if (!normalizedUnit) {
-        return { valid: false, error: 'unit is required.' };
-    }
-    return {
-        valid: true,
-        data: {
-            name: String(name),
-            unit: normalizedUnit,
-            lowStockThreshold: Number(lowStockThreshold),
-            supplierId: supplierId != null ? String(supplierId) : undefined,
-        },
-    };
-}
+const phoneField = z
+    .string()
+    .trim()
+    .regex(PHONE_REGEX, 'phone has an invalid format.')
+    .optional();
 
-export type UpdateIngredientPayload = {
-    name: string | undefined;
-    unit: string | undefined;
-    low_stock_threshold: number | undefined;
-    supplier_id: string | undefined;
-};
+export const addIngredientSchema = z.object({
+    name: nameField,
+    unit: unitField,
+    lowStockThreshold: nonNegativeQuantity('lowStockThreshold'),
+    supplierId: id('supplierId').optional(),
+});
+export type AddIngredientPayload = z.infer<typeof addIngredientSchema>;
 
-export function validateUpdateIngredient(body: Record<string, unknown>): ValidationResult<UpdateIngredientPayload> {
-    const { name, unit, low_stock_threshold, supplier_id } = body;
-    let normalizedUnit: string | undefined;
-    if (unit !== undefined) {
-        normalizedUnit = String(unit).trim().toLowerCase();
-        if (!normalizedUnit) {
-            return { valid: false, error: 'unit cannot be empty.' };
-        }
-    }
-    return {
-        valid: true,
-        data: {
-            name: name != null ? String(name) : undefined,
-            unit: normalizedUnit,
-            low_stock_threshold: low_stock_threshold != null ? Number(low_stock_threshold) : undefined,
-            supplier_id: supplier_id != null ? String(supplier_id) : undefined,
-        },
-    };
-}
+export const updateIngredientSchema = z.object({
+    name: nameField.optional(),
+    unit: unitField.optional(),
+    low_stock_threshold: nonNegativeQuantity('lowStockThreshold').optional(),
+    supplier_id: id('supplierId').nullish(),
+});
+export type UpdateIngredientPayload = z.infer<typeof updateIngredientSchema>;
 
-export type AddSupplierPayload = { name: string; phone: string | undefined; notes: string | undefined };
+export const addSupplierSchema = z.object({
+    name: nameField,
+    phone: phoneField,
+    notes: z.string().trim().max(500).optional(),
+});
+export type AddSupplierPayload = z.infer<typeof addSupplierSchema>;
 
-export function validateAddSupplier(body: Record<string, unknown>): ValidationResult<AddSupplierPayload> {
-    const { name, phone, notes } = body;
-    if (!name) {
-        return { valid: false, error: 'name is required.' };
-    }
-    return {
-        valid: true,
-        data: {
-            name: String(name),
-            phone: phone != null ? String(phone) : undefined,
-            notes: notes != null ? String(notes) : undefined,
-        },
-    };
-}
+export const updateSupplierSchema = z.object({
+    name: nameField.optional(),
+    phone: phoneField,
+    notes: z.string().trim().max(500).optional(),
+});
+export type UpdateSupplierPayload = z.infer<typeof updateSupplierSchema>;
 
-export type UpdateSupplierPayload = { id: string; name: string | undefined; phone: string | undefined; notes: string | undefined };
+export const addUnitSchema = z.object({ name: unitField });
+export type AddUnitPayload = z.infer<typeof addUnitSchema>;
 
-export function validateUpdateSupplier(params: Record<string, unknown>, body: Record<string, unknown>): ValidationResult<UpdateSupplierPayload> {
-    const { id } = params;
-    const { name, phone, notes } = body;
-    if (!id) {
-        return { valid: false, error: 'id is required.' };
-    }
-    return {
-        valid: true,
-        data: {
-            id: String(id),
-            name: name != null ? String(name) : undefined,
-            phone: phone != null ? String(phone) : undefined,
-            notes: notes != null ? String(notes) : undefined,
-        },
-    };
-}
-
-export type AddUnitPayload = { name: string };
-
-export function validateAddUnit(body: Record<string, unknown>): ValidationResult<AddUnitPayload> {
-    const name = String(body.name ?? '').trim().toLowerCase();
-    if (!name) {
-        return { valid: false, error: 'name is required.' };
-    }
-    return { valid: true, data: { name } };
-}
-
-export type DeleteUnitPayload = { id: string };
-
-export function validateDeleteUnit(params: Record<string, unknown>): ValidationResult<DeleteUnitPayload> {
-    const { id } = params;
-    if (!id) {
-        return { valid: false, error: 'id is required.' };
-    }
-    return { valid: true, data: { id: String(id) } };
-}
-
-export type AddRestockPayload = {
-    ingredientId: string;
-    quantityAdded: number;
-    cost: number;
-    supplierId: string | undefined;
-    paymentMethodId: string;
-};
-
-export function validateAddRestock(body: Record<string, unknown>): ValidationResult<AddRestockPayload> {
-    const { ingredientId, quantityAdded, cost, supplierId, paymentMethodId } = body;
-    if (!ingredientId || quantityAdded == null || cost == null || !paymentMethodId) {
-        return { valid: false, error: 'ingredientId, quantityAdded, cost, and paymentMethodId are required.' };
-    }
-    return {
-        valid: true,
-        data: {
-            ingredientId: String(ingredientId),
-            quantityAdded: Number(quantityAdded),
-            cost: Number(cost),
-            supplierId: supplierId != null ? String(supplierId) : undefined,
-            paymentMethodId: String(paymentMethodId),
-        },
-    };
-}
+export const addRestockSchema = z.object({
+    ingredientId: id('ingredientId'),
+    quantityAdded: positiveQuantity('quantityAdded'),
+    cost: money('cost'),
+    supplierId: id('supplierId').optional(),
+    paymentMethodId: id('paymentMethodId'),
+});
+export type AddRestockPayload = z.infer<typeof addRestockSchema>;

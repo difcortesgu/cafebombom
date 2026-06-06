@@ -12,6 +12,8 @@ import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import type { Discount, DiscountType } from '@/types/types';
+import { validateForm } from '@/utils/validation';
+import { discountFormSchema } from '@/utils/validation/schemas';
 
 type DiscountScope = 'global' | 'product';
 
@@ -36,6 +38,7 @@ export function DiscountPanelForm({ onClose, initialScope = 'global', discount }
     const [startsAt, setStartsAt] = useState<number | null>(discount?.startsAt ?? Math.floor(Date.now() / 1000));
     const [endsAt, setEndsAt] = useState<number | null>(discount?.endsAt ?? null);
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         setName(discount?.name ?? '');
@@ -55,15 +58,27 @@ export function DiscountPanelForm({ onClose, initialScope = 'global', discount }
     const productItems = products.map((p) => ({ label: p.name, value: p.id }));
 
     async function submit() {
-        const numericValue = Number(value);
-        if (!name.trim() || !Number.isFinite(numericValue) || numericValue <= 0) {
-            setMessage(scope === 'global' ? t('products.discounts.invalid') : t('products.discounts.productInvalid'));
+        const result = validateForm(discountFormSchema, {
+            name,
+            scope,
+            productId: scope === 'product' ? (productId ?? '') : undefined,
+            type,
+            value,
+        });
+        if (!result.ok) {
+            setErrors(result.errors);
+            if (result.errors.productId) {
+                setMessage(t('products.discounts.productInvalid'));
+            }
             return;
         }
-        if (scope === 'product' && (!productId || !startsAt)) {
+        if (scope === 'product' && !startsAt) {
             setMessage(t('products.discounts.productInvalid'));
             return;
         }
+        setErrors({});
+        setMessage('');
+        const numericValue = result.data.value;
         if (isEdit && discount) {
             await updateDiscount({
                 id: discount.id,
@@ -137,6 +152,7 @@ export function DiscountPanelForm({ onClose, initialScope = 'global', discount }
                         value={name}
                         onChangeText={setName}
                         placeholder={t('products.discounts.namePlaceholder')}
+                        error={errors.name}
                         style={styles.input}
                     />
                 </View>
@@ -156,6 +172,7 @@ export function DiscountPanelForm({ onClose, initialScope = 'global', discount }
                         onChangeText={setValue}
                         keyboardType="decimal-pad"
                         placeholder={t('products.discounts.valuePlaceholder')}
+                        error={errors.value}
                         style={styles.input}
                     />
                 </View>

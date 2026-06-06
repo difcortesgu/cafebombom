@@ -9,6 +9,8 @@ import { useFormPanel } from '@/hooks/use-form-panel';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import type { Employee } from '@/types/types';
+import { validateForm } from '@/utils/validation';
+import { employeeFormSchema } from '@/utils/validation/schemas';
 
 type EmployeePanelFormProps = {
     visible: boolean;
@@ -31,7 +33,7 @@ const DEFAULT_FORM: EmployeeForm = {
 
 export function EmployeePanelForm({ visible, onClose, onExited, employee }: EmployeePanelFormProps) {
     const { addEmployee, updateEmployee } = useAccountsStore();
-    const { form, setForm, message, setMessage } = useFormPanel<EmployeeForm>({
+    const { form, setForm, message, fieldErrors, setFieldErrors } = useFormPanel<EmployeeForm>({
         visible,
         createDefaultForm: () =>
             employee
@@ -48,15 +50,17 @@ export function EmployeePanelForm({ visible, onClose, onExited, employee }: Empl
     const isEdit = !!employee;
 
     async function handleSave() {
-        const rate = Number(form.rate);
-        if (!form.name.trim() || !Number.isFinite(rate) || rate <= 0) {
-            setMessage(t('accounts.employees.invalid'));
+        const result = validateForm(employeeFormSchema, form);
+        if (!result.ok) {
+            setFieldErrors(result.errors);
             return;
         }
+        setFieldErrors({});
+        const { name, salaryType, rate } = result.data;
         if (isEdit) {
-            await updateEmployee({ id: employee.id, name: form.name.trim(), salaryType: form.salaryType, rate });
+            await updateEmployee({ id: employee.id, name, salaryType, rate });
         } else {
-            await addEmployee({ name: form.name.trim(), salaryType: form.salaryType, rate });
+            await addEmployee({ name, salaryType, rate });
         }
         onClose();
     }
@@ -80,6 +84,7 @@ export function EmployeePanelForm({ visible, onClose, onExited, employee }: Empl
             <ThemedInput
                 value={form.name}
                 placeholder={t('accounts.employees.namePlaceholder')}
+                error={fieldErrors.name}
                 onChangeText={(val) => setForm((prev) => ({ ...prev, name: val }))}
             />
             <ThemedSelect
@@ -94,6 +99,7 @@ export function EmployeePanelForm({ visible, onClose, onExited, employee }: Empl
                 value={form.rate}
                 placeholder={t('accounts.employees.ratePlaceholder')}
                 keyboardType="decimal-pad"
+                error={fieldErrors.rate}
                 onChangeText={(val) => setForm((prev) => ({ ...prev, rate: val }))}
             />
             <FormFeedback message={message} />

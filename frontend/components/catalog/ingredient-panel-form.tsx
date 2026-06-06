@@ -9,6 +9,8 @@ import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
+import { validateForm } from '@/utils/validation';
+import { ingredientFormSchema } from '@/utils/validation/schemas';
 
 export type IngredientPanelFormProps = {
     mode: 'create' | { ingredientId: string };
@@ -23,6 +25,7 @@ export function IngredientPanelForm({ mode, onClose }: IngredientPanelFormProps)
     const [unit, setUnit] = useState('');
     const [lowStockThreshold, setLowStockThreshold] = useState('5');
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const isEdit = mode !== 'create';
 
@@ -48,8 +51,14 @@ export function IngredientPanelForm({ mode, onClose }: IngredientPanelFormProps)
     }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function submit() {
-        if (!name.trim()) { setMessage(t('ingredientForm.error.nameRequired')); return; }
-        if (!unit.trim()) { setMessage(t('ingredientForm.error.unitRequired')); return; }
+        const result = validateForm(ingredientFormSchema, { name, unit, lowStockThreshold });
+        if (!result.ok) {
+            setErrors(result.errors);
+            if (result.errors.unit) setMessage(t('ingredientForm.error.unitRequired'));
+            return;
+        }
+        setErrors({});
+        setMessage('');
         const payload = { name: name.trim(), unit: unit as any, lowStockThreshold: Number(lowStockThreshold || '0') };
         if (mode === 'create') {
             await addIngredient(payload);
@@ -85,7 +94,7 @@ export function IngredientPanelForm({ mode, onClose }: IngredientPanelFormProps)
                         <Ionicons name="text-outline" size={14} color={palette.mutedText} />
                         <ThemedText style={styles.smallLabel}>{t('ingredientForm.name')}</ThemedText>
                     </View>
-                    <ThemedInput value={name} onChangeText={setName} style={styles.input} />
+                    <ThemedInput value={name} onChangeText={setName} error={errors.name} style={styles.input} />
                 </View>
 
                 <View style={styles.twoColRow}>
@@ -131,6 +140,7 @@ export function IngredientPanelForm({ mode, onClose }: IngredientPanelFormProps)
                             keyboardType="decimal-pad"
                             value={lowStockThreshold}
                             onChangeText={setLowStockThreshold}
+                            error={errors.lowStockThreshold}
                             style={styles.input}
                         />
                     </View>

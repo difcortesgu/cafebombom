@@ -4,16 +4,29 @@ import { useAppColors } from '@/hooks/use-theme-color';
 
 type ThemedInputProps = TextInputProps & {
   label?: string;
+  error?: string | null;
 };
 
-export function ThemedInput({ style, placeholderTextColor, label, ...props }: ThemedInputProps) {
+export function ThemedInput({ style, placeholderTextColor, label, error, ...props }: ThemedInputProps) {
   const palette = useAppColors();
   const hasValue = typeof props.value === 'string' ? props.value.length > 0 : false;
+  const hasError = !!error;
+
+  const borderColor = hasError
+    ? palette.danger
+    : hasValue
+      ? palette.tint + '80'
+      : palette.border;
 
   return (
     <View style={styles.wrapper}>
       {label ? (
-        <Text style={[styles.label, { color: hasValue ? palette.tint : palette.mutedText }]}>
+        <Text
+          style={[
+            styles.label,
+            { color: hasError ? palette.danger : hasValue ? palette.tint : palette.mutedText },
+          ]}
+        >
           {label}
         </Text>
       ) : null}
@@ -21,7 +34,7 @@ export function ThemedInput({ style, placeholderTextColor, label, ...props }: Th
         style={[
           styles.input,
           {
-            borderColor: hasValue ? palette.tint + '80' : palette.border,
+            borderColor,
             color: palette.text,
             backgroundColor: palette.inputBackground,
           },
@@ -30,6 +43,7 @@ export function ThemedInput({ style, placeholderTextColor, label, ...props }: Th
         placeholderTextColor={placeholderTextColor ?? palette.placeholder}
         {...props}
       />
+      {hasError ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}
     </View>
   );
 }
@@ -50,5 +64,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 11,
+  },
+  error: {
+    fontSize: 12,
+    marginLeft: 2,
   },
 });

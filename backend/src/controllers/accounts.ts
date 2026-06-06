@@ -2,15 +2,14 @@ import type { Request, Response } from 'express';
 import type { AuthenticatedRequestUser } from '../middleware/auth';
 import { accountsService } from '../services';
 import {
-  validateAddAdjustment,
-  validateAddEmployee,
-  validateAddExpense,
-  validateAddPayroll,
-  validateCloseCashRegister,
-  validateDateRange,
-  validateGetAdjustments,
-  validateOpenCashRegister,
-  validateUpdateEmployee,
+  addAdjustmentSchema,
+  addExpenseSchema,
+  addPayrollSchema,
+  closeCashRegisterSchema,
+  dateRangeSchema,
+  employeeSchema,
+  getAdjustmentsSchema,
+  openCashRegisterSchema,
 } from '../validators/accounts';
 
 type AuthenticatedRequest = Request & { auth: AuthenticatedRequestUser };
@@ -24,24 +23,14 @@ export async function getHydrationData(req: Request, res: Response): Promise<voi
 }
 
 export async function addExpense(req: Request, res: Response): Promise<void> {
-  const v = validateAddExpense(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { category, amount, description, dateUnix, paymentMethodId } = v.data;
+  const { category, amount, description, dateUnix, paymentMethodId } = addExpenseSchema.parse(req.body);
 
   const id = await accountsService.addExpense({ category, amount, description, dateUnix, paymentMethodId });
   res.status(201).json({ id });
 }
 
 export async function addEmployee(req: Request, res: Response): Promise<void> {
-  const v = validateAddEmployee(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, salaryType, rate } = v.data;
+  const { name, salaryType, rate } = employeeSchema.parse(req.body);
 
   const id = await accountsService.addEmployee({ name, salaryType, rate });
   if (!id) {
@@ -52,12 +41,13 @@ export async function addEmployee(req: Request, res: Response): Promise<void> {
 }
 
 export async function updateEmployee(req: Request, res: Response): Promise<void> {
-  const v = validateUpdateEmployee({ ...req.body as Record<string, unknown>, id: req.params['id'] });
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
+  const id = String(req.params['id'] ?? '');
+  if (!id) {
+    res.status(400).json({ error: 'id is required.' });
     return;
   }
-  const updated = await accountsService.updateEmployee(v.data);
+  const { name, salaryType, rate } = employeeSchema.parse(req.body);
+  const updated = await accountsService.updateEmployee({ id, name, salaryType, rate });
   if (!updated) {
     res.status(404).json({ error: 'Employee not found.' });
     return;
@@ -80,24 +70,14 @@ export async function deleteEmployee(req: Request, res: Response): Promise<void>
 }
 
 export async function addPayroll(req: Request, res: Response): Promise<void> {
-  const v = validateAddPayroll(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { employeeId, periodStart, periodEnd, amount, paymentMethodId } = v.data;
+  const { employeeId, periodStart, periodEnd, amount, paymentMethodId } = addPayrollSchema.parse(req.body);
 
   const id = await accountsService.addPayroll({ employeeId, periodStart, periodEnd, amount, paymentMethodId });
   res.status(201).json({ id });
 }
 
 export async function getExpensesTotal(req: Request, res: Response): Promise<void> {
-  const v = validateDateRange(req.query as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { start, end } = v.data;
+  const { start, end } = dateRangeSchema.parse(req.query);
 
   const total = await accountsService.getExpensesTotalInRange(start, end);
   res.status(200).json({ total });
@@ -115,12 +95,7 @@ export async function getTodayCashRegisterSummary(req: Request, res: Response): 
 
 export async function openCashRegister(req: Request, res: Response): Promise<void> {
   const userId = (req as AuthenticatedRequest).auth.userId;
-  const v = validateOpenCashRegister(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { openingAmount, notes } = v.data;
+  const { openingAmount, notes } = openCashRegisterSchema.parse(req.body);
 
   const id = await accountsService.openCashRegister({ openingAmount, notes, userId });
   res.status(201).json({ id });
@@ -128,12 +103,7 @@ export async function openCashRegister(req: Request, res: Response): Promise<voi
 
 export async function closeCashRegister(req: Request, res: Response): Promise<void> {
   const userId = (req as AuthenticatedRequest).auth.userId;
-  const v = validateCloseCashRegister(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { sessionId, closingAmount, notes } = v.data;
+  const { sessionId, closingAmount, notes } = closeCashRegisterSchema.parse(req.body);
 
   await accountsService.closeCashRegister({ sessionId, closingAmount, notes, userId });
   res.status(200).json({ ok: true });
@@ -141,24 +111,14 @@ export async function closeCashRegister(req: Request, res: Response): Promise<vo
 
 export async function addCashRegisterAdjustment(req: Request, res: Response): Promise<void> {
   const userId = (req as AuthenticatedRequest).auth.userId;
-  const v = validateAddAdjustment(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { sessionId, amount, reason } = v.data;
+  const { sessionId, amount, reason } = addAdjustmentSchema.parse(req.body);
 
   const id = await accountsService.addCashRegisterAdjustment({ sessionId, amount, reason, adjustedBy: userId });
   res.status(201).json({ id });
 }
 
 export async function getCashRegisterAdjustments(req: Request, res: Response): Promise<void> {
-  const v = validateGetAdjustments(req.params as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { sessionId } = v.data;
+  const { sessionId } = getAdjustmentsSchema.parse(req.params);
 
   const adjustments = await accountsService.getCashRegisterAdjustments(sessionId);
   res.status(200).json({ adjustments });

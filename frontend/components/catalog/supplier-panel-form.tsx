@@ -8,6 +8,8 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
+import { validateForm } from '@/utils/validation';
+import { supplierFormSchema } from '@/utils/validation/schemas';
 
 export type SupplierPanelFormProps = {
     mode: 'create' | { supplierId: string };
@@ -22,6 +24,7 @@ export function SupplierPanelForm({ mode, onClose }: SupplierPanelFormProps) {
     const [phone, setPhone] = useState('');
     const [notes, setNotes] = useState('');
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const isEdit = mode !== 'create';
 
@@ -42,7 +45,12 @@ export function SupplierPanelForm({ mode, onClose }: SupplierPanelFormProps) {
     }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function submit() {
-        if (!name.trim()) { setMessage(t('inventoryForm.suppliers.required')); return; }
+        const result = validateForm(supplierFormSchema, { name, phone, notes });
+        if (!result.ok) {
+            setErrors(result.errors);
+            return;
+        }
+        setErrors({});
         if (mode === 'create') {
             await addSupplier({ name: name.trim(), phone: phone.trim() || undefined, notes: notes.trim() || undefined });
         } else {
@@ -77,7 +85,7 @@ export function SupplierPanelForm({ mode, onClose }: SupplierPanelFormProps) {
                         <Ionicons name="business-outline" size={14} color={palette.mutedText} />
                         <ThemedText style={styles.smallLabel}>{t('inventoryForm.suppliers.name')}</ThemedText>
                     </View>
-                    <ThemedInput value={name} onChangeText={setName} style={styles.input} />
+                    <ThemedInput value={name} onChangeText={setName} error={errors.name} style={styles.input} />
                 </View>
 
                 <View style={styles.fieldGroup}>
@@ -85,7 +93,7 @@ export function SupplierPanelForm({ mode, onClose }: SupplierPanelFormProps) {
                         <Ionicons name="call-outline" size={14} color={palette.mutedText} />
                         <ThemedText style={styles.smallLabel}>{t('inventoryForm.suppliers.phone')}</ThemedText>
                     </View>
-                    <ThemedInput keyboardType="phone-pad" value={phone} onChangeText={setPhone} style={styles.input} />
+                    <ThemedInput keyboardType="phone-pad" value={phone} onChangeText={setPhone} error={errors.phone} style={styles.input} />
                 </View>
 
                 <View style={styles.fieldGroup}>

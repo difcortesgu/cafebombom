@@ -3,11 +3,14 @@ import path from 'path';
 import { productImageService, productsService } from '../services';
 import { logger } from '../utils/logger';
 import {
-  validateAddCategory,
-  validateCreateProduct,
-  validateSetAdditionalIngredient,
-  validateSetIngredient,
+  addCategorySchema,
+  comboGroupOptionSchema,
+  comboGroupSchema,
+  createProductSchema,
+  setAdditionalIngredientSchema,
+  setIngredientSchema,
 } from '../validators/products';
+import type { ProductRecipeInput } from '../types/products';
 import type { Request, Response } from 'express';
 
 // Unexpected errors thrown here propagate to the central error handler
@@ -19,12 +22,8 @@ export async function getHydrationData(req: Request, res: Response): Promise<voi
 }
 
 export async function createProduct(req: Request, res: Response): Promise<void> {
-  const v = validateCreateProduct(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name, categoryId, price, imageUri, isCombo, recipe, additionalIngredients } = v.data;
+  const { name, categoryId, price, imageUri, isCombo, recipe, additionalIngredients } =
+    createProductSchema.parse(req.body);
 
   const id = await productsService.createProduct({
     name,
@@ -32,7 +31,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     price,
     imageUri,
     isCombo,
-    recipe,
+    recipe: recipe as [ProductRecipeInput, ...ProductRecipeInput[]] | undefined,
     additionalIngredients,
   });
   if (!id) {
@@ -103,12 +102,7 @@ export function getProductImage(req: Request, res: Response): void {
 }
 
 export async function addCategory(req: Request, res: Response): Promise<void> {
-  const v = validateAddCategory(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { name } = v.data;
+  const { name } = addCategorySchema.parse(req.body);
 
   const id = await productsService.addCategory({ name });
   if (!id) {
@@ -128,12 +122,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
 
 export async function setProductIngredient(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const v = validateSetIngredient(req.body as Record<string, unknown>);
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { ingredientId, quantityUsed } = v.data;
+  const { ingredientId, quantityUsed } = setIngredientSchema.parse(req.body);
 
   await productsService.setProductIngredient({ productId: id, ingredientId, quantityUsed });
   res.status(204).send();
@@ -148,15 +137,7 @@ export async function removeProductIngredient(req: Request, res: Response): Prom
 
 export async function setProductAdditionalIngredient(req: Request, res: Response): Promise<void> {
   const { id, ingredientId } = req.params as Record<string, string>;
-  const v = validateSetAdditionalIngredient(
-    req.params as Record<string, unknown>,
-    req.body as Record<string, unknown>,
-  );
-  if (!v.valid) {
-    res.status(400).json({ error: v.error });
-    return;
-  }
-  const { quantityUsed, additionalPrice } = v.data;
+  const { quantityUsed, additionalPrice } = setAdditionalIngredientSchema.parse(req.body);
 
   await productsService.setProductAdditionalIngredient({
     productId: id,
@@ -176,18 +157,13 @@ export async function removeProductAdditionalIngredient(req: Request, res: Respo
 
 export async function setComboGroup(req: Request, res: Response): Promise<void> {
   const { id, groupId } = req.params as Record<string, string>;
-  const { name, minQuantity, maxQuantity } = req.body as Record<string, unknown>;
-
-  if (!name || typeof minQuantity !== 'number' || typeof maxQuantity !== 'number') {
-    res.status(400).json({ error: 'Invalid combo group data.' });
-    return;
-  }
+  const { name, minQuantity, maxQuantity } = comboGroupSchema.parse(req.body);
 
   const newGroupId = await productsService.setComboGroup({
     comboProductId: id,
-    name: String(name),
-    minQuantity: Number(minQuantity),
-    maxQuantity: Number(maxQuantity),
+    name,
+    minQuantity,
+    maxQuantity,
     groupId,
   });
   res.status(groupId ? 204 : 201).json(groupId ? undefined : { id: newGroupId });
@@ -202,18 +178,13 @@ export async function removeComboGroup(req: Request, res: Response): Promise<voi
 
 export async function setComboGroupOption(req: Request, res: Response): Promise<void> {
   const { groupId, optionId } = req.params as Record<string, string>;
-  const { productId, additionalPrice, isDefault } = req.body as Record<string, unknown>;
-
-  if (!productId || typeof additionalPrice !== 'number' || typeof isDefault !== 'boolean') {
-    res.status(400).json({ error: 'Invalid combo option data.' });
-    return;
-  }
+  const { productId, additionalPrice, isDefault } = comboGroupOptionSchema.parse(req.body);
 
   const newOptionId = await productsService.setComboGroupOption({
     groupId,
-    productId: String(productId),
-    additionalPrice: Number(additionalPrice),
-    isDefault: Boolean(isDefault),
+    productId,
+    additionalPrice,
+    isDefault,
     optionId,
   });
   res.status(optionId ? 204 : 201).json(optionId ? undefined : { id: newOptionId });
