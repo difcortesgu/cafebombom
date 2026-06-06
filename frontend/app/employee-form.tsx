@@ -11,6 +11,8 @@ import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
+import { validateForm } from '@/utils/validation';
+import { employeeFormSchema } from '@/utils/validation/schemas';
 
 export default function EmployeeFormScreen() {
     const router = useRouter();
@@ -28,6 +30,7 @@ export default function EmployeeFormScreen() {
         rate: editingEmployee ? String(editingEmployee.rate) : '',
     });
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useFocusEffect(
         useCallback(() => {
@@ -61,6 +64,7 @@ export default function EmployeeFormScreen() {
                 <ThemedInput
                     value={form.name}
                     placeholder={t('accounts.employees.namePlaceholder')}
+                    error={errors.name}
                     onChangeText={(val) => setForm((prev) => ({ ...prev, name: val }))}
                 />
                 <ThemedSelect
@@ -75,6 +79,7 @@ export default function EmployeeFormScreen() {
                     value={form.rate}
                     placeholder={t('accounts.employees.ratePlaceholder')}
                     keyboardType="decimal-pad"
+                    error={errors.rate}
                     onChangeText={(val) => setForm((prev) => ({ ...prev, rate: val }))}
                 />
 
@@ -84,15 +89,17 @@ export default function EmployeeFormScreen() {
                         icon="checkmark-circle"
                         label={isEditing ? t('accounts.employees.save') : t('accounts.employees.add')}
                         onPress={async () => {
-                            const rate = Number(form.rate);
-                            if (!form.name.trim() || !Number.isFinite(rate) || rate <= 0) {
-                                setMessage(t('accounts.employees.invalid'));
+                            const result = validateForm(employeeFormSchema, form);
+                            if (!result.ok) {
+                                setErrors(result.errors);
                                 return;
                             }
+                            setErrors({});
+                            const { name, salaryType, rate } = result.data;
                             if (isEditing && editingEmployee) {
-                                await updateEmployee({ id: editingEmployee.id, name: form.name.trim(), salaryType: form.salaryType, rate });
+                                await updateEmployee({ id: editingEmployee.id, name, salaryType, rate });
                             } else {
-                                await addEmployee({ name: form.name.trim(), salaryType: form.salaryType, rate });
+                                await addEmployee({ name, salaryType, rate });
                             }
                             router.back();
                         }}

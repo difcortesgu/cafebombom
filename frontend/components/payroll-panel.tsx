@@ -13,6 +13,8 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { validateForm } from '@/utils/validation';
+import { payrollFormSchema } from '@/utils/validation/schemas';
 
 type PayrollPanelProps = {
     visible: boolean;
@@ -40,7 +42,7 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
 
     const paymentInitRef = useRef(false);
     const employeeInitRef = useRef(false);
-    const { form, setForm, message, setMessage } = useFormPanel<PayrollForm>({
+    const { form, setForm, message, setMessage, fieldErrors, setFieldErrors } = useFormPanel<PayrollForm>({
         visible,
         createDefaultForm: () => DEFAULT_FORM,
         onOpen: () => {
@@ -69,17 +71,22 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
     }, [employees, setForm, visible]);
 
     async function handleSave() {
-        const amount = Number(form.amount);
-        if (!form.employeeId || !Number.isFinite(amount) || amount <= 0 || !form.paymentMethodId) {
-            setMessage(t('accountsForm.payroll.required'));
+        const result = validateForm(payrollFormSchema, form);
+        if (!result.ok) {
+            setFieldErrors(result.errors);
+            if (result.errors.employeeId || result.errors.paymentMethodId) {
+                setMessage(t('accountsForm.payroll.required'));
+            }
             return;
         }
+        setFieldErrors({});
+        setMessage('');
         const now = Math.floor(Date.now() / 1000);
         await addPayroll({
             employeeId: form.employeeId,
             periodStart: now,
             periodEnd: now,
-            amount,
+            amount: result.data.amount,
             paymentMethodId: form.paymentMethodId,
         });
         onClose();
@@ -150,6 +157,7 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
                     keyboardType="decimal-pad"
                     placeholder={t('accountsForm.payroll.amount')}
                     onChangeText={(val) => setForm((f) => ({ ...f, amount: val }))}
+                    error={fieldErrors.amount}
                     style={styles.input}
                 />
             </View>

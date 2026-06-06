@@ -10,6 +10,8 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
+import { validateForm } from '@/utils/validation';
+import { ingredientFormSchema } from '@/utils/validation/schemas';
 
 function normalizeParam(value?: string | string[]) {
   if (!value) {
@@ -28,6 +30,7 @@ export default function IngredientFormScreen() {
   const { ingredients, units, hydrate: hydrateInventory, addIngredient, addUnit, deleteUnit, updateIngredient } = useInventoryStore();
 
   const [message, setMessage] = useState<string>('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const initializedCreateFormRef = useRef(false);
   const [ingredientForm, setIngredientForm] = useState({
     id: null as string | null,
@@ -81,20 +84,23 @@ export default function IngredientFormScreen() {
   }, [ingredientId, ingredients, units]);
 
   const submitIngredient = async () => {
-    if (!ingredientForm.name.trim()) {
-      setMessage(t('ingredientForm.error.nameRequired'));
+    const result = validateForm(ingredientFormSchema, {
+      name: ingredientForm.name,
+      unit: ingredientForm.unit,
+      lowStockThreshold: ingredientForm.lowStockThreshold,
+    });
+    if (!result.ok) {
+      setErrors(result.errors);
+      if (result.errors.unit) setMessage(t('ingredientForm.error.unitRequired'));
       return;
     }
-
-    if (!ingredientForm.unit.trim()) {
-      setMessage(t('ingredientForm.error.unitRequired'));
-      return;
-    }
+    setErrors({});
+    setMessage('');
 
     const payload = {
-      name: ingredientForm.name.trim(),
+      name: result.data.name,
       unit: ingredientForm.unit,
-      lowStockThreshold: Number(ingredientForm.lowStockThreshold || '0'),
+      lowStockThreshold: result.data.lowStockThreshold,
     };
 
     if (ingredientForm.id) {
@@ -121,6 +127,7 @@ export default function IngredientFormScreen() {
           placeholder={t('ingredientForm.name')}
           value={ingredientForm.name}
           onChangeText={(value) => setIngredientForm((current) => ({ ...current, name: value }))}
+          error={errors.name}
           style={styles.input}
         />
         <View style={isWide ? styles.twoColumnRow : styles.stackRow}>
@@ -175,6 +182,7 @@ export default function IngredientFormScreen() {
               keyboardType="decimal-pad"
               value={ingredientForm.lowStockThreshold}
               onChangeText={(value) => setIngredientForm((current) => ({ ...current, lowStockThreshold: value }))}
+              error={errors.lowStockThreshold}
               style={styles.input}
             />
           </View>

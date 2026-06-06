@@ -824,6 +824,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'validation.positive': 'Debe ser mayor que cero.',
     'validation.nonNegative': 'Debe ser cero o mayor.',
     'validation.pinFormat': 'La contraseña debe tener entre 4 y 8 dígitos.',
+    'validation.pinMismatch': 'Las contraseñas no coinciden.',
     'validation.phoneFormat': 'El teléfono tiene un formato inválido.',
     'validation.percentageMax': 'El porcentaje debe ser como máximo 100.',
     'validation.dateRange': 'La fecha final debe ser posterior a la inicial.',

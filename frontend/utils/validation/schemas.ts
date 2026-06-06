@@ -81,6 +81,17 @@ export const productFormSchema = z.object({
     price: positiveNumber,
 });
 
+export const ownerAccountSchema = z
+    .object({
+        name: nameField,
+        pin: pinField,
+        pinConfirm: z.string(),
+    })
+    .refine((d) => d.pin === d.pinConfirm, {
+        message: t('validation.pinMismatch'),
+        path: ['pinConfirm'],
+    });
+
 export const discountFormSchema = z
     .object({
         name: nameField,

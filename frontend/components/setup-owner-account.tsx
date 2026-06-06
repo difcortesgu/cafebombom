@@ -4,8 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedInput } from '@/components/ui/themed-input';
-import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { validateForm } from '@/utils/validation';
+import { ownerAccountSchema } from '@/utils/validation/schemas';
 
 type SetupOwnerAccountProps = {
   loading: boolean;
@@ -13,32 +14,23 @@ type SetupOwnerAccountProps = {
 };
 
 export function SetupOwnerAccount({ loading, onSubmit }: SetupOwnerAccountProps) {
-  const palette = useAppColors();
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const canSubmit = useMemo(() => {
     return !loading && name.trim().length > 0 && pin.trim().length >= 4 && pinConfirm.trim().length >= 4;
   }, [loading, name, pin, pinConfirm]);
 
   async function handleSubmit() {
-    const cleanName = name.trim();
-    const cleanPin = pin.trim();
-    const cleanPinConfirm = pinConfirm.trim();
-
-    if (!cleanName || cleanPin.length < 4 || cleanPinConfirm.length < 4) {
+    const result = validateForm(ownerAccountSchema, { name, pin: pin.trim(), pinConfirm: pinConfirm.trim() });
+    if (!result.ok) {
+      setErrors(result.errors);
       return;
     }
-
-    if (cleanPin !== cleanPinConfirm) {
-      setLocalError(t('setup.ownerBootstrap.pinMismatch'));
-      return;
-    }
-
-    setLocalError(null);
-    await onSubmit({ name: cleanName, pin: cleanPin });
+    setErrors({});
+    await onSubmit({ name: result.data.name, pin: result.data.pin });
   }
 
   return (
@@ -49,6 +41,7 @@ export function SetupOwnerAccount({ loading, onSubmit }: SetupOwnerAccountProps)
       <ThemedInput
         value={name}
         placeholder={t('setup.ownerBootstrap.namePlaceholder')}
+        error={errors.name}
         onChangeText={setName}
       />
 
@@ -58,6 +51,7 @@ export function SetupOwnerAccount({ loading, onSubmit }: SetupOwnerAccountProps)
         keyboardType="number-pad"
         maxLength={6}
         placeholder={t('setup.ownerBootstrap.pinPlaceholder')}
+        error={errors.pin}
         onChangeText={setPin}
       />
 
@@ -67,12 +61,9 @@ export function SetupOwnerAccount({ loading, onSubmit }: SetupOwnerAccountProps)
         keyboardType="number-pad"
         maxLength={6}
         placeholder={t('setup.ownerBootstrap.pinConfirmPlaceholder')}
+        error={errors.pinConfirm}
         onChangeText={setPinConfirm}
       />
-
-      {localError ? (
-        <ThemedText style={[styles.errorText, { color: palette.danger }]}>{localError}</ThemedText>
-      ) : null}
 
       <ThemedButton
         label={loading ? t('setup.ownerBootstrap.creating') : t('setup.ownerBootstrap.createAction')}
@@ -90,9 +81,5 @@ const styles = StyleSheet.create({
   helperText: {
     opacity: 0.9,
     marginBottom: 4,
-  },
-  errorText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
 });

@@ -8,6 +8,8 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import type { User } from '@/types/types';
+import { validateForm } from '@/utils/validation';
+import { userFormSchema } from '@/utils/validation/schemas';
 
 type UserAccountModalMode = 'add' | 'edit';
 
@@ -38,6 +40,7 @@ export function UserAccountModal({
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [role, setRole] = useState<'owner' | 'staff'>('staff');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!visible) {
@@ -60,6 +63,12 @@ export function UserAccountModal({
   const isEditDisabled = loading || name.trim().length === 0 || (pin.trim().length > 0 && pin.trim().length < 4);
 
   const submit = async () => {
+    const result = validateForm(userFormSchema(mode === 'edit'), { name, role, pin: pin.trim() });
+    if (!result.ok) {
+      setErrors(result.errors);
+      return;
+    }
+    setErrors({});
     const payload: UserAccountModalPayload = {
       name,
       role,
@@ -83,6 +92,7 @@ export function UserAccountModal({
           <ThemedInput
             value={name}
             placeholder={t('setup.account.namePlaceholder')}
+            error={errors.name}
             onChangeText={setName}
           />
 
@@ -112,6 +122,7 @@ export function UserAccountModal({
             keyboardType="number-pad"
             maxLength={6}
             placeholder={mode === 'edit' ? t('setup.account.pinPlaceholderEdit') : t('setup.account.pinPlaceholder')}
+            error={errors.pin}
             onChangeText={setPin}
           />
 

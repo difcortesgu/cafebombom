@@ -10,6 +10,8 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useSalesStore } from '@/stores/sales';
 import type { TableType } from '@/types/types';
+import { validateForm } from '@/utils/validation';
+import { tableFormSchema } from '@/utils/validation/schemas';
 
 function normalizeParam(value?: string | string[]) {
   if (!value) {
@@ -27,7 +29,7 @@ export default function TableFormScreen() {
 
   const [tableName, setTableName] = useState('');
   const [tableType, setTableType] = useState<TableType>('dine-in');
-  const [message, setMessage] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const tableTypeOptions: { label: string; value: TableType }[] = [
     { label: t('tables.type.dineIn'), value: 'dine-in' },
@@ -56,11 +58,13 @@ export default function TableFormScreen() {
   }, [tableId, tables]);
 
   const submit = async () => {
-    const normalizedName = tableName.trim();
-    if (!normalizedName) {
-      setMessage(t('tableForm.nameRequired'));
+    const result = validateForm(tableFormSchema, { name: tableName, tableType });
+    if (!result.ok) {
+      setNameError(result.errors.name ?? '');
       return;
     }
+    setNameError('');
+    const normalizedName = result.data.name;
 
     if (tableId) {
       await updateTable({
@@ -82,14 +86,8 @@ export default function TableFormScreen() {
     <FormScreen>
       <ThemedText type="title">{tableId ? t('tableForm.editTitle') : t('tableForm.createTitle')}</ThemedText>
 
-      {message ? (
-        <ThemedCard style={styles.card}>
-          <ThemedText>{message}</ThemedText>
-        </ThemedCard>
-      ) : null}
-
       <ThemedCard style={styles.card}>
-        <ThemedInput value={tableName} placeholder={t('tableForm.example')} onChangeText={setTableName} style={styles.input} />
+        <ThemedInput value={tableName} placeholder={t('tableForm.example')} onChangeText={setTableName} error={nameError} style={styles.input} />
 
         <ThemedText type="defaultSemiBold">{t('tableForm.type')}</ThemedText>
         <View style={styles.toggleGroup}>

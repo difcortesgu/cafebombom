@@ -15,6 +15,8 @@ import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
 import type { DiscountType } from '@/types/types';
+import { validateForm } from '@/utils/validation';
+import { discountFormSchema } from '@/utils/validation/schemas';
 
 type DiscountScope = 'global' | 'product';
 
@@ -41,6 +43,7 @@ export default function DiscountFormScreen() {
     );
     const [endsAt, setEndsAt] = useState<number | null>(editingDiscount?.endsAt ?? null);
     const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useFocusEffect(
         useCallback(() => {
@@ -67,19 +70,25 @@ export default function DiscountFormScreen() {
     const productItems = products.map((p) => ({ label: p.name, value: p.id }));
 
     async function submit() {
-        const numericValue = Number(value);
-        if (!name.trim() || !Number.isFinite(numericValue) || numericValue <= 0) {
-            setMessage(
-                initialScope === 'global'
-                    ? t('products.discounts.invalid')
-                    : t('products.discounts.productInvalid'),
-            );
+        const result = validateForm(discountFormSchema, {
+            name,
+            scope: initialScope,
+            productId: initialScope === 'product' ? (productId ?? '') : undefined,
+            type,
+            value,
+        });
+        if (!result.ok) {
+            setErrors(result.errors);
+            if (result.errors.productId) setMessage(t('products.discounts.productInvalid'));
             return;
         }
-        if (initialScope === 'product' && (!productId || !startsAt)) {
+        if (initialScope === 'product' && !startsAt) {
             setMessage(t('products.discounts.productInvalid'));
             return;
         }
+        setErrors({});
+        setMessage('');
+        const numericValue = result.data.value;
         if (isEdit && editingDiscount) {
             await updateDiscount({
                 id: editingDiscount.id,
@@ -145,6 +154,7 @@ export default function DiscountFormScreen() {
                         value={name}
                         onChangeText={setName}
                         placeholder={t('products.discounts.namePlaceholder')}
+                        error={errors.name}
                     />
                 </View>
 
@@ -163,6 +173,7 @@ export default function DiscountFormScreen() {
                         onChangeText={setValue}
                         keyboardType="decimal-pad"
                         placeholder={t('products.discounts.valuePlaceholder')}
+                        error={errors.value}
                     />
                 </View>
 

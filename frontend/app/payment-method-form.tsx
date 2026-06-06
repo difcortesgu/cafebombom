@@ -12,6 +12,8 @@ import { PAYMENT_ICONS } from '@/constants/payment-icons';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { validateForm } from '@/utils/validation';
+import { paymentMethodFormSchema } from '@/utils/validation/schemas';
 
 export default function PaymentMethodFormScreen() {
     const router = useRouter();
@@ -21,6 +23,7 @@ export default function PaymentMethodFormScreen() {
     const [name, setName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('wallet');
     const [message, setMessage] = useState('');
+    const [nameError, setNameError] = useState('');
 
     useFocusEffect(
         useCallback(() => {
@@ -29,10 +32,12 @@ export default function PaymentMethodFormScreen() {
     );
 
     async function submit() {
-        if (!name.trim()) {
-            setMessage(t('common.required'));
+        const result = validateForm(paymentMethodFormSchema, { name, icon: selectedIcon });
+        if (!result.ok) {
+            setNameError(result.errors.name ?? '');
             return;
         }
+        setNameError('');
         const id = await addMethod(name.trim(), selectedIcon);
         if (!id) {
             setMessage(t('common.error'));
@@ -61,6 +66,7 @@ export default function PaymentMethodFormScreen() {
                     value={name}
                     onChangeText={setName}
                     placeholder={t('settings.paymentMethods.name')}
+                    error={nameError}
                 />
 
                 <View style={styles.labelRow}>

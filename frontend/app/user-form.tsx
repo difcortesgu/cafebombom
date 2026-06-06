@@ -10,6 +10,8 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAuthStore } from '@/stores/auth';
+import { validateForm } from '@/utils/validation';
+import { userFormSchema } from '@/utils/validation/schemas';
 
 export default function UserFormScreen() {
     const router = useRouter();
@@ -24,17 +26,15 @@ export default function UserFormScreen() {
     const [name, setName] = useState(editingUser?.name ?? '');
     const [role, setRole] = useState<'owner' | 'staff'>(editingUser?.role ?? 'staff');
     const [pin, setPin] = useState('');
-    const [message, setMessage] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     async function handleSave() {
-        if (!name.trim()) {
-            setMessage(t('setup.account.namePlaceholder'));
+        const result = validateForm(userFormSchema(isEditing), { name, role, pin });
+        if (!result.ok) {
+            setErrors(result.errors);
             return;
         }
-        if (!isEditing && !pin.trim()) {
-            setMessage(t('setup.account.pinPlaceholder'));
-            return;
-        }
+        setErrors({});
         if (isEditing && editingUser) {
             const updated = await setupUpdateUser(editingUser.id, {
                 name: name.trim(),
@@ -55,16 +55,11 @@ export default function UserFormScreen() {
                 {isEditing ? t('setup.account.editTitle') : t('setup.account.add')}
             </ThemedText>
 
-            {message ? (
-                <ThemedCard style={styles.card}>
-                    <ThemedText style={{ color: palette.danger }}>{message}</ThemedText>
-                </ThemedCard>
-            ) : null}
-
             <ThemedCard style={styles.card}>
                 <ThemedInput
                     value={name}
                     placeholder={t('setup.account.namePlaceholder')}
+                    error={errors.name}
                     onChangeText={setName}
                 />
 
@@ -93,6 +88,7 @@ export default function UserFormScreen() {
                     placeholder={isEditing ? t('setup.account.pinPlaceholderEdit') : t('setup.account.pinPlaceholder')}
                     keyboardType="number-pad"
                     secureTextEntry
+                    error={errors.pin}
                     onChangeText={setPin}
                 />
 

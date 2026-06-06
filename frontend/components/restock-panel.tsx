@@ -13,6 +13,8 @@ import { useFormPanel } from '@/hooks/use-form-panel';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
+import { validateForm } from '@/utils/validation';
+import { restockFormSchema } from '@/utils/validation/schemas';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
 
 type RestockPanelProps = {
@@ -37,7 +39,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
     const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
     const paymentInitRef = useRef(false);
-    const { form, setForm, message, setMessage } = useFormPanel<RestockForm>({
+    const { form, setForm, message, setMessage, fieldErrors, setFieldErrors } = useFormPanel<RestockForm>({
         visible,
         createDefaultForm: () => {
             const ingredient = ingredients.find((i) => i.id === ingredientId);
@@ -88,14 +90,20 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
     );
 
     async function handleSave() {
-        if (!form.ingredientId) {
-            setMessage(t('inventoryForm.restock.required'));
+        const result = validateForm(restockFormSchema, form);
+        if (!result.ok) {
+            setFieldErrors(result.errors);
+            if (result.errors.ingredientId || result.errors.paymentMethodId) {
+                setMessage(t('inventoryForm.restock.required'));
+            }
             return;
         }
+        setFieldErrors({});
+        setMessage('');
         await addRestock({
             ingredientId: form.ingredientId,
-            quantityAdded: Number(form.quantityAdded || '0'),
-            cost: Number(form.cost || '0'),
+            quantityAdded: result.data.quantityAdded,
+            cost: result.data.cost,
             supplierId: form.supplierId || undefined,
             paymentMethodId: form.paymentMethodId,
         });
@@ -152,6 +160,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                         keyboardType="decimal-pad"
                         value={form.quantityAdded}
                         onChangeText={(v) => setForm((f) => ({ ...f, quantityAdded: v }))}
+                        error={fieldErrors.quantityAdded}
                         style={styles.input}
                     />
                 </View>
@@ -164,6 +173,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                         keyboardType="decimal-pad"
                         value={form.cost}
                         onChangeText={(v) => setForm((f) => ({ ...f, cost: v }))}
+                        error={fieldErrors.cost}
                         style={styles.input}
                     />
                 </View>
