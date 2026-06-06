@@ -165,12 +165,23 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                         <Ionicons name="calendar-outline" size={14} color={palette.mutedText} />
                         <ThemedText style={styles.smallLabel}>{t('productForm.discounts.startDate')}</ThemedText>
                     </View>
-                    <DateInput value={startsAt} onChangeValue={setStartsAt} placeholder={t('productForm.discounts.startDate')} />
+                    <DateInput
+                        value={startsAt}
+                        onChangeValue={setStartsAt}
+                        maximumDate={endsAt}
+                        placeholder={t('productForm.discounts.startDate')}
+                    />
                     <View style={styles.labelRow}>
                         <Ionicons name="calendar-outline" size={14} color={palette.mutedText} />
                         <ThemedText style={styles.smallLabel}>{t('productForm.discounts.endDate')}</ThemedText>
                     </View>
-                    <DateInput value={endsAt} onChangeValue={setEndsAt} endOfDay placeholder={t('productForm.discounts.endDate')} />
+                    <DateInput
+                        value={endsAt}
+                        onChangeValue={setEndsAt}
+                        endOfDay
+                        minimumDate={startsAt}
+                        placeholder={t('productForm.discounts.endDate')}
+                    />
                 </View>
             ) : null}
 

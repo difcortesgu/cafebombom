@@ -11,6 +11,8 @@ type DateInputProps = {
   onChangeValue: (value: number | null) => void;
   placeholder?: string;
   endOfDay?: boolean;
+  minimumDate?: number | null;
+  maximumDate?: number | null;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -23,7 +25,7 @@ const toDisplay = (unix: number | null): string => {
   return `${year}-${month}-${day}`;
 };
 
-export function DateInput({ value, onChangeValue, placeholder = t('shared.date.select'), endOfDay = false, style }: DateInputProps) {
+export function DateInput({ value, onChangeValue, placeholder = t('shared.date.select'), endOfDay = false, minimumDate, maximumDate, style }: DateInputProps) {
   const isWeb = Platform.OS === 'web';
   const palette = useAppColors();
   const [showPicker, setShowPicker] = useState(false);
@@ -84,6 +86,8 @@ export function DateInput({ value, onChangeValue, placeholder = t('shared.date.s
           type="date"
           // Fixed: Use your existing helper to convert the Unix timestamp to YYYY-MM-DD
           value={toDisplay(value)}
+          min={minimumDate != null ? toDisplay(minimumDate) : undefined}
+          max={maximumDate != null ? toDisplay(maximumDate) : undefined}
           onChange={handleWebDateChange}
           // Fixed: Make the whole input clickable to open the calendar
           onClick={(e: React.MouseEvent<HTMLInputElement>) => {
@@ -129,6 +133,8 @@ export function DateInput({ value, onChangeValue, placeholder = t('shared.date.s
               value={pickerValue}
               mode="date"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              minimumDate={minimumDate != null ? new Date(minimumDate * 1000) : undefined}
+              maximumDate={maximumDate != null ? new Date(maximumDate * 1000) : undefined}
               onChange={handleDateChange}
             />
           ) : null}

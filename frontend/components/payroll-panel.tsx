@@ -81,11 +81,14 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
         }
         setFieldErrors({});
         setMessage('');
-        const now = Math.floor(Date.now() / 1000);
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date();
+        dayEnd.setHours(23, 59, 59, 0);
         await addPayroll({
             employeeId: form.employeeId,
-            periodStart: now,
-            periodEnd: now,
+            periodStart: Math.floor(dayStart.getTime() / 1000),
+            periodEnd: Math.floor(dayEnd.getTime() / 1000),
             amount: result.data.amount,
             paymentMethodId: form.paymentMethodId,
         });
