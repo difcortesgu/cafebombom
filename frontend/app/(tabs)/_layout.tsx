@@ -37,6 +37,7 @@ type SidebarItem = {
   | 'chart.bar.fill'
   | 'books.vertical.fill'
   | 'gearshape.2.fill'
+  | 'gearshape.fill'
   | 'person.2.fill'
   | 'cart.fill'
   | 'dollarsign.circle.fill'
@@ -86,7 +87,7 @@ export default function TabLayout() {
 
   const visibleTabs = useMemo<string[]>(() => {
     if (isOwner) {
-      return ['dashboard', 'catalog', 'operations', 'team', 'appearance'];
+      return ['dashboard', 'catalog', 'operations', 'team', 'settings', 'appearance'];
     }
     return ['sales', 'cash-register', 'restock', 'expenses', 'appearance'];
   }, [isOwner]);
@@ -117,6 +118,7 @@ export default function TabLayout() {
       { key: 'catalog', href: '/catalog', title: t('nav.tab.catalog'), icon: 'books.vertical.fill' },
       { key: 'operations', href: '/operations', title: t('nav.tab.operations'), icon: 'gearshape.2.fill' },
       { key: 'team', href: '/team', title: t('nav.tab.team'), icon: 'person.2.fill' },
+      { key: 'settings', href: '/settings', title: t('nav.tab.settings'), icon: 'gearshape.fill' },
     ];
 
     const staffItems: SidebarItem[] = [

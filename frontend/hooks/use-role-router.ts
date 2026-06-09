@@ -2,7 +2,7 @@ import { useAuthStore } from '@/stores/auth';
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
-const OWNER_ROUTES = new Set(['dashboard', 'catalog', 'operations', 'team']);
+const OWNER_ROUTES = new Set(['dashboard', 'catalog', 'operations', 'team', 'settings']);
 const STAFF_ROUTES = new Set(['sales', 'cash-register', 'restock', 'expenses']);
 
 export function useRoleRouter() {

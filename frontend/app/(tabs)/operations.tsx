@@ -5,15 +5,11 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
 
-import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
-import { BackupsSection } from '@/components/operations/backups-section';
-import { DiagnosticsSection } from '@/components/operations/diagnostics-section';
 import { CashRegisterAdjustPanelContent, CashRegisterHistorySection } from '@/components/operations/cash-register-history-section';
 import { DiscountPanelForm } from '@/components/operations/discount-panel-form';
 import { DiscountsSection } from '@/components/operations/discounts-section';
@@ -28,14 +24,11 @@ import { SlidePanelShell } from '@/components/ui/slide-panel';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
-import { ThemedSelect } from '@/components/ui/themed-select';
 import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
-import { loadPairingInfoFromBackend, printService, setupService } from '@/services';
-import type { PairingInfo } from '@/services/connection';
-import { useAuthStore } from '@/stores/auth';
+import { setupService } from '@/services';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
@@ -59,10 +52,7 @@ type OperationsPanelMode =
 export default function OperationsScreen() {
     const palette = useAppColors();
     const params = useLocalSearchParams<{ section?: string | string[] }>();
-    const { openOrNavigate, isWide } = useResponsiveOpen();
-    const router = useRouter();
-    const currentUser = useAuthStore((s) => s.currentUser);
-    const isOwner = currentUser?.role === 'owner';
+    const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
     const [panelMode, setPanelMode] = useState<OperationsPanelMode | null>(null);
     const [section, setSection] = useState<OperationsSection>('tables');
@@ -88,15 +78,12 @@ export default function OperationsScreen() {
         receiptFooterMessage,
         printerPaperWidth,
         taxRate,
-        printerDeviceName,
-        printerDeviceAddress,
         hydrateFromDb,
         refreshLogoManifest,
         setDeliverySurcharge,
         setToGoSurcharge,
         setBusinessInfo,
         setTaxRate,
-        setPrinterDevice,
         setPrinterPaperWidth,
     } = useSettingsStore();
 
@@ -110,14 +97,6 @@ export default function OperationsScreen() {
     const [businessLogoUriInput, setBusinessLogoUriInput] = useState(businessLogoUri ?? '');
     const [receiptFooterInput, setReceiptFooterInput] = useState(receiptFooterMessage);
     const [taxRateInput, setTaxRateInput] = useState((taxRate * 100).toFixed(2));
-    const [printerNameInput, setPrinterNameInput] = useState(printerDeviceName);
-    const [printerAddressInput, setPrinterAddressInput] = useState(printerDeviceAddress);
-    const [printerTestBusy, setPrinterTestBusy] = useState(false);
-    const [printerStatusMessage, setPrinterStatusMessage] = useState<string | null>(null);
-    const [bondedPrintersBusy, setBondedPrintersBusy] = useState(false);
-    const [bondedPrinters, setBondedPrinters] = useState<{ label: string; value: string }[]>([]);
-    const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
-    const [pairingBusy, setPairingBusy] = useState(false);
     const [logoBusy, setLogoBusy] = useState(false);
     const [logoMessage, setLogoMessage] = useState<string | null>(null);
     const [importBusy, setImportBusy] = useState(false);
@@ -132,20 +111,7 @@ export default function OperationsScreen() {
         { key: 'cash-register', label: t('cashRegister.title') },
         { key: 'discounts', label: t('products.discounts.title') },
         { key: 'receipt', label: t('settings.receipt.title') },
-        { key: 'printer', label: t('settings.printer.title') },
-        { key: 'connection', label: t('settings.connection.title') },
-        ...(isOwner ? [{ key: 'backups' as const, label: t('backups.title') }] : []),
     ];
-
-    // Backups render inline as a section on wide screens, but navigate to a
-    // dedicated stacked screen on small screens (where the full panel is roomier).
-    const handleSectionChange = (next: OperationsSection) => {
-        if (next === 'backups' && !isWide) {
-            router.push('/backups' as never);
-            return;
-        }
-        setSection(next);
-    };
 
     useEffect(() => {
         void hydrateFromDb();
@@ -166,58 +132,14 @@ export default function OperationsScreen() {
     useEffect(() => { setBusinessLogoUriInput(businessLogoPreviewUrl ?? businessLogoUri ?? ''); }, [businessLogoPreviewUrl, businessLogoUri]);
     useEffect(() => { setReceiptFooterInput(receiptFooterMessage); }, [receiptFooterMessage]);
     useEffect(() => { setTaxRateInput((taxRate * 100).toFixed(2)); }, [taxRate]);
-    useEffect(() => { setPrinterNameInput(printerDeviceName); }, [printerDeviceName]);
-    useEffect(() => { setPrinterAddressInput(printerDeviceAddress); }, [printerDeviceAddress]);
 
     useEffect(() => {
         const requestedSection = Array.isArray(params.section) ? params.section[0] : params.section;
         if (!requestedSection) return;
-        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt' || requestedSection === 'printer' || requestedSection === 'connection') {
+        if (requestedSection === 'tables' || requestedSection === 'payment-methods' || requestedSection === 'surcharges' || requestedSection === 'cash-register' || requestedSection === 'discounts' || requestedSection === 'receipt') {
             setSection(requestedSection);
-        } else if (requestedSection === 'backups' && isOwner) {
-            if (isWide) {
-                setSection('backups');
-            } else {
-                router.push('/backups' as never);
-            }
         }
-    }, [params.section, isOwner, isWide, router]);
-
-    useEffect(() => {
-        if (section !== 'printer' || Platform.OS !== 'android') return;
-        void (async () => {
-            try {
-                setBondedPrintersBusy(true);
-                const devices = await printService.getBondedPrinters();
-                setBondedPrinters(devices.map((d) => ({
-                    label: d.name?.trim() ? `${d.name} (${d.address})` : String(d.address),
-                    value: String(d.address),
-                })));
-            } catch (error) {
-                setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
-            } finally {
-                setBondedPrintersBusy(false);
-            }
-        })();
-    }, [section]);
-
-    useEffect(() => {
-        if (section !== 'connection') {
-            return;
-        }
-
-        void (async () => {
-            try {
-                setPairingBusy(true);
-                const info = await loadPairingInfoFromBackend();
-                setPairingInfo(info);
-            } catch {
-                setPairingInfo(null);
-            } finally {
-                setPairingBusy(false);
-            }
-        })();
-    }, [section]);
+    }, [params.section]);
 
     const parseFee = (raw: string) => {
         const n = Number.parseFloat(raw);
@@ -251,48 +173,6 @@ export default function OperationsScreen() {
         const normalized = Number.isFinite(numeric) && numeric >= 0 ? numeric / 100 : taxRate;
         setTaxRate(normalized);
         setTaxRateInput((normalized * 100).toFixed(2));
-    };
-
-    const commitPrinterDevice = () => {
-        setPrinterDevice({ name: printerNameInput, address: printerAddressInput });
-        setPrinterStatusMessage(t('settings.receipt.printerSaved'));
-    };
-
-    const clearPrinterDevice = () => {
-        setPrinterNameInput('');
-        setPrinterAddressInput('');
-        setPrinterDevice({ name: '', address: '' });
-        setPrinterStatusMessage(t('settings.receipt.printerCleared'));
-    };
-
-    const refreshBondedPrinters = async () => {
-        if (Platform.OS !== 'android') return;
-        try {
-            setBondedPrintersBusy(true);
-            setPrinterStatusMessage(null);
-            const devices = await printService.getBondedPrinters();
-            setBondedPrinters(devices.map((d) => ({
-                label: d.name?.trim() ? `${d.name} (${d.address})` : String(d.address),
-                value: String(d.address),
-            })));
-        } catch (error) {
-            setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
-        } finally {
-            setBondedPrintersBusy(false);
-        }
-    };
-
-    const runPrinterTest = async () => {
-        try {
-            setPrinterTestBusy(true);
-            setPrinterStatusMessage(null);
-            await printService.printTestReceipt(printerPaperWidth, { name: printerNameInput, address: printerAddressInput });
-            setPrinterStatusMessage(t('settings.receipt.testPrinted'));
-        } catch (error) {
-            setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
-        } finally {
-            setPrinterTestBusy(false);
-        }
     };
 
     const resolveLogoExtension = (uri: string, mimeType?: string) => {
@@ -445,7 +325,7 @@ export default function OperationsScreen() {
                     />
                 </View>
 
-                <SectionTabs section={section} labels={sectionLabels} onChange={handleSectionChange} />
+                <SectionTabs section={section} labels={sectionLabels} onChange={setSection} />
 
                 {section === 'tables' ? (
                     <TablesSection
@@ -633,129 +513,6 @@ export default function OperationsScreen() {
                     </ThemedCard>
                 ) : null}
 
-                {section === 'printer' ? (
-                    <ThemedCard style={styles.card}>
-                        <ThemedText type="subtitle">{t('settings.printer.title')}</ThemedText>
-                        <ThemedText style={styles.muted}>{t('settings.printer.subtitle')}</ThemedText>
-                        <ThemedText style={styles.muted}>{t('settings.receipt.printerConfigTitle')}</ThemedText>
-                        {Platform.OS === 'android' ? (
-                            <>
-                                <ThemedSelect
-                                    value={printerAddressInput}
-                                    onValueChange={(value) => {
-                                        const selected = bondedPrinters.find((item) => item.value === value);
-                                        setPrinterAddressInput(value);
-                                        if (selected) {
-                                            const parsedName = selected.label.includes(' (') ? selected.label.split(' (')[0] : selected.label;
-                                            setPrinterNameInput(parsedName);
-                                        }
-                                        setPrinterStatusMessage(null);
-                                    }}
-                                    items={bondedPrinters.length > 0 ? bondedPrinters : [{ label: t('settings.receipt.noBondedPrinters'), value: '' }]}
-                                />
-                                <ThemedButton
-                                    variant="secondary"
-                                    style={styles.printerActionOutlineButton}
-                                    labelStyle={[styles.printerActionOutlineText, { color: palette.tint }]}
-                                    label={bondedPrintersBusy ? t('settings.receipt.refreshingPrinters') : t('settings.receipt.refreshPrinters')}
-                                    disabled={bondedPrintersBusy}
-                                    onPress={() => void refreshBondedPrinters()}
-                                />
-                            </>
-                        ) : null}
-                        <ThemedInput
-                            style={styles.printerInput}
-                            value={printerNameInput}
-                            placeholder={t('settings.receipt.printerName')}
-                            onChangeText={setPrinterNameInput}
-                            onBlur={commitPrinterDevice}
-                        />
-                        <ThemedInput
-                            style={styles.printerInput}
-                            value={printerAddressInput}
-                            placeholder={t('settings.receipt.printerAddress')}
-                            onChangeText={setPrinterAddressInput}
-                            onBlur={commitPrinterDevice}
-                            autoCapitalize="characters"
-                        />
-                        <View style={styles.printerActionRow}>
-                            <View style={styles.printerSaveGroup}>
-                                <ThemedButton icon="save-outline" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
-                                {printerStatusMessage === t('settings.receipt.printerSaved') ? (
-                                    <ThemedText style={styles.printerSavedContext}>{printerStatusMessage}</ThemedText>
-                                ) : null}
-                            </View>
-                            <ThemedButton
-                                variant="secondary"
-                                icon="print-outline"
-                                iconColor={palette.tint}
-                                style={styles.printerActionOutlineButton}
-                                labelStyle={[styles.printerActionOutlineText, { color: palette.tint }]}
-                                label={printerTestBusy ? t('settings.receipt.testingPrinter') : t('settings.receipt.testPrinter')}
-                                disabled={printerTestBusy}
-                                onPress={() => void runPrinterTest()}
-                            />
-                            <ThemedButton
-                                variant="secondary"
-                                icon="trash-outline"
-                                iconColor={palette.danger}
-                                style={styles.printerActionClearButton}
-                                labelStyle={[styles.printerActionClearText, { color: palette.danger }]}
-                                label={t('settings.receipt.clearPrinter')}
-                                onPress={clearPrinterDevice}
-                                disabled={printerTestBusy}
-                            />
-                        </View>
-                        {printerStatusMessage && printerStatusMessage !== t('settings.receipt.printerSaved') ? (
-                            <View style={[styles.printerStatusCallout, { backgroundColor: `${palette.inputBackground}` }]}>
-                                <Ionicons name="information-circle-outline" size={16} color={palette.text} />
-                                <ThemedText style={styles.printerStatusText}>{printerStatusMessage}</ThemedText>
-                            </View>
-                        ) : null}
-                        <View style={[styles.printerHintCallout, { backgroundColor: `${palette.tint}14`, borderColor: `${palette.tint}33` }]}>
-                            <Ionicons name="information-circle-outline" size={16} color={palette.tint} />
-                            <ThemedText style={styles.printerHintText}>{t('settings.receipt.printerHint')}</ThemedText>
-                        </View>
-                    </ThemedCard>
-                ) : null}
-
-                {section === 'backups' && isWide && isOwner ? (
-                    <>
-                        <BackupsSection />
-                        <DiagnosticsSection />
-                    </>
-                ) : null}
-
-                {section === 'connection' ? (
-                    <ThemedCard style={styles.card}>
-                        <ThemedText type="subtitle">{t('settings.connection.title')}</ThemedText>
-                        <ThemedText style={styles.muted}>{t('settings.connection.subtitle')}</ThemedText>
-
-                        {Platform.OS === 'web' ? (
-                            <View style={styles.connectionQrWrap}>
-                                {pairingBusy ? (
-                                    <ThemedText style={styles.muted}>{t('settings.connection.loadingPairing')}</ThemedText>
-                                ) : pairingInfo?.payload ? (
-                                    <>
-                                        <QRCode value={pairingInfo.payload} size={220} />
-                                        <ThemedText style={styles.connectionPayloadText}>{pairingInfo.payload}</ThemedText>
-                                        <ThemedText style={styles.muted}>{t('settings.connection.desktopHint')}</ThemedText>
-                                    </>
-                                ) : (
-                                    <ThemedText style={styles.muted}>{t('settings.connection.pairingUnavailable')}</ThemedText>
-                                )}
-                            </View>
-                        ) : (
-                            <>
-                                <BackendConnectionForm showScanner />
-                            </>
-                        )}
-
-                        {Platform.OS === 'web' ? <BackendConnectionForm showScanner={false} /> : null}
-                    </ThemedCard>
-                ) : null}
-
-
             </ScrollView>
             {panel.mounted ? (
                 <SlidePanelShell
@@ -862,37 +619,12 @@ const styles = StyleSheet.create({
         flex: 1,
         minWidth: 160,
     },
-    rowActions: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    feeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 8,
-    },
     feeLabel: {
         flex: 1,
-    },
-    feeInput: {
-        width: 120,
-        textAlign: 'right',
     },
     muted: {
         opacity: 0.9,
         fontSize: 13,
-    },
-    modeRow: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    modeChip: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
     },
     logoPreview: {
         width: '100%',
@@ -960,74 +692,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         opacity: 0.95,
     },
-    printerInput: {
-        width: '100%',
-        maxWidth: 420,
-        alignSelf: 'flex-start',
-    },
-    printerActionRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        alignItems: 'flex-start',
-    },
-    printerSaveGroup: {
-        gap: 6,
-        alignItems: 'flex-start',
-    },
-    printerSavedContext: {
-        fontSize: 12,
-        opacity: 0.7,
-        marginLeft: 2,
-        maxWidth: 280,
-    },
-    printerActionOutlineButton: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-    },
-    printerActionOutlineText: {
-        fontWeight: '600',
-    },
     printerActionClearButton: {
         backgroundColor: 'transparent',
         paddingHorizontal: 4,
     },
     printerActionClearText: {
         fontWeight: '600',
-    },
-    printerStatusCallout: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 9,
-    },
-    printerStatusText: {
-        flex: 1,
-        fontSize: 12,
-    },
-    printerHintCallout: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        borderWidth: 1,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 9,
-    },
-    printerHintText: {
-        flex: 1,
-        fontSize: 12,
-        opacity: 0.95,
-    },
-    connectionQrWrap: {
-        alignItems: 'center',
-        gap: 8,
-        paddingVertical: 8,
-    },
-    connectionPayloadText: {
-        fontWeight: '700',
     },
     importPanel: {
         flex: 1,

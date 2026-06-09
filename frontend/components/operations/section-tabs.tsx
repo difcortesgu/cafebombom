@@ -2,15 +2,16 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedChip } from '@/components/ui/themed-chip';
 
-export type OperationsSection = 'tables' | 'payment-methods' | 'surcharges' | 'cash-register' | 'discounts' | 'receipt' | 'printer' | 'connection' | 'backups';
+export type OperationsSection = 'tables' | 'payment-methods' | 'surcharges' | 'cash-register' | 'discounts' | 'receipt';
+export type SettingsSection = 'printer' | 'connection' | 'backups' | 'diagnostics';
 
-type SectionTabsProps = {
-    section: OperationsSection;
-    labels: { key: OperationsSection; label: string }[];
-    onChange: (section: OperationsSection) => void;
+type SectionTabsProps<T extends string> = {
+    section: T;
+    labels: { key: T; label: string }[];
+    onChange: (section: T) => void;
 };
 
-export function SectionTabs({ section, labels, onChange }: SectionTabsProps) {
+export function SectionTabs<T extends string>({ section, labels, onChange }: SectionTabsProps<T>) {
     return (
         <View style={styles.tabRow}>
             {labels.map((item) => (
