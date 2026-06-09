@@ -1,14 +1,20 @@
 import { t } from '@/i18n';
-import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData, ReceiptLineItem, ReceiptPaperWidth } from '@/types/receipt';
-import { formatCurrency as formatCurrencyWith } from '@/utils/format/number';
+import { type CurrencyConfig, formatCurrency as formatCurrencyWith } from '@/utils/format/number';
+
+// Lazily resolve the settings store to avoid a static import cycle:
+// stores/settings -> services -> printing -> receipt-formatter -> stores/settings.
+// formatCurrency only runs at print/render time, after modules are initialized.
+function getCurrency(): CurrencyConfig {
+  return (require('@/stores/settings') as typeof import('@/stores/settings')).useSettingsStore.getState().currency;
+}
 
 function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
   return paperWidth === 58 ? 32 : 48;
 }
 
 export function formatCurrency(value: number): string {
-  return formatCurrencyWith(value, useSettingsStore.getState().currency);
+  return formatCurrencyWith(value, getCurrency());
 }
 
 function separatorLine(width: number, char = '-'): string {

@@ -153,7 +153,7 @@ export function ComboConfigModal({
     };
 
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={handleCancel}>
+        <Modal visible={visible} transparent statusBarTranslucent animationType="slide" onRequestClose={handleCancel}>
             <View style={styles.overlay}>
                 <Pressable style={styles.backdrop} onPress={handleCancel} />
                 <View style={[styles.sheet, { backgroundColor: palette.card }]}>
@@ -399,7 +399,8 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     scroll: {
-        flex: 1,
+        flexGrow: 0,
+        flexShrink: 1,
     },
     scrollContent: {
         padding: 16,

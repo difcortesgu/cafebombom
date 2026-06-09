@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoginScreen } from '@/components/login-screen';
 import { SetupScreen } from '@/components/setup-screen';
@@ -50,6 +51,7 @@ export default function TabLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [setupMode, setSetupMode] = useState(false);
   const isMobileLayout = width < MOBILE_BREAKPOINT;
@@ -309,7 +311,17 @@ export default function TabLayout() {
   );
 
   return (
-    <View style={[styles.shell, { backgroundColor: palette.background }]}>
+    <View
+      style={[
+        styles.shell,
+        {
+          backgroundColor: palette.background,
+          paddingTop: insets.top + 12,
+          paddingBottom: insets.bottom + 12,
+          paddingLeft: insets.left + 12,
+          paddingRight: insets.right + 12,
+        },
+      ]}>
       {isMobileLayout ? null : (
         <Animated.View
           onPointerEnter={canHoverSidebar ? () => setExpanded(true) : undefined}

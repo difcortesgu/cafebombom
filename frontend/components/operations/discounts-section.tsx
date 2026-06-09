@@ -4,6 +4,8 @@ import { StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
+import { EntityCard } from '@/components/ui/entity-card';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
@@ -12,7 +14,6 @@ import type { Discount } from '@/types/types';
 import { money } from '@/utils/money';
 
 type DiscountsSectionProps = {
-    cardWidth: number;
     gap: number;
     onAddGlobal: () => void;
     onAddProduct: () => void;
@@ -28,7 +29,7 @@ const formatDiscountDate = (unix: number | null): string => {
 function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDelete }: {
     discount: Discount;
     productName?: string;
-    cardWidth: number;
+    cardWidth: number | undefined;
     onToggle: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -37,63 +38,59 @@ function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDe
     const valueLabel = discount.type === 'percentage' ? `${discount.value}%` : money(discount.value);
 
     return (
-        <View style={[styles.discountCard, { width: cardWidth, borderColor: discount.isActive ? palette.border : `${palette.border}66` }]}>
-            <View style={[styles.cardInfo, !discount.isActive && { opacity: 0.45 }]}>
-                <View style={styles.cardNameRow}>
-                    <ThemedText type="defaultSemiBold" numberOfLines={1} style={styles.cardName}>
-                        {discount.name}
-                    </ThemedText>
-                    <View style={[styles.valueBadge, { backgroundColor: `${palette.tint}22`, borderColor: `${palette.tint}44` }]}>
-                        <ThemedText style={[styles.valueLabel, { color: palette.tint }]}>{valueLabel}</ThemedText>
-                    </View>
+        <EntityCard
+            width={cardWidth}
+            title={discount.name}
+            titleNumberOfLines={1}
+            style={{ borderColor: discount.isActive ? palette.border : `${palette.border}66`, opacity: discount.isActive ? 1 : 0.6 }}
+            info={(
+                <View style={[styles.valueBadge, { backgroundColor: `${palette.tint}22`, borderColor: `${palette.tint}44` }]}>
+                    <ThemedText style={[styles.valueLabel, { color: palette.tint }]}>{valueLabel}</ThemedText>
                 </View>
-                {productName ? (
-                    <View style={styles.metaRow}>
-                        <Ionicons name="fast-food-outline" size={12} color={palette.mutedText} />
-                        <ThemedText style={styles.metaText} numberOfLines={1}>{productName}</ThemedText>
-                    </View>
-                ) : null}
-                {discount.scope === 'product' ? (
-                    <View style={styles.metaRow}>
-                        <Ionicons name="calendar-outline" size={12} color={palette.mutedText} />
-                        <ThemedText style={styles.metaText} numberOfLines={1}>
-                            {formatDiscountDate(discount.startsAt)} {t('productForm.discounts.to')} {formatDiscountDate(discount.endsAt)}
-                        </ThemedText>
-                    </View>
-                ) : null}
-            </View>
-
-            <View style={styles.cardActions}>
-                <ThemedButton
-                    variant="secondary"
-                    tone={discount.isActive ? 'warning' : 'success'}
-                    style={styles.toggleButton}
-                    icon={discount.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                    label={discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate')}
-                    onPress={onToggle}
-                />
-                <ThemedButton
-                    variant="secondary"
-                    style={[styles.editButton, { borderColor: `${palette.border}88` }]}
-                    icon="create-outline"
-                    label={t('products.list.edit')}
-                    onPress={onEdit}
-                />
-                <ThemedButton
-                    variant="secondary"
-                    tone="danger"
-                    style={styles.editButton}
-                    icon="trash-outline"
-                    label={t('products.discounts.delete')}
-                    onPress={onDelete}
-                />
-            </View>
-        </View>
+            )}
+            actions={[
+                {
+                    icon: discount.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline',
+                    label: discount.isActive ? t('products.discounts.deactivate') : t('products.discounts.activate'),
+                    tone: discount.isActive ? 'warning' : 'success',
+                    onPress: onToggle,
+                },
+                {
+                    icon: 'create-outline',
+                    label: t('products.list.edit'),
+                    style: { borderColor: `${palette.border}88` },
+                    onPress: onEdit,
+                },
+                {
+                    icon: 'trash-outline',
+                    label: t('products.discounts.delete'),
+                    tone: 'danger',
+                    collapseOnNarrow: true,
+                    onPress: onDelete,
+                },
+            ]}
+        >
+            {productName ? (
+                <View style={styles.metaRow}>
+                    <Ionicons name="fast-food-outline" size={12} color={palette.mutedText} />
+                    <ThemedText style={styles.metaText} numberOfLines={1}>{productName}</ThemedText>
+                </View>
+            ) : null}
+            {discount.scope === 'product' ? (
+                <View style={styles.metaRow}>
+                    <Ionicons name="calendar-outline" size={12} color={palette.mutedText} />
+                    <ThemedText style={styles.metaText} numberOfLines={1}>
+                        {formatDiscountDate(discount.startsAt)} {t('productForm.discounts.to')} {formatDiscountDate(discount.endsAt)}
+                    </ThemedText>
+                </View>
+            ) : null}
+        </EntityCard>
     );
 }
 
-export function DiscountsSection({ cardWidth, gap, onAddGlobal, onAddProduct, onEdit }: DiscountsSectionProps) {
+export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: DiscountsSectionProps) {
     const palette = useAppColors();
+    const { onLayout, cardWidth } = useMeasuredGrid(gap);
     const { discounts, updateDiscount, deleteDiscount } = useSalesStore();
     const { products } = useProductsStore();
 
@@ -120,12 +117,12 @@ export function DiscountsSection({ cardWidth, gap, onAddGlobal, onAddProduct, on
             <View style={styles.subSection}>
                 <View style={styles.subHeader}>
                     <ThemedText type="defaultSemiBold" style={styles.sectionLabel}>{t('products.discounts.title')}</ThemedText>
-                    <ThemedButton icon="add-circle-outline" label={t('products.discounts.create')} onPress={onAddGlobal} />
+                    <ThemedButton icon="add-circle-outline" size="sm" label={t('products.discounts.create')} onPress={onAddGlobal} />
                 </View>
                 {globalDiscounts.length === 0 ? (
                     <ThemedText style={styles.muted}>{t('products.discounts.subtitle')}</ThemedText>
                 ) : (
-                    <View style={[styles.grid, { gap }]}>
+                    <View style={[styles.grid, { gap }]} onLayout={onLayout}>
                         {globalDiscounts.map((discount) => (
                             <DiscountCard
                                 key={discount.id}
@@ -145,12 +142,12 @@ export function DiscountsSection({ cardWidth, gap, onAddGlobal, onAddProduct, on
             <View style={styles.subSection}>
                 <View style={styles.subHeader}>
                     <ThemedText type="defaultSemiBold" style={styles.sectionLabel}>{t('products.discounts.productSection')}</ThemedText>
-                    <ThemedButton icon="add-circle-outline" label={t('products.discounts.createProduct')} onPress={onAddProduct} />
+                    <ThemedButton icon="add-circle-outline" size="sm" label={t('products.discounts.createProduct')} onPress={onAddProduct} />
                 </View>
                 {productDiscounts.length === 0 ? (
                     <ThemedText style={styles.muted}>{t('products.discounts.productSubtitle')}</ThemedText>
                 ) : (
-                    <View style={[styles.grid, { gap }]}>
+                    <View style={[styles.grid, { gap }]} onLayout={onLayout}>
                         {productDiscounts.map((discount) => {
                             const productName = products.find((p) => p.id === discount.productId)?.name;
                             return (
@@ -181,6 +178,7 @@ const styles = StyleSheet.create({
     },
     subHeader: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 8,
@@ -192,25 +190,6 @@ const styles = StyleSheet.create({
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-    },
-    discountCard: {
-        borderWidth: 1,
-        borderRadius: 12,
-        padding: 12,
-        gap: 10,
-    },
-    cardInfo: {
-        gap: 5,
-    },
-    cardNameRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        flexWrap: 'wrap',
-    },
-    cardName: {
-        flex: 1,
-        minWidth: 0,
     },
     valueBadge: {
         borderWidth: 1,
@@ -231,21 +210,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         opacity: 0.7,
         flex: 1,
-    },
-    cardActions: {
-        flexDirection: 'row',
-        gap: 8,
-        alignItems: 'center',
-    },
-    toggleButton: {
-        flex: 1,
-        paddingVertical: 7,
-        paddingHorizontal: 10,
-    },
-    editButton: {
-        borderRadius: 10,
-        paddingVertical: 7,
-        paddingHorizontal: 10,
     },
     divider: {
         borderTopWidth: 1,

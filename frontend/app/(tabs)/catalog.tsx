@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { IngredientPanelForm } from '@/components/catalog/ingredient-panel-form';
 import { IngredientsTab } from '@/components/catalog/ingredients-tab';
@@ -12,7 +12,6 @@ import { ThemedText } from '@/components/themed-text';
 import { SlidePanelShell } from '@/components/ui/slide-panel';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedChip } from '@/components/ui/themed-chip';
-import { useCatalogGrid } from '@/hooks/use-catalog-grid';
 import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -37,7 +36,7 @@ const PADDING = 16;
 
 export default function CatalogScreen() {
     const palette = useAppColors();
-    const { screenWidth, cardWidth } = useCatalogGrid();
+    const { width: screenWidth } = useWindowDimensions();
     const { openOrNavigate } = useResponsiveOpen();
 
     const [section, setSection] = useState<Section>('products');
@@ -86,7 +85,7 @@ export default function CatalogScreen() {
                 </View>
 
                 <View style={styles.headerRow}>
-                    <ThemedText type="subtitle">
+                    <ThemedText type="subtitle" style={styles.headerTitle}>
                         {section === 'products'
                             ? t('products.list.title')
                             : section === 'ingredients'
@@ -98,11 +97,13 @@ export default function CatalogScreen() {
                             <ThemedButton
                                 icon="layers-outline"
                                 label="Combo"
+                                size="sm"
                                 onPress={() => openOrNavigate(() => openPanel({ type: 'combo-create' }), { pathname: '/product-form', params: { combo: 'true' } })}
                             />
                         )}
                         <ThemedButton
                             icon="add"
+                            size="sm"
                             label={
                                 section === 'products'
                                     ? t('products.list.add')
@@ -128,7 +129,6 @@ export default function CatalogScreen() {
                     <ProductsTab
                         products={products}
                         categories={categories}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         palette={palette}
                         onEditProduct={(productId) => openOrNavigate(
@@ -143,7 +143,6 @@ export default function CatalogScreen() {
                 {section === 'ingredients' ? (
                     <IngredientsTab
                         ingredients={ingredients}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         palette={palette}
                         onEditIngredient={(ingredientId) => openOrNavigate(
@@ -168,7 +167,6 @@ export default function CatalogScreen() {
                 {section === 'suppliers' ? (
                     <SuppliersTab
                         suppliers={suppliers}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         palette={palette}
                         onEditSupplier={(supplierId) => openOrNavigate(
@@ -239,12 +237,18 @@ const styles = StyleSheet.create({
     },
     headerRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 8,
     },
+    headerTitle: {
+        flex: 1,
+        minWidth: 120,
+    },
     buttonGroup: {
         flexDirection: 'row',
+        flexShrink: 0,
         gap: 8,
     },
     // Panel

@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
+import { EntityCard } from '@/components/ui/entity-card';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { t } from '@/i18n';
 
 type IngredientListItem = {
@@ -16,7 +17,6 @@ type IngredientListItem = {
 
 type IngredientsTabProps = {
     ingredients: IngredientListItem[];
-    cardWidth: number;
     gap: number;
     palette: {
         danger: string;
@@ -33,7 +33,9 @@ type IngredientsTabProps = {
     onToggleIngredientActive: (ingredientId: string, isActive: boolean) => void;
 };
 
-export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIngredient, onDeleteIngredient, onToggleIngredientActive }: IngredientsTabProps) {
+export function IngredientsTab({ ingredients, gap, palette, onEditIngredient, onDeleteIngredient, onToggleIngredientActive }: IngredientsTabProps) {
+    const { onLayout, cardWidth } = useMeasuredGrid(gap);
+
     if (ingredients.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -43,7 +45,7 @@ export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIng
     }
 
     return (
-        <View style={[styles.grid, { gap }]}>
+        <View style={[styles.grid, { gap }]} onLayout={onLayout}>
             {ingredients.map((ingredient) => {
                 const qty = Number(ingredient.quantity);
                 const threshold = Number(ingredient.low_stock_threshold);
@@ -57,51 +59,50 @@ export function IngredientsTab({ ingredients, cardWidth, gap, palette, onEditIng
                 const displayQty = qty % 1 === 0 ? qty.toFixed(0) : qty.toFixed(2);
 
                 return (
-                    <View key={ingredient.id} style={[styles.card, { width: cardWidth, backgroundColor: cardBg, borderColor, opacity: ingredient.is_active ? 1 : 0.6 }]}>
-                        <View style={styles.cardHeader}>
-                            <View style={styles.cardHeaderLeft}>
-                                <ThemedText style={styles.cardName} numberOfLines={1}>{ingredient.name}</ThemedText>
-                                {(isCritical || isLow) ? (
-                                    <Ionicons name="warning-outline" size={14} color={statusColor} />
-                                ) : null}
-                            </View>
-                            <ThemedButton
-                                icon="create-outline"
-                                label={t('products.ingredients.edit')}
-                                variant="secondary"
-                                style={styles.editBtn}
-                                onPress={() => onEditIngredient(ingredient.id)}
-                            />
-                        </View>
-                        <ThemedText style={[styles.qty, { color: palette.text }]}>
-                            {displayQty}{' '}
-                            <ThemedText style={[styles.unit, { color: palette.mutedText }]}>{ingredient.unit}</ThemedText>
-                        </ThemedText>
-                        <ThemedText style={[styles.threshold, { color: palette.mutedText }]}>
-                            {t('products.ingredients.threshold')}: {threshold} {ingredient.unit}
-                        </ThemedText>
+                    <EntityCard
+                        key={ingredient.id}
+                        width={cardWidth}
+                        title={ingredient.name}
+                        style={{ backgroundColor: cardBg, borderColor, opacity: ingredient.is_active ? 1 : 0.6 }}
+                        titleTrailing={(isCritical || isLow) ? (
+                            <Ionicons name="warning-outline" size={14} color={statusColor} />
+                        ) : undefined}
+                        info={(
+                            <>
+                                <ThemedText style={[styles.qty, { color: palette.text }]}>
+                                    {displayQty}{' '}
+                                    <ThemedText style={[styles.unit, { color: palette.mutedText }]}>{ingredient.unit}</ThemedText>
+                                </ThemedText>
+                                <ThemedText style={[styles.threshold, { color: palette.mutedText }]}>
+                                    {t('products.ingredients.threshold')}: {threshold} {ingredient.unit}
+                                </ThemedText>
+                            </>
+                        )}
+                        actions={[
+                            {
+                                icon: 'create-outline',
+                                label: t('products.ingredients.edit'),
+                                onPress: () => onEditIngredient(ingredient.id),
+                            },
+                            {
+                                icon: ingredient.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline',
+                                label: ingredient.is_active ? t('common.disable') : t('common.enable'),
+                                tone: ingredient.is_active ? 'warning' : 'success',
+                                onPress: () => onToggleIngredientActive(ingredient.id, ingredient.is_active),
+                            },
+                            {
+                                icon: 'trash-outline',
+                                label: t('common.delete'),
+                                tone: 'danger',
+                                collapseOnNarrow: true,
+                                onPress: () => onDeleteIngredient(ingredient.id),
+                            },
+                        ]}
+                    >
                         <View style={[styles.progressTrack, { backgroundColor: `${statusColor}30` }]}>
                             <View style={[styles.progressBar, { width: `${Math.round(progress * 100)}%` as `${number}%`, backgroundColor: statusColor }]} />
                         </View>
-                        <View style={styles.actionsRow}>
-                            <ThemedButton
-                                variant="secondary"
-                                tone={ingredient.is_active ? 'warning' : 'success'}
-                                icon={ingredient.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                                style={styles.actionBtn}
-                                label={ingredient.is_active ? t('common.disable') : t('common.enable')}
-                                onPress={() => onToggleIngredientActive(ingredient.id, ingredient.is_active)}
-                            />
-                            <ThemedButton
-                                icon="trash-outline"
-                                label={t('common.delete')}
-                                tone="danger"
-                                variant="secondary"
-                                style={styles.actionBtn}
-                                onPress={() => onDeleteIngredient(ingredient.id)}
-                            />
-                        </View>
-                    </View>
+                    </EntityCard>
                 );
             })}
         </View>
@@ -119,48 +120,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    card: {
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 14,
-        gap: 6,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 6,
-    },
-    cardHeaderLeft: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        overflow: 'hidden',
-    },
-    cardName: {
-        flex: 1,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    editBtn: {
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     qty: {
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: '700',
-        lineHeight: 34,
+        lineHeight: 30,
     },
     unit: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '400',
     },
     threshold: {
         fontSize: 12,
+        textAlign: 'right',
     },
     progressTrack: {
         height: 10,
@@ -171,15 +142,5 @@ const styles = StyleSheet.create({
     progressBar: {
         height: '100%',
         borderRadius: 99,
-    },
-    actionsRow: {
-        flexDirection: 'row',
-        gap: 6,
-        marginTop: 4,
-    },
-    actionBtn: {
-        flex: 1,
-        paddingVertical: 7,
-        paddingHorizontal: 10,
     },
 });

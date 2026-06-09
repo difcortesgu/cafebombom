@@ -29,7 +29,6 @@ import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
-import { useCatalogGrid } from '@/hooks/use-catalog-grid';
 import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -60,7 +59,6 @@ type OperationsPanelMode =
 export default function OperationsScreen() {
     const palette = useAppColors();
     const params = useLocalSearchParams<{ section?: string | string[] }>();
-    const { cardWidth } = useCatalogGrid();
     const { openOrNavigate, isWide } = useResponsiveOpen();
     const router = useRouter();
     const currentUser = useAuthStore((s) => s.currentUser);
@@ -431,12 +429,13 @@ export default function OperationsScreen() {
         <View style={styles.screenContainer}>
             <ScrollView contentContainerStyle={styles.container}>
                 <View style={styles.headerRow}>
-                    <View>
+                    <View style={styles.headerTitle}>
                         <ThemedText type="title">{t('operations.title')}</ThemedText>
                         <ThemedText>{t('operations.subtitle')}</ThemedText>
                     </View>
                     <ThemedButton
                         variant="secondary"
+                        size="sm"
                         icon="cloud-upload-outline"
                         label={t('operations.importData')}
                         onPress={() => openOrNavigate(
@@ -452,7 +451,6 @@ export default function OperationsScreen() {
                     <TablesSection
                         tables={tables}
                         message={tablesMessage}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         onAdd={() => openOrNavigate(
                             () => { setPanelMode({ type: 'table-create' }); panel.open(); },
@@ -483,7 +481,6 @@ export default function OperationsScreen() {
 
                 {section === 'payment-methods' ? (
                     <PaymentMethodsSection
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         onAdd={() => openOrNavigate(
                             () => { setPanelMode({ type: 'payment-method-add' }); panel.open(); },
@@ -518,7 +515,6 @@ export default function OperationsScreen() {
 
                 {section === 'discounts' ? (
                     <DiscountsSection
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         onAddGlobal={() => openOrNavigate(
                             () => { setPanelMode({ type: 'discount-add-global' }); panel.open(); },
@@ -857,9 +853,14 @@ const styles = StyleSheet.create({
     },
     headerRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 8,
+    },
+    headerTitle: {
+        flex: 1,
+        minWidth: 160,
     },
     rowActions: {
         flexDirection: 'row',

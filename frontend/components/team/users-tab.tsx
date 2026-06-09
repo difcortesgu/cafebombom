@@ -1,14 +1,14 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
+import { EntityCard, type CardAction } from '@/components/ui/entity-card';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { t } from '@/i18n';
 import type { ManagedUser } from '@/types/auth';
 
 type UsersTabProps = {
     users: ManagedUser[];
     currentUserId: string | null;
-    cardWidth: number;
     gap: number;
     palette: {
         card: string;
@@ -23,7 +23,9 @@ type UsersTabProps = {
     onHardDelete: (id: string) => void;
 };
 
-export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit, onDeactivate, onReactivate, onHardDelete }: UsersTabProps) {
+export function UsersTab({ users, currentUserId, gap, palette, onEdit, onDeactivate, onReactivate, onHardDelete }: UsersTabProps) {
+    const { onLayout, cardWidth } = useMeasuredGrid(gap);
+
     if (users.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -33,63 +35,60 @@ export function UsersTab({ users, currentUserId, cardWidth, gap, palette, onEdit
     }
 
     return (
-        <View style={[styles.grid, { gap }]}>
+        <View style={[styles.grid, { gap }]} onLayout={onLayout}>
             {users.map((user) => {
                 const isSelf = !!currentUserId && currentUserId === user.id;
                 const canManageOthers = !!currentUserId && !isSelf;
+
+                const actions: CardAction[] = [];
+                if (isSelf || canManageOthers) {
+                    actions.push({
+                        icon: 'create-outline',
+                        label: t('setup.account.edit'),
+                        onPress: () => onEdit(user),
+                    });
+                }
+                if (canManageOthers) {
+                    actions.push(user.isActive
+                        ? {
+                            icon: 'remove-circle-outline',
+                            label: t('userManagement.action.softDelete'),
+                            tone: 'warning',
+                            onPress: () => onDeactivate(user.id),
+                        }
+                        : {
+                            icon: 'refresh-circle-outline',
+                            label: t('userManagement.action.reactivate'),
+                            tone: 'success',
+                            onPress: () => onReactivate(user.id),
+                        });
+                    actions.push({
+                        icon: 'trash-outline',
+                        label: t('userManagement.action.hardDelete'),
+                        tone: 'danger',
+                        collapseOnNarrow: true,
+                        onPress: () => onHardDelete(user.id),
+                    });
+                }
+
                 return (
-                    <View key={user.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
-                        <ThemedText type="defaultSemiBold" numberOfLines={1}>{user.name}</ThemedText>
-                        <ThemedText style={[styles.role, { color: palette.mutedText }]}>
-                            {user.role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')}
-                        </ThemedText>
-                        <ThemedText style={[styles.status, { color: user.isActive ? palette.mutedText : palette.danger }]}>
-                            {user.isActive ? t('userManagement.status.active') : t('userManagement.status.softDeleted')}
-                        </ThemedText>
-                        {isSelf || canManageOthers ? (
-                            <View style={styles.actions}>
-                                <ThemedButton
-                                    variant="secondary"
-                                    icon="create-outline"
-                                    label={t('setup.account.edit')}
-                                    style={styles.actionBtn}
-                                    accessibilityLabel={t('setup.account.edit')}
-                                    onPress={() => onEdit(user)}
-                                />
-                                {canManageOthers ? (
-                                    <>
-                                        {user.isActive ? (
-                                            <ThemedButton
-                                                variant="secondary"
-                                                tone="warning"
-                                                icon="remove-circle-outline"
-                                                style={styles.actionBtn}
-                                                label={t('userManagement.action.softDelete')}
-                                                onPress={() => onDeactivate(user.id)}
-                                            />
-                                        ) : (
-                                            <ThemedButton
-                                                variant="secondary"
-                                                tone="success"
-                                                icon="refresh-circle-outline"
-                                                style={styles.actionBtn}
-                                                label={t('userManagement.action.reactivate')}
-                                                onPress={() => onReactivate(user.id)}
-                                            />
-                                        )}
-                                        <ThemedButton
-                                            variant="secondary"
-                                            tone="danger"
-                                            icon="trash-outline"
-                                            label={t('userManagement.action.hardDelete')}
-                                            style={styles.actionBtn}
-                                            onPress={() => onHardDelete(user.id)}
-                                        />
-                                    </>
-                                ) : null}
-                            </View>
-                        ) : null}
-                    </View>
+                    <EntityCard
+                        key={user.id}
+                        width={cardWidth}
+                        title={user.name}
+                        style={{ backgroundColor: palette.card, borderColor: palette.border }}
+                        info={(
+                            <>
+                                <ThemedText style={[styles.role, { color: palette.mutedText }]}>
+                                    {user.role === 'owner' ? t('auth.role.owner') : t('auth.role.staff')}
+                                </ThemedText>
+                                <ThemedText style={[styles.status, { color: user.isActive ? palette.mutedText : palette.danger }]}>
+                                    {user.isActive ? t('userManagement.status.active') : t('userManagement.status.softDeleted')}
+                                </ThemedText>
+                            </>
+                        )}
+                        actions={actions}
+                    />
                 );
             })}
         </View>
@@ -101,30 +100,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    card: {
-        borderWidth: 1,
-        borderRadius: 10,
-        padding: 12,
-        gap: 4,
-    },
     role: {
         fontSize: 13,
+        textAlign: 'right',
     },
     status: {
         fontSize: 12,
+        textAlign: 'right',
     },
     emptyCard: {
         borderWidth: 1,
         borderRadius: 10,
         padding: 16,
         alignItems: 'center',
-    },
-    actions: {
-        flexDirection: 'row',
-        gap: 6,
-        marginTop: 6,
-    },
-    actionBtn: {
-        flex: 1,
     },
 });

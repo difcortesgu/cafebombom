@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
+import { EntityCard } from '@/components/ui/entity-card';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { t } from '@/i18n';
 
 type SupplierListItem = {
@@ -15,7 +16,6 @@ type SupplierListItem = {
 
 type SuppliersTabProps = {
     suppliers: SupplierListItem[];
-    cardWidth: number;
     gap: number;
     palette: {
         card: string;
@@ -30,7 +30,9 @@ type SuppliersTabProps = {
     onToggleSupplierActive: (supplierId: string, isActive: boolean) => void;
 };
 
-export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplier, onDeleteSupplier, onToggleSupplierActive }: SuppliersTabProps) {
+export function SuppliersTab({ suppliers, gap, palette, onEditSupplier, onDeleteSupplier, onToggleSupplierActive }: SuppliersTabProps) {
+    const { onLayout, cardWidth } = useMeasuredGrid(gap);
+
     if (suppliers.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -40,19 +42,35 @@ export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplie
     }
 
     return (
-        <View style={[styles.grid, { gap }]}>
+        <View style={[styles.grid, { gap }]} onLayout={onLayout}>
             {suppliers.map((supplier) => (
-                <View key={supplier.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border, opacity: supplier.is_active ? 1 : 0.6 }]}>
-                    <View style={styles.cardHeader}>
-                        <ThemedText style={styles.cardName} numberOfLines={1}>{supplier.name}</ThemedText>
-                        <ThemedButton
-                            icon="create-outline"
-                            label={t('products.list.edit')}
-                            variant="secondary"
-                            style={styles.editBtn}
-                            onPress={() => onEditSupplier(supplier.id)}
-                        />
-                    </View>
+                <EntityCard
+                    key={supplier.id}
+                    width={cardWidth}
+                    title={supplier.name}
+                    titleNumberOfLines={1}
+                    style={{ backgroundColor: palette.card, borderColor: palette.border, opacity: supplier.is_active ? 1 : 0.6 }}
+                    actions={[
+                        {
+                            icon: 'create-outline',
+                            label: t('products.list.edit'),
+                            onPress: () => onEditSupplier(supplier.id),
+                        },
+                        {
+                            icon: supplier.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline',
+                            label: supplier.is_active ? t('common.disable') : t('common.enable'),
+                            tone: supplier.is_active ? 'warning' : 'success',
+                            onPress: () => onToggleSupplierActive(supplier.id, supplier.is_active),
+                        },
+                        {
+                            icon: 'trash-outline',
+                            label: t('common.delete'),
+                            tone: 'danger',
+                            collapseOnNarrow: true,
+                            onPress: () => onDeleteSupplier(supplier.id),
+                        },
+                    ]}
+                >
                     {supplier.phone ? (
                         <View style={styles.infoRow}>
                             <Ionicons name="call-outline" size={13} color={palette.mutedText} />
@@ -68,25 +86,7 @@ export function SuppliersTab({ suppliers, cardWidth, gap, palette, onEditSupplie
                     {!supplier.phone && !supplier.notes ? (
                         <ThemedText style={[styles.infoText, { color: palette.mutedText }]}>{t('inventory.suppliers.noNotes')}</ThemedText>
                     ) : null}
-                    <View style={styles.actionsRow}>
-                        <ThemedButton
-                            variant="secondary"
-                            tone={supplier.is_active ? 'warning' : 'success'}
-                            icon={supplier.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                            style={styles.actionBtn}
-                            label={supplier.is_active ? t('common.disable') : t('common.enable')}
-                            onPress={() => onToggleSupplierActive(supplier.id, supplier.is_active)}
-                        />
-                        <ThemedButton
-                            icon="trash-outline"
-                            label={t('common.delete')}
-                            tone="danger"
-                            variant="secondary"
-                            style={styles.actionBtn}
-                            onPress={() => onDeleteSupplier(supplier.id)}
-                        />
-                    </View>
-                </View>
+                </EntityCard>
             ))}
         </View>
     );
@@ -103,30 +103,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    card: {
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 14,
-        gap: 6,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 6,
-    },
-    cardName: {
-        flex: 1,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    editBtn: {
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -135,15 +111,5 @@ const styles = StyleSheet.create({
     infoText: {
         fontSize: 12,
         flex: 1,
-    },
-    actionsRow: {
-        flexDirection: 'row',
-        gap: 6,
-        marginTop: 4,
-    },
-    actionBtn: {
-        flex: 1,
-        paddingVertical: 7,
-        paddingHorizontal: 10,
     },
 });

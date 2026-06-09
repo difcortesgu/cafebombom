@@ -2,14 +2,14 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { useCatalogGrid } from '@/hooks/use-catalog-grid';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 
 import { RestockPanel } from '@/components/restock-panel';
 import { ThemedText } from '@/components/themed-text';
+import { EntityCard } from '@/components/ui/entity-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ThemedButton } from '@/components/ui/themed-button';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
@@ -20,7 +20,7 @@ const PADDING = 16;
 export default function RestockScreen() {
     const palette = useAppColors();
     const { ingredients, hydrate } = useInventoryStore();
-    const { cardWidth } = useCatalogGrid();
+    const { onLayout, cardWidth } = useMeasuredGrid(GRID_GAP);
     const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
 
@@ -48,7 +48,7 @@ export default function RestockScreen() {
                         <ThemedText style={{ color: palette.mutedText }}>{t('inventory.ingredients.empty')}</ThemedText>
                     </View>
                 ) : (
-                    <View style={[styles.grid, { gap: GRID_GAP }]}>
+                    <View style={[styles.grid, { gap: GRID_GAP }]} onLayout={onLayout}>
                         {ingredients.map((ingredient) => {
                             const qty = Number(ingredient.quantity);
                             const threshold = Number(ingredient.low_stock_threshold);
@@ -69,50 +69,43 @@ export default function RestockScreen() {
                             const displayThreshold = threshold % 1 === 0 ? threshold.toFixed(0) : threshold.toFixed(2);
 
                             return (
-                                <View
+                                <EntityCard
                                     key={ingredient.id}
-                                    style={[
-                                        styles.card,
-                                        {
-                                            width: cardWidth,
-                                            backgroundColor: cardBg,
-                                            borderColor,
-                                        },
-                                    ]}>
-                                    <View style={styles.cardHeader}>
-                                        <View style={styles.cardHeaderLeft}>
-                                            <ThemedText style={styles.ingredientName} numberOfLines={1}>
-                                                {ingredient.name}
+                                    width={cardWidth}
+                                    title={ingredient.name}
+                                    style={{ backgroundColor: cardBg, borderColor }}
+                                    titleTrailing={(isCritical || isLow) ? (
+                                        <IconSymbol
+                                            name="exclamationmark.triangle.fill"
+                                            size={16}
+                                            color={statusColor}
+                                        />
+                                    ) : undefined}
+                                    info={(
+                                        <>
+                                            <ThemedText style={[styles.qty, { color: palette.text }]}>
+                                                {displayQty}{' '}
+                                                <ThemedText style={[styles.unit, { color: palette.mutedText }]}>
+                                                    {ingredient.unit}
+                                                </ThemedText>
                                             </ThemedText>
-                                            {(isCritical || isLow) ? (
-                                                <IconSymbol
-                                                    name="exclamationmark.triangle.fill"
-                                                    size={16}
-                                                    color={statusColor}
-                                                />
-                                            ) : null}
-                                        </View>
-                                        <ThemedButton
-                                            icon="add"
-                                            style={styles.restockBtn}
-                                            onPress={() => openOrNavigate(
+                                            <ThemedText style={[styles.threshold, { color: palette.mutedText }]}>
+                                                {t('dashboard.thresholdLabel')}: {displayThreshold} {ingredient.unit}
+                                            </ThemedText>
+                                        </>
+                                    )}
+                                    actions={[
+                                        {
+                                            icon: 'add',
+                                            label: t('restock.action'),
+                                            variant: 'primary',
+                                            onPress: () => openOrNavigate(
                                                 () => openPanel(ingredient.id),
                                                 { pathname: '/inventory-form', params: { section: 'restock', ingredientId: ingredient.id } },
-                                            )}
-                                        />
-                                    </View>
-
-                                    <ThemedText style={[styles.qty, { color: palette.text }]}>
-                                        {displayQty}{' '}
-                                        <ThemedText style={[styles.unit, { color: palette.mutedText }]}>
-                                            {ingredient.unit}
-                                        </ThemedText>
-                                    </ThemedText>
-
-                                    <ThemedText style={[styles.threshold, { color: palette.mutedText }]}>
-                                        {t('dashboard.thresholdLabel')}: {displayThreshold} {ingredient.unit}
-                                    </ThemedText>
-
+                                            ),
+                                        },
+                                    ]}
+                                >
                                     <View style={[styles.progressTrack, { backgroundColor: statusColor + '30' }]}>
                                         <View
                                             style={[
@@ -124,7 +117,7 @@ export default function RestockScreen() {
                                             ]}
                                         />
                                     </View>
-                                </View>
+                                </EntityCard>
                             );
                         })}
                     </View>
@@ -160,34 +153,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    card: {
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 14,
-        gap: 6,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 6,
-    },
-    ingredientName: {
-        flex: 1,
-        fontSize: 14,
-        fontWeight: '600',
-    },
     qty: {
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: '700',
-        lineHeight: 34,
+        lineHeight: 30,
     },
     unit: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '400',
     },
     threshold: {
         fontSize: 12,
+        textAlign: 'right',
     },
     progressTrack: {
         height: 10,
@@ -198,22 +175,5 @@ const styles = StyleSheet.create({
     progressBar: {
         height: '100%',
         borderRadius: 99,
-    },
-    cardHeaderLeft: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        overflow: 'hidden',
-    },
-    restockBtn: {
-        width: 34,
-        height: 34,
-        minHeight: 0,
-        borderRadius: 10,
-        paddingHorizontal: 0,
-        paddingVertical: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
     },
 });

@@ -1,6 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { EntityCard } from '@/components/ui/entity-card';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { t } from '@/i18n';
 import type { Employee, PayrollEntry } from '@/types/types';
 import { money } from '@/utils/money';
@@ -8,17 +10,19 @@ import { money } from '@/utils/money';
 type PayrollTabProps = {
     payroll: PayrollEntry[];
     employees: Employee[];
-    cardWidth: number;
     gap: number;
     palette: {
         card: string;
         border: string;
         mutedText: string;
+        text: string;
         inputBackground: string;
     };
 };
 
-export function PayrollTab({ payroll, employees, cardWidth, gap, palette }: PayrollTabProps) {
+export function PayrollTab({ payroll, employees, gap, palette }: PayrollTabProps) {
+    const { onLayout, cardWidth } = useMeasuredGrid(gap);
+
     if (payroll.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -28,18 +32,25 @@ export function PayrollTab({ payroll, employees, cardWidth, gap, palette }: Payr
     }
 
     return (
-        <View style={[styles.grid, { gap }]}>
+        <View style={[styles.grid, { gap }]} onLayout={onLayout}>
             {payroll.map((entry) => {
                 const employeeName = employees.find((emp) => emp.id === entry.employee_id)?.name ?? `#${entry.employee_id}`;
                 const date = new Date(entry.period_start * 1000).toLocaleDateString();
                 return (
-                    <View key={entry.id} style={[styles.card, { width: cardWidth, backgroundColor: palette.card, borderColor: palette.border }]}>
-                        <ThemedText type="defaultSemiBold" numberOfLines={1}>{employeeName}</ThemedText>
-                        <ThemedText style={[styles.amount, { color: palette.mutedText }]}>
-                            {money(entry.amount)}
-                        </ThemedText>
-                        <ThemedText style={[styles.date, { color: palette.mutedText }]}>{date}</ThemedText>
-                    </View>
+                    <EntityCard
+                        key={entry.id}
+                        width={cardWidth}
+                        title={employeeName}
+                        style={{ backgroundColor: palette.card, borderColor: palette.border }}
+                        info={(
+                            <>
+                                <ThemedText style={[styles.amount, { color: palette.text }]}>
+                                    {money(entry.amount)}
+                                </ThemedText>
+                                <ThemedText style={[styles.date, { color: palette.mutedText }]}>{date}</ThemedText>
+                            </>
+                        )}
+                    />
                 );
             })}
         </View>
@@ -51,18 +62,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    card: {
-        borderWidth: 1,
-        borderRadius: 10,
-        padding: 12,
-        gap: 4,
-    },
     amount: {
         fontSize: 15,
         fontWeight: '600',
     },
     date: {
         fontSize: 13,
+        textAlign: 'right',
     },
     emptyCard: {
         borderWidth: 1,

@@ -2,7 +2,8 @@ import { Image, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedButton } from '@/components/ui/themed-button';
+import { EntityCard } from '@/components/ui/entity-card';
+import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { t } from '@/i18n';
 import type { CategoryOption, ProductDetail } from '@/types/products';
 import { money } from '@/utils/money';
@@ -10,7 +11,6 @@ import { money } from '@/utils/money';
 type ProductsTabProps = {
     products: ProductDetail[];
     categories: CategoryOption[];
-    cardWidth: number;
     gap: number;
     palette: {
         card: string;
@@ -31,13 +31,14 @@ type ProductsTabProps = {
 export function ProductsTab({
     products,
     categories,
-    cardWidth,
     gap,
     palette,
     onEditProduct,
     onDeleteProduct,
     onToggleProductActive,
 }: ProductsTabProps) {
+    const { onLayout, cardWidth } = useMeasuredGrid(gap);
+
     if (products.length === 0) {
         return (
             <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
@@ -47,81 +48,72 @@ export function ProductsTab({
     }
 
     return (
-        <View style={[styles.grid, { gap }]}>
+        <View style={[styles.grid, { gap }]} onLayout={onLayout}>
             {products.map((product) => {
                 const categoryName = categories.find((category) => category.id === product.categoryId)?.name;
 
                 return (
-                    <View
+                    <EntityCard
                         key={product.id}
-                        style={[
-                            styles.card,
+                        width={cardWidth}
+                        title={product.name}
+                        style={{
+                            backgroundColor: product.isActive ? palette.card : palette.inputBackground,
+                            borderColor: product.isCombo ? palette.accent : palette.border,
+                            opacity: product.isActive ? 1 : 0.7,
+                        }}
+                        media={product.imageUri ? (
+                            <Image source={{ uri: product.imageUri }} style={styles.productImage} resizeMode="cover" />
+                        ) : undefined}
+                        titleTrailing={product.isCombo ? (
+                            <Ionicons name="layers-outline" size={14} color={palette.accent} />
+                        ) : undefined}
+                        info={(
+                            <>
+                                <ThemedText style={[styles.productPrice, { color: palette.tint }]}>{money(product.price)}</ThemedText>
+                                <View style={styles.tagRow}>
+                                    {categoryName ? (
+                                        <View style={[styles.tag, { backgroundColor: `${palette.tint}22`, borderColor: `${palette.tint}44` }]}>
+                                            <ThemedText style={[styles.tagText, { color: palette.tint }]}>{categoryName}</ThemedText>
+                                        </View>
+                                    ) : null}
+                                    <View
+                                        style={[
+                                            styles.tag,
+                                            {
+                                                backgroundColor: product.isActive ? `${palette.success}22` : `${palette.mutedText}22`,
+                                                borderColor: product.isActive ? `${palette.success}44` : `${palette.mutedText}44`,
+                                            },
+                                        ]}
+                                    >
+                                        <ThemedText style={[styles.tagText, { color: product.isActive ? palette.success : palette.mutedText }]}>
+                                            {product.isActive ? t('products.list.active') : t('products.list.archived')}
+                                        </ThemedText>
+                                    </View>
+                                </View>
+                            </>
+                        )}
+                        actions={[
                             {
-                                width: cardWidth,
-                                backgroundColor: product.isActive ? palette.card : palette.inputBackground,
-                                borderColor: product.isCombo ? palette.accent : palette.border,
-                                opacity: product.isActive ? 1 : 0.7,
+                                icon: 'create-outline',
+                                label: t('products.list.edit'),
+                                onPress: () => onEditProduct(product.id),
+                            },
+                            {
+                                icon: product.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline',
+                                label: product.isActive ? t('common.disable') : t('common.enable'),
+                                tone: product.isActive ? 'warning' : 'success',
+                                onPress: () => onToggleProductActive(product.id, product.isActive),
+                            },
+                            {
+                                icon: 'trash-outline',
+                                label: t('common.delete'),
+                                tone: 'danger',
+                                collapseOnNarrow: true,
+                                onPress: () => onDeleteProduct(product.id),
                             },
                         ]}
-                    >
-                        {product.imageUri ? (
-                            <Image source={{ uri: product.imageUri }} style={styles.productImage} resizeMode="cover" />
-                        ) : null}
-                        <View style={styles.cardHeader}>
-                            <View style={styles.nameWithIcon}>
-                                <ThemedText style={styles.cardName} numberOfLines={1}>{product.name}</ThemedText>
-                                {product.isCombo && (
-                                    <Ionicons name="layers-outline" size={14} color={palette.accent} />
-                                )}
-                            </View>
-                            <ThemedButton
-                                icon="create-outline"
-                                label={t('products.list.edit')}
-                                variant="secondary"
-                                style={styles.editBtn}
-                                onPress={() => onEditProduct(product.id)}
-                            />
-                        </View>
-                        <ThemedText style={[styles.productPrice, { color: palette.tint }]}>{money(product.price)}</ThemedText>
-                        <View style={styles.tagRow}>
-                            {categoryName ? (
-                                <View style={[styles.tag, { backgroundColor: `${palette.tint}22`, borderColor: `${palette.tint}44` }]}>
-                                    <ThemedText style={[styles.tagText, { color: palette.tint }]}>{categoryName}</ThemedText>
-                                </View>
-                            ) : null}
-                            <View
-                                style={[
-                                    styles.tag,
-                                    {
-                                        backgroundColor: product.isActive ? `${palette.success}22` : `${palette.mutedText}22`,
-                                        borderColor: product.isActive ? `${palette.success}44` : `${palette.mutedText}44`,
-                                    },
-                                ]}
-                            >
-                                <ThemedText style={[styles.tagText, { color: product.isActive ? palette.success : palette.mutedText }]}>
-                                    {product.isActive ? t('products.list.active') : t('products.list.archived')}
-                                </ThemedText>
-                            </View>
-                        </View>
-                        <View style={styles.actionsRow}>
-                            <ThemedButton
-                                variant="secondary"
-                                tone={product.isActive ? 'warning' : 'success'}
-                                icon={product.isActive ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                                style={styles.actionBtn}
-                                label={product.isActive ? t('common.disable') : t('common.enable')}
-                                onPress={() => onToggleProductActive(product.id, product.isActive)}
-                            />
-                            <ThemedButton
-                                icon="trash-outline"
-                                label={t('common.delete')}
-                                tone="danger"
-                                variant="secondary"
-                                style={styles.actionBtn}
-                                onPress={() => onDeleteProduct(product.id)}
-                            />
-                        </View>
-                    </View>
+                    />
                 );
             })}
         </View>
@@ -139,36 +131,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
     },
-    card: {
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 14,
-        gap: 6,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 6,
-    },
-    nameWithIcon: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    cardName: {
-        flex: 1,
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    editBtn: {
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 7,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
     productImage: {
         width: '100%',
         height: 90,
@@ -176,13 +138,14 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     productPrice: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: '700',
-        lineHeight: 28,
+        lineHeight: 26,
     },
     tagRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        justifyContent: 'flex-end',
         gap: 4,
     },
     tag: {
@@ -194,15 +157,5 @@ const styles = StyleSheet.create({
     tagText: {
         fontSize: 11,
         fontWeight: '500',
-    },
-    actionsRow: {
-        flexDirection: 'row',
-        gap: 6,
-        marginTop: 4,
-    },
-    actionBtn: {
-        flex: 1,
-        paddingVertical: 7,
-        paddingHorizontal: 10,
     },
 });

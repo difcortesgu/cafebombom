@@ -11,6 +11,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Hidrata settings al inicio y espera a que esté listo antes de renderizar la app
 import 'react-native-reanimated';
 
@@ -70,6 +71,7 @@ export default function RootLayout() {
   }
 
   return (
+    <SafeAreaProvider>
     <ThemeProvider value={navigationTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -92,5 +94,6 @@ export default function RootLayout() {
       <UpdateChecker />
       <StatusBar style="auto" />
     </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

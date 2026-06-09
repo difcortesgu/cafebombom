@@ -401,7 +401,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'tables.add': 'Agregar mesa',
     'tables.empty': 'Aun no hay mesas.',
     'tables.type.toGo': 'Para llevar',
-    'tables.type.delivery': 'Entrega',
+    'tables.type.delivery': 'Domicilio',
     'tables.type.dineIn': 'En local',
     'tables.addedOn': 'Agregada el',
     'tables.edit': 'Editar',

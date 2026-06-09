@@ -11,7 +11,6 @@ import { UsersTab } from '@/components/team/users-tab';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedChip } from '@/components/ui/themed-chip';
-import { useCatalogGrid } from '@/hooks/use-catalog-grid';
 import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -29,7 +28,6 @@ const PADDING = 16;
 export default function TeamScreen() {
     const palette = useAppColors();
     const [section, setSection] = useState<Section>('users');
-    const { cardWidth } = useCatalogGrid();
     const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
     const payrollPanel = usePanelLifecycle();
@@ -93,9 +91,10 @@ export default function TeamScreen() {
 
                 {section === 'employees' ? (
                     <View style={styles.headerRow}>
-                        <ThemedText type="subtitle">{t('accounts.employees.roster')}</ThemedText>
+                        <ThemedText type="subtitle" style={styles.headerTitle}>{t('accounts.employees.roster')}</ThemedText>
                         <ThemedButton
                             icon="add"
+                            size="sm"
                             label={t('accounts.employees.add')}
                             onPress={handleAddEmployee}
                         />
@@ -104,9 +103,10 @@ export default function TeamScreen() {
 
                 {section === 'payroll' ? (
                     <View style={styles.headerRow}>
-                        <ThemedText type="subtitle">{t('accounts.payroll.recent')}</ThemedText>
+                        <ThemedText type="subtitle" style={styles.headerTitle}>{t('accounts.payroll.recent')}</ThemedText>
                         <ThemedButton
                             icon="add"
+                            size="sm"
                             label={t('accounts.payroll.add')}
                             onPress={() => openOrNavigate(() => payrollPanel.open(), '/payroll-form')}
                         />
@@ -115,9 +115,10 @@ export default function TeamScreen() {
 
                 {section === 'users' ? (
                     <View style={styles.headerRow}>
-                        <ThemedText type="subtitle">{t('settings.accounts.title')}</ThemedText>
+                        <ThemedText type="subtitle" style={styles.headerTitle}>{t('settings.accounts.title')}</ThemedText>
                         <ThemedButton
                             icon="add"
+                            size="sm"
                             label={t('setup.account.add')}
                             onPress={handleAddUser}
                         />
@@ -128,7 +129,6 @@ export default function TeamScreen() {
                     <UsersTab
                         users={managedUsers}
                         currentUserId={currentUser?.id ?? null}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         palette={palette}
                         onEdit={handleEditUser}
@@ -140,7 +140,6 @@ export default function TeamScreen() {
                 {section === 'employees' ? (
                     <EmployeesTab
                         employees={employees}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         palette={palette}
                         onEdit={handleEditEmployee}
@@ -152,7 +151,6 @@ export default function TeamScreen() {
                     <PayrollTab
                         payroll={payroll}
                         employees={employees}
-                        cardWidth={cardWidth}
                         gap={GRID_GAP}
                         palette={palette}
                     />
@@ -206,8 +204,13 @@ const styles = StyleSheet.create({
     },
     headerRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 8,
+    },
+    headerTitle: {
+        flex: 1,
+        minWidth: 120,
     },
 });
