@@ -19,17 +19,16 @@ export type CurrencyConfig = {
 
 export const DEFAULT_CURRENCY: CurrencyConfig = {
     symbol: '$',
-    decimals: 2,
-    thousandsSep: ',',
-    decimalSep: '.',
+    decimals: 0,
+    thousandsSep: '.',
+    decimalSep: ',',
     symbolPosition: 'prefix',
 };
 
-/** Max fractional digits allowed while typing for each mode. */
-const MAX_DECIMALS: Record<NumericMode, number> = {
+/** Max fractional digits allowed while typing for non-currency modes. */
+const MAX_DECIMALS: Record<Exclude<NumericMode, 'currency'>, number> = {
     integer: 0,
     decimal: 4,
-    currency: 2,
     percent: 2,
 };
 
@@ -41,18 +40,45 @@ const MAX_DECIMALS: Record<NumericMode, number> = {
  * - decimal/currency/percent: digits plus a single "." with a bounded number of
  *   fractional digits.
  *
+ * `config` is used for currency mode so the user's thousands/decimal separators
+ * are interpreted correctly — crucially, the grouped display value (e.g.
+ * "$20,000") is fed back through here on every keystroke, so we must drop the
+ * thousands separator instead of mistaking it for a decimal point.
+ *
  * Always returns a value safe to store in form state and to `Number(...)`.
  */
-export function sanitizeNumeric(text: string, mode: NumericMode): string {
+export function sanitizeNumeric(
+    text: string,
+    mode: NumericMode,
+    config: CurrencyConfig = DEFAULT_CURRENCY,
+): string {
     if (!text) return '';
 
     // Preserve a single leading minus sign (refunds / cash adjustments).
     const negative = /^\s*-/.test(text);
     const sign = negative ? '-' : '';
 
-    // Drop everything except digits and dots (treat any "," as a decimal point so
-    // locale keyboards that emit a comma still work).
-    const cleaned = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+    let cleaned: string;
+    let max: number;
+    if (mode === 'currency') {
+        // Remove the configured thousands separator, then normalize the
+        // configured decimal separator to ".". This keeps the round-trip with
+        // formatCurrencyDisplay stable for any locale (US "," / EU ".").
+        let normalized = text;
+        if (config.thousandsSep) {
+            normalized = normalized.split(config.thousandsSep).join('');
+        }
+        if (config.decimalSep && config.decimalSep !== '.') {
+            normalized = normalized.split(config.decimalSep).join('.');
+        }
+        cleaned = normalized.replace(/[^0-9.]/g, '');
+        max = config.decimals;
+    } else {
+        // Treat any "," as a decimal point so locale keyboards that emit a comma
+        // still work for plain numeric/percent fields.
+        cleaned = text.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+        max = MAX_DECIMALS[mode];
+    }
 
     if (mode === 'integer') {
         const digits = cleaned.replace(/\./g, '');
@@ -71,9 +97,11 @@ export function sanitizeNumeric(text: string, mode: NumericMode): string {
     }
 
     // Clamp fractional digits.
-    const max = MAX_DECIMALS[mode];
     const dot = result.indexOf('.');
-    if (dot !== -1 && result.length - dot - 1 > max) {
+    if (max === 0) {
+        // No fractional part allowed (e.g. COP): drop the dot and anything after.
+        if (dot !== -1) result = result.slice(0, dot);
+    } else if (dot !== -1 && result.length - dot - 1 > max) {
         result = result.slice(0, dot + 1 + max);
     }
     return result ? sign + result : '';

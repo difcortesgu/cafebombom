@@ -40,7 +40,7 @@ export function ThemedInput({
   const displayValue = numeric ? formatNumericDisplay(rawValue, numeric, currency) : value;
 
   const handleChangeText = numeric
-    ? (text: string) => onChangeText?.(sanitizeNumeric(text, numeric))
+    ? (text: string) => onChangeText?.(sanitizeNumeric(text, numeric, currency))
     : onChangeText;
 
   const hasValue = typeof displayValue === 'string' ? displayValue.length > 0 : false;
