@@ -130,7 +130,7 @@ export function formatCurrencyDisplay(raw: string, config: CurrencyConfig = DEFA
     const grouped = groupThousands(intDigits, config.thousandsSep);
 
     let body = grouped;
-    if (hasDot) {
+    if (hasDot && config.decimals > 0) {
         // Keep what the user typed (capped); pad to full precision only when full.
         const frac = fracPartRaw.slice(0, config.decimals);
         body = `${grouped}${config.decimalSep}${frac}`;
