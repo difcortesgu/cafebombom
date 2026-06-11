@@ -24,6 +24,10 @@ export function UpdateChecker() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    // Only prompt for updates in production builds — skip in dev.
+    if (__DEV__) {
+      return;
+    }
     const controller = new AbortController();
     void (async () => {
       const result = await checkForUpdate(controller.signal);
