@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import type { PrinterStatus, PrinterTarget } from '@/types/printer';
 import type { ReceiptData, ReceiptPaperWidth } from '@/types/receipt';
+import { buildPrintableComandaText } from '@/utils/comanda-formatter';
 import { buildPrintableReceiptText } from '@/utils/receipt-formatter';
 import { AndroidBluetoothPrinter } from './androidBluetoothPrinter';
 import { apiClient } from './api-client';
@@ -124,6 +125,20 @@ export class PrintService {
     return concatUint8Arrays([logoPayload, stripEscPosInitialize(textPayload)]);
   }
 
+  private async encodeComandaToEscPos(receiptData: ReceiptData): Promise<Uint8Array> {
+    const encoder = new ReceiptPrinterEncoder();
+    const text = buildPrintableComandaText(receiptData);
+    const lines = text.split('\n');
+
+    encoder.initialize();
+    for (const line of lines) {
+      encoder.line(this.normalizeEscPosText(line));
+    }
+    encoder.newline().newline().cut();
+
+    return encoder.encode();
+  }
+
   private buildTestReceipt(paperWidth: ReceiptPaperWidth): ReceiptData {
     const now = Math.floor(Date.now() / 1000);
     return {
@@ -157,6 +172,7 @@ export class PrintService {
           discountAmount: 0,
           lineTotal: 5,
           discountName: null,
+          removedIngredientIds: [],
           additionalIngredients: [],
         },
       ],
@@ -206,6 +222,21 @@ export class PrintService {
 
   async printReceipt(receiptData: ReceiptData, target?: PrinterTarget): Promise<void> {
     const payload = await this.encodeReceiptToEscPos(receiptData);
+
+    if (Platform.OS === 'web') {
+      await this.webPrinter.print(payload);
+      return;
+    }
+
+    if (!this.bluetoothPrinter.hasConfiguredPrinter(target)) {
+      throw new Error('Configura la impresora Bluetooth en Ajustes para imprimir desde Android.');
+    }
+
+    await this.bluetoothPrinter.print(payload, target ?? {});
+  }
+
+  async printComanda(receiptData: ReceiptData, target?: PrinterTarget): Promise<void> {
+    const payload = await this.encodeComandaToEscPos(receiptData);
 
     if (Platform.OS === 'web') {
       await this.webPrinter.print(payload);

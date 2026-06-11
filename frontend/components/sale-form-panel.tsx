@@ -56,7 +56,11 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         () => (editingOrderId ? sales.find((sale) => sale.id === editingOrderId) ?? null : null),
         [editingOrderId, sales],
     );
-    const canEditDraft = selectedDraftSale?.status === 'draft';
+    // Editable until paid: draft, in-progress and ready orders can still be modified.
+    const canEdit = !!selectedDraftSale
+        && !selectedDraftSale.paid_at
+        && selectedDraftSale.status !== 'completed'
+        && selectedDraftSale.status !== 'cancelled';
 
     useEffect(() => {
         void hydrate();
@@ -259,10 +263,10 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                           borderColor: product.isCombo ? palette.accent : (isSelected ? palette.tint : palette.border),
                                           backgroundColor: palette.card,
                                         },
-                                        editingOrderId && !canEditDraft ? styles.disabledTile : null,
+                                        editingOrderId && !canEdit ? styles.disabledTile : null,
                                     ]}
                                     onPress={() => {
-                                      if (editingOrderId && !canEditDraft) return;
+                                      if (editingOrderId && !canEdit) return;
                                       if (product.isCombo) {
                                         setSelectedComboProduct(product);
                                         setComboModalVisible(true);
@@ -270,7 +274,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                         addToCart(product.id, product.name, Number(product.price));
                                       }
                                     }}
-                                    disabled={Boolean(editingOrderId && !canEditDraft)}>
+                                    disabled={Boolean(editingOrderId && !canEdit)}>
                                     {product.imageUri ? (
                                         <Image source={{ uri: product.imageUri }} style={styles.productImage} />
                                     ) : (
@@ -300,7 +304,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                     </View>
                 </View>
             ))}
-            {editingOrderId && !canEditDraft && (
+            {editingOrderId && !canEdit && (
                 <ThemedText style={[styles.smallText, { marginTop: 8 }]}>{t('saleForm.notEditable')}</ThemedText>
             )}
         </View>
@@ -361,7 +365,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                                         },
                                     ]}
                                     onPress={() => setSelectedTableId(table.id)}
-                                    disabled={Boolean(editingOrderId && !canEditDraft)}>
+                                    disabled={Boolean(editingOrderId && !canEdit)}>
                                     <ThemedText style={[styles.tableButtonText, isActive && styles.tableButtonTextActive]}>
                                         {table.name}{tableSurcharge.total > 0 ? ` (+${money(tableSurcharge.total)})` : ''}
                                     </ThemedText>
@@ -395,7 +399,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         const itemTotal = item.unitPrice * item.quantity;
         const hasIngredients = !isComboItem && (recipeByProductId.get(item.productId)?.length ?? 0) > 0;
         const hasAdditionals = !isComboItem && (products.find((p) => p.id === item.productId)?.additionalIngredients.length ?? 0) > 0;
-        const isDisabled = Boolean(editingOrderId && !canEditDraft);
+        const isDisabled = Boolean(editingOrderId && !canEdit);
 
         // Group combo sub-items by their group for display
         const comboProduct = isComboItem ? products.find((p) => p.id === item.productId) : null;
@@ -729,7 +733,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                 <ThemedSelect
                     value={selectedGlobalDiscountId}
                     onValueChange={(v) => {
-                        if (!editingOrderId || canEditDraft) setSelectedGlobalDiscountId(v);
+                        if (!editingOrderId || canEdit) setSelectedGlobalDiscountId(v);
                     }}
                     items={globalDiscountOptions}
                     placeholder={t('saleForm.selectDiscount')}
@@ -775,7 +779,7 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             {!selectedTableId && (
                 <ThemedText style={[styles.smallText, { color: palette.warning }]}>{t('saleForm.selectTablePrompt')}</ThemedText>
             )}
-            {editingOrderId && !canEditDraft && (
+            {editingOrderId && !canEdit && (
                 <ThemedText style={styles.smallText}>{t('saleForm.orderNotEditable')}</ThemedText>
             )}
             <View style={styles.actionRow}>
@@ -785,14 +789,14 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
                     label={t('saleForm.discard')}
                     icon="trash-outline"
                     onPress={() => setCart([])}
-                    disabled={Boolean(editingOrderId && !canEditDraft)}
+                    disabled={Boolean(editingOrderId && !canEdit)}
                 />
                 <ThemedButton
                     style={styles.saveButton}
                     label={editingOrderId ? t('common.saveChanges') : t('saleForm.openDraft')}
                     icon="checkmark-circle-outline"
                     onPress={submitSale}
-                    disabled={!selectedTableId || cart.length === 0 || Boolean(editingOrderId && !canEditDraft)}
+                    disabled={!selectedTableId || cart.length === 0 || Boolean(editingOrderId && !canEdit)}
                 />
             </View>
         </View>

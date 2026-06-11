@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { OrderPanel } from '@/components/order-panel';
+import type { PaymentModalBusiness } from '@/components/order-panel/types';
 import { SaleCanvasCard, type CanvasCardAction, type ProductItem } from '@/components/sale-canvas-card';
 import { SaleFormPanel } from '@/components/sale-form-panel';
 import { SaleStatusLane } from '@/components/sale-status-lane';
@@ -18,6 +19,7 @@ import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { useSalesStore } from '@/stores/sales';
 import { useSettingsStore } from '@/stores/settings';
 import type { OrderStatus, Sale } from '@/types/types';
+import { printSaleComanda } from '@/utils/print-comanda';
 
 function formatStatusLabel(status: OrderStatus) {
   if (status === 'draft') {
@@ -101,6 +103,25 @@ export default function SalesScreen() {
   const { openOrNavigate } = useResponsiveOpen();
   const orderPanel = usePanelLifecycle();
 
+  const business: PaymentModalBusiness = useMemo(() => ({
+    name: businessName,
+    address: businessAddress,
+    phone: businessPhone,
+    nit: businessNit,
+    logoUri: businessLogoPreviewUrl ?? businessLogoUri,
+    logoRasterUrl: printerPaperWidth === 58 ? businessLogoRaster58Url : businessLogoRaster80Url,
+    footerMessage: receiptFooterMessage,
+    taxRate,
+    paperWidth: printerPaperWidth,
+    printerDeviceName,
+    printerDeviceAddress,
+  }), [
+    businessName, businessAddress, businessPhone, businessNit,
+    businessLogoPreviewUrl, businessLogoUri, businessLogoRaster58Url,
+    businessLogoRaster80Url, receiptFooterMessage, taxRate, printerPaperWidth,
+    printerDeviceName, printerDeviceAddress,
+  ]);
+
   const [saleProductsById, setSaleProductsById] = useState<Record<string, ProductItem[]>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [orderPanelSale, setOrderPanelSale] = useState<Sale | null>(null);
@@ -178,7 +199,7 @@ export default function SalesScreen() {
 
     if (sale.status === 'draft') {
       return [
-        { label: t('sales.action.sendToKitchen'), icon: 'flame-outline', onPress: () => void runOrderAction(sale.id, () => sendToKitchen(sale.id)), disabled },
+        { label: t('sales.action.sendToKitchen'), icon: 'flame-outline', onPress: () => void runOrderAction(sale.id, () => sendToKitchen(sale.id)).then(() => printSaleComanda(sale, business)), disabled },
         {
           label: t('sales.action.openTab'),
           icon: 'create-outline',
@@ -211,6 +232,17 @@ export default function SalesScreen() {
     return [];
   };
 
+  const handleEditOrder = (saleId: string) => {
+    // Fully tear down the slide panel synchronously: the inline form early-returns
+    // and unmounts the panel before its close animation can fire onExited, which
+    // would otherwise leave the panel "mounted" with an invisible backdrop that
+    // blocks all interaction when we return to the kanban.
+    orderPanel.close();
+    orderPanel.onExited();
+    setOrderPanelSale(null);
+    openOrNavigate(() => setInlineSaleFormId(saleId), `/sale-form?orderId=${saleId}`);
+  };
+
   const openOrderPanel = (sale: Sale) => {
     openOrNavigate(
       () => { setOrderPanelSale(sale); orderPanel.open(); },
@@ -227,16 +259,22 @@ export default function SalesScreen() {
     if (!action) return;
     const actionMap = { sendToKitchen, markOrderReady, cancelOrder };
     await runOrderAction(saleId, () => actionMap[action](saleId));
+    if (action === 'sendToKitchen') {
+      void printSaleComanda(sale, business);
+    }
   };
 
   const handleMoveOrder = async (targetStatus: OrderStatus) => {
     if (!moveOrderSale) return;
     const action = getTransitionAction(moveOrderSale.status, targetStatus);
     if (!action) return;
-    const saleId = moveOrderSale.id;
+    const sale = moveOrderSale;
     setMoveOrderSale(null);
     const actionMap = { sendToKitchen, markOrderReady, cancelOrder };
-    await runOrderAction(saleId, () => actionMap[action](saleId));
+    await runOrderAction(sale.id, () => actionMap[action](sale.id));
+    if (action === 'sendToKitchen') {
+      void printSaleComanda(sale, business);
+    }
   };
 
   const renderCard = (sale: Sale) => {
@@ -326,19 +364,8 @@ export default function SalesScreen() {
               orderPanel.onExited();
               setOrderPanelSale(null);
             }}
-            business={{
-              name: businessName,
-              address: businessAddress,
-              phone: businessPhone,
-              nit: businessNit,
-              logoUri: businessLogoPreviewUrl ?? businessLogoUri,
-              logoRasterUrl: printerPaperWidth === 58 ? businessLogoRaster58Url : businessLogoRaster80Url,
-              footerMessage: receiptFooterMessage,
-              taxRate,
-              paperWidth: printerPaperWidth,
-              printerDeviceName,
-              printerDeviceAddress,
-            }}
+            business={business}
+            onEditOrder={handleEditOrder}
           />
         )}
       </View>
@@ -420,19 +447,8 @@ export default function SalesScreen() {
             orderPanel.onExited();
             setOrderPanelSale(null);
           }}
-          business={{
-            name: businessName,
-            address: businessAddress,
-            phone: businessPhone,
-            nit: businessNit,
-            logoUri: businessLogoPreviewUrl ?? businessLogoUri,
-            logoRasterUrl: printerPaperWidth === 58 ? businessLogoRaster58Url : businessLogoRaster80Url,
-            footerMessage: receiptFooterMessage,
-            taxRate,
-            paperWidth: printerPaperWidth,
-            printerDeviceName,
-            printerDeviceAddress,
-          }}
+          business={business}
+          onEditOrder={handleEditOrder}
         />
       )}
     </ScrollView>

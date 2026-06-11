@@ -19,7 +19,7 @@ export function salesErrorMessage(key: SalesErrorKey, params: MessageParams = {}
     case 'orderNotFound':
       return `No se encontro la orden ${String(params.orderId ?? '')}.`.trim();
     case 'onlyDraftEditable':
-      return 'Solo las ordenes en borrador se pueden editar.';
+      return 'No se puede editar una orden pagada o cancelada.';
     case 'sendToKitchenInvalidStatus':
       return `No se puede enviar a cocina una orden con estado ${String(params.status ?? '')}.`;
     case 'markReadyInvalidStatus':

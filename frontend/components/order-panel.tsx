@@ -17,6 +17,7 @@ import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
 import type { Sale } from '@/types/types';
+import { printSaleComanda } from '@/utils/print-comanda';
 import { buildPartialReceiptData, buildReceiptData, isSinglePaymentForWholeSale } from '@/utils/receipt';
 import { buildFallbackPricingSummary } from '@/utils/sale-pricing';
 import { getReceiptSurchargeBreakdown } from '@/utils/surcharge';
@@ -32,6 +33,8 @@ type OrderPanelProps = {
     business: PaymentModalBusiness;
     /** When true, renders content directly without SlidePanelShell (for full-screen stack screens). */
     standalone?: boolean;
+    /** Opens the draft editor inline (preferred on wide screens). Falls back to route navigation when omitted. */
+    onEditOrder?: (saleId: string) => void;
 };
 
 type ModeTabProps = {
@@ -56,7 +59,7 @@ function ModeTab({ label, active, onPress }: ModeTabProps) {
     );
 }
 
-export function OrderPanel({ visible, sale, onClose, onExited, business, standalone }: OrderPanelProps) {
+export function OrderPanel({ visible, sale, onClose, onExited, business, standalone, onEditOrder }: OrderPanelProps) {
     const palette = useAppColors();
     const { width: screenWidth } = useWindowDimensions();
     const panelWidth = standalone ? screenWidth : Math.min(Math.floor(screenWidth * 0.42), 520);
@@ -218,6 +221,9 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
         }
     };
 
+    const handlePrintComanda = (currentSale: Sale) =>
+        printSaleComanda(currentSale, business, { items: detailItems, pricing: detailPricing });
+
     const handleExited = () => {
         resetReceipt();
         setDetailItems([]);
@@ -310,12 +316,14 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                         setReceiptFromPayment(false);
                         void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
                     }}
-                    onSendToKitchen={() => void runStatusAction(() => sendToKitchen(sale.id))}
+                    onSendToKitchen={() => void runStatusAction(() => sendToKitchen(sale.id)).then(() => handlePrintComanda(sale))}
                     onMarkReady={() => void runStatusAction(() => markOrderReady(sale.id))}
                     onCancelOrder={() => void runStatusAction(async () => {
                         await cancelOrder(sale.id);
                         onClose();
                     })}
+                    onPrintComanda={() => void handlePrintComanda(sale)}
+                    onEditOrder={onEditOrder}
                 />
             )}
 

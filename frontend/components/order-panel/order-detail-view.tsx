@@ -26,6 +26,8 @@ type OrderDetailViewProps = {
     onSendToKitchen: () => void;
     onMarkReady: () => void;
     onCancelOrder: () => void;
+    onPrintComanda: () => void;
+    onEditOrder?: (saleId: string) => void;
 };
 
 function formatStatusLabel(status: OrderStatus) {
@@ -74,6 +76,8 @@ export function OrderDetailView({
     onSendToKitchen,
     onMarkReady,
     onCancelOrder,
+    onPrintComanda,
+    onEditOrder,
 }: OrderDetailViewProps) {
     const palette = useAppColors();
     const router = useRouter();
@@ -240,7 +244,7 @@ export function OrderDetailView({
                             {!sale.paid_at && (
                                 <Pressable
                                     style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}
-                                    onPress={() => router.push(`/sale-form?orderId=${sale.id}`)}
+                                    onPress={() => onEditOrder ? onEditOrder(sale.id) : router.push(`/sale-form?orderId=${sale.id}`)}
                                     accessibilityLabel="editar cuenta"
                                     accessibilityHint="editar cuenta"
                                     {...(Platform.OS === 'web' ? { title: 'editar cuenta' } : {})}
@@ -248,6 +252,15 @@ export function OrderDetailView({
                                     <Ionicons name="create-outline" size={18} color={palette.mutedText} />
                                 </Pressable>
                             )}
+
+                            <Pressable
+                                style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}
+                                onPress={onPrintComanda}
+                                accessibilityLabel={t('sales.action.printComanda')}
+                                {...(Platform.OS === 'web' ? { title: t('sales.action.printComanda') } : {})}
+                            >
+                                <Ionicons name="restaurant-outline" size={18} color={palette.mutedText} />
+                            </Pressable>
 
                             <Pressable
                                 style={[styles.actionButton, styles.actionButtonSecondary, { borderColor: palette.border, flex: 0, paddingHorizontal: 10 }]}

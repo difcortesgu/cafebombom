@@ -9,7 +9,7 @@ function getCurrency(): CurrencyConfig {
   return (require('@/stores/settings') as typeof import('@/stores/settings')).useSettingsStore.getState().currency;
 }
 
-function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
+export function getReceiptLineWidth(paperWidth: ReceiptPaperWidth): number {
   return paperWidth === 58 ? 32 : 48;
 }
 
@@ -17,11 +17,11 @@ export function formatCurrency(value: number): string {
   return formatCurrencyWith(value, getCurrency());
 }
 
-function separatorLine(width: number, char = '-'): string {
+export function separatorLine(width: number, char = '-'): string {
   return char.repeat(Math.max(1, width));
 }
 
-function centerText(text: string, width: number): string {
+export function centerText(text: string, width: number): string {
   const normalized = text.trim();
   if (normalized.length >= width) {
     return normalized.slice(0, width);
@@ -30,7 +30,7 @@ function centerText(text: string, width: number): string {
   return `${' '.repeat(leftPadding)}${normalized}`;
 }
 
-function trimToFit(text: string, width: number): string {
+export function trimToFit(text: string, width: number): string {
   if (text.length <= width) {
     return text;
   }
@@ -40,7 +40,7 @@ function trimToFit(text: string, width: number): string {
   return `${text.slice(0, width - 1)}~`;
 }
 
-function formatReceiptLine(left: string, right: string, width: number): string {
+export function formatReceiptLine(left: string, right: string, width: number): string {
   const leftNormalized = left.trim();
   const rightNormalized = right.trim();
   if (!rightNormalized) {

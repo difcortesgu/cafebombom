@@ -40,6 +40,7 @@ function mapReceiptItems(inputItems: BuildReceiptInput['items']): ReceiptLineIte
       discountAmount: Number(item.discount_amount),
       lineTotal: Number(item.final_line_total),
       discountName: item.discount_name,
+      removedIngredientIds: item.removed_ingredient_ids ?? [],
       additionalIngredients: (item.selected_additional_ingredient_details ?? []).map((additional) => ({
         name: additional.ingredient_name,
         quantity: Number(additional.quantity),

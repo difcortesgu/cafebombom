@@ -5,7 +5,8 @@
       "Bash(sed -n *)",
       "Bash(grep -n *)",
       "Bash(cut -d: -f1 *)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(grep -rnE '^\\\\s*\\\\.\\\\s*$|>\\\\s*\\\\.\\\\s*<|\\\\}\\\\s*\\\\.\\\\s*\\\\{' components app)"
     ]
   }
 }

@@ -254,7 +254,7 @@ export class SalesSqliteService {
     }
 
     const existingOrder = db
-      .select({ status: sales.status })
+      .select({ status: sales.status, paidAt: sales.paidAt })
       .from(sales)
       .where(eq(sales.id, orderId))
       .get();
@@ -263,7 +263,12 @@ export class SalesSqliteService {
       throw new AppError(salesErrorMessage('orderNotFound', { orderId }));
     }
 
-    if (existingOrder.status !== 'draft') {
+    // Editable until the order is paid: draft, in-progress and ready orders can
+    // still be modified. Paid, completed or cancelled orders are locked.
+    const isLocked = existingOrder.paidAt != null
+      || existingOrder.status === 'completed'
+      || existingOrder.status === 'cancelled';
+    if (isLocked) {
       throw new AppError(salesErrorMessage('onlyDraftEditable'));
     }
 
