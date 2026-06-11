@@ -83,6 +83,10 @@ export type Discount = {
   value: number;
   startsAt: number;
   endsAt: number | null;
+  daysOfWeek: number[];
+  daysOfMonth: number[];
+  hourStart: number | null;
+  hourEnd: number | null;
   isActive: boolean;
 };
 

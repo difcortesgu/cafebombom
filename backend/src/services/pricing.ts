@@ -60,6 +60,37 @@ const clampDiscount = (base: number, amount: number): number => {
   return roundMoney(Math.min(Math.max(amount, 0), Math.max(base, 0)));
 };
 
+// A discount is "scheduled active" when it is enabled, within its date range, and
+// the current local day-of-week / day-of-month / hour-of-day match its schedule.
+// An empty array (or null hour range) on an axis means "no restriction".
+export function isDiscountScheduledActive(discount: Discount, nowUnix: number): boolean {
+  if (!discount.isActive) {
+    return false;
+  }
+  if (discount.startsAt > nowUnix) {
+    return false;
+  }
+  if (discount.endsAt != null && discount.endsAt < nowUnix) {
+    return false;
+  }
+  const now = new Date(nowUnix * 1000);
+  const daysOfWeek = discount.daysOfWeek ?? [];
+  if (daysOfWeek.length > 0 && !daysOfWeek.includes(now.getDay())) {
+    return false;
+  }
+  const daysOfMonth = discount.daysOfMonth ?? [];
+  if (daysOfMonth.length > 0 && !daysOfMonth.includes(now.getDate())) {
+    return false;
+  }
+  if (discount.hourStart != null && discount.hourEnd != null) {
+    const hour = now.getHours();
+    if (hour < discount.hourStart || hour >= discount.hourEnd) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function calculateSaleDiscountBreakdown(
   items: SaleItemInput[],
   discounts: Discount[],
@@ -67,19 +98,11 @@ export function calculateSaleDiscountBreakdown(
   globalDiscountId?: string | null,
 ): SaleDiscountBreakdown {
   const activeProductDiscounts = discounts
-    .filter((discount) =>
-      discount.isActive
-      && discount.scope === 'product'
-      && discount.startsAt <= nowUnix
-      && (discount.endsAt == null || discount.endsAt >= nowUnix),
-    )
+    .filter((discount) => discount.scope === 'product' && isDiscountScheduledActive(discount, nowUnix))
     .slice();
 
   const activeGlobalDiscounts = discounts
-    .filter((discount) =>
-      discount.isActive
-      && discount.scope === 'global',
-    )
+    .filter((discount) => discount.scope === 'global' && isDiscountScheduledActive(discount, nowUnix))
     .slice();
 
   const itemBreakdowns = items.map((item) => {
@@ -96,6 +119,10 @@ export function calculateSaleDiscountBreakdown(
       : [];
     const lineSubtotal = roundMoney(safeUnitPrice * safeQty);
 
+    // Discounts are matched against the line's own productId only. For a combo this
+    // is the combo product's id, so a discount defined on the combo applies while the
+    // discounts of the products chosen inside the combo never do (they are not lines) —
+    // even when the combo itself has no discount.
     const selectedProductDiscount = activeProductDiscounts
       .filter((discount) => discount.productId === item.productId)
       .sort((left, right) => right.value - left.value)[0];

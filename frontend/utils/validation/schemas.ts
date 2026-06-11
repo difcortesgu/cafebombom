@@ -99,6 +99,8 @@ export const discountFormSchema = z
         productId: z.string().trim().optional(),
         type: z.enum(['percentage', 'fixed']),
         value: positiveNumber,
+        hourStart: z.number().int().min(0).max(24).nullable().optional(),
+        hourEnd: z.number().int().min(0).max(24).nullable().optional(),
     })
     .refine((d) => d.type !== 'percentage' || Number(d.value) <= 100, {
         message: t('validation.percentageMax'),
@@ -107,4 +109,12 @@ export const discountFormSchema = z
     .refine((d) => d.scope !== 'product' || !!d.productId, {
         message: t('validation.selectOption'),
         path: ['productId'],
+    })
+    .refine((d) => (d.hourStart == null) === (d.hourEnd == null), {
+        message: t('validation.hourRange'),
+        path: ['hourEnd'],
+    })
+    .refine((d) => d.hourStart == null || d.hourEnd == null || d.hourEnd > d.hourStart, {
+        message: t('validation.hourRange'),
+        path: ['hourEnd'],
     });

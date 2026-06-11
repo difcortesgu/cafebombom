@@ -53,6 +53,10 @@ export const discountSchema = z
             .positive('value must be greater than zero.'),
         startsAt: timestamp.default(0),
         endsAt: timestamp.nullish().transform((v) => v ?? null),
+        daysOfWeek: z.array(z.number().int().min(0).max(6)).default([]),
+        daysOfMonth: z.array(z.number().int().min(1).max(31)).default([]),
+        hourStart: z.number().int().min(0).max(24).nullish().transform((v) => v ?? null),
+        hourEnd: z.number().int().min(0).max(24).nullish().transform((v) => v ?? null),
         isActive: z.boolean({ message: 'isActive is required.' }),
     })
     .refine((d) => d.type !== 'percentage' || d.value <= 100, {
@@ -66,6 +70,14 @@ export const discountSchema = z
     .refine((d) => d.endsAt == null || d.endsAt > d.startsAt, {
         message: 'endsAt must be after startsAt.',
         path: ['endsAt'],
+    })
+    .refine((d) => (d.hourStart == null) === (d.hourEnd == null), {
+        message: 'hourStart and hourEnd must be set together.',
+        path: ['hourEnd'],
+    })
+    .refine((d) => d.hourStart == null || d.hourEnd == null || d.hourEnd > d.hourStart, {
+        message: 'hourEnd must be after hourStart.',
+        path: ['hourEnd'],
     });
 export type DiscountPayload = z.infer<typeof discountSchema>;
 

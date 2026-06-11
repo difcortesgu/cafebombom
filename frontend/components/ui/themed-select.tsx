@@ -37,14 +37,14 @@ export function ThemedSelect({
   addNewLabel,
 }: ThemedSelectProps) {
   const palette = useAppColors();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isWide = screenWidth >= 768;
   const buttonRef = useRef<View>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [showAddNew, setShowAddNew] = useState(false);
   const [addNewText, setAddNewText] = useState('');
-  const [anchor, setAnchor] = useState<{ top: number; left: number; minWidth: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; left: number; minWidth: number; maxHeight: number } | null>(null);
 
   const selectedItem = items.find((item) => item.value === value);
   const filteredItems = items.filter((item) => item.label.toLowerCase().includes(searchText.toLowerCase()));
@@ -53,7 +53,16 @@ export function ThemedSelect({
     if (isWide && buttonRef.current) {
       buttonRef.current.measure((_fx, _fy, width, height, px, py) => {
         const left = Math.min(px, screenWidth - Math.max(width, 200) - 8);
-        setAnchor({ top: py + height + 2, left, minWidth: Math.max(width, 200) });
+        const minWidth = Math.max(width, 200);
+        const spaceBelow = screenHeight - (py + height);
+        const spaceAbove = py;
+        const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
+        const maxHeight = Math.max(160, (openUp ? spaceAbove : spaceBelow) - 12);
+        setAnchor(
+          openUp
+            ? { bottom: screenHeight - py + 2, left, minWidth, maxHeight }
+            : { top: py + height + 2, left, minWidth, maxHeight },
+        );
         setIsOpen(true);
       });
     } else {
@@ -70,7 +79,7 @@ export function ThemedSelect({
   }
 
   const dropdownContent = (
-    <View style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }, anchor ? { position: 'absolute', top: anchor.top, left: anchor.left, minWidth: anchor.minWidth } : {}]}>
+    <View style={[styles.modal, { backgroundColor: palette.card, borderColor: palette.border }, anchor ? { position: 'absolute', top: anchor.top, bottom: anchor.bottom, left: anchor.left, minWidth: anchor.minWidth, maxHeight: anchor.maxHeight } : {}]}>
       {!anchor ? (
         <View style={styles.modalHeader}>
           <ThemedText type="subtitle" style={styles.modalTitle}>

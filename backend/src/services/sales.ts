@@ -163,6 +163,10 @@ export class SalesSqliteService {
         value: discounts.value,
         startsAt: discounts.startsAt,
         endsAt: discounts.endsAt,
+        daysOfWeek: discounts.daysOfWeek,
+        daysOfMonth: discounts.daysOfMonth,
+        hourStart: discounts.hourStart,
+        hourEnd: discounts.hourEnd,
         isActive: discounts.isActive,
       })
       .from(discounts)
@@ -275,6 +279,10 @@ export class SalesSqliteService {
         value: discounts.value,
         startsAt: discounts.startsAt,
         endsAt: discounts.endsAt,
+        daysOfWeek: discounts.daysOfWeek,
+        daysOfMonth: discounts.daysOfMonth,
+        hourStart: discounts.hourStart,
+        hourEnd: discounts.hourEnd,
         isActive: discounts.isActive,
       })
       .from(discounts)
@@ -550,6 +558,10 @@ export class SalesSqliteService {
         value: discounts.value,
         startsAt: discounts.startsAt,
         endsAt: discounts.endsAt,
+        daysOfWeek: discounts.daysOfWeek,
+        daysOfMonth: discounts.daysOfMonth,
+        hourStart: discounts.hourStart,
+        hourEnd: discounts.hourEnd,
         isActive: discounts.isActive,
       })
       .from(discounts)
@@ -571,6 +583,10 @@ export class SalesSqliteService {
         value: discounts.value,
         startsAt: discounts.startsAt,
         endsAt: discounts.endsAt,
+        daysOfWeek: discounts.daysOfWeek,
+        daysOfMonth: discounts.daysOfMonth,
+        hourStart: discounts.hourStart,
+        hourEnd: discounts.hourEnd,
         isActive: discounts.isActive,
       })
       .from(discounts)
@@ -580,8 +596,6 @@ export class SalesSqliteService {
   }
 
   async createDiscount(payload: CreateDiscountPayload): Promise<string> {
-    const startsAt = payload.scope === 'global' ? 0 : payload.startsAt;
-    const endsAt = payload.scope === 'global' ? null : payload.endsAt;
     const [inserted] = db.insert(discounts)
       .values({
         name: payload.name.trim(),
@@ -589,8 +603,12 @@ export class SalesSqliteService {
         productId: payload.scope === 'product' ? (payload.productId ?? null) : null,
         type: payload.type,
         value: payload.value,
-        startsAt,
-        endsAt,
+        startsAt: payload.startsAt,
+        endsAt: payload.endsAt,
+        daysOfWeek: payload.daysOfWeek,
+        daysOfMonth: payload.daysOfMonth,
+        hourStart: payload.hourStart,
+        hourEnd: payload.hourEnd,
         isActive: payload.isActive,
       })
       .returning({ id: discounts.id })
@@ -604,8 +622,6 @@ export class SalesSqliteService {
   }
 
   async updateDiscount(payload: UpdateDiscountPayload): Promise<void> {
-    const startsAt = payload.scope === 'global' ? 0 : payload.startsAt;
-    const endsAt = payload.scope === 'global' ? null : payload.endsAt;
     db.update(discounts)
       .set({
         name: payload.name.trim(),
@@ -613,8 +629,12 @@ export class SalesSqliteService {
         productId: payload.scope === 'product' ? (payload.productId ?? null) : null,
         type: payload.type,
         value: payload.value,
-        startsAt,
-        endsAt,
+        startsAt: payload.startsAt,
+        endsAt: payload.endsAt,
+        daysOfWeek: payload.daysOfWeek,
+        daysOfMonth: payload.daysOfMonth,
+        hourStart: payload.hourStart,
+        hourEnd: payload.hourEnd,
         isActive: payload.isActive,
         updatedAt: sql`cast(strftime('%s', 'now') as int)`,
       })

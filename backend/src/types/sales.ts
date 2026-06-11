@@ -99,6 +99,10 @@ export type CreateDiscountPayload = {
   value: number;
   startsAt: number;
   endsAt: number | null;
+  daysOfWeek: number[];
+  daysOfMonth: number[];
+  hourStart: number | null;
+  hourEnd: number | null;
   isActive: boolean;
 };
 

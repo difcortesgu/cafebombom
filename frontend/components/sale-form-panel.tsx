@@ -19,7 +19,7 @@ import {
     createCartItemId,
     type SaleFormCartItem,
 } from '@/utils/cart-normalization';
-import { calculateSaleDiscountBreakdown } from '@/utils/discounts';
+import { calculateSaleDiscountBreakdown, isDiscountScheduledActive } from '@/utils/discounts';
 import { money } from '@/utils/money';
 import { formatSaleStatusLabel, getTableSurcharge } from '@/utils/sale-view';
 
@@ -129,14 +129,21 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         () => [
             { label: t('saleForm.noDiscount'), value: '' },
             ...discounts
-                .filter((d) => d.scope === 'global' && d.isActive)
+                .filter((d) => d.scope === 'global' && isDiscountScheduledActive(d, nowUnix))
                 .map((d) => ({
                     label: `${d.name} (${d.type === 'percentage' ? `${d.value}%` : money(d.value)})`,
                     value: d.id,
                 })),
         ],
-        [discounts],
+        [discounts, nowUnix],
     );
+
+    // Drop a previously-selected global discount once it falls outside its schedule.
+    useEffect(() => {
+        if (selectedGlobalDiscountId && !globalDiscountOptions.some((o) => o.value === selectedGlobalDiscountId)) {
+            setSelectedGlobalDiscountId('');
+        }
+    }, [globalDiscountOptions, selectedGlobalDiscountId]);
 
     const pricing = useMemo(
         () => calculateSaleDiscountBreakdown(

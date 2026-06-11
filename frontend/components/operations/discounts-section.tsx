@@ -26,6 +26,20 @@ const formatDiscountDate = (unix: number | null): string => {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
+const formatSchedule = (discount: Discount): string | null => {
+    const parts: string[] = [];
+    if (discount.daysOfWeek?.length) {
+        parts.push(discount.daysOfWeek.map((d) => t(`products.discounts.weekdayShort.${d}`)).join(', '));
+    }
+    if (discount.daysOfMonth?.length) {
+        parts.push(discount.daysOfMonth.join(', '));
+    }
+    if (discount.hourStart != null && discount.hourEnd != null) {
+        parts.push(`${String(discount.hourStart).padStart(2, '0')}–${String(discount.hourEnd).padStart(2, '0')}h`);
+    }
+    return parts.length ? parts.join(' · ') : null;
+};
+
 function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDelete }: {
     discount: Discount;
     productName?: string;
@@ -76,12 +90,18 @@ function DiscountCard({ discount, productName, cardWidth, onToggle, onEdit, onDe
                     <ThemedText style={styles.metaText} numberOfLines={1}>{productName}</ThemedText>
                 </View>
             ) : null}
-            {discount.scope === 'product' ? (
+            {discount.startsAt || discount.endsAt ? (
                 <View style={styles.metaRow}>
                     <Ionicons name="calendar-outline" size={12} color={palette.mutedText} />
                     <ThemedText style={styles.metaText} numberOfLines={1}>
                         {formatDiscountDate(discount.startsAt)} {t('productForm.discounts.to')} {formatDiscountDate(discount.endsAt)}
                     </ThemedText>
+                </View>
+            ) : null}
+            {formatSchedule(discount) ? (
+                <View style={styles.metaRow}>
+                    <Ionicons name="time-outline" size={12} color={palette.mutedText} />
+                    <ThemedText style={styles.metaText} numberOfLines={1}>{formatSchedule(discount)}</ThemedText>
                 </View>
             ) : null}
         </EntityCard>
@@ -107,6 +127,10 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
             value: discount.value,
             startsAt: discount.startsAt,
             endsAt: discount.endsAt,
+            daysOfWeek: discount.daysOfWeek,
+            daysOfMonth: discount.daysOfMonth,
+            hourStart: discount.hourStart,
+            hourEnd: discount.hourEnd,
             isActive: !discount.isActive,
         });
 

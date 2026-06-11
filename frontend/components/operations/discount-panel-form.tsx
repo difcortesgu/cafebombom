@@ -15,7 +15,7 @@ type DiscountPanelFormProps = {
 
 export function DiscountPanelForm({ onClose, initialScope = 'global', discount }: DiscountPanelFormProps) {
     const palette = useAppColors();
-    const isEdit = discount !== undefined;
+    const scope = discount?.scope ?? initialScope;
 
     return (
         <>
@@ -23,7 +23,7 @@ export function DiscountPanelForm({ onClose, initialScope = 'global', discount }
                 <View style={styles.panelHeaderTitle}>
                     <Ionicons name="pricetag-outline" size={20} color={palette.tint} />
                     <ThemedText type="subtitle">
-                        {isEdit ? t('products.discounts.title') : t('products.discounts.create')}
+                        {scope === 'product' ? t('products.discounts.titleProduct') : t('products.discounts.titleGlobal')}
                     </ThemedText>
                 </View>
                 <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>

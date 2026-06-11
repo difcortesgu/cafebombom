@@ -131,17 +131,17 @@ export async function getDiscounts(req: Request, res: Response): Promise<void> {
 }
 
 export async function createDiscount(req: Request, res: Response): Promise<void> {
-  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = discountSchema.parse(req.body);
+  const { name, scope, productId, type, value, startsAt, endsAt, daysOfWeek, daysOfMonth, hourStart, hourEnd, isActive } = discountSchema.parse(req.body);
 
-  const id = await salesService.createDiscount({ name, scope, productId, type, value, startsAt, endsAt, isActive });
+  const id = await salesService.createDiscount({ name, scope, productId, type, value, startsAt, endsAt, daysOfWeek, daysOfMonth, hourStart, hourEnd, isActive });
   res.status(201).json({ id });
 }
 
 export async function updateDiscount(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { name, scope, productId, type, value, startsAt, endsAt, isActive } = discountSchema.parse(req.body);
+  const { name, scope, productId, type, value, startsAt, endsAt, daysOfWeek, daysOfMonth, hourStart, hourEnd, isActive } = discountSchema.parse(req.body);
 
-  await salesService.updateDiscount({ id, name, scope, productId, type, value, startsAt, endsAt, isActive });
+  await salesService.updateDiscount({ id, name, scope, productId, type, value, startsAt, endsAt, daysOfWeek, daysOfMonth, hourStart, hourEnd, isActive });
   res.status(204).send();
 }
 

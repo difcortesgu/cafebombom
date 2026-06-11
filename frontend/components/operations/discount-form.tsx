@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { DateInput } from '@/components/ui/date-input';
 import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
+import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -38,6 +39,10 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
     const [productId, setProductId] = useState<string | null>(discount?.productId ?? null);
     const [startsAt, setStartsAt] = useState<number | null>(discount?.startsAt ?? Math.floor(Date.now() / 1000));
     const [endsAt, setEndsAt] = useState<number | null>(discount?.endsAt ?? null);
+    const [daysOfWeek, setDaysOfWeek] = useState<number[]>(discount?.daysOfWeek ?? []);
+    const [daysOfMonth, setDaysOfMonth] = useState<number[]>(discount?.daysOfMonth ?? []);
+    const [hourStart, setHourStart] = useState<number | null>(discount?.hourStart ?? null);
+    const [hourEnd, setHourEnd] = useState<number | null>(discount?.hourEnd ?? null);
     const [message, setMessage] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -48,6 +53,10 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
         setProductId(discount?.productId ?? null);
         setStartsAt(discount?.startsAt ?? Math.floor(Date.now() / 1000));
         setEndsAt(discount?.endsAt ?? null);
+        setDaysOfWeek(discount?.daysOfWeek ?? []);
+        setDaysOfMonth(discount?.daysOfMonth ?? []);
+        setHourStart(discount?.hourStart ?? null);
+        setHourEnd(discount?.hourEnd ?? null);
         setMessage('');
     }, [discount]);
 
@@ -58,6 +67,15 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
 
     const productItems = products.map((p) => ({ label: p.name, value: p.id }));
 
+    const hourItems = [
+        { label: t('products.discounts.noRestriction'), value: '' },
+        ...Array.from({ length: 25 }, (_, h) => ({ label: `${String(h).padStart(2, '0')}:00`, value: String(h) })),
+    ];
+
+    function toggleDay(list: number[], day: number, setter: (v: number[]) => void) {
+        setter(list.includes(day) ? list.filter((d) => d !== day) : [...list, day].sort((a, b) => a - b));
+    }
+
     async function submit() {
         const result = validateForm(discountFormSchema, {
             name,
@@ -65,6 +83,8 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
             productId: scope === 'product' ? (productId ?? '') : undefined,
             type,
             value,
+            hourStart,
+            hourEnd,
         });
         if (!result.ok) {
             setErrors(result.errors);
@@ -80,6 +100,14 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
         setErrors({});
         setMessage('');
         const numericValue = result.data.value;
+        const schedule = {
+            startsAt: startsAt ?? 0,
+            endsAt,
+            daysOfWeek,
+            daysOfMonth,
+            hourStart,
+            hourEnd,
+        };
         if (isEdit && discount) {
             await updateDiscount({
                 id: discount.id,
@@ -88,8 +116,7 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                 productId: scope === 'product' ? productId : null,
                 type,
                 value: numericValue,
-                startsAt: scope === 'product' ? (startsAt ?? 0) : 0,
-                endsAt: scope === 'product' ? endsAt : null,
+                ...schedule,
                 isActive: discount.isActive,
             });
         } else {
@@ -99,8 +126,7 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                 productId: scope === 'product' ? productId : null,
                 type,
                 value: numericValue,
-                startsAt: scope === 'product' ? (startsAt ?? 0) : 0,
-                endsAt: scope === 'product' ? endsAt : null,
+                ...schedule,
                 isActive: true,
             });
         }
@@ -159,31 +185,95 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                 />
             </View>
 
-            {scope === 'product' ? (
-                <View style={styles.fieldGroup}>
-                    <View style={styles.labelRow}>
-                        <Ionicons name="calendar-outline" size={14} color={palette.mutedText} />
-                        <ThemedText style={styles.smallLabel}>{t('productForm.discounts.startDate')}</ThemedText>
-                    </View>
-                    <DateInput
-                        value={startsAt}
-                        onChangeValue={setStartsAt}
-                        maximumDate={endsAt}
-                        placeholder={t('productForm.discounts.startDate')}
-                    />
-                    <View style={styles.labelRow}>
-                        <Ionicons name="calendar-outline" size={14} color={palette.mutedText} />
-                        <ThemedText style={styles.smallLabel}>{t('productForm.discounts.endDate')}</ThemedText>
-                    </View>
-                    <DateInput
-                        value={endsAt}
-                        onChangeValue={setEndsAt}
-                        endOfDay
-                        minimumDate={startsAt}
-                        placeholder={t('productForm.discounts.endDate')}
-                    />
+            <View style={styles.scheduleHeader}>
+                <Ionicons name="time-outline" size={16} color={palette.tint} />
+                <ThemedText type="defaultSemiBold">{t('products.discounts.scheduleSection')}</ThemedText>
+            </View>
+
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="calendar-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallLabel}>{t('productForm.discounts.startDate')}</ThemedText>
                 </View>
-            ) : null}
+                <DateInput
+                    value={startsAt}
+                    onChangeValue={setStartsAt}
+                    maximumDate={endsAt}
+                    placeholder={t('productForm.discounts.startDate')}
+                />
+                <View style={styles.labelRow}>
+                    <Ionicons name="calendar-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallLabel}>{t('productForm.discounts.endDate')}</ThemedText>
+                </View>
+                <DateInput
+                    value={endsAt}
+                    onChangeValue={setEndsAt}
+                    endOfDay
+                    minimumDate={startsAt}
+                    placeholder={t('productForm.discounts.endDate')}
+                />
+            </View>
+
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="today-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallLabel}>{t('products.discounts.daysOfWeek')}</ThemedText>
+                </View>
+                <View style={styles.chipWrap}>
+                    {Array.from({ length: 7 }, (_, day) => (
+                        <ThemedChip
+                            key={day}
+                            label={t(`products.discounts.weekdayShort.${day}`)}
+                            active={daysOfWeek.includes(day)}
+                            onPress={() => toggleDay(daysOfWeek, day, setDaysOfWeek)}
+                        />
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="calendar-number-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallLabel}>{t('products.discounts.daysOfMonth')}</ThemedText>
+                </View>
+                <View style={styles.chipWrap}>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                        <ThemedChip
+                            key={day}
+                            label={String(day)}
+                            active={daysOfMonth.includes(day)}
+                            onPress={() => toggleDay(daysOfMonth, day, setDaysOfMonth)}
+                            style={styles.dayChip}
+                        />
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.fieldGroup}>
+                <View style={styles.labelRow}>
+                    <Ionicons name="hourglass-outline" size={14} color={palette.mutedText} />
+                    <ThemedText style={styles.smallLabel}>{t('products.discounts.hourRange')}</ThemedText>
+                </View>
+                <View style={styles.hourRow}>
+                    <View style={styles.hourField}>
+                        <ThemedText style={styles.smallLabel}>{t('products.discounts.hourStart')}</ThemedText>
+                        <ThemedSelect
+                            value={hourStart == null ? '' : String(hourStart)}
+                            onValueChange={(v) => setHourStart(v === '' ? null : Number(v))}
+                            items={hourItems}
+                        />
+                    </View>
+                    <View style={styles.hourField}>
+                        <ThemedText style={styles.smallLabel}>{t('products.discounts.hourEnd')}</ThemedText>
+                        <ThemedSelect
+                            value={hourEnd == null ? '' : String(hourEnd)}
+                            onValueChange={(v) => setHourEnd(v === '' ? null : Number(v))}
+                            items={hourItems}
+                        />
+                    </View>
+                </View>
+                {errors.hourEnd ? <FormFeedback message={errors.hourEnd} /> : null}
+            </View>
 
             <View style={styles.actionsRow}>
                 <PanelActionRow
@@ -214,5 +304,28 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 8,
         marginTop: 4,
+    },
+    scheduleHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 4,
+    },
+    chipWrap: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    dayChip: {
+        minWidth: 38,
+        paddingHorizontal: 8,
+    },
+    hourRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    hourField: {
+        flex: 1,
+        gap: 4,
     },
 });
