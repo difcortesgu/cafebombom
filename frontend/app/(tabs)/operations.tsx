@@ -19,6 +19,7 @@ import { SectionTabs, type OperationsSection } from '@/components/operations/sec
 import { SurchargesSection } from '@/components/operations/surcharges-section';
 import { TablePanelForm } from '@/components/operations/table-panel-form';
 import { TablesSection } from '@/components/operations/tables-section';
+import { ReceiptBusinessFields } from '@/components/receipt-business-fields';
 import { ThemedText } from '@/components/themed-text';
 import { SlidePanelShell } from '@/components/ui/slide-panel';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -57,6 +58,7 @@ export default function OperationsScreen() {
     const [panelMode, setPanelMode] = useState<OperationsPanelMode | null>(null);
     const [section, setSection] = useState<OperationsSection>('tables');
     const { width: screenWidth } = useWindowDimensions();
+    const isWide = screenWidth >= 768;
 
     const {
         hydrate: hydrateSales,
@@ -412,39 +414,39 @@ export default function OperationsScreen() {
                 ) : null}
 
                 {section === 'receipt' ? (
-                    <ThemedCard style={styles.card}>
-                        <ThemedText type="subtitle">{t('settings.receipt.title')}</ThemedText>
+                    <ThemedCard style={[styles.card, isWide && styles.receiptCardWide]}>
+                        <View style={styles.sectionHeading}>
+                            <Ionicons name="receipt-outline" size={20} color={palette.tint} />
+                            <ThemedText type="subtitle">{t('settings.receipt.title')}</ThemedText>
+                        </View>
                         <ThemedText style={styles.muted}>{t('settings.receipt.subtitle')}</ThemedText>
-                        <ThemedInput
-                            style={styles.receiptInput}
-                            value={businessNameInput}
-                            placeholder={t('settings.receipt.businessName')}
-                            onChangeText={setBusinessNameInput}
-                            onBlur={commitBusinessInfo}
+
+                        <ReceiptBusinessFields
+                            isWide={isWide}
+                            values={{
+                                businessName: businessNameInput,
+                                businessAddress: businessAddressInput,
+                                businessPhone: businessPhoneInput,
+                                businessNit: businessNitInput,
+                                taxRatePercent: taxRateInput,
+                            }}
+                            onChange={(key, value) => {
+                                switch (key) {
+                                    case 'businessName': setBusinessNameInput(value); break;
+                                    case 'businessAddress': setBusinessAddressInput(value); break;
+                                    case 'businessPhone': setBusinessPhoneInput(value); break;
+                                    case 'businessNit': setBusinessNitInput(value); break;
+                                    case 'taxRatePercent': setTaxRateInput(value); break;
+                                }
+                            }}
+                            onBusinessBlur={commitBusinessInfo}
+                            onTaxBlur={commitTaxRate}
                         />
-                        <ThemedInput
-                            style={styles.receiptInput}
-                            value={businessAddressInput}
-                            placeholder={t('settings.receipt.businessAddress')}
-                            onChangeText={setBusinessAddressInput}
-                            onBlur={commitBusinessInfo}
-                        />
-                        <ThemedInput
-                            style={styles.receiptInput}
-                            value={businessPhoneInput}
-                            placeholder={t('settings.receipt.businessPhone')}
-                            onChangeText={setBusinessPhoneInput}
-                            onBlur={commitBusinessInfo}
-                        />
-                        <ThemedInput
-                            style={styles.receiptInput}
-                            value={businessNitInput}
-                            placeholder={t('settings.receipt.businessNit')}
-                            onChangeText={setBusinessNitInput}
-                            onBlur={commitBusinessInfo}
-                        />
+
+                        <ThemedText style={styles.fieldLabel}>{t('settings.receipt.businessLogoUri')}</ThemedText>
                         <View style={styles.receiptActionRow}>
                             <ThemedButton
+                                icon="image-outline"
                                 label={logoBusy ? `${t('settings.receipt.pickLogo')}...` : t('settings.receipt.pickLogo')}
                                 onPress={() => void pickBusinessLogo()}
                                 disabled={logoBusy}
@@ -452,6 +454,8 @@ export default function OperationsScreen() {
                             {businessLogoUriInput ? (
                                 <ThemedButton
                                     variant="secondary"
+                                    icon="trash-outline"
+                                    iconColor={palette.danger}
                                     style={styles.printerActionClearButton}
                                     labelStyle={[styles.printerActionClearText, { color: palette.danger }]}
                                     label={t('settings.receipt.removeLogo')}
@@ -474,26 +478,17 @@ export default function OperationsScreen() {
                                 <ThemedText style={styles.receiptStatusText}>{logoMessage}</ThemedText>
                             </View>
                         ) : null}
-                        <ThemedInput
-                            style={styles.receiptInput}
-                            value={receiptFooterInput}
-                            placeholder={t('settings.receipt.footerMessage')}
-                            onChangeText={setReceiptFooterInput}
-                            onBlur={commitBusinessInfo}
-                        />
-                        <View style={styles.receiptCompactControl}>
-                            <ThemedText style={styles.feeLabel}>{t('settings.receipt.taxRate')}</ThemedText>
+                        <View style={styles.receiptInput}>
                             <ThemedInput
-                                style={styles.receiptTaxInput}
-                                numeric="percent"
-                                value={taxRateInput}
-                                onChangeText={setTaxRateInput}
-                                onBlur={commitTaxRate}
-                                placeholder="8.00"
+                                value={receiptFooterInput}
+                                label={t('settings.receipt.footerMessage')}
+                                placeholder={t('settings.receipt.footerMessage')}
+                                onChangeText={setReceiptFooterInput}
+                                onBlur={commitBusinessInfo}
                             />
                         </View>
                         <View style={styles.receiptCompactControl}>
-                            <ThemedText style={styles.muted}>{t('settings.receipt.paperWidth')}</ThemedText>
+                            <ThemedText style={styles.fieldLabel}>{t('settings.receipt.paperWidth')}</ThemedText>
                             <View style={styles.receiptPaperWidthRow}>
                                 {[58, 80].map((width) => {
                                     const isActive = printerPaperWidth === width;
@@ -608,6 +603,9 @@ const styles = StyleSheet.create({
     card: {
         gap: 10,
     },
+    receiptCardWide: {
+        maxWidth: 760,
+    },
     headerRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -619,17 +617,26 @@ const styles = StyleSheet.create({
         flex: 1,
         minWidth: 160,
     },
-    feeLabel: {
-        flex: 1,
-    },
     muted: {
         opacity: 0.9,
         fontSize: 13,
     },
     logoPreview: {
         width: '100%',
+        maxWidth: 220,
         height: 120,
         borderRadius: 8,
+        alignSelf: 'flex-start',
+    },
+    sectionHeading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    fieldLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        opacity: 0.8,
     },
     receiptInput: {
         width: '100%',
@@ -641,11 +648,6 @@ const styles = StyleSheet.create({
         maxWidth: 420,
         alignSelf: 'flex-start',
         gap: 8,
-    },
-    receiptTaxInput: {
-        width: 140,
-        textAlign: 'right',
-        alignSelf: 'flex-start',
     },
     receiptPaperWidthRow: {
         flexDirection: 'row',

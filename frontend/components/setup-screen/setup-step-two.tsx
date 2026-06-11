@@ -2,11 +2,14 @@ import { Buffer } from 'buffer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
+import { Ionicons } from '@expo/vector-icons';
+
+import { ReceiptBusinessFields } from '@/components/receipt-business-fields';
 import { ThemedText } from '@/components/themed-text';
+import { useIsWide } from '@/components/ui/centered-page';
 import { ThemedButton } from '@/components/ui/themed-button';
-import { ThemedInput } from '@/components/ui/themed-input';
 import { UserAccountModal } from '@/components/user-account-modal';
 import { UserManagementTable } from '@/components/user-management-table';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -61,6 +64,7 @@ export function SetupStepTwo({
     onFinish,
 }: SetupStepTwoProps) {
     const palette = useAppColors();
+    const isWide = useIsWide();
 
     const [prefs, setPrefs] = useState<ReceiptPreferences>(defaultReceiptPreferences);
     const [taxRatePercent, setTaxRatePercent] = useState('0');
@@ -153,6 +157,7 @@ export function SetupStepTwo({
             ) : (
                 <>
                     <ThemedButton
+                        icon="person-add-outline"
                         label={t('setup.account.add')}
                         disabled={importBusy || prefsBusy}
                         onPress={openAddModal}
@@ -203,34 +208,29 @@ export function SetupStepTwo({
                         )}
                     />
 
-                    <ThemedText type="subtitle">{t('setup.restaurant.title')}</ThemedText>
-                    <ThemedInput
-                        value={prefs.businessName}
-                        placeholder={t('setup.restaurant.businessName')}
-                        onChangeText={(value) => setPrefs((prev) => ({ ...prev, businessName: value }))}
-                    />
-                    <ThemedInput
-                        value={prefs.businessAddress}
-                        placeholder={t('setup.restaurant.businessAddress')}
-                        onChangeText={(value) => setPrefs((prev) => ({ ...prev, businessAddress: value }))}
-                    />
-                    <ThemedInput
-                        value={prefs.businessPhone}
-                        placeholder={t('setup.restaurant.businessPhone')}
-                        onChangeText={(value) => setPrefs((prev) => ({ ...prev, businessPhone: value }))}
-                    />
-                    <ThemedInput
-                        value={prefs.businessNit}
-                        placeholder={t('setup.restaurant.businessNit')}
-                        onChangeText={(value) => setPrefs((prev) => ({ ...prev, businessNit: value }))}
-                    />
-                    <ThemedInput
-                        value={taxRatePercent}
-                        numeric="percent"
-                        placeholder={t('setup.restaurant.taxRatePercent')}
-                        onChangeText={setTaxRatePercent}
+                    <View style={styles.sectionHeading}>
+                        <Ionicons name="receipt-outline" size={20} color={palette.tint} />
+                        <ThemedText type="subtitle">{t('setup.restaurant.title')}</ThemedText>
+                    </View>
+                    <ReceiptBusinessFields
+                        isWide={isWide}
+                        values={{
+                            businessName: prefs.businessName,
+                            businessAddress: prefs.businessAddress,
+                            businessPhone: prefs.businessPhone,
+                            businessNit: prefs.businessNit,
+                            taxRatePercent,
+                        }}
+                        onChange={(key, value) => {
+                            if (key === 'taxRatePercent') {
+                                setTaxRatePercent(value);
+                            } else {
+                                setPrefs((prev) => ({ ...prev, [key]: value }));
+                            }
+                        }}
                     />
 
+                    <ThemedText style={styles.fieldLabel}>{t('setup.restaurant.paperWidth')}</ThemedText>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                         {[58, 80].map((paperWidth) => {
                             const isActive = prefs.paperWidth === paperWidth;
@@ -238,6 +238,8 @@ export function SetupStepTwo({
                                 <ThemedButton
                                     key={paperWidth}
                                     variant="secondary"
+                                    icon="resize-outline"
+                                    iconColor={isActive ? palette.tint : palette.icon}
                                     label={`${paperWidth}mm`}
                                     style={[
                                         { flex: 1 },
@@ -250,6 +252,7 @@ export function SetupStepTwo({
                     </View>
 
                     <ThemedButton
+                        icon="save-outline"
                         label={prefsBusy ? t('setup.restaurant.saving') : t('setup.restaurant.save')}
                         disabled={prefsBusy || loading}
                         onPress={async () => {
@@ -284,6 +287,7 @@ export function SetupStepTwo({
                     />
 
                     <ThemedButton
+                        icon="cloud-upload-outline"
                         disabled={importBusy || prefsBusy}
                         label={importBusy ? t('setup.import.uploading') : t('setup.import.upload')}
                         onPress={async () => {
@@ -326,8 +330,9 @@ export function SetupStepTwo({
 
                     <ThemedButton
                         variant="secondary"
+                        icon="download-outline"
                         disabled={importBusy || prefsBusy}
-                        label="Descargar plantilla Excel v2"
+                        label={t('setup.import.downloadTemplate')}
                         onPress={async () => {
                             try {
                                 setImportBusy(true);
@@ -391,6 +396,7 @@ export function SetupStepTwo({
 
                     <ThemedButton
                         variant="secondary"
+                        icon="checkmark-done-outline"
                         label={t('setup.finish')}
                         disabled={importBusy || prefsBusy || loading}
                         onPress={onFinish}
@@ -422,3 +428,16 @@ export function SetupStepTwo({
         </>
     );
 }
+
+const styles = StyleSheet.create({
+    sectionHeading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    fieldLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        opacity: 0.8,
+    },
+});

@@ -20,6 +20,7 @@ const KEYBOARD_BY_MODE: Record<NumericMode, TextInputProps['keyboardType']> = {
   decimal: 'decimal-pad',
   currency: 'decimal-pad',
   percent: 'decimal-pad',
+  ipv4: 'number-pad',
 };
 
 export function ThemedInput({

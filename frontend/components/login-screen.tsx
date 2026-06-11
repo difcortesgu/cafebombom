@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { BackendConnectionForm } from '@/components/connection/backend-connection-form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useIsWide } from '@/components/ui/centered-page';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -22,6 +23,7 @@ interface LoginScreenProps {
 
 export function LoginScreen({ users, loading, error, login, refreshConnection }: LoginScreenProps) {
   const palette = useAppColors();
+  const isWide = useIsWide();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(
     users.length > 0 ? users[0].id : null,
   );
@@ -77,7 +79,7 @@ export function LoginScreen({ users, loading, error, login, refreshConnection }:
     return (
       <ThemedView style={styles.container}>
         <ThemedText type="title">{t('app.name')}</ThemedText>
-        <View style={[styles.connectionPanel, { borderColor: palette.border, backgroundColor: palette.inputBackground }]}>
+        <View style={[styles.connectionPanel, isWide && styles.formCardWide, { borderColor: palette.border, backgroundColor: palette.inputBackground }]}>
           {error ? <ThemedText style={[styles.errorText, { color: palette.danger }]}>{error}</ThemedText> : null}
           <ThemedText type="defaultSemiBold">{t('settings.connection.title')}</ThemedText>
           <ThemedText style={styles.hint}>{t('settings.connection.subtitle')}</ThemedText>
@@ -92,15 +94,17 @@ export function LoginScreen({ users, loading, error, login, refreshConnection }:
 
   return (
     <ThemedView style={styles.container}>
+      <View style={isWide ? styles.formCardWide : undefined}>
       <ThemedText type="title">{t('app.name')}</ThemedText>
       <ThemedText style={styles.helperText}>{t('auth.login.prompt')}</ThemedText>
 
-      <View style={styles.userRow}>
+      <View style={[styles.userRow, isWide && styles.userRowWide]}>
         {users.map((user) => (
           <Pressable
             key={user.id}
             style={[
               styles.userButton,
+              isWide && styles.userButtonWide,
               { borderColor: palette.border },
               selectedUserId === user.id && styles.userButtonActive,
               selectedUserId === user.id && { backgroundColor: palette.tint, borderColor: palette.tint },
@@ -127,6 +131,7 @@ export function LoginScreen({ users, loading, error, login, refreshConnection }:
         secureTextEntry
         numeric="integer"
         maxLength={6}
+        label={t('auth.login.pinLabel')}
         placeholder={t('auth.login.pinPlaceholder')}
         style={styles.pinInput}
         onChangeText={setPin}
@@ -141,6 +146,7 @@ export function LoginScreen({ users, loading, error, login, refreshConnection }:
 
       <ThemedButton
         style={styles.loginButton}
+        icon="lock-open-outline"
         label={loading ? t('auth.login.signingIn') : t('auth.login.unlock')}
         disabled={!canUnlock}
         onPress={handleUnlock}
@@ -149,6 +155,7 @@ export function LoginScreen({ users, loading, error, login, refreshConnection }:
       <ThemedText style={[styles.hint, { color: palette.mutedText }]}>
         {t('auth.login.hint')}
       </ThemedText>
+      </View>
     </ThemedView>
   );
 }
@@ -164,9 +171,18 @@ const styles = StyleSheet.create({
     opacity: 0.92,
     marginBottom: 8,
   },
+  formCardWide: {
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+  },
   userRow: {
     gap: 8,
     marginBottom: 8,
+  },
+  userRowWide: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
   userButton: {
     flexDirection: 'row',
@@ -177,6 +193,10 @@ const styles = StyleSheet.create({
     borderColor: '#D2D2D2',
     paddingVertical: 10,
     paddingHorizontal: 12,
+  },
+  userButtonWide: {
+    flexGrow: 1,
+    flexBasis: '47%',
   },
   userButtonActive: {
     backgroundColor: '#B64D1A',

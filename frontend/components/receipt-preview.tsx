@@ -147,9 +147,11 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   logo: {
-    width: '100%',
-    height: 70,
-    marginBottom: 4,
+    width: '60%',
+    maxWidth: 180,
+    height: 64,
+    alignSelf: 'center',
+    marginBottom: 6,
   },
   centerTitle: {
     textAlign: 'center',

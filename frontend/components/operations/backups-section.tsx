@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { useIsWide } from '@/components/ui/centered-page';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -31,6 +32,7 @@ function formatSize(bytes: number): string {
 
 export function BackupsSection() {
     const palette = useAppColors();
+    const isWide = useIsWide();
 
     const [settings, setSettings] = useState<BackupSettings | null>(null);
     const [destinationDraft, setDestinationDraft] = useState('');
@@ -169,9 +171,13 @@ export function BackupsSection() {
                 </ThemedText>
             ) : null}
 
+            <View style={[styles.cardGroup, isWide && styles.columns]}>
             {/* Destination */}
-            <ThemedCard style={styles.card}>
-                <ThemedText type="subtitle">{t('backups.destination.title')}</ThemedText>
+            <ThemedCard style={[styles.card, isWide && styles.columnCard]}>
+                <View style={styles.heading}>
+                    <Ionicons name="folder-outline" size={18} color={palette.tint} />
+                    <ThemedText type="subtitle">{t('backups.destination.title')}</ThemedText>
+                </View>
                 <ThemedText style={styles.muted}>{t('backups.destination.help')}</ThemedText>
                 <ThemedInput
                     label={t('backups.destination.label')}
@@ -199,10 +205,13 @@ export function BackupsSection() {
             </ThemedCard>
 
             {/* Automatic */}
-            <ThemedCard style={styles.card}>
+            <ThemedCard style={[styles.card, isWide && styles.columnCard]}>
                 <View style={styles.switchRow}>
                     <View style={styles.flex1}>
-                        <ThemedText type="subtitle">{t('backups.auto.title')}</ThemedText>
+                        <View style={styles.heading}>
+                            <Ionicons name="time-outline" size={18} color={palette.tint} />
+                            <ThemedText type="subtitle">{t('backups.auto.title')}</ThemedText>
+                        </View>
                         <ThemedText style={styles.muted}>{t('backups.auto.help')}</ThemedText>
                     </View>
                     <Switch
@@ -243,10 +252,14 @@ export function BackupsSection() {
                     numeric="integer"
                 />
             </ThemedCard>
+            </View>
 
             {/* Backup now */}
             <ThemedCard style={styles.card}>
-                <ThemedText type="subtitle">{t('backups.now.title')}</ThemedText>
+                <View style={styles.heading}>
+                    <Ionicons name="cloud-upload-outline" size={18} color={palette.tint} />
+                    <ThemedText type="subtitle">{t('backups.now.title')}</ThemedText>
+                </View>
                 <ThemedText style={styles.muted}>
                     {t('backups.now.last')}: {formatDateTime(settings?.lastBackupAt ?? null)}
                     {settings?.lastBackupStatus ? ` (${settings.lastBackupStatus})` : ''}
@@ -261,12 +274,16 @@ export function BackupsSection() {
 
             {/* Restore */}
             <ThemedCard style={styles.card}>
-                <ThemedText type="subtitle">{t('backups.restore.title')}</ThemedText>
+                <View style={styles.heading}>
+                    <Ionicons name="refresh-outline" size={18} color={palette.tint} />
+                    <ThemedText type="subtitle">{t('backups.restore.title')}</ThemedText>
+                </View>
                 {backups.length === 0 ? (
                     <ThemedText style={styles.muted}>{t('backups.restore.empty')}</ThemedText>
                 ) : (
                     backups.map((file) => (
                         <View key={file.fileName} style={[styles.backupItem, { borderColor: palette.border }]}>
+                            <Ionicons name="document-outline" size={20} color={palette.icon} />
                             <View style={styles.flex1}>
                                 <ThemedText type="defaultSemiBold" numberOfLines={1}>{file.fileName}</ThemedText>
                                 <ThemedText style={styles.muted}>
@@ -318,6 +335,10 @@ const styles = StyleSheet.create({
     wrapper: { gap: 12 },
     loading: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40 },
     card: { gap: 10 },
+    cardGroup: { gap: 12 },
+    columns: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    columnCard: { flexGrow: 1, flexBasis: '47%' },
+    heading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     muted: { opacity: 0.9, fontSize: 13 },
     row: { flexDirection: 'row', gap: 8 },
     flexBtn: { flex: 1 },

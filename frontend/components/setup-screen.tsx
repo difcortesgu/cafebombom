@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SetupOwnerAccount } from '@/components/setup-owner-account';
 import { SetupStepTwo } from '@/components/setup-screen/setup-step-two';
 import { ThemedText } from '@/components/themed-text';
+import { useIsWide } from '@/components/ui/centered-page';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import type { CreateUserPayload, LoginPayload, ManagedUser, SetupUpdateUserPayload } from '@/types/auth';
@@ -45,6 +46,7 @@ export function SetupScreen({
   onFinish,
 }: SetupScreenProps) {
   const palette = useAppColors();
+  const isWide = useIsWide();
   const [step, setStep] = useState<SetupStep>(1);
   const [ownerSessionReady, setOwnerSessionReady] = useState(hasOwnerSession);
 
@@ -65,7 +67,7 @@ export function SetupScreen({
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, isWide && styles.containerWide]}>
       <ThemedText type="title">{t('app.name')}</ThemedText>
       <ThemedText style={styles.helperText}>
         {step === 1 ? t('setup.step1.helperText') : t('setup.step2.helperText')}
@@ -121,6 +123,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 32,
     gap: 12,
+  },
+  containerWide: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   helperText: {
     opacity: 0.92,

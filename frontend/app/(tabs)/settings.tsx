@@ -9,6 +9,7 @@ import { BackupsSection } from '@/components/operations/backups-section';
 import { DiagnosticsSection } from '@/components/operations/diagnostics-section';
 import { SectionTabs, type SettingsSection } from '@/components/operations/section-tabs';
 import { ThemedText } from '@/components/themed-text';
+import { CenteredPage } from '@/components/ui/centered-page';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -22,6 +23,7 @@ import { useSettingsStore } from '@/stores/settings';
 
 export default function SettingsScreen() {
     const palette = useAppColors();
+    const isWeb = Platform.OS === 'web';
     const params = useLocalSearchParams<{ section?: string | string[] }>();
     const currentUser = useAuthStore((s) => s.currentUser);
     const isOwner = currentUser?.role === 'owner';
@@ -153,6 +155,7 @@ export default function SettingsScreen() {
     return (
         <View style={styles.screenContainer}>
             <ScrollView contentContainerStyle={styles.container}>
+                <CenteredPage style={styles.centered}>
                 <View style={styles.headerTitle}>
                     <ThemedText type="title">{t('nav.tab.settings')}</ThemedText>
                     <ThemedText>{t('settings.tabSubtitle')}</ThemedText>
@@ -162,9 +165,14 @@ export default function SettingsScreen() {
 
                 {section === 'printer' ? (
                     <ThemedCard style={styles.card}>
-                        <ThemedText type="subtitle">{t('settings.printer.title')}</ThemedText>
+                        <View style={styles.sectionHeading}>
+                            <Ionicons name="print-outline" size={20} color={palette.tint} />
+                            <ThemedText type="subtitle">{t('settings.printer.title')}</ThemedText>
+                        </View>
                         <ThemedText style={styles.muted}>{t('settings.printer.subtitle')}</ThemedText>
-                        <ThemedText style={styles.muted}>{t('settings.receipt.printerConfigTitle')}</ThemedText>
+                        {!isWeb ? (
+                            <ThemedText style={styles.muted}>{t('settings.receipt.printerConfigTitle')}</ThemedText>
+                        ) : null}
                         {Platform.OS === 'android' ? (
                             <>
                                 <ThemedSelect
@@ -190,28 +198,36 @@ export default function SettingsScreen() {
                                 />
                             </>
                         ) : null}
-                        <ThemedInput
-                            style={styles.printerInput}
-                            value={printerNameInput}
-                            placeholder={t('settings.receipt.printerName')}
-                            onChangeText={setPrinterNameInput}
-                            onBlur={commitPrinterDevice}
-                        />
-                        <ThemedInput
-                            style={styles.printerInput}
-                            value={printerAddressInput}
-                            placeholder={t('settings.receipt.printerAddress')}
-                            onChangeText={setPrinterAddressInput}
-                            onBlur={commitPrinterDevice}
-                            autoCapitalize="characters"
-                        />
+                        {!isWeb ? (
+                            <>
+                                <ThemedInput
+                                    style={styles.printerInput}
+                                    label={t('settings.receipt.printerName')}
+                                    value={printerNameInput}
+                                    placeholder={t('settings.receipt.printerName')}
+                                    onChangeText={setPrinterNameInput}
+                                    onBlur={commitPrinterDevice}
+                                />
+                                <ThemedInput
+                                    style={styles.printerInput}
+                                    label={t('settings.receipt.printerAddress')}
+                                    value={printerAddressInput}
+                                    placeholder={t('settings.receipt.printerAddress')}
+                                    onChangeText={setPrinterAddressInput}
+                                    onBlur={commitPrinterDevice}
+                                    autoCapitalize="characters"
+                                />
+                            </>
+                        ) : null}
                         <View style={styles.printerActionRow}>
-                            <View style={styles.printerSaveGroup}>
-                                <ThemedButton icon="save-outline" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
-                                {printerStatusMessage === t('settings.receipt.printerSaved') ? (
-                                    <ThemedText style={styles.printerSavedContext}>{printerStatusMessage}</ThemedText>
-                                ) : null}
-                            </View>
+                            {!isWeb ? (
+                                <View style={styles.printerSaveGroup}>
+                                    <ThemedButton icon="save-outline" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
+                                    {printerStatusMessage === t('settings.receipt.printerSaved') ? (
+                                        <ThemedText style={styles.printerSavedContext}>{printerStatusMessage}</ThemedText>
+                                    ) : null}
+                                </View>
+                            ) : null}
                             <ThemedButton
                                 variant="secondary"
                                 icon="print-outline"
@@ -248,7 +264,10 @@ export default function SettingsScreen() {
 
                 {section === 'connection' ? (
                     <ThemedCard style={styles.card}>
-                        <ThemedText type="subtitle">{t('settings.connection.title')}</ThemedText>
+                        <View style={styles.sectionHeading}>
+                            <Ionicons name="wifi-outline" size={20} color={palette.tint} />
+                            <ThemedText type="subtitle">{t('settings.connection.title')}</ThemedText>
+                        </View>
                         <ThemedText style={styles.muted}>{t('settings.connection.subtitle')}</ThemedText>
 
                         {Platform.OS === 'web' ? (
@@ -276,6 +295,7 @@ export default function SettingsScreen() {
                 {section === 'backups' && isOwner ? <BackupsSection /> : null}
 
                 {section === 'diagnostics' && isOwner ? <DiagnosticsSection /> : null}
+                </CenteredPage>
             </ScrollView>
         </View>
     );
@@ -288,6 +308,14 @@ const styles = StyleSheet.create({
     container: {
         padding: 16,
         gap: 12,
+    },
+    centered: {
+        gap: 12,
+    },
+    sectionHeading: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     card: {
         gap: 10,

@@ -7,7 +7,7 @@
  * reject characters that don't belong in a numeric field as the user types.
  */
 
-export type NumericMode = 'integer' | 'decimal' | 'currency' | 'percent';
+export type NumericMode = 'integer' | 'decimal' | 'currency' | 'percent' | 'ipv4';
 
 export type CurrencyConfig = {
     symbol: string;
@@ -26,7 +26,7 @@ export const DEFAULT_CURRENCY: CurrencyConfig = {
 };
 
 /** Max fractional digits allowed while typing for non-currency modes. */
-const MAX_DECIMALS: Record<Exclude<NumericMode, 'currency'>, number> = {
+const MAX_DECIMALS: Record<Exclude<NumericMode, 'currency' | 'ipv4'>, number> = {
     integer: 0,
     decimal: 4,
     percent: 2,
@@ -53,6 +53,10 @@ export function sanitizeNumeric(
     config: CurrencyConfig = DEFAULT_CURRENCY,
 ): string {
     if (!text) return '';
+
+    if (mode === 'ipv4') {
+        return sanitizeIpv4(text);
+    }
 
     // Preserve a single leading minus sign (refunds / cash adjustments).
     const negative = /^\s*-/.test(text);
@@ -105,6 +109,47 @@ export function sanitizeNumeric(
         result = result.slice(0, dot + 1 + max);
     }
     return result ? sign + result : '';
+}
+
+/**
+ * Mask an IPv4 address as the user types: keep only digits and dots, clamp each
+ * octet to 0–255, allow at most four octets, and auto-insert a "." when an octet
+ * reaches 3 digits or would otherwise exceed 255. A trailing dot the user just
+ * typed is preserved so they can keep entering the next octet.
+ */
+export function sanitizeIpv4(text: string): string {
+    const cleaned = text.replace(/[^0-9.]/g, '');
+    if (!cleaned) return '';
+
+    const endsWithDot = cleaned.endsWith('.');
+    const octets: string[] = [];
+
+    for (const segment of cleaned.split('.')) {
+        if (octets.length >= 4) break;
+        let current = '';
+        for (const digit of segment) {
+            const next = current + digit;
+            if (next.length > 3 || Number(next) > 255) {
+                octets.push(current);
+                if (octets.length >= 4) {
+                    current = '';
+                    break;
+                }
+                current = digit;
+            } else {
+                current = next;
+            }
+        }
+        if (octets.length >= 4) break;
+        octets.push(current);
+    }
+
+    let result = octets.slice(0, 4).join('.');
+    // Keep a user-typed trailing dot (unless we already have 4 octets).
+    if (endsWithDot && octets.length < 4 && !result.endsWith('.')) {
+        result += '.';
+    }
+    return result;
 }
 
 /** Group the integer part with the configured thousands separator. */

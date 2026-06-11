@@ -4,7 +4,8 @@
       "Bash(bun run *)",
       "Bash(sed -n *)",
       "Bash(grep -n *)",
-      "Bash(cut -d: -f1 *)"
+      "Bash(cut -d: -f1 *)",
+      "Bash(echo \"exit:$?\")"
     ]
   }
 }

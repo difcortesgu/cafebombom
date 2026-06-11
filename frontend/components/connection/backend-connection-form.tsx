@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ConnectionQrScanner } from '@/components/operations/connection-qr-scanner';
 import { ThemedText } from '@/components/themed-text';
+import { useAppColors } from '@/hooks/use-theme-color';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
@@ -16,12 +18,16 @@ type BackendConnectionFormProps = {
 };
 
 export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !== 'web', style }: BackendConnectionFormProps) {
+    const palette = useAppColors();
     const [scannerOpen, setScannerOpen] = useState(false);
     const [scannerLocked, setScannerLocked] = useState(false);
     const [hostInput, setHostInput] = useState('');
     const [portInput, setPortInput] = useState('3000');
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    // Manual IP/port entry is advanced config — collapsed by default on web,
+    // where pairing is normally done via the QR shown on this screen.
+    const [manualOpen, setManualOpen] = useState(Platform.OS !== 'web');
 
     useEffect(() => {
         try {
@@ -106,33 +112,55 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
                 )
             ) : null}
 
-            <ThemedText type="defaultSemiBold">{t('settings.connection.manualTitle')}</ThemedText>
-            <View style={styles.row}>
-                <ThemedInput
-                    value={hostInput}
-                    placeholder={t('settings.connection.hostPlaceholder')}
-                    onChangeText={setHostInput}
-                    style={[styles.input, styles.hostInput]}
-                    autoCapitalize="none"
-                    autoCorrect={false}
+            <Pressable
+                style={styles.manualHeader}
+                onPress={() => setManualOpen((prev) => !prev)}
+                accessibilityRole="button">
+                <Ionicons
+                    name={manualOpen ? 'chevron-down-outline' : 'chevron-forward-outline'}
+                    size={18}
+                    color={palette.icon}
                 />
-                <ThemedInput
-                    value={portInput}
-                    placeholder={t('settings.connection.portPlaceholder')}
-                    onChangeText={setPortInput}
-                    style={[styles.input, styles.portInput]}
-                    numeric="integer"
-                />
-            </View>
-            <ThemedButton
-                icon="link-outline"
-                label={busy ? t('settings.connection.connecting') : t('settings.connection.connectAction')}
-                disabled={busy}
-                onPress={() => {
-                    void connectFromHostPort(hostInput, portInput);
-                }}
-            />
-            {message ? <ThemedText style={styles.message}>{message}</ThemedText> : null}
+                <ThemedText type="defaultSemiBold">{t('settings.connection.manualTitle')}</ThemedText>
+            </Pressable>
+
+            {manualOpen ? (
+                <>
+                    <View style={styles.row}>
+                        <View style={styles.hostInput}>
+                            <ThemedInput
+                                value={hostInput}
+                                label={t('settings.connection.hostLabel')}
+                                placeholder={t('settings.connection.hostPlaceholder')}
+                                onChangeText={setHostInput}
+                                style={styles.input}
+                                numeric="ipv4"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </View>
+                        <View style={styles.portInput}>
+                            <ThemedInput
+                                value={portInput}
+                                label={t('settings.connection.portLabel')}
+                                placeholder={t('settings.connection.portPlaceholder')}
+                                onChangeText={setPortInput}
+                                style={styles.input}
+                                numeric="integer"
+                            />
+                        </View>
+                    </View>
+                    <ThemedButton
+                        icon="link-outline"
+                        label={busy ? t('settings.connection.connecting') : t('settings.connection.connectAction')}
+                        disabled={busy}
+                        onPress={() => {
+                            void connectFromHostPort(hostInput, portInput);
+                        }}
+                    />
+                    {message ? <ThemedText style={styles.message}>{message}</ThemedText> : null}
+                </>
+            ) : null}
         </View>
     );
 }
@@ -141,9 +169,16 @@ const styles = StyleSheet.create({
     container: {
         gap: 10,
     },
+    manualHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 2,
+    },
     row: {
         flexDirection: 'row',
         gap: 8,
+        alignItems: 'flex-end',
     },
     input: {
         marginBottom: 0,
