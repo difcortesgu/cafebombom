@@ -36,8 +36,13 @@ router.get('/settings', (_req: Request, res: Response) => {
 
 router.put('/settings', (req: Request, res: Response) => {
     try {
-        const { destinationPath, scheduleEnabled, frequency, retention } = req.body ?? {};
-        const updated = saveBackupSettings({ destinationPath, scheduleEnabled, frequency, retention });
+        const body = req.body ?? {};
+        const patch: Parameters<typeof saveBackupSettings>[0] = {};
+        if ('destinationPath' in body) patch.destinationPath = body.destinationPath;
+        if ('scheduleEnabled' in body) patch.scheduleEnabled = body.scheduleEnabled;
+        if ('frequency' in body) patch.frequency = body.frequency;
+        if ('retention' in body) patch.retention = body.retention;
+        const updated = saveBackupSettings(patch);
         res.json(updated);
     } catch (error) {
         logger.error('[BACKUP] Falló al guardar la configuración.', error);
