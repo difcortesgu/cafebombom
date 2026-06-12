@@ -61,7 +61,14 @@ export default function CashRegisterScreen() {
     const net = cashRegisterSummaryToday.net;
     const netColor = net >= 0 ? palette.success : palette.danger;
     const expectedCash = (cashRegisterToday?.opening_amount ?? 0) + net;
-    const expectedColor = expectedCash >= 0 ? palette.tint : palette.danger;
+
+    // Diferencia entre lo registrado en cierre y lo esperado por el sistema
+    const difference =
+        cashRegisterToday?.closed_at && cashRegisterToday.closing_amount != null
+            ? cashRegisterToday.closing_amount - expectedCash
+            : null;
+    const differenceColor =
+        difference == null ? palette.text : difference >= 0 ? palette.success : palette.danger;
 
     return (
         <ScrollView contentContainerStyle={styles.container}>
@@ -74,35 +81,76 @@ export default function CashRegisterScreen() {
                 </ThemedCard>
             ) : null}
 
-            {/* === RESUMEN DIARIO — tarjetas KPI en grid === */}
+            {/* === RESUMEN DIARIO === */}
             <ThemedCard style={styles.card}>
                 <ThemedText type="subtitle">{t('accountsForm.caja.dailySummaryTitle')}</ThemedText>
+
+                {/* Hero: Esperado en caja — dato principal para el cajero */}
+                {cashRegisterToday ? (
+                    <View style={[styles.kpiHero, { borderColor: palette.border, borderLeftColor: palette.tint }]}>
+                        <ThemedText style={[styles.kpiLabel, { color: palette.mutedText }]}>
+                            {t('accountsForm.caja.expectedCashLabel')}
+                        </ThemedText>
+                        <ThemedText style={[styles.kpiAmountHero, { color: palette.tint }]}>
+                            {money(expectedCash)}
+                        </ThemedText>
+                        <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
+                            {money(cashRegisterToday.opening_amount)} apertura{' '}
+                            {net >= 0 ? '+' : '−'} {money(Math.abs(net))} balance
+                        </ThemedText>
+                    </View>
+                ) : null}
+
+                {/* Diferencia caja esperada vs. real (solo cuando está cerrada) */}
+                {difference != null ? (
+                    <View
+                        style={[
+                            styles.kpiDifference,
+                            { borderColor: differenceColor + '66', backgroundColor: differenceColor + '12' },
+                        ]}>
+                        <ThemedText style={[styles.kpiLabel, { color: palette.mutedText }]}>
+                            {t('accountsForm.caja.cashDifference')}
+                        </ThemedText>
+                        <ThemedText style={[styles.kpiAmountLarge, { color: differenceColor }]}>
+                            {difference >= 0 ? '+' : '−'}{money(Math.abs(difference))}
+                        </ThemedText>
+                        <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
+                            {t('accountsForm.caja.cashDifferenceHint')}
+                        </ThemedText>
+                    </View>
+                ) : null}
+
+                {/* Desglose: Ganancias, Gastos, Balance — color solo en texto */}
                 <View style={styles.kpiGrid}>
-                    <View style={[styles.kpiCell, { backgroundColor: palette.success + '18', borderColor: palette.success + '55' }]}>
-                        <ThemedText style={[styles.kpiLabel, { color: palette.success }]}>{t('accountsForm.caja.dailyIncomeLabel')}</ThemedText>
-                        <ThemedText style={[styles.kpiAmount, { color: palette.success }]}>{money(cashRegisterSummaryToday.incomeTotal)}</ThemedText>
+                    <View style={[styles.kpiCell, { borderColor: palette.border }]}>
+                        <ThemedText style={[styles.kpiLabel, { color: palette.mutedText }]}>
+                            {t('accountsForm.caja.dailyIncomeLabel')}
+                        </ThemedText>
+                        <ThemedText style={[styles.kpiAmount, { color: palette.success }]}>
+                            +{money(cashRegisterSummaryToday.incomeTotal)}
+                        </ThemedText>
                     </View>
-                    <View style={[styles.kpiCell, { backgroundColor: palette.danger + '18', borderColor: palette.danger + '55' }]}>
-                        <ThemedText style={[styles.kpiLabel, { color: palette.danger }]}>{t('accountsForm.caja.dailyExpensesLabel')}</ThemedText>
-                        <ThemedText style={[styles.kpiAmount, { color: palette.danger }]}>-{money(cashRegisterSummaryToday.expensesTotal)}</ThemedText>
+                    <View style={[styles.kpiCell, { borderColor: palette.border }]}>
+                        <ThemedText style={[styles.kpiLabel, { color: palette.mutedText }]}>
+                            {t('accountsForm.caja.dailyExpensesLabel')}
+                        </ThemedText>
+                        <ThemedText style={[styles.kpiAmount, { color: palette.danger }]}>
+                            -{money(cashRegisterSummaryToday.expensesTotal)}
+                        </ThemedText>
                     </View>
-                    <View style={[
-                        styles.kpiCellFull,
-                        isWide && styles.kpiCellWideAuto,
-                        { backgroundColor: netColor + '18', borderColor: netColor + '55' },
-                    ]}>
-                        <ThemedText style={[styles.kpiLabel, { color: netColor }]}>{t('accountsForm.caja.dailyNetLabel')}</ThemedText>
-                        <ThemedText style={[styles.kpiAmountLarge, { color: netColor }]}>{money(net)}</ThemedText>
+                    <View
+                        style={[
+                            styles.kpiCellFull,
+                            isWide && styles.kpiCellWideAuto,
+                            { borderColor: palette.border },
+                        ]}>
+                        <ThemedText style={[styles.kpiLabel, { color: palette.mutedText }]}>
+                            {t('accountsForm.caja.dailyNetLabel')}
+                        </ThemedText>
+                        <ThemedText style={[styles.kpiAmountLarge, { color: netColor }]}>
+                            {net >= 0 ? '+' : '−'}{money(Math.abs(net))}
+                        </ThemedText>
                     </View>
-                    {cashRegisterToday ? (
-                        <View style={[styles.kpiCellFull, { backgroundColor: expectedColor + '18', borderColor: expectedColor + '55' }]}>
-                            <ThemedText style={[styles.kpiLabel, { color: expectedColor }]}>{t('accountsForm.caja.expectedCashLabel')}</ThemedText>
-                            <ThemedText style={[styles.kpiAmountLarge, { color: expectedColor }]}>{money(expectedCash)}</ThemedText>
-                            <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>
-                                {money(cashRegisterToday.opening_amount)} apertura + {money(net)} balance
-                            </ThemedText>
-                        </View>
-                    ) : null}
                 </View>
             </ThemedCard>
 
@@ -114,7 +162,7 @@ export default function CashRegisterScreen() {
                         <View key={adj.id} style={[styles.listItem, { borderColor: palette.border }]}>
                             <View style={styles.rowBetween}>
                                 <ThemedText type="defaultSemiBold" style={{ color: adj.amount >= 0 ? palette.success : palette.danger }}>
-                                    {adj.amount >= 0 ? '+' : ''}{money(adj.amount)}
+                                    {adj.amount >= 0 ? '+' : '−'}{money(Math.abs(adj.amount))}
                                 </ThemedText>
                                 <ThemedText style={styles.smallText}>{new Date(adj.created_at * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
@@ -167,29 +215,31 @@ export default function CashRegisterScreen() {
                         />
                     </>
                 ) : cashRegisterToday.closed_at ? (
-                    /* Sesión cerrada — apertura y cierre en dos columnas paralelas */
+                    /* Sesión cerrada — apertura y cierre en neutral, diferencia con color */
                     <>
                         <View style={styles.sessionRow}>
-                            <View style={[styles.sessionCol, { backgroundColor: palette.success + '12', borderColor: palette.success + '44' }]}>
+                            <View style={[styles.sessionCol, { borderColor: palette.border }]}>
                                 <ThemedText style={[styles.sessionColLabel, { color: palette.mutedText }]}>{t('accountsForm.caja.openingAmountLabel')}</ThemedText>
-                                <ThemedText style={[styles.sessionColAmount, { color: palette.success }]}>{money(cashRegisterToday.opening_amount)}</ThemedText>
+                                <ThemedText style={styles.sessionColAmount}>{money(cashRegisterToday.opening_amount)}</ThemedText>
                                 <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{new Date(cashRegisterToday.opened_at * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
-                            <View style={[styles.sessionCol, { backgroundColor: palette.danger + '12', borderColor: palette.danger + '44' }]}>
+                            <View style={[styles.sessionCol, { borderColor: palette.border }]}>
                                 <ThemedText style={[styles.sessionColLabel, { color: palette.mutedText }]}>{t('accountsForm.caja.closingAmountLabel')}</ThemedText>
-                                <ThemedText style={[styles.sessionColAmount, { color: palette.danger }]}>{cashRegisterToday.closing_amount == null ? '—' : money(cashRegisterToday.closing_amount)}</ThemedText>
+                                <ThemedText style={styles.sessionColAmount}>
+                                    {cashRegisterToday.closing_amount == null ? '—' : money(cashRegisterToday.closing_amount)}
+                                </ThemedText>
                                 <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{new Date((cashRegisterToday.closed_at) * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
                         </View>
                         <ThemedText style={styles.smallText}>{t('accountsForm.caja.alreadyClosed')}</ThemedText>
                     </>
                 ) : (
-                    /* Sesión abierta — apertura a la izquierda, cierre pendiente a la derecha + formulario */
+                    /* Sesión abierta — apertura a la izquierda, cierre pendiente a la derecha */
                     <>
                         <View style={styles.sessionRow}>
-                            <View style={[styles.sessionCol, { backgroundColor: palette.success + '12', borderColor: palette.success + '44' }]}>
+                            <View style={[styles.sessionCol, { borderColor: palette.border }]}>
                                 <ThemedText style={[styles.sessionColLabel, { color: palette.mutedText }]}>{t('accountsForm.caja.openingAmountLabel')}</ThemedText>
-                                <ThemedText style={[styles.sessionColAmount, { color: palette.success }]}>{money(cashRegisterToday.opening_amount)}</ThemedText>
+                                <ThemedText style={styles.sessionColAmount}>{money(cashRegisterToday.opening_amount)}</ThemedText>
                                 <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{new Date(cashRegisterToday.opened_at * 1000).toLocaleTimeString()}</ThemedText>
                             </View>
                             <View style={[styles.sessionCol, { borderColor: palette.border }]}>
@@ -244,14 +294,14 @@ export default function CashRegisterScreen() {
                             <ThemedText style={styles.smallText}>{t('accountsForm.caja.noIncomeToday')}</ThemedText>
                         ) : (
                             incomeByMethod.map((row) => (
-                                <View key={`income-${row.payment_method_id}`} style={[styles.methodCell, { borderColor: palette.success + '66', backgroundColor: palette.success + '14' }]}>
+                                <View key={`income-${row.payment_method_id}`} style={[styles.methodCell, { borderColor: palette.border }]}>
                                     <PaymentMethodDisplay
                                         methodId={row.payment_method_id}
                                         size="medium"
                                         containerStyle={{ gap: 6 }}
                                     />
                                     <View style={styles.methodAmountRow}>
-                                        <ThemedText style={[styles.methodAmount, { color: palette.success }]}>{money(row.total)}</ThemedText>
+                                        <ThemedText style={[styles.methodAmount, { color: palette.success }]}>+{money(row.total)}</ThemedText>
                                         <View style={styles.methodCountBadge}>
                                             <Ionicons name="swap-horizontal" size={11} color={palette.mutedText} />
                                             <ThemedText style={[styles.methodCount, { color: palette.mutedText }]}>{row.count} movimientos</ThemedText>
@@ -272,14 +322,14 @@ export default function CashRegisterScreen() {
                             <ThemedText style={styles.smallText}>{t('accountsForm.caja.noExpensesToday')}</ThemedText>
                         ) : (
                             expensesByMethod.map((row) => (
-                                <View key={`expense-${row.payment_method_id}`} style={[styles.methodCell, { borderColor: palette.danger + '66', backgroundColor: palette.danger + '14' }]}>
+                                <View key={`expense-${row.payment_method_id}`} style={[styles.methodCell, { borderColor: palette.border }]}>
                                     <PaymentMethodDisplay
                                         methodId={row.payment_method_id}
                                         size="medium"
                                         containerStyle={{ gap: 6 }}
                                     />
                                     <View style={styles.methodAmountRow}>
-                                        <ThemedText style={[styles.methodAmount, { color: palette.danger }]}>{money(row.total)}</ThemedText>
+                                        <ThemedText style={[styles.methodAmount, { color: palette.danger }]}>-{money(row.total)}</ThemedText>
                                         <View style={styles.methodCountBadge}>
                                             <Ionicons name="swap-horizontal" size={11} color={palette.mutedText} />
                                             <ThemedText style={[styles.methodCount, { color: palette.mutedText }]}>{row.count} movimientos</ThemedText>
@@ -307,7 +357,26 @@ const styles = StyleSheet.create({
         fontSize: 13,
         opacity: 0.9,
     },
-    // KPI grid
+    // KPI hero — dato principal (Esperado en caja)
+    kpiHero: {
+        borderWidth: 1,
+        borderLeftWidth: 4,
+        borderRadius: 10,
+        padding: 14,
+        gap: 4,
+    },
+    kpiAmountHero: {
+        fontSize: 32,
+        fontWeight: '800',
+    },
+    // KPI diferencia (cuando la caja está cerrada)
+    kpiDifference: {
+        borderWidth: 1,
+        borderRadius: 10,
+        padding: 12,
+        gap: 4,
+    },
+    // KPI grid (desglose)
     kpiGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -353,12 +422,6 @@ const styles = StyleSheet.create({
     methodColumn: {
         flex: 1,
         gap: 6,
-    },
-    // Payment method grid
-    methodGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
     },
     methodColHeader: {
         flexDirection: 'row',

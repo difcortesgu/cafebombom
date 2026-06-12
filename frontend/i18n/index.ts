@@ -542,6 +542,8 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'accountsForm.caja.openAmountRequired': 'El monto de apertura es obligatorio.',
     'accountsForm.caja.closeAmountRequired': 'El monto de cierre es obligatorio.',
     'accountsForm.caja.expectedCashLabel': 'Esperado en caja',
+    'accountsForm.caja.cashDifference': 'Diferencia caja',
+    'accountsForm.caja.cashDifferenceHint': 'Monto registrado en cierre vs. esperado por el sistema',
 
     // Inventory form
     'inventoryForm.title': 'Formulario de inventario',
