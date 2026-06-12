@@ -84,9 +84,9 @@ export async function markOrderReady(req: Request, res: Response): Promise<void>
 
 export async function markOrderPaid(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { paymentMethodId } = markPaidSchema.parse(req.body);
+  const { paymentMethodId, tipAmount } = markPaidSchema.parse(req.body);
 
-  await salesService.markOrderPaid(id, paymentMethodId);
+  await salesService.markOrderPaid(id, paymentMethodId, tipAmount);
   res.status(204).send();
 }
 
@@ -106,13 +106,14 @@ export async function getSalePayments(req: Request, res: Response): Promise<void
 
 export async function createPartialPayment(req: Request, res: Response): Promise<void> {
   const { id } = req.params as Record<string, string>;
-  const { paymentMethodId, lines } = partialPaymentSchema.parse(req.body);
+  const { paymentMethodId, lines, tipAmount } = partialPaymentSchema.parse(req.body);
 
   await salesService.createPartialPayment({
     orderId: id,
     paymentMethodId,
     lines,
     paidBy: req.auth?.userId ?? null,
+    tipAmount,
   });
   res.status(204).send();
 }

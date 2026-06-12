@@ -141,6 +141,7 @@ export type CreatePartialPaymentPayload = {
   orderId: string;
   paymentMethodId: string;
   lines: PartialPaymentLineInput[];
+  tipAmount?: number;
 };
 
 type SalePaymentLine = {
@@ -163,6 +164,7 @@ export type SalePayment = {
   item_discount_total: number;
   global_discount_amount: number;
   surcharge_amount: number;
+  tip_amount: number;
   total: number;
   paid_at: number;
   created_by_name: string | null;

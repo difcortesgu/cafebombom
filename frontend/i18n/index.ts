@@ -302,6 +302,7 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'common.close': 'Cerrar',
     'common.cancel': 'Cancelar',
     'common.add': 'Agregar',
+    'common.edit': 'Editar',
     'app.name': 'CafeBomBom',
 
     // Combos
@@ -394,6 +395,14 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'sales.surcharge.toGo': 'Recargo para llevar',
     'sales.surcharge.delivery': 'Recargo por entrega',
     'sales.surcharge.generic': 'Recargo',
+    'sales.tip.label': 'Propina',
+    'sales.tip.voluntary': 'La propina es voluntaria',
+    'sales.tip.legalStatement': 'La propina no es obligatoria. Su pago queda a voluntad del cliente.',
+    'sales.tip.addButton': 'Agregar propina',
+    'sales.tip.noTip': 'Sin propina',
+    'sales.tip.custom': 'Otro valor',
+    'sales.tip.modalTitle': 'Propina',
+    'sales.tip.partLabel': 'Esta parte',
     'sales.pricing.subtotal': 'Subtotal',
     'sales.pricing.itemDiscounts': 'Descuentos por item',
     'sales.pricing.globalDiscount': 'Descuento global',

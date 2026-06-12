@@ -1,0 +1,1 @@
+ALTER TABLE `sale_payments` ADD `tip_amount` real DEFAULT 0 NOT NULL;

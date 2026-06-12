@@ -30,6 +30,7 @@ import type { PaymentModalBusiness } from './types';
 type ByItemsTabProps = {
     sale: Sale;
     business: PaymentModalBusiness;
+    tipAmount: number;
     onPaymentComplete?: () => void;
 };
 
@@ -60,6 +61,12 @@ function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: P
                     <ThemedText style={byItemsStyles.paidLineAmount}>{money(line.line_total)}</ThemedText>
                 </View>
             ))}
+            {payment.tip_amount > 0 && (
+                <View style={byItemsStyles.paidLine}>
+                    <ThemedText style={byItemsStyles.paidLineName}>{t('sales.tip.label')}</ThemedText>
+                    <ThemedText style={byItemsStyles.paidLineAmount}>+{money(payment.tip_amount)}</ThemedText>
+                </View>
+            )}
             <View style={[byItemsStyles.paidLine, byItemsStyles.paidTotalRow]}>
                 <ThemedText type="defaultSemiBold">{t('sales.receipt.totalLabel')}</ThemedText>
                 <ThemedText type="defaultSemiBold">{money(payment.total)}</ThemedText>
@@ -75,7 +82,7 @@ function PaidPaymentCard({ payment, index, onPrint, printBusy, printMessage }: P
     );
 }
 
-export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProps) {
+export function ByItemsTab({ sale, business, tipAmount, onPaymentComplete }: ByItemsTabProps) {
     const palette = useAppColors();
     const { getSalePaymentBoard, createPartialPayment } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
@@ -91,6 +98,7 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
     const [printingPaymentId, setPrintingPaymentId] = useState<string | null>(null);
     const [printMessages, setPrintMessages] = useState<Record<string, string>>({});
     const [showPaidSection, setShowPaidSection] = useState(false);
+    const [tipsPaidSoFar, setTipsPaidSoFar] = useState(0);
 
     useEffect(() => {
         setBoard(null);
@@ -100,6 +108,7 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
         setPrintingPaymentId(null);
         setPrintMessages({});
         setShowPaidSection(false);
+        setTipsPaidSoFar(0);
         setBoardLoading(true);
         Promise.all([getSalePaymentBoard(sale.id), salesService.getSalePricingSummary(sale.id)])
             .then(([b, p]) => {
@@ -140,9 +149,15 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
     const handleConfirm = async () => {
         if (selectedItems.length === 0 || confirmBusy) return;
         const lines = selectedItems.map(({ boardItem, qty }) => ({ saleItemId: boardItem.sale_item_id, quantity: qty }));
+
+        const partTip = computePartTip();
+
         setConfirmBusy(true);
         try {
-            await createPartialPayment({ orderId: sale.id, paymentMethodId, lines });
+            await createPartialPayment({ orderId: sale.id, paymentMethodId, lines, tipAmount: partTip > 0 ? partTip : undefined });
+            if (partTip > 0) {
+                setTipsPaidSoFar((prev) => prev + partTip);
+            }
             const newBoard = await getSalePaymentBoard(sale.id);
             setBoard(newBoard);
             setSelectedLines({});
@@ -201,8 +216,26 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
 
     const allPaid = !boardLoading && board !== null && board.pending.every((i) => i.quantity_pending === 0);
 
+    // The single order tip is distributed proportionally across partial payments,
+    // by the share of the order total this payment covers. The closing payment
+    // absorbs any rounding remainder so the full tip is always collected.
+    const computePartTip = (): number => {
+        if (tipAmount <= 0 || selectedItems.length === 0) return 0;
+        const orderTotal = Number(sale.total);
+        const isLastPayment = pendingItems.every((item) => {
+            const selectedQty = selectedLines[item.sale_item_id] ?? 0;
+            return item.quantity_pending - selectedQty <= 0;
+        });
+        if (isLastPayment) return Math.max(0, tipAmount - tipsPaidSoFar);
+        if (orderTotal > 0) return Math.round(tipAmount * (selectedTotal / orderTotal));
+        return 0;
+    };
+
+    const partTipPreview = computePartTip();
+
     return (
         <ScrollView style={byItemsStyles.boardScroll} contentContainerStyle={byItemsStyles.contentVertical} showsVerticalScrollIndicator={false}>
+
             {allPaid && (
                 <ThemedText style={[byItemsStyles.allPaidLabel, { color: palette.tint }]}>{t('sales.splitPayment.allPaid')}</ThemedText>
             )}
@@ -268,10 +301,17 @@ export function ByItemsTab({ sale, business, onPaymentComplete }: ByItemsTabProp
                                 )}
                             </View>
                         )}
+                        {partTipPreview > 0 && (
+                            <View style={byItemsStyles.pricingRow}>
+                                <ThemedText style={byItemsStyles.pricingLabel}>{t('sales.tip.label')}</ThemedText>
+                                <ThemedText style={{ color: palette.tint, fontSize: 12 }}>+{money(partTipPreview)}</ThemedText>
+                            </View>
+                        )}
                         <View style={[byItemsStyles.itemRow, byItemsStyles.totalRow, { borderColor: palette.border }]}>
                             <ThemedText type="defaultSemiBold">{t('sales.receipt.totalLabel')}</ThemedText>
-                            <ThemedText type="defaultSemiBold">{money(selectedTotal)}</ThemedText>
+                            <ThemedText type="defaultSemiBold">{money(selectedTotal + partTipPreview)}</ThemedText>
                         </View>
+
                         <ThemedText style={byItemsStyles.smallLabel}>{t('sales.paymentMethod')}</ThemedText>
                         <View style={byItemsStyles.paymentMethodsRow}>
                             {displayMethods.map((method) => (

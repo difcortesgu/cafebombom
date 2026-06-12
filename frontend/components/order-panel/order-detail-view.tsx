@@ -224,7 +224,8 @@ export function OrderDetailView({
                             {detailPrimaryAction.visible && (
                                 <Pressable
                                     style={[styles.actionButton, styles.actionButtonPrimary, { borderColor: palette.tint, backgroundColor: palette.tint, opacity: actionBusy ? 0.6 : 1 }]}
-                                    onPress={detailPrimaryAction.onPress}
+                                    disabled={actionBusy}
+                                    onPress={() => !actionBusy && detailPrimaryAction.onPress()}
                                 >
                                     <Ionicons name={getPrimaryActionIcon(sale.status)} size={18} color={palette.card} />
                                     <ThemedText style={[styles.actionButtonLabel, { color: palette.card }]}>{detailPrimaryAction.label}</ThemedText>

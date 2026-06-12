@@ -47,6 +47,7 @@ export type ReceiptPricingBreakdown = {
     description?: string | null;
     amount: number;
   }>;
+  tipAmount: number;
   taxLabel: string;
   taxRate: number;
   taxAmount: number;
@@ -108,4 +109,5 @@ export type BuildReceiptInput = {
     description?: string | null;
     amount: number;
   }>;
+  tipAmount?: number;
 };

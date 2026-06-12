@@ -30,6 +30,27 @@ export function centerText(text: string, width: number): string {
   return `${' '.repeat(leftPadding)}${normalized}`;
 }
 
+/** Wrap text into lines no wider than `width`, breaking on spaces. */
+export function wrapText(text: string, width: number): string[] {
+  const words = text.trim().split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    if (current.length === 0) {
+      current = word;
+    } else if (current.length + 1 + word.length <= width) {
+      current = `${current} ${word}`;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current.length > 0) {
+    lines.push(current);
+  }
+  return lines;
+}
+
 export function trimToFit(text: string, width: number): string {
   if (text.length <= width) {
     return text;
@@ -162,7 +183,20 @@ export function buildPrintableReceiptText(receipt: ReceiptData): string {
     ),
   );
   lines.push(formatReceiptLine(t('sales.receipt.preTaxTotalLabel'), formatCurrency(receipt.pricing.preTaxTotal), width));
+
+  // Tip appears right before the grand total (which already includes it).
+  if (receipt.pricing.tipAmount > 0) {
+    lines.push(formatReceiptLine(t('sales.tip.label'), `+${formatCurrency(receipt.pricing.tipAmount)}`, width));
+  }
   lines.push(formatReceiptLine(t('sales.receipt.totalLabel'), formatCurrency(receipt.pricing.total), width));
+
+  // Tip legal disclaimer, shown just before the thanks/footer note.
+  if (receipt.pricing.tipAmount > 0) {
+    lines.push(separatorLine(width));
+    for (const wrapped of wrapText(t('sales.tip.legalStatement'), width)) {
+      lines.push(centerText(wrapped, width));
+    }
+  }
 
   if (receipt.business.footerMessage) {
     lines.push(separatorLine(width));

@@ -244,6 +244,7 @@ export const salePayments = sqliteTable('sale_payments', {
   itemDiscountTotal: real('item_discount_total').notNull().default(0),
   globalDiscountAmount: real('global_discount_amount').notNull().default(0),
   surchargeAmount: real('surcharge_amount').notNull().default(0),
+  tipAmount: real('tip_amount').notNull().default(0),
   total: real('total').notNull().default(0),
   paidAt: integer('paid_at').notNull().default(sql`(cast(strftime('%s', 'now') as int))`),
   createdBy: text('created_by').references(() => users.id),

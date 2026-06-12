@@ -16,10 +16,11 @@ import { buildFallbackPricingSummary } from '@/utils/sale-pricing';
 
 type FullPaymentTabProps = {
     sale: Sale;
+    tipAmount: number;
     onPaymentComplete?: () => void;
 };
 
-export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps) {
+export function FullPaymentTab({ sale, tipAmount, onPaymentComplete }: FullPaymentTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
@@ -54,7 +55,7 @@ export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps)
         if (confirmBusy || alreadyPaid) return;
         setConfirmBusy(true);
         try {
-            await markOrderPaid(sale.id, paymentMethodId);
+            await markOrderPaid(sale.id, paymentMethodId, tipAmount > 0 ? tipAmount : undefined);
             onPaymentComplete?.();
         } finally {
             setConfirmBusy(false);
@@ -131,12 +132,19 @@ export function FullPaymentTab({ sale, onPaymentComplete }: FullPaymentTabProps)
                                         </View>
                                     )}
 
+                                    {tipAmount > 0 && (
+                                        <View style={styles.pricingRow}>
+                                            <ThemedText style={styles.pricingLabel}>{t('sales.tip.label')}</ThemedText>
+                                            <ThemedText style={{ color: palette.tint }}>+{money(tipAmount)}</ThemedText>
+                                        </View>
+                                    )}
+
                                     <View style={[styles.pricingRow, styles.totalRow, { borderColor: palette.border }]}>
                                         <ThemedText type="defaultSemiBold" style={styles.totalLabel}>
                                             {t('sales.receipt.totalLabel')}
                                         </ThemedText>
                                         <ThemedText type="defaultSemiBold" style={styles.totalValue}>
-                                            {money(pricing.total)}
+                                            {money(pricing.total + tipAmount)}
                                         </ThemedText>
                                     </View>
                                 </View>

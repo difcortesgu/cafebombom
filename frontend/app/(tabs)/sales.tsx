@@ -125,6 +125,7 @@ export default function SalesScreen() {
   const [saleProductsById, setSaleProductsById] = useState<Record<string, ProductItem[]>>({});
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [orderPanelSale, setOrderPanelSale] = useState<Sale | null>(null);
+  const [orderPanelView, setOrderPanelView] = useState<'detail' | 'payment'>('detail');
   const [draggingSale, setDraggingSale] = useState<Sale | null>(null);
   const [moveOrderSale, setMoveOrderSale] = useState<Sale | null>(null);
   // null = not showing; '' = new sale; non-empty string = editing draft
@@ -207,7 +208,7 @@ export default function SalesScreen() {
           onPress: () => openOrNavigate(() => setInlineSaleFormId(sale.id), `/sale-form?orderId=${sale.id}`),
           disabled,
         },
-        { label: t('sales.action.payNow'), icon: 'card-outline', variant: 'secondary' as const, onPress: () => openOrderPanel(sale), disabled },
+        { label: t('sales.action.payNow'), icon: 'card-outline', variant: 'secondary' as const, onPress: () => openOrderPanel(sale, true), disabled },
       ];
     }
 
@@ -216,7 +217,7 @@ export default function SalesScreen() {
         { label: t('sales.action.markReady'), icon: 'checkmark-circle-outline', onPress: () => void runOrderAction(sale.id, () => markOrderReady(sale.id)), disabled },
       ];
       if (!sale.paid_at) {
-        actions.push({ label: t('sales.action.payNow'), icon: 'card-outline', variant: 'secondary', onPress: () => openOrderPanel(sale), disabled });
+        actions.push({ label: t('sales.action.payNow'), icon: 'card-outline', variant: 'secondary', onPress: () => openOrderPanel(sale, true), disabled });
       }
       return actions;
     }
@@ -224,7 +225,7 @@ export default function SalesScreen() {
     if (sale.status === 'ready') {
       const actions: CanvasCardAction[] = [];
       if (!sale.paid_at) {
-        actions.push({ label: t('sales.action.receivePayment'), icon: 'card-outline', onPress: () => openOrderPanel(sale), disabled });
+        actions.push({ label: t('sales.action.receivePayment'), icon: 'card-outline', onPress: () => openOrderPanel(sale, true), disabled });
       }
       return actions;
     }
@@ -243,10 +244,11 @@ export default function SalesScreen() {
     openOrNavigate(() => setInlineSaleFormId(saleId), `/sale-form?orderId=${saleId}`);
   };
 
-  const openOrderPanel = (sale: Sale) => {
+  const openOrderPanel = (sale: Sale, startInPayment = false) => {
+    setOrderPanelView(startInPayment ? 'payment' : 'detail');
     openOrNavigate(
       () => { setOrderPanelSale(sale); orderPanel.open(); },
-      { pathname: '/sale-detail', params: { saleId: sale.id } },
+      { pathname: '/sale-detail', params: { saleId: sale.id, ...(startInPayment ? { view: 'payment' } : {}) } },
     );
   };
 
@@ -359,6 +361,7 @@ export default function SalesScreen() {
           <OrderPanel
             visible={orderPanel.visible}
             sale={orderPanelSale}
+            initialView={orderPanelView}
             onClose={orderPanel.close}
             onExited={() => {
               orderPanel.onExited();
@@ -442,6 +445,7 @@ export default function SalesScreen() {
         <OrderPanel
           visible={orderPanel.visible}
           sale={orderPanelSale}
+          initialView={orderPanelView}
           onClose={orderPanel.close}
           onExited={() => {
             orderPanel.onExited();

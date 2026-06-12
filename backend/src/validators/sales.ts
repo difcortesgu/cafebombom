@@ -31,7 +31,7 @@ export type OrderPayload = z.infer<typeof orderSchema>;
 export const addItemSchema = z.object({ item: saleItemSchema });
 export type AddItemPayload = z.infer<typeof addItemSchema>;
 
-export const markPaidSchema = z.object({ paymentMethodId: id('paymentMethodId') });
+export const markPaidSchema = z.object({ paymentMethodId: id('paymentMethodId'), tipAmount: z.number().min(0).optional() });
 export type MarkPaidPayload = z.infer<typeof markPaidSchema>;
 
 export const partialPaymentSchema = z.object({
@@ -39,6 +39,7 @@ export const partialPaymentSchema = z.object({
     lines: z
         .array(z.object({ saleItemId: id('saleItemId'), quantity: positiveQuantity('quantity') }))
         .min(1, 'lines must be a non-empty array.'),
+    tipAmount: z.number().min(0).optional(),
 });
 export type PartialPaymentPayload = z.infer<typeof partialPaymentSchema>;
 

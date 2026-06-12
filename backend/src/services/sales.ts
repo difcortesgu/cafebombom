@@ -1104,6 +1104,7 @@ export class SalesSqliteService {
         item_discount_total: salePayments.itemDiscountTotal,
         global_discount_amount: salePayments.globalDiscountAmount,
         surcharge_amount: salePayments.surchargeAmount,
+        tip_amount: salePayments.tipAmount,
         total: salePayments.total,
         paid_at: salePayments.paidAt,
         created_by_name: users.name,
@@ -1158,6 +1159,7 @@ export class SalesSqliteService {
       item_discount_total: Number(payment.item_discount_total),
       global_discount_amount: Number(payment.global_discount_amount),
       surcharge_amount: Number(payment.surcharge_amount),
+      tip_amount: Number(payment.tip_amount),
       total: Number(payment.total),
       paid_at: Number(payment.paid_at),
       lines: linesByPayment.get(payment.id) ?? [],
@@ -1388,7 +1390,7 @@ export class SalesSqliteService {
     let paymentTotal = roundMoney(Math.max(0, selectedDiscountedSubtotal - globalDiscountAmount + surchargeAmount));
 
     const paidSoFarRow = db
-      .select({ total: sql<number>`COALESCE(SUM(${salePayments.total}), 0)` })
+      .select({ total: sql<number>`COALESCE(SUM(${salePayments.total} - ${salePayments.tipAmount}), 0)` })
       .from(salePayments)
       .where(eq(salePayments.saleId, payload.orderId))
       .get();
@@ -1401,6 +1403,8 @@ export class SalesSqliteService {
       const quantityPaid = clampQuantity(item.quantityPaid);
       return quantity - (quantityPaid + selectedQuantity) <= 0;
     });
+    const tipAmount = roundMoney(Math.max(0, payload.tipAmount ?? 0));
+
     let finalSurchargeAmount = surchargeAmount;
     const finalGlobalDiscountAmount = globalDiscountAmount;
     if (closesPayment) {
@@ -1410,6 +1414,8 @@ export class SalesSqliteService {
     } else if (paymentTotal > remainingDue) {
       throw new AppError('El pago parcial excede el saldo pendiente de la orden.');
     }
+
+    paymentTotal = roundMoney(paymentTotal + tipAmount);
 
     const now = Math.floor(Date.now() / 1000);
 
@@ -1423,6 +1429,7 @@ export class SalesSqliteService {
           itemDiscountTotal: selectedItemDiscountTotal,
           globalDiscountAmount: finalGlobalDiscountAmount,
           surchargeAmount: finalSurchargeAmount,
+          tipAmount,
           total: paymentTotal,
           paidAt: now,
           createdBy: payload.paidBy ?? null,
@@ -1476,7 +1483,7 @@ export class SalesSqliteService {
     await this.autoCompleteIfReady(payload.orderId);
   }
 
-  async markOrderPaid(orderId: string, paymentMethodId: string): Promise<void> {
+  async markOrderPaid(orderId: string, paymentMethodId: string, tipAmount?: number): Promise<void> {
     const order = db.select({ status: sales.status }).from(sales).where(eq(sales.id, orderId)).get();
 
     if (!order) {
@@ -1510,6 +1517,7 @@ export class SalesSqliteService {
       orderId,
       paymentMethodId,
       lines: pendingLines,
+      tipAmount,
     });
   }
 

@@ -9,7 +9,7 @@ import { useSettingsStore } from '@/stores/settings';
 
 export default function SaleDetailScreen() {
     const router = useRouter();
-    const { saleId } = useLocalSearchParams<{ saleId: string }>();
+    const { saleId, view } = useLocalSearchParams<{ saleId: string; view?: string }>();
 
     const { hydrate, sales } = useSalesStore();
     const {
@@ -50,6 +50,7 @@ export default function SaleDetailScreen() {
                 standalone
                 visible
                 sale={sale}
+                initialView={view === 'payment' ? 'payment' : 'detail'}
                 onClose={() => router.back()}
                 onExited={() => router.back()}
                 business={{

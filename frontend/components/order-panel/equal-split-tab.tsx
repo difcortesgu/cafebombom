@@ -21,10 +21,11 @@ type EqualPart = {
 
 type EqualSplitTabProps = {
     sale: Sale;
+    tipAmount: number;
     onPaymentComplete?: () => void;
 };
 
-export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
+export function EqualSplitTab({ sale, tipAmount, onPaymentComplete }: EqualSplitTabProps) {
     const palette = useAppColors();
     const { markOrderPaid } = useSalesStore();
     const { methods } = usePaymentMethodsStore();
@@ -62,7 +63,8 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
     }, [displayMethods, numParts]);
 
     const allConfirmed = parts.length > 0 && parts.every((p) => p.confirmed);
-    const perPartAmount = numParts > 0 ? Number(sale.total) / numParts : 0;
+    const perPartTip = numParts > 0 ? tipAmount / numParts : 0;
+    const perPartAmount = numParts > 0 ? (Number(sale.total) + tipAmount) / numParts : 0;
 
     const handleConfirmPart = (idx: number) => {
         setParts((prev) => prev.map((p, i) => (i === idx ? { ...p, confirmed: true } : p)));
@@ -77,13 +79,20 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
         setFinalizeBusy(true);
         const dominantMethodId = parts[0]?.method ?? (activeMethods[0]?.id ?? '');
         try {
-            await markOrderPaid(sale.id, dominantMethodId);
+            await markOrderPaid(sale.id, dominantMethodId, tipAmount > 0 ? tipAmount : undefined);
             setFinalized(true);
             onPaymentComplete?.();
         } finally {
             setFinalizeBusy(false);
         }
     };
+
+    // Once every part is confirmed, finalize the payment automatically and show the receipt.
+    useEffect(() => {
+        if (allConfirmed && !finalized && !finalizeBusy) {
+            void finalizeEqualSplit();
+        }
+    }, [allConfirmed]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -141,9 +150,16 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
                         </View>
                     )}
 
+                    {tipAmount > 0 && (
+                        <View style={styles.pricingSummaryRow}>
+                            <ThemedText style={styles.pricingSummaryLabel}>{t('sales.tip.label')}</ThemedText>
+                            <ThemedText style={{ color: palette.tint }}>+{money(tipAmount)}</ThemedText>
+                        </View>
+                    )}
+
                     <View style={[styles.pricingSummaryRow, styles.totalRow, { borderColor: palette.border }]}>
                         <ThemedText type="defaultSemiBold">{t('sales.receipt.totalLabel')}</ThemedText>
-                        <ThemedText type="defaultSemiBold">{money(pricing.total)}</ThemedText>
+                        <ThemedText type="defaultSemiBold">{money(pricing.total + tipAmount)}</ThemedText>
                     </View>
                 </View>
             )}
@@ -161,8 +177,15 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
                         <ThemedText type="defaultSemiBold" style={styles.partTitle}>
                             {t('sales.payment.equal.part')} {idx + 1}
                         </ThemedText>
-                        <ThemedText style={styles.partAmount}>{money(perPartAmount)}</ThemedText>
+                        <ThemedText style={styles.partAmount}>
+                            {money(perPartAmount)}
+                        </ThemedText>
                     </View>
+                    {perPartTip > 0 && (
+                        <ThemedText style={[styles.tipNote, { color: palette.mutedText }]}>
+                            {t('sales.tip.label')}: {money(perPartTip)}
+                        </ThemedText>
+                    )}
                     {part.confirmed ? (
                         <ThemedText style={[styles.confirmedLabel, { color: palette.tint }]}>{t('sales.payment.equal.confirmed')}</ThemedText>
                     ) : (
@@ -196,11 +219,9 @@ export function EqualSplitTab({ sale, onPaymentComplete }: EqualSplitTabProps) {
             ))}
 
             {allConfirmed && !finalized && (
-                <ThemedButton
-                    label={finalizeBusy ? t('sales.payment.confirming') : t('sales.payment.equal.finalize')}
-                    disabled={finalizeBusy}
-                    onPress={() => void finalizeEqualSplit()}
-                />
+                <ThemedText style={[styles.finalizingLabel, { color: palette.mutedText }]}>
+                    {t('sales.payment.confirming')}
+                </ThemedText>
             )}
 
             {finalized && (
@@ -222,6 +243,11 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 13,
         opacity: 0.8,
+    },
+    finalizingLabel: {
+        fontSize: 13,
+        textAlign: 'center',
+        fontStyle: 'italic',
     },
     partsRow: {
         flexDirection: 'row',
@@ -267,6 +293,10 @@ const styles = StyleSheet.create({
     confirmedLabel: {
         fontSize: 13,
         fontWeight: '600',
+    },
+    tipNote: {
+        fontSize: 12,
+        marginTop: 2,
     },
     paymentMethodsRow: {
         flexDirection: 'row',

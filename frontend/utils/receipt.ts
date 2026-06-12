@@ -53,7 +53,12 @@ function mapReceiptItems(inputItems: BuildReceiptInput['items']): ReceiptLineIte
 
 export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
   const items = mapReceiptItems(input.items);
-  const total = Number(input.pricing.total);
+  // `pricing.total` is the base total (items - discounts + surcharges); the tip
+  // is added on top and is not taxed. Tax is computed on the base, and the
+  // grand total shown on the receipt includes the tip.
+  const baseTotal = Number(input.pricing.total);
+  const tipAmount = Math.max(0, Number(input.tipAmount ?? 0));
+  const grandTotal = baseTotal + tipAmount;
   const safeBusinessName = String(input.business.name ?? '').trim();
   const safeBusinessAddress = String(input.business.address ?? '').trim();
   const safeBusinessPhone = String(input.business.phone ?? '').trim();
@@ -63,8 +68,8 @@ export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
   const safeTaxLabel = String(input.taxConfig.label ?? 'IVA').trim() || 'IVA';
 
   const { taxAmount, preTaxAmount } = input.taxConfig.inclusive
-    ? calculateInclusiveTax(total, safeTaxRate)
-    : { taxAmount: 0, preTaxAmount: total };
+    ? calculateInclusiveTax(baseTotal, safeTaxRate)
+    : { taxAmount: 0, preTaxAmount: baseTotal };
 
   const surchargeBreakdown = (input.surchargeBreakdown ?? [])
     .filter((line) => Number(line.amount) > 0)
@@ -102,11 +107,12 @@ export function buildReceiptData(input: BuildReceiptInput): ReceiptData {
       globalDiscountAmount: Number(input.pricing.global_discount_amount),
       orderTypeSurcharge: Number(input.pricing.order_type_surcharge),
       surchargeBreakdown,
+      tipAmount,
       taxLabel: safeTaxLabel,
       taxRate: safeTaxRate,
       taxAmount,
       preTaxTotal: preTaxAmount,
-      total,
+      total: grandTotal,
     },
     paperWidth: input.paperWidth,
     qrCodeData: input.qrCodeData ?? null,
@@ -192,27 +198,15 @@ export function buildPartialReceiptData(input: BuildPartialReceiptInput): Receip
       global_discount_value: null,
       global_discount_amount: input.payment.global_discount_amount,
       order_type_surcharge: input.payment.surcharge_amount,
-      total: input.payment.total,
+      // payment.total already includes the tip; pass the base so buildReceiptData re-adds it once.
+      total: input.payment.total - input.payment.tip_amount,
       discount_applied_by: input.payment.created_by_name,
     },
     business: input.business,
     taxConfig: input.taxConfig,
     paperWidth: input.paperWidth,
     surchargeBreakdown: input.surchargeBreakdown,
+    tipAmount: input.payment.tip_amount,
   });
 }
 
-export function isSinglePaymentForWholeSale(saleItems: SaleItemDetail[], payments: SalePayment[]): boolean {
-  if (payments.length !== 1) {
-    return false;
-  }
-
-  const payment = payments[0];
-  const paidBySaleItemId = new Map<string, number>();
-
-  for (const line of payment.lines) {
-    paidBySaleItemId.set(line.sale_item_id, (paidBySaleItemId.get(line.sale_item_id) ?? 0) + Number(line.quantity_paid));
-  }
-
-  return saleItems.every((item) => Number(item.quantity) === (paidBySaleItemId.get(item.id) ?? 0));
-}

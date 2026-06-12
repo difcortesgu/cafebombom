@@ -119,7 +119,22 @@ export function ReceiptPreview({ receipt }: ReceiptPreviewProps) {
 
         <View style={styles.row}><ThemedText style={styles.label}>{t('sales.receipt.taxInclusiveLabel', { label: receipt.pricing.taxLabel, rate: (receipt.pricing.taxRate * 100).toFixed(0) })}</ThemedText><ThemedText style={styles.value}>{formatCurrency(receipt.pricing.taxAmount)}</ThemedText></View>
         <View style={styles.row}><ThemedText style={styles.label}>{t('sales.receipt.preTaxTotalLabel')}</ThemedText><ThemedText style={styles.value}>{formatCurrency(receipt.pricing.preTaxTotal)}</ThemedText></View>
+
+        {receipt.pricing.tipAmount > 0 ? (
+          <View style={styles.row}>
+            <ThemedText style={styles.label}>{t('sales.tip.label')}</ThemedText>
+            <ThemedText style={styles.value}>+{formatCurrency(receipt.pricing.tipAmount)}</ThemedText>
+          </View>
+        ) : null}
+
         <View style={styles.row}><ThemedText style={styles.totalLabel}>{t('sales.receipt.totalLabel')}</ThemedText><ThemedText style={styles.totalValue}>{formatCurrency(receipt.pricing.total)}</ThemedText></View>
+
+        {receipt.pricing.tipAmount > 0 ? (
+          <>
+            <View style={[styles.separator, { borderBottomColor: palette.border }]} />
+            <ThemedText style={styles.tipDisclaimer}>{t('sales.tip.legalStatement')}</ThemedText>
+          </>
+        ) : null}
 
         {receipt.business.footerMessage ? (
           <>
@@ -161,6 +176,14 @@ const styles = StyleSheet.create({
   centerText: {
     textAlign: 'center',
     fontSize: 13,
+  },
+  tipDisclaimer: {
+    fontSize: 11,
+    fontStyle: 'italic',
+    opacity: 0.65,
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 2,
   },
   separator: {
     borderBottomWidth: 1,

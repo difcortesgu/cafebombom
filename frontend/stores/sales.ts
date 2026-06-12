@@ -37,7 +37,7 @@ type SalesState = {
   createPartialPayment: (payload: CreatePartialPaymentPayload) => Promise<void>;
   sendToKitchen: (orderId: string) => Promise<void>;
   markOrderReady: (orderId: string) => Promise<void>;
-  markOrderPaid: (orderId: string, paymentMethodId: string) => Promise<void>;
+  markOrderPaid: (orderId: string, paymentMethodId: string, tipAmount?: number) => Promise<void>;
   addItemToOrder: (payload: AddItemToOrderPayload) => Promise<void>;
   removeItemFromOrder: (payload: RemoveItemFromOrderPayload) => Promise<void>;
   cancelOrder: (orderId: string) => Promise<void>;
@@ -191,8 +191,8 @@ export const useSalesStore = create<SalesState>((set, get) => ({
     await get().hydrate();
   },
 
-  markOrderPaid: async (orderId: string, paymentMethodId: string) => {
-    await salesService.markOrderPaid(orderId, paymentMethodId);
+  markOrderPaid: async (orderId: string, paymentMethodId: string, tipAmount?: number) => {
+    await salesService.markOrderPaid(orderId, paymentMethodId, tipAmount);
     await get().hydrate();
   },
 

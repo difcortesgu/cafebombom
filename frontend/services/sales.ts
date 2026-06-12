@@ -155,8 +155,8 @@ export class SalesService {
     await apiClient.post(`/sales/${orderId}/mark-ready`, {});
   }
 
-  async markOrderPaid(orderId: string, paymentMethodId: string): Promise<void> {
-    await apiClient.post(`/sales/${orderId}/mark-paid`, { paymentMethodId });
+  async markOrderPaid(orderId: string, paymentMethodId: string, tipAmount?: number): Promise<void> {
+    await apiClient.post(`/sales/${orderId}/mark-paid`, { paymentMethodId, tipAmount });
   }
 
   async getSalePaymentBoard(orderId: string): Promise<SalePaymentBoard> {
@@ -173,6 +173,7 @@ export class SalesService {
     await apiClient.post(`/sales/${payload.orderId}/partial-pay`, {
       paymentMethodId: payload.paymentMethodId,
       lines: payload.lines,
+      tipAmount: payload.tipAmount,
     });
   }
 

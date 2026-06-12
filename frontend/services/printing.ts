@@ -183,6 +183,7 @@ export class PrintService {
         globalDiscountAmount: 0,
         orderTypeSurcharge: 0,
         surchargeBreakdown: [],
+        tipAmount: 0,
         taxLabel: 'IVA',
         taxRate: 0,
         taxAmount: 0,

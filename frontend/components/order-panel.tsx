@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -8,6 +9,7 @@ import { OrderDetailView } from '@/components/order-panel/order-detail-view';
 import { OrderReceiptView } from '@/components/order-panel/order-receipt-view';
 import type { PaymentModalBusiness, ReceiptVariant } from '@/components/order-panel/types';
 import { ThemedText } from '@/components/themed-text';
+import { TipSelectorModal } from '@/components/tip-selector-modal';
 import { SlidePanelShell } from '@/components/ui/slide-panel';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
@@ -17,8 +19,9 @@ import { useSettingsStore } from '@/stores/settings';
 import type { ReceiptData } from '@/types/receipt';
 import type { SaleItemDetail, SalePricingSummary } from '@/types/sales';
 import type { Sale } from '@/types/types';
+import { money } from '@/utils/money';
 import { printSaleComanda } from '@/utils/print-comanda';
-import { buildPartialReceiptData, buildReceiptData, isSinglePaymentForWholeSale } from '@/utils/receipt';
+import { buildPartialReceiptData, buildReceiptData } from '@/utils/receipt';
 import { buildFallbackPricingSummary } from '@/utils/sale-pricing';
 import { getReceiptSurchargeBreakdown } from '@/utils/surcharge';
 
@@ -35,6 +38,8 @@ type OrderPanelProps = {
     standalone?: boolean;
     /** Opens the draft editor inline (preferred on wide screens). Falls back to route navigation when omitted. */
     onEditOrder?: (saleId: string) => void;
+    /** Which view to show when the panel opens. Defaults to 'detail'. */
+    initialView?: 'detail' | 'payment';
 };
 
 type ModeTabProps = {
@@ -59,7 +64,7 @@ function ModeTab({ label, active, onPress }: ModeTabProps) {
     );
 }
 
-export function OrderPanel({ visible, sale, onClose, onExited, business, standalone, onEditOrder }: OrderPanelProps) {
+export function OrderPanel({ visible, sale: saleProp, onClose, onExited, business, standalone, onEditOrder, initialView }: OrderPanelProps) {
     const palette = useAppColors();
     const { width: screenWidth } = useWindowDimensions();
     const panelWidth = standalone ? screenWidth : Math.min(Math.floor(screenWidth * 0.42), 520);
@@ -67,12 +72,21 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
 
     const { tables, sendToKitchen, markOrderReady, cancelOrder } = useSalesStore();
 
+    // The prop is a snapshot captured when the panel was opened. Subscribe to the
+    // live order from the store so status changes (e.g. after marking ready or
+    // paid) immediately update the action buttons instead of showing stale ones.
+    const liveSale = useSalesStore((state) => state.sales.find((s) => s.id === saleProp?.id));
+    const sale = liveSale ?? saleProp;
+
     const viewOffset = useRef(new Animated.Value(0)).current;
     const prevVisibleRef = useRef(false);
 
     const [activeView, setActiveView] = useState<PanelView>('detail');
     const [receiptFromPayment, setReceiptFromPayment] = useState(false);
     const [mode, setMode] = useState<PaymentMode>('full');
+    const [tipAmount, setTipAmount] = useState(0);
+    const [tipPercent, setTipPercent] = useState<number | null>(null);
+    const [tipModalVisible, setTipModalVisible] = useState(false);
 
     const [detailItems, setDetailItems] = useState<SaleItemDetail[]>([]);
     const [detailPricing, setDetailPricing] = useState<SalePricingSummary | null>(null);
@@ -127,11 +141,13 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                 tables,
                 toGoSurcharge,
             );
+            const totalTip = payments.reduce((sum, p) => sum + Number(p.tip_amount ?? 0), 0);
 
             const receipt = buildReceiptData({
                 sale: nextSale,
                 items,
                 pricing: pricingSummary,
+                tipAmount: totalTip,
                 business: {
                     name: business.name,
                     address: business.address,
@@ -150,11 +166,14 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                 surchargeBreakdown,
             });
 
-            const fullOrderPaidInSinglePayment = isSinglePaymentForWholeSale(items, payments);
+            // Multiple receipts only make sense when the order was split into
+            // several payments (the by-items flow). Full and equal-split each
+            // produce a single payment, so they show one consolidated receipt.
+            const hasMultiplePayments = payments.length > 1;
 
             const variants: ReceiptVariant[] = [
                 { id: 'full', label: t('sales.receipt.fullReceipt'), receipt },
-                ...(!fullOrderPaidInSinglePayment
+                ...(hasMultiplePayments
                     ? payments.map((payment, index) => ({
                         id: payment.id,
                         label: t('sales.receipt.partialReceipt', { number: index + 1 }),
@@ -236,9 +255,14 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
         prevVisibleRef.current = visible;
 
         if (visible && !wasVisible && sale) {
-            setActiveView('detail');
+            const startView = initialView ?? 'detail';
+            setActiveView(startView);
             setReceiptFromPayment(false);
             setMode('full');
+            setTipAmount(0);
+            setTipPercent(null);
+            // Opening straight to payment mirrors the in-panel pay flow: prompt for the tip.
+            setTipModalVisible(startView === 'payment');
             viewOffset.setValue(0);
             void loadDetailData(sale);
         }
@@ -311,7 +335,10 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                     tables={tables}
                     toGoSurcharge={toGoSurcharge}
                     onClose={onClose}
-                    onNavigateToPayment={() => navigateTo('payment', 'forward')}
+                    onNavigateToPayment={() => {
+                        navigateTo('payment', 'forward');
+                        setTipModalVisible(true);
+                    }}
                     onNavigateToReceipt={() => {
                         setReceiptFromPayment(false);
                         void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
@@ -343,17 +370,75 @@ export function OrderPanel({ visible, sale, onClose, onExited, business, standal
                         <ModeTab label={t('sales.payment.modeEqual')} active={mode === 'equal'} onPress={() => setMode('equal')} />
                     </View>
 
+                    <Pressable
+                        style={[
+                            styles.tipBar,
+                            {
+                                backgroundColor: tipAmount > 0 ? `${palette.tint}1A` : palette.card,
+                                borderColor: palette.tint,
+                            },
+                        ]}
+                        onPress={() => setTipModalVisible(true)}
+                    >
+                        <View style={[styles.tipIconCircle, { backgroundColor: `${palette.tint}26` }]}>
+                            <Ionicons name="cash-outline" size={20} color={palette.tint} />
+                        </View>
+                        <View style={styles.tipBarTextWrap}>
+                            <ThemedText style={[styles.tipBarTitle, { color: palette.tint }]}>
+                                {t('sales.tip.label')}
+                            </ThemedText>
+                            {tipAmount > 0 ? (
+                                <View style={styles.tipBarAmountRow}>
+                                    <ThemedText style={[styles.tipBarAmount, { color: palette.text }]}>
+                                        {money(tipAmount)}
+                                    </ThemedText>
+                                    {(() => {
+                                        // Use the exact selected percentage for presets; only derive for a custom amount.
+                                        const tipBase = detailPricing?.total ?? sale.total;
+                                        const tipPct = tipPercent ?? (tipBase > 0 ? Math.round((tipAmount / tipBase) * 100) : 0);
+                                        return tipPct > 0 ? (
+                                            <View style={[styles.tipPctBadge, { backgroundColor: palette.tint }]}>
+                                                <ThemedText style={[styles.tipPctBadgeText, { color: palette.card }]}>
+                                                    {tipPct}%
+                                                </ThemedText>
+                                            </View>
+                                        ) : null;
+                                    })()}
+                                </View>
+                            ) : (
+                                <ThemedText style={[styles.tipBarHint, { color: palette.mutedText }]}>
+                                    {t('sales.tip.addButton')}
+                                </ThemedText>
+                            )}
+                        </View>
+                        <View style={[styles.tipEditButton, { borderColor: palette.tint }]}>
+                            <Ionicons name="pencil" size={14} color={palette.tint} />
+                            <ThemedText style={[styles.tipEditLabel, { color: palette.tint }]}>
+                                {tipAmount > 0 ? t('common.edit') : t('common.add')}
+                            </ThemedText>
+                        </View>
+                    </Pressable>
+
                     <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
                         {mode === 'full' && (
-                            <FullPaymentTab key={`full-${sale.id}`} sale={sale} onPaymentComplete={() => void handlePaymentComplete()} />
+                            <FullPaymentTab key={`full-${sale.id}`} sale={sale} tipAmount={tipAmount} onPaymentComplete={() => void handlePaymentComplete()} />
                         )}
                         {mode === 'by-items' && (
-                            <ByItemsTab key={`by-items-${sale.id}`} sale={sale} business={business} onPaymentComplete={() => void handlePaymentComplete()} />
+                            <ByItemsTab key={`by-items-${sale.id}`} sale={sale} business={business} tipAmount={tipAmount} onPaymentComplete={() => void handlePaymentComplete()} />
                         )}
                         {mode === 'equal' && (
-                            <EqualSplitTab key={`equal-${sale.id}`} sale={sale} onPaymentComplete={() => void handlePaymentComplete()} />
+                            <EqualSplitTab key={`equal-${sale.id}`} sale={sale} tipAmount={tipAmount} onPaymentComplete={() => void handlePaymentComplete()} />
                         )}
                     </ScrollView>
+
+                    <TipSelectorModal
+                        visible={tipModalVisible}
+                        baseAmount={detailPricing?.total ?? sale.total}
+                        initialAmount={tipAmount}
+                        onConfirm={(amount, percent) => { setTipAmount(amount); setTipPercent(percent); setTipModalVisible(false); }}
+                        onCancel={() => setTipModalVisible(false)}
+                        palette={palette}
+                    />
                 </>
             )}
 
@@ -428,6 +513,68 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    tipBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginHorizontal: 12,
+        marginTop: 10,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1.5,
+    },
+    tipIconCircle: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tipBarTextWrap: {
+        flex: 1,
+        gap: 1,
+    },
+    tipBarTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    tipBarAmountRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    tipBarAmount: {
+        fontSize: 18,
+        fontWeight: '800',
+    },
+    tipPctBadge: {
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+    },
+    tipPctBadgeText: {
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    tipBarHint: {
+        fontSize: 13,
+    },
+    tipEditButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        borderWidth: 1,
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+    },
+    tipEditLabel: {
+        fontSize: 12,
+        fontWeight: '600',
     },
     body: {
         flex: 1,
