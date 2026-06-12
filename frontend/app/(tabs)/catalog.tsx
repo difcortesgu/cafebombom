@@ -138,21 +138,23 @@ export default function CatalogScreen() {
                         )}
                         onDeleteProduct={(productId) => {
                             void (async () => {
+                                const name = products.find((p) => p.id === productId)?.name ?? 'Producto';
                                 try {
                                     await deleteProduct(productId);
-                                    toast.success(t('toast.deleted'));
+                                    toast.success(`Producto "${name}" eliminado correctamente.`);
                                 } catch {
-                                    toast.error(t('toast.error'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}
                         onToggleProductActive={(productId, isActive) => {
                             void (async () => {
+                                const name = products.find((p) => p.id === productId)?.name ?? 'Producto';
                                 try {
                                     await setProductActive(productId, !isActive);
-                                    toast.success(isActive ? t('toast.disabled') : t('toast.enabled'));
+                                    toast.success(isActive ? `Producto "${name}" deshabilitado.` : `Producto "${name}" habilitado.`);
                                 } catch {
-                                    toast.error(t('toast.error'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}
@@ -170,21 +172,23 @@ export default function CatalogScreen() {
                         )}
                         onDeleteIngredient={(ingredientId) => {
                             void (async () => {
+                                const name = ingredients.find((i) => i.id === ingredientId)?.name ?? 'Ingrediente';
                                 try {
                                     await deleteIngredient(ingredientId);
-                                    toast.success(t('inventory.ingredients.deleted'));
+                                    toast.success(`Ingrediente "${name}" eliminado correctamente.`);
                                 } catch {
-                                    toast.error(t('common.errorGeneric'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}
                         onToggleIngredientActive={(ingredientId, isActive) => {
                             void (async () => {
+                                const name = ingredients.find((i) => i.id === ingredientId)?.name ?? 'Ingrediente';
                                 try {
                                     await setIngredientActive(ingredientId, !isActive);
-                                    toast.success(isActive ? t('inventory.ingredients.disabled') : t('inventory.ingredients.enabled'));
+                                    toast.success(isActive ? `Ingrediente "${name}" deshabilitado.` : `Ingrediente "${name}" habilitado.`);
                                 } catch {
-                                    toast.error(t('common.errorGeneric'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}
@@ -202,21 +206,23 @@ export default function CatalogScreen() {
                         )}
                         onDeleteSupplier={(supplierId) => {
                             void (async () => {
+                                const name = suppliers.find((s) => s.id === supplierId)?.name ?? 'Proveedor';
                                 try {
                                     await deleteSupplier(supplierId);
-                                    toast.success(t('inventory.suppliers.deleted'));
+                                    toast.success(`Proveedor "${name}" eliminado correctamente.`);
                                 } catch {
-                                    toast.error(t('common.errorGeneric'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}
                         onToggleSupplierActive={(supplierId, isActive) => {
                             void (async () => {
+                                const name = suppliers.find((s) => s.id === supplierId)?.name ?? 'Proveedor';
                                 try {
                                     await setSupplierActive(supplierId, !isActive);
-                                    toast.success(isActive ? t('inventory.suppliers.disabled') : t('inventory.suppliers.enabled'));
+                                    toast.success(isActive ? `Proveedor "${name}" deshabilitado.` : `Proveedor "${name}" habilitado.`);
                                 } catch {
-                                    toast.error(t('common.errorGeneric'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}

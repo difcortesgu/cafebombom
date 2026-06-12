@@ -118,7 +118,8 @@ export default function PayrollFormScreen() {
                                 amount: result.data.amount,
                                 paymentMethodId: form.paymentMethodId,
                             });
-                            toast.success(t('toast.payrollAdded'));
+                            const empName = employees.find((e) => e.id === form.employeeId)?.name ?? 'Empleado';
+                            toast.success(`Pago de nómina para "${empName}" registrado correctamente.`);
                             router.back();
                         }}
                     />

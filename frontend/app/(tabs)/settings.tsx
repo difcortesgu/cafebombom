@@ -16,6 +16,8 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { toast } from 'sonner-native';
+
 import { loadPairingInfoFromBackend, printService } from '@/services';
 import type { PairingInfo } from '@/services/connection';
 import { useAuthStore } from '@/stores/auth';
@@ -40,7 +42,6 @@ export default function SettingsScreen() {
     const [printerNameInput, setPrinterNameInput] = useState(printerDeviceName);
     const [printerAddressInput, setPrinterAddressInput] = useState(printerDeviceAddress);
     const [printerTestBusy, setPrinterTestBusy] = useState(false);
-    const [printerStatusMessage, setPrinterStatusMessage] = useState<string | null>(null);
     const [bondedPrintersBusy, setBondedPrintersBusy] = useState(false);
     const [bondedPrinters, setBondedPrinters] = useState<{ label: string; value: string }[]>([]);
     const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
@@ -85,7 +86,7 @@ export default function SettingsScreen() {
                     value: String(d.address),
                 })));
             } catch (error) {
-                setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
+                toast.error(String((error as Error).message || t('sales.receipt.error')));
             } finally {
                 setBondedPrintersBusy(false);
             }
@@ -112,28 +113,27 @@ export default function SettingsScreen() {
 
     const commitPrinterDevice = () => {
         setPrinterDevice({ name: printerNameInput, address: printerAddressInput });
-        setPrinterStatusMessage(t('settings.receipt.printerSaved'));
+        toast.success(t('settings.receipt.printerSaved'));
     };
 
     const clearPrinterDevice = () => {
         setPrinterNameInput('');
         setPrinterAddressInput('');
         setPrinterDevice({ name: '', address: '' });
-        setPrinterStatusMessage(t('settings.receipt.printerCleared'));
+        toast.success(t('settings.receipt.printerCleared'));
     };
 
     const refreshBondedPrinters = async () => {
         if (Platform.OS !== 'android') return;
         try {
             setBondedPrintersBusy(true);
-            setPrinterStatusMessage(null);
             const devices = await printService.getBondedPrinters();
             setBondedPrinters(devices.map((d) => ({
                 label: d.name?.trim() ? `${d.name} (${d.address})` : String(d.address),
                 value: String(d.address),
             })));
         } catch (error) {
-            setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
+            toast.error(String((error as Error).message || t('sales.receipt.error')));
         } finally {
             setBondedPrintersBusy(false);
         }
@@ -142,11 +142,10 @@ export default function SettingsScreen() {
     const runPrinterTest = async () => {
         try {
             setPrinterTestBusy(true);
-            setPrinterStatusMessage(null);
             await printService.printTestReceipt(printerPaperWidth, { name: printerNameInput, address: printerAddressInput });
-            setPrinterStatusMessage(t('settings.receipt.testPrinted'));
+            toast.success(t('settings.receipt.testPrinted'));
         } catch (error) {
-            setPrinterStatusMessage(String((error as Error).message || t('sales.receipt.error')));
+            toast.error(String((error as Error).message || t('sales.receipt.error')));
         } finally {
             setPrinterTestBusy(false);
         }
@@ -184,7 +183,6 @@ export default function SettingsScreen() {
                                             const parsedName = selected.label.includes(' (') ? selected.label.split(' (')[0] : selected.label;
                                             setPrinterNameInput(parsedName);
                                         }
-                                        setPrinterStatusMessage(null);
                                     }}
                                     items={bondedPrinters.length > 0 ? bondedPrinters : [{ label: t('settings.receipt.noBondedPrinters'), value: '' }]}
                                 />
@@ -221,12 +219,7 @@ export default function SettingsScreen() {
                         ) : null}
                         <View style={styles.printerActionRow}>
                             {!isWeb ? (
-                                <View style={styles.printerSaveGroup}>
-                                    <ThemedButton icon="save-outline" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
-                                    {printerStatusMessage === t('settings.receipt.printerSaved') ? (
-                                        <ThemedText style={styles.printerSavedContext}>{printerStatusMessage}</ThemedText>
-                                    ) : null}
-                                </View>
+                                <ThemedButton icon="save-outline" label={t('settings.receipt.savePrinter')} onPress={commitPrinterDevice} />
                             ) : null}
                             <ThemedButton
                                 variant="secondary"
@@ -249,12 +242,6 @@ export default function SettingsScreen() {
                                 disabled={printerTestBusy}
                             />
                         </View>
-                        {printerStatusMessage && printerStatusMessage !== t('settings.receipt.printerSaved') ? (
-                            <View style={[styles.printerStatusCallout, { backgroundColor: `${palette.inputBackground}` }]}>
-                                <Ionicons name="information-circle-outline" size={16} color={palette.text} />
-                                <ThemedText style={styles.printerStatusText}>{printerStatusMessage}</ThemedText>
-                            </View>
-                        ) : null}
                         <View style={[styles.printerHintCallout, { backgroundColor: `${palette.tint}14`, borderColor: `${palette.tint}33` }]}>
                             <Ionicons name="information-circle-outline" size={16} color={palette.tint} />
                             <ThemedText style={styles.printerHintText}>{t('settings.receipt.printerHint')}</ThemedText>
@@ -339,16 +326,6 @@ const styles = StyleSheet.create({
         gap: 10,
         alignItems: 'flex-start',
     },
-    printerSaveGroup: {
-        gap: 6,
-        alignItems: 'flex-start',
-    },
-    printerSavedContext: {
-        fontSize: 12,
-        opacity: 0.7,
-        marginLeft: 2,
-        maxWidth: 280,
-    },
     printerActionOutlineButton: {
         backgroundColor: 'transparent',
         borderWidth: 1,
@@ -362,18 +339,6 @@ const styles = StyleSheet.create({
     },
     printerActionClearText: {
         fontWeight: '600',
-    },
-    printerStatusCallout: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 9,
-    },
-    printerStatusText: {
-        flex: 1,
-        fontSize: 12,
     },
     printerHintCallout: {
         flexDirection: 'row',

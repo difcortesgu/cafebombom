@@ -115,7 +115,7 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                     ...schedule,
                     isActive: discount.isActive,
                 });
-                toast.success(t('toast.updated'));
+                toast.success(`Descuento "${name.trim()}" actualizado.`);
             } else {
                 await createDiscount({
                     name: name.trim(),
@@ -126,11 +126,11 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                     ...schedule,
                     isActive: true,
                 });
-                toast.success(t('toast.created'));
+                toast.success(`Descuento "${name.trim()}" creado.`);
             }
             onClose();
         } catch {
-            toast.error(t('toast.error'));
+            toast.error('Ocurrió un error. Intenta de nuevo.');
         }
     }
 

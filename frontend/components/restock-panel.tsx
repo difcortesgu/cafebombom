@@ -12,6 +12,7 @@ import { useFormPanel } from '@/hooks/use-form-panel';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
+import { toast } from 'sonner-native';
 import { validateForm } from '@/utils/validation';
 import { restockFormSchema } from '@/utils/validation/schemas';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
@@ -95,6 +96,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
             return;
         }
         setFieldErrors({});
+        const ingredientName = ingredients.find((i) => i.id === form.ingredientId)?.name ?? 'Ingrediente';
         await addRestock({
             ingredientId: form.ingredientId,
             quantityAdded: result.data.quantityAdded,
@@ -102,6 +104,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
             supplierId: form.supplierId || undefined,
             paymentMethodId: form.paymentMethodId,
         });
+        toast.success(`Reposición de "${ingredientName}" registrada correctamente.`);
         onClose();
     }
 

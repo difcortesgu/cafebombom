@@ -12,6 +12,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { toast } from 'sonner-native';
 import { validateForm } from '@/utils/validation';
 import { expenseFormSchema } from '@/utils/validation/schemas';
 
@@ -73,6 +74,7 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
             description: form.description,
             paymentMethodId: form.paymentMethodId,
         });
+        toast.success(`Gasto "${result.data.category}" registrado correctamente.`);
         onClose();
     }
 

@@ -58,14 +58,14 @@ export function TableForm({ mode, onClose }: TableFormProps) {
         try {
             if (mode !== 'create') {
                 await updateTable({ id: mode.tableId, name: normalized, tableType });
-                toast.success(t('toast.updated'));
+                toast.success(`Mesa "${normalized}" actualizada.`);
             } else {
                 await createTable({ name: normalized, tableType });
-                toast.success(t('toast.created'));
+                toast.success(`Mesa "${normalized}" creada.`);
             }
             onClose();
         } catch {
-            toast.error(t('toast.error'));
+            toast.error('Ocurrió un error. Intenta de nuevo.');
         }
     }
 

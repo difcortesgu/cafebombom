@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ConnectionQrScanner } from '@/components/operations/connection-qr-scanner';
 import { ThemedText } from '@/components/themed-text';
@@ -24,9 +25,6 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
     const [hostInput, setHostInput] = useState('');
     const [portInput, setPortInput] = useState('3000');
     const [busy, setBusy] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-    // Manual IP/port entry is advanced config — collapsed by default on web,
-    // where pairing is normally done via the QR shown on this screen.
     const [manualOpen, setManualOpen] = useState(Platform.OS !== 'web');
 
     useEffect(() => {
@@ -44,13 +42,12 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
         const port = Number.parseInt(nextPort.trim(), 10);
 
         if (!host || !Number.isFinite(port) || port < 1 || port > 65535) {
-            setMessage(t('settings.connection.invalidInput'));
+            toast.error(t('settings.connection.invalidInput'));
             return;
         }
 
         try {
             setBusy(true);
-            setMessage(null);
             await saveConnection({
                 host,
                 port,
@@ -59,11 +56,11 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
             if (onConnected) {
                 await onConnected();
             }
-            setMessage(t('settings.connection.connected'));
+            toast.success(t('settings.connection.connected'));
             setScannerOpen(false);
             setScannerLocked(false);
         } catch (connectionError) {
-            setMessage(String((connectionError as Error).message || t('settings.connection.connectFailed')));
+            toast.error(String((connectionError as Error).message || t('settings.connection.connectFailed')));
         } finally {
             setBusy(false);
         }
@@ -77,7 +74,7 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
         setScannerLocked(true);
         const parsed = parsePairingPayload(payload);
         if (!parsed) {
-            setMessage(t('settings.connection.invalidQr'));
+            toast.error(t('settings.connection.invalidQr'));
             setTimeout(() => setScannerLocked(false), 1200);
             return;
         }
@@ -158,7 +155,6 @@ export function BackendConnectionForm({ onConnected, showScanner = Platform.OS !
                             void connectFromHostPort(hostInput, portInput);
                         }}
                     />
-                    {message ? <ThemedText style={styles.message}>{message}</ThemedText> : null}
                 </>
             ) : null}
         </View>
@@ -188,8 +184,5 @@ const styles = StyleSheet.create({
     },
     portInput: {
         width: 110,
-    },
-    message: {
-        fontSize: 12,
     },
 });

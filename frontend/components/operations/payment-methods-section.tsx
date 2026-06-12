@@ -60,14 +60,14 @@ export function PaymentMethodsSection({ gap, onAdd, onEdit }: PaymentMethodsSect
                                     icon: method.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline',
                                     label: method.is_active ? t('common.disable') : t('common.enable'),
                                     tone: method.is_active ? 'warning' : 'success',
-                                    onPress: () => void (async () => { try { await toggleMethod(method.id, method.is_active); toast.success(method.is_active ? t('toast.disabled') : t('toast.enabled')); } catch { toast.error(t('toast.error')); } })(),
+                                    onPress: () => void (async () => { try { await toggleMethod(method.id, method.is_active); toast.success(method.is_active ? `Método "${method.name}" deshabilitado.` : `Método "${method.name}" habilitado.`); } catch { toast.error('Ocurrió un error. Intenta de nuevo.'); } })(),
                                 },
                                 {
                                     icon: 'trash-outline',
                                     label: t('common.delete'),
                                     tone: 'danger',
                                     collapseOnNarrow: true,
-                                    onPress: () => void (async () => { try { await deleteMethod(method.id); toast.success(t('toast.deleted')); } catch { toast.error(t('toast.error')); } })(),
+                                    onPress: () => void (async () => { try { await deleteMethod(method.id); toast.success(`Método "${method.name}" eliminado.`); } catch { toast.error('Ocurrió un error. Intenta de nuevo.'); } })(),
                                 },
                             ]}
                         />

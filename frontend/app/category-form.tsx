@@ -29,7 +29,7 @@ export default function CategoryFormScreen() {
 
         try {
             await addCategory({ name: name.trim() });
-            toast.success(t('toast.created'));
+            toast.success(`Categoría "${name.trim()}" creada.`);
             router.back();
         } catch {
             setNameError(t('categoryForm.duplicate'));

@@ -11,6 +11,7 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useFormPanel } from '@/hooks/use-form-panel';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { toast } from 'sonner-native';
 import { useAccountsStore } from '@/stores/accounts';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { validateForm } from '@/utils/validation';
@@ -81,6 +82,7 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
         dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date();
         dayEnd.setHours(23, 59, 59, 0);
+        const employeeName = employees.find((e) => e.id === form.employeeId)?.name ?? 'Empleado';
         await addPayroll({
             employeeId: form.employeeId,
             periodStart: Math.floor(dayStart.getTime() / 1000),
@@ -88,6 +90,7 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
             amount: result.data.amount,
             paymentMethodId: form.paymentMethodId,
         });
+        toast.success(`Pago de nómina para "${employeeName}" registrado correctamente.`);
         onClose();
     }
 

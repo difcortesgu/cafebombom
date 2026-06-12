@@ -55,14 +55,14 @@ export function SupplierPanelForm({ mode, onClose }: SupplierPanelFormProps) {
         try {
             if (mode === 'create') {
                 await addSupplier({ name: name.trim(), phone: phone.trim() || undefined, notes: notes.trim() || undefined });
-                toast.success(t('toast.created'));
+                toast.success(`Proveedor "${name.trim()}" creado.`);
             } else {
                 await updateSupplier({ id: mode.supplierId, name: name.trim(), phone: phone.trim() || null, notes: notes.trim() || null });
-                toast.success(t('toast.updated'));
+                toast.success(`Proveedor "${name.trim()}" actualizado.`);
             }
             onClose();
         } catch {
-            setErrors({ name: t('toast.error') });
+            setErrors({ name: 'Ocurrió un error. Intenta de nuevo.' });
         }
     }
 

@@ -73,28 +73,28 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-    <ThemeProvider value={navigationTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="product-form" options={{ title: t('nav.stack.product') }} />
-        <Stack.Screen name="category-form" options={{ title: t('nav.stack.category') }} />
-        <Stack.Screen name="ingredient-form" options={{ title: t('nav.stack.ingredient') }} />
-        <Stack.Screen name="table-form" options={{ title: t('nav.stack.table') }} />
-        <Stack.Screen name="inventory-form" options={{ title: t('nav.stack.inventory') }} />
-        <Stack.Screen name="expense-form" options={{ title: t('nav.stack.expense') }} />
-        <Stack.Screen name="payroll-form" options={{ title: t('nav.stack.payroll') }} />
-        <Stack.Screen name="sale-form" options={{ title: t('nav.stack.sale') }} />
-        <Stack.Screen name="sale-detail" options={{ title: t('nav.stack.saleDetail') }} />
-        <Stack.Screen name="payment-method-form" options={{ title: t('nav.stack.paymentMethod') }} />
-        <Stack.Screen name="discount-form" options={{ title: t('nav.stack.discount') }} />
-        <Stack.Screen name="import-data" options={{ title: t('nav.stack.importData') }} />
-        <Stack.Screen name="user-form" options={{ title: t('nav.stack.user') }} />
-        <Stack.Screen name="cash-register-adjust-form" options={{ title: t('nav.stack.cashRegisterAdjust') }} />
-      </Stack>
-      <UpdateChecker />
-      <StatusBar style="auto" />
-      <Toaster position="top-center" richColors />
-    </ThemeProvider>
+      <ThemeProvider value={navigationTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="product-form" options={{ title: t('nav.stack.product') }} />
+          <Stack.Screen name="category-form" options={{ title: t('nav.stack.category') }} />
+          <Stack.Screen name="ingredient-form" options={{ title: t('nav.stack.ingredient') }} />
+          <Stack.Screen name="table-form" options={{ title: t('nav.stack.table') }} />
+          <Stack.Screen name="inventory-form" options={{ title: t('nav.stack.inventory') }} />
+          <Stack.Screen name="expense-form" options={{ title: t('nav.stack.expense') }} />
+          <Stack.Screen name="payroll-form" options={{ title: t('nav.stack.payroll') }} />
+          <Stack.Screen name="sale-form" options={{ title: t('nav.stack.sale') }} />
+          <Stack.Screen name="sale-detail" options={{ title: t('nav.stack.saleDetail') }} />
+          <Stack.Screen name="payment-method-form" options={{ title: t('nav.stack.paymentMethod') }} />
+          <Stack.Screen name="discount-form" options={{ title: t('nav.stack.discount') }} />
+          <Stack.Screen name="import-data" options={{ title: t('nav.stack.importData') }} />
+          <Stack.Screen name="user-form" options={{ title: t('nav.stack.user') }} />
+          <Stack.Screen name="cash-register-adjust-form" options={{ title: t('nav.stack.cashRegisterAdjust') }} />
+        </Stack>
+        <UpdateChecker />
+        <StatusBar style="auto" />
+        <Toaster position="top-center" richColors style={{ width: 400, alignSelf: 'flex-end', right: 16 }} />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

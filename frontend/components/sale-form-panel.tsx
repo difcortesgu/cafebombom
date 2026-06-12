@@ -235,14 +235,14 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
         try {
             if (editingOrderId) {
                 await updateDraftOrder({ orderId: editingOrderId, ...payload });
-                toast.success(t('toast.updated'));
+                toast.success('Orden actualizada.');
             } else {
                 await createSale(payload);
-                toast.success(t('toast.created'));
+                toast.success('Orden creada.');
             }
             onComplete();
         } catch {
-            toast.error(t('toast.error'));
+            toast.error('Ocurrió un error. Intenta de nuevo.');
         }
     };
 

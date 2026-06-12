@@ -101,7 +101,7 @@ export default function ExpenseFormScreen() {
                                 description: form.description,
                                 paymentMethodId: form.paymentMethodId,
                             });
-                            toast.success(t('toast.expenseAdded'));
+                            toast.success(`Gasto "${result.data.category}" registrado correctamente.`);
                             router.back();
                         }}
                     />

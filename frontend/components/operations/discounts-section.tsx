@@ -133,7 +133,7 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
             hourStart: discount.hourStart,
             hourEnd: discount.hourEnd,
             isActive: !discount.isActive,
-        });
+        }).then(() => toast.success(discount.isActive ? `Descuento "${discount.name}" deshabilitado.` : `Descuento "${discount.name}" habilitado.`));
 
     return (
         <ThemedCard style={styles.card}>
@@ -155,7 +155,7 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
                                 cardWidth={cardWidth}
                                 onToggle={() => handleToggle(discount)}
                                 onEdit={() => onEdit(discount)}
-                                onDelete={() => void (async () => { try { await deleteDiscount(discount.id); toast.success(t('toast.deleted')); } catch { toast.error(t('toast.error')); } })()}
+                                onDelete={() => void (async () => { try { await deleteDiscount(discount.id); toast.success(`Descuento "${discount.name}" eliminado.`); } catch { toast.error('Ocurrió un error. Intenta de nuevo.'); } })()}
                             />
                         ))}
                     </View>
@@ -183,7 +183,7 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
                                     cardWidth={cardWidth}
                                     onToggle={() => handleToggle(discount)}
                                     onEdit={() => onEdit(discount)}
-                                    onDelete={() => void (async () => { try { await deleteDiscount(discount.id); toast.success(t('toast.deleted')); } catch { toast.error(t('toast.error')); } })()}
+                                    onDelete={() => void (async () => { try { await deleteDiscount(discount.id); toast.success(`Descuento "${discount.name}" eliminado.`); } catch { toast.error('Ocurrió un error. Intenta de nuevo.'); } })()}
                                 />
                             );
                         })}

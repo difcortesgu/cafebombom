@@ -101,10 +101,7 @@ export default function OperationsScreen() {
     const [receiptFooterInput, setReceiptFooterInput] = useState(receiptFooterMessage);
     const [taxRateInput, setTaxRateInput] = useState((taxRate * 100).toFixed(2));
     const [logoBusy, setLogoBusy] = useState(false);
-    const [logoMessage, setLogoMessage] = useState<string | null>(null);
     const [importBusy, setImportBusy] = useState(false);
-    const [importMessage, setImportMessage] = useState<string | null>(null);
-    const [importIssues, setImportIssues] = useState<string[]>([]);
 
 
     const sectionLabels: { key: OperationsSection; label: string }[] = [
@@ -189,10 +186,9 @@ export default function OperationsScreen() {
     const pickBusinessLogo = async () => {
         try {
             setLogoBusy(true);
-            setLogoMessage(null);
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permission.granted) {
-                setLogoMessage(t('settings.receipt.logoPermissionRequired'));
+                toast.error(t('settings.receipt.logoPermissionRequired'));
                 return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -217,9 +213,9 @@ export default function OperationsScreen() {
             await refreshLogoManifest();
             setBusinessLogoUriInput(transformed.uri);
             setBusinessInfo({ logoUri: null });
-            setLogoMessage(t('settings.receipt.logoOptimized'));
+            toast.success(t('settings.receipt.logoOptimized'));
         } catch (error) {
-            setLogoMessage(String((error as Error).message || t('sales.receipt.error')));
+            toast.error(String((error as Error).message || t('sales.receipt.error')));
         } finally {
             setLogoBusy(false);
         }
@@ -228,14 +224,12 @@ export default function OperationsScreen() {
     const removeBusinessLogo = () => {
         setBusinessLogoUriInput('');
         setBusinessInfo({ logoUri: null });
-        setLogoMessage(null);
+        toast.success('Logo eliminado.');
     };
 
     const importSeedData = async () => {
         try {
             setImportBusy(true);
-            setImportMessage(null);
-            setImportIssues([]);
             const result = await DocumentPicker.getDocumentAsync({
                 type: [
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -249,13 +243,15 @@ export default function OperationsScreen() {
             const response = await fetch(pickedFile.uri);
             const buffer = await response.arrayBuffer();
             const importResult = await setupService.importSeedFromExcel(new Uint8Array(buffer));
-            setImportMessage(
-                `Imported/updated ${importResult.summary.suppliers.inserted + importResult.summary.suppliers.updated} providers, ${importResult.summary.employees.inserted + importResult.summary.employees.updated} employees, ${importResult.summary.categories.inserted + importResult.summary.categories.updated} categories, ${importResult.summary.ingredients.inserted + importResult.summary.ingredients.updated} ingredients, ${importResult.summary.products.inserted + importResult.summary.products.updated} products, and ${importResult.summary.restaurantTables.inserted + importResult.summary.restaurantTables.updated} tables.`,
+            toast.success(
+                `Importados: ${importResult.summary.suppliers.inserted + importResult.summary.suppliers.updated} proveedores, ${importResult.summary.employees.inserted + importResult.summary.employees.updated} empleados, ${importResult.summary.categories.inserted + importResult.summary.categories.updated} categorías, ${importResult.summary.ingredients.inserted + importResult.summary.ingredients.updated} ingredientes, ${importResult.summary.products.inserted + importResult.summary.products.updated} productos, ${importResult.summary.restaurantTables.inserted + importResult.summary.restaurantTables.updated} mesas.`,
             );
-            setImportIssues(importResult.issues.map((issue) => issue.message));
+            for (const issue of importResult.issues) {
+                toast.error(issue.message);
+            }
             await Promise.all([hydrateInventory(), hydrateProducts(), hydrateSales()]);
         } catch (importError) {
-            setImportMessage(`Import failed: ${String((importError as Error)?.message ?? importError)}`);
+            toast.error(`Import failed: ${String((importError as Error)?.message ?? importError)}`);
         } finally {
             setImportBusy(false);
         }
@@ -264,7 +260,6 @@ export default function OperationsScreen() {
     const downloadImportTemplate = async () => {
         try {
             setImportBusy(true);
-            setImportMessage(null);
             const file = await setupService.downloadImportTemplate();
             if (Platform.OS === 'web') {
                 const blob = new Blob([file.bytes], { type: file.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -274,13 +269,13 @@ export default function OperationsScreen() {
                 anchor.download = file.fileName;
                 anchor.click();
                 URL.revokeObjectURL(url);
-                setImportMessage('Template downloaded successfully.');
+                toast.success('Plantilla descargada correctamente.');
                 return;
             }
             if (Platform.OS === 'android') {
                 const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
                 if (!permissions.granted) {
-                    setImportMessage('Permission denied. Select Download folder to save the template.');
+                    toast.error('Permiso denegado. Selecciona la carpeta Descargas.');
                     return;
                 }
                 const destination = await FileSystem.StorageAccessFramework.createFileAsync(
@@ -289,20 +284,20 @@ export default function OperationsScreen() {
                     file.contentType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 );
                 await FileSystem.writeAsStringAsync(destination, Buffer.from(file.bytes).toString('base64'), { encoding: FileSystem.EncodingType.Base64 });
-                setImportMessage(`Template saved in selected folder: ${file.fileName}`);
+                toast.success(`Plantilla guardada: ${file.fileName}`);
                 return;
             }
             if (!FileSystem.documentDirectory) {
-                setImportMessage('Could not access local storage.');
+                toast.error('No se pudo acceder al almacenamiento local.');
                 return;
             }
             const templateDir = `${FileSystem.documentDirectory}templates/`;
             await FileSystem.makeDirectoryAsync(templateDir, { intermediates: true });
             const destination = `${templateDir}${file.fileName}`;
             await FileSystem.writeAsStringAsync(destination, Buffer.from(file.bytes).toString('base64'), { encoding: FileSystem.EncodingType.Base64 });
-            setImportMessage(`Template saved to: ${destination}`);
+            toast.success(`Plantilla guardada en: ${destination}`);
         } catch (downloadError) {
-            setImportMessage(`Template download failed: ${String((downloadError as Error)?.message ?? downloadError)}`);
+            toast.error(`Error al descargar plantilla: ${String((downloadError as Error)?.message ?? downloadError)}`);
         } finally {
             setImportBusy(false);
         }
@@ -345,9 +340,10 @@ export default function OperationsScreen() {
                         )}
                         onDelete={(tableId) => {
                             void (async () => {
+                                const tableName = tables.find((tb) => tb.id === tableId)?.name ?? 'Mesa';
                                 try {
                                     await deleteTable(tableId);
-                                    toast.success(t('toast.deleted'));
+                                    toast.success(`Mesa "${tableName}" eliminada correctamente.`);
                                 } catch {
                                     toast.error(t('sales.error.tableHasLinkedSales'));
                                 }
@@ -355,11 +351,12 @@ export default function OperationsScreen() {
                         }}
                         onToggleActive={(tableId, isActive) => {
                             void (async () => {
+                                const tableName = tables.find((tb) => tb.id === tableId)?.name ?? 'Mesa';
                                 try {
                                     await setTableActive(tableId, !isActive);
-                                    toast.success(isActive ? t('toast.disabled') : t('toast.enabled'));
+                                    toast.success(isActive ? `Mesa "${tableName}" deshabilitada.` : `Mesa "${tableName}" habilitada.`);
                                 } catch {
-                                    toast.error(t('toast.error'));
+                                    toast.error('Ocurrió un error. Intenta de nuevo.');
                                 }
                             })();
                         }}
@@ -477,12 +474,6 @@ export default function OperationsScreen() {
                                 <ThemedText style={styles.receiptHintText}>{t('settings.receipt.noLogo')}</ThemedText>
                             </View>
                         )}
-                        {logoMessage ? (
-                            <View style={[styles.receiptStatusCallout, { backgroundColor: `${palette.inputBackground}` }]}>
-                                <Ionicons name="information-circle-outline" size={16} color={logoMessage === t('settings.receipt.logoOptimized') ? palette.tint : palette.danger} />
-                                <ThemedText style={styles.receiptStatusText}>{logoMessage}</ThemedText>
-                            </View>
-                        ) : null}
                         <View style={styles.receiptInput}>
                             <ThemedInput
                                 value={receiptFooterInput}
@@ -567,12 +558,6 @@ export default function OperationsScreen() {
                                     label={t('operations.downloadTemplate')}
                                     onPress={() => void downloadImportTemplate()}
                                 />
-                                {importMessage ? <ThemedText style={styles.muted}>{importMessage}</ThemedText> : null}
-                                {importIssues.map((issue) => (
-                                    <ThemedText key={issue} style={[styles.muted, { color: palette.danger }]}>
-                                        {issue}
-                                    </ThemedText>
-                                ))}
                             </ScrollView>
                         </View>
                     ) : null}
@@ -670,19 +655,6 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 10,
         alignItems: 'center',
-    },
-    receiptStatusCallout: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 9,
-        maxWidth: 520,
-    },
-    receiptStatusText: {
-        flex: 1,
-        fontSize: 12,
     },
     receiptHintCallout: {
         flexDirection: 'row',

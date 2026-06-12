@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
@@ -41,9 +42,11 @@ export function UserForm({ editingUser, onClose }: UserFormProps) {
                 pin: pin.trim() || undefined,
             });
             if (!updated) return;
+            toast.success(`Usuario "${name.trim()}" actualizado correctamente.`);
         } else {
             const created = await createUser({ name: name.trim(), role, pin: pin.trim() });
             if (!created) return;
+            toast.success(`Usuario "${name.trim()}" creado correctamente.`);
         }
         onClose();
     }

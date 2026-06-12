@@ -12,6 +12,7 @@ import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
+import { toast } from 'sonner-native';
 import { validateForm } from '@/utils/validation';
 import { restockFormSchema, supplierFormSchema } from '@/utils/validation/schemas';
 
@@ -49,7 +50,6 @@ export default function InventoryFormScreen() {
   const { suppliers, hydrate, addSupplier, addRestock, ingredients } = useInventoryStore();
   const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
-  const [message, setMessage] = useState('');
   const [supplierErrors, setSupplierErrors] = useState<Record<string, string>>({});
   const [restockErrors, setRestockErrors] = useState<Record<string, string>>({});
   const [supplierForm, setSupplierForm] = useState({ name: '', phone: '', notes: '' });
@@ -164,11 +164,6 @@ export default function InventoryFormScreen() {
   return (
     <FormScreen>
       <ThemedText type="title">{t('inventoryForm.title')}</ThemedText>
-      {message ? (
-        <ThemedCard style={styles.card}>
-          <ThemedText>{message}</ThemedText>
-        </ThemedCard>
-      ) : null}
 
       {!isRestockSection ? (
         <ThemedCard style={styles.card}>
@@ -212,9 +207,10 @@ export default function InventoryFormScreen() {
 
                 const supplierId = await addSupplier({ name: supplierForm.name.trim(), phone: supplierForm.phone, notes: supplierForm.notes });
                 if (!supplierId) {
-                  setMessage(t('inventoryForm.suppliers.duplicate'));
+                  toast.error(t('inventoryForm.suppliers.duplicate'));
                   return;
                 }
+                toast.success(`Proveedor "${supplierForm.name.trim()}" creado correctamente.`);
 
                 if (returnToRestock) {
                   router.replace({
@@ -391,14 +387,11 @@ export default function InventoryFormScreen() {
                 const result = validateForm(restockFormSchema, restockForm);
                 if (!result.ok) {
                   setRestockErrors(result.errors);
-                  if (result.errors.ingredientId || result.errors.paymentMethodId) {
-                    setMessage(t('inventoryForm.restock.required'));
-                  }
-                  return;
+                    return;
                 }
                 setRestockErrors({});
-                setMessage('');
 
+                const ingredientName = ingredients.find((i) => i.id === restockForm.ingredientId)?.name ?? 'Ingrediente';
                 await addRestock({
                   ingredientId: restockForm.ingredientId,
                   quantityAdded: result.data.quantityAdded,
@@ -406,6 +399,7 @@ export default function InventoryFormScreen() {
                   supplierId: restockForm.supplierId || undefined,
                   paymentMethodId: restockForm.paymentMethodId,
                 });
+                toast.success(`Reposición de "${ingredientName}" registrada correctamente.`);
 
                 router.back();
               }}

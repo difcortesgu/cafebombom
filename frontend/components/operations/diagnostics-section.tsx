@@ -1,32 +1,25 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
-import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { logger } from '@/services/logger';
 
-/**
- * Lets the user export the app's recent logs to a file (so they can send them
- * to support) or clear them. Backed by the frontend `logger` buffer.
- */
 export function DiagnosticsSection() {
-    const palette = useAppColors();
     const [busy, setBusy] = useState(false);
-    const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
 
     async function handleExport() {
         try {
             setBusy(true);
-            setMessage(null);
             const location = await logger.exportLogsToFile();
             const name = location ? location.split('/').pop() ?? location : '';
-            setMessage({ kind: 'info', text: t('diagnostics.exported', { name }) });
+            toast.success(t('diagnostics.exported', { name }));
         } catch (error) {
             logger.error('Falló la exportación de registros', error);
-            setMessage({ kind: 'error', text: t('diagnostics.error') });
+            toast.error(t('diagnostics.error'));
         } finally {
             setBusy(false);
         }
@@ -34,18 +27,13 @@ export function DiagnosticsSection() {
 
     async function handleClear() {
         await logger.clear();
-        setMessage({ kind: 'info', text: t('diagnostics.cleared') });
+        toast.success(t('diagnostics.cleared'));
     }
 
     return (
         <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">{t('diagnostics.title')}</ThemedText>
             <ThemedText style={styles.muted}>{t('diagnostics.help')}</ThemedText>
-            {message ? (
-                <ThemedText style={{ color: message.kind === 'error' ? palette.danger : palette.tint }}>
-                    {message.text}
-                </ThemedText>
-            ) : null}
             <View style={styles.row}>
                 <ThemedButton
                     icon="download-outline"
@@ -72,3 +60,4 @@ const styles = StyleSheet.create({
     row: { flexDirection: 'row', gap: 8 },
     flexBtn: { flex: 1 },
 });
+

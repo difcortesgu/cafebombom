@@ -64,14 +64,14 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
         try {
             if (mode === 'create') {
                 await addIngredient({ name: trimmedName, unit: unit as any, lowStockThreshold: threshold });
-                toast.success(t('toast.created'));
+                toast.success(`Ingrediente "${trimmedName}" creado.`);
             } else {
                 await updateIngredient({ id: mode.ingredientId, name: trimmedName, unit: unit as any, low_stock_threshold: threshold });
-                toast.success(t('toast.updated'));
+                toast.success(`Ingrediente "${trimmedName}" actualizado.`);
             }
             onClose();
         } catch {
-            toast.error(t('toast.error'));
+            toast.error('Ocurrió un error. Intenta de nuevo.');
         }
     }
 
@@ -107,9 +107,9 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
                                 if (unit === item.value) {
                                     setUnit(units.find((u) => u.id !== target.id)?.name ?? '');
                                 }
-                                toast.success(t('toast.deleted'));
+                                toast.success(`Unidad "${target.name}" eliminada.`);
                             } catch (err) {
-                                toast.error(err instanceof Error ? err.message : t('toast.error'));
+                                toast.error(err instanceof Error ? err.message : 'Ocurrió un error. Intenta de nuevo.');
                             }
                         }}
                         onAddNew={async (newName) => {

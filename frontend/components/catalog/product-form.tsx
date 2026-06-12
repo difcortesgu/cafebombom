@@ -231,10 +231,10 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                 }
             }
         }
-            toast.success(mode === 'create' || mode === 'combo-create' ? t('toast.created') : t('toast.updated'));
+            toast.success(mode === 'create' || mode === 'combo-create' ? `Producto "${productForm.name.trim()}" creado.` : `Producto "${productForm.name.trim()}" actualizado.`);
             onClose();
         } catch {
-            toast.error(t('toast.error'));
+            toast.error('Ocurrió un error. Intenta de nuevo.');
         }
     }
 

@@ -37,15 +37,15 @@ export function PaymentMethodForm({ onClose, method }: PaymentMethodFormProps) {
         try {
             if (isEditing && method) {
                 await updateMethod(method.id, name.trim(), method.is_active, selectedIcon);
-                toast.success(t('toast.updated'));
+                toast.success(`Método "${name.trim()}" actualizado.`);
             } else {
                 await addMethod(name.trim(), selectedIcon);
-                toast.success(t('toast.created'));
+                toast.success(`Método "${name.trim()}" creado.`);
             }
             await hydrateAll();
             onClose();
         } catch {
-            toast.error(t('toast.error'));
+            toast.error('Ocurrió un error. Intenta de nuevo.');
         }
     }
 

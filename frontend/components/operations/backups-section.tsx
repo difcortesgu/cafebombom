@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Switch, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useIsWide } from '@/components/ui/centered-page';
@@ -40,7 +41,6 @@ export function BackupsSection() {
     const [backups, setBackups] = useState<BackupFile[]>([]);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
-    const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
     const [pendingRestore, setPendingRestore] = useState<string | null>(null);
 
     const refresh = useCallback(async () => {
@@ -51,7 +51,7 @@ export function BackupsSection() {
             setRetentionDraft(String(s.retention));
             setBackups(list);
         } catch {
-            setMessage({ kind: 'error', text: t('backups.error.load') });
+            toast.error(t('backups.error.load'));
         } finally {
             setLoading(false);
         }
@@ -70,17 +70,16 @@ export function BackupsSection() {
     async function handlePickFolder() {
         try {
             setBusy(true);
-            setMessage(null);
             const result = await backupService.pickFolder();
             if (result.status === 'ok' && result.path) {
                 setDestinationDraft(result.path);
                 await persist({ destinationPath: result.path });
-                setMessage({ kind: 'info', text: t('backups.info.folderSaved') });
+                toast.success(t('backups.info.folderSaved'));
             } else {
-                setMessage({ kind: 'info', text: t('backups.info.pickerUnsupported') });
+                toast.success(t('backups.info.pickerUnsupported'));
             }
         } catch {
-            setMessage({ kind: 'error', text: t('backups.error.save') });
+            toast.error(t('backups.error.save'));
         } finally {
             setBusy(false);
         }
@@ -89,11 +88,10 @@ export function BackupsSection() {
     async function handleSaveDestination() {
         try {
             setBusy(true);
-            setMessage(null);
             await persist({ destinationPath: destinationDraft.trim() || null });
-            setMessage({ kind: 'info', text: t('backups.info.folderSaved') });
+            toast.success(t('backups.info.folderSaved'));
         } catch {
-            setMessage({ kind: 'error', text: t('backups.error.save') });
+            toast.error(t('backups.error.save'));
         } finally {
             setBusy(false);
         }
@@ -103,7 +101,7 @@ export function BackupsSection() {
         try {
             await persist({ scheduleEnabled: value });
         } catch {
-            setMessage({ kind: 'error', text: t('backups.error.save') });
+            toast.error(t('backups.error.save'));
         }
     }
 
@@ -111,7 +109,7 @@ export function BackupsSection() {
         try {
             await persist({ frequency: value });
         } catch {
-            setMessage({ kind: 'error', text: t('backups.error.save') });
+            toast.error(t('backups.error.save'));
         }
     }
 
@@ -121,19 +119,18 @@ export function BackupsSection() {
         try {
             await persist({ retention: parsed });
         } catch {
-            setMessage({ kind: 'error', text: t('backups.error.save') });
+            toast.error(t('backups.error.save'));
         }
     }
 
     async function handleBackupNow() {
         try {
             setBusy(true);
-            setMessage(null);
             const result = await backupService.runBackup();
-            setMessage({ kind: 'info', text: t('backups.info.created', { name: result.fileName }) });
+            toast.success(t('backups.info.created', { name: result.fileName }));
             await refresh();
         } catch (error) {
-            setMessage({ kind: 'error', text: String((error as Error).message || t('backups.error.run')) });
+            toast.error(String((error as Error).message || t('backups.error.run')));
         } finally {
             setBusy(false);
         }
@@ -144,12 +141,11 @@ export function BackupsSection() {
         const fileName = pendingRestore;
         try {
             setBusy(true);
-            setMessage(null);
             await backupService.restore(fileName);
             setPendingRestore(null);
-            setMessage({ kind: 'info', text: t('backups.info.restoring') });
+            toast.success(t('backups.info.restoring'));
         } catch (error) {
-            setMessage({ kind: 'error', text: String((error as Error).message || t('backups.error.restore')) });
+            toast.error(String((error as Error).message || t('backups.error.restore')));
         } finally {
             setBusy(false);
         }
@@ -165,12 +161,6 @@ export function BackupsSection() {
 
     return (
         <View style={styles.wrapper}>
-            {message ? (
-                <ThemedText style={{ color: message.kind === 'error' ? palette.danger : palette.tint }}>
-                    {message.text}
-                </ThemedText>
-            ) : null}
-
             <View style={[styles.cardGroup, isWide && styles.columns]}>
             {/* Destination */}
             <ThemedCard style={[styles.card, isWide && styles.columnCard]}>
@@ -262,7 +252,6 @@ export function BackupsSection() {
                 </View>
                 <ThemedText style={styles.muted}>
                     {t('backups.now.last')}: {formatDateTime(settings?.lastBackupAt ?? null)}
-                    {settings?.lastBackupStatus ? ` (${settings.lastBackupStatus})` : ''}
                 </ThemedText>
                 <ThemedButton
                     icon="cloud-upload-outline"

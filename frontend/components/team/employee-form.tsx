@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -38,8 +39,10 @@ export function EmployeeForm({ employee, onClose }: EmployeeFormProps) {
         const { name, salaryType, rate } = result.data;
         if (isEditing && employee) {
             await updateEmployee({ id: employee.id, name, salaryType, rate });
+            toast.success(`Empleado "${name}" actualizado correctamente.`);
         } else {
             await addEmployee({ name, salaryType, rate });
+            toast.success(`Empleado "${name}" agregado correctamente.`);
         }
         onClose();
     }

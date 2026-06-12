@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { PayrollPanel } from '@/components/payroll-panel';
 import { EmployeePanelForm } from '@/components/team/employee-panel-form';
@@ -132,9 +133,18 @@ export default function TeamScreen() {
                         gap={GRID_GAP}
                         palette={palette}
                         onEdit={handleEditUser}
-                        onDeactivate={(id) => void deactivateUser(id)}
-                        onReactivate={(id) => void reactivateUser(id)}
-                        onHardDelete={(id) => void hardDeleteUser(id)}
+                        onDeactivate={(id) => {
+                            const name = managedUsers.find((u) => u.id === id)?.name ?? 'Usuario';
+                            void deactivateUser(id).then(() => toast.success(`Usuario "${name}" desactivado.`));
+                        }}
+                        onReactivate={(id) => {
+                            const name = managedUsers.find((u) => u.id === id)?.name ?? 'Usuario';
+                            void reactivateUser(id).then(() => toast.success(`Usuario "${name}" reactivado.`));
+                        }}
+                        onHardDelete={(id) => {
+                            const name = managedUsers.find((u) => u.id === id)?.name ?? 'Usuario';
+                            void hardDeleteUser(id).then(() => toast.success(`Usuario "${name}" eliminado correctamente.`));
+                        }}
                     />
                 ) : null}
                 {section === 'employees' ? (
@@ -143,8 +153,16 @@ export default function TeamScreen() {
                         gap={GRID_GAP}
                         palette={palette}
                         onEdit={handleEditEmployee}
-                        onDelete={(id) => void deleteEmployee(id)}
-                        onToggleActive={(id, isActive) => void setEmployeeActive(id, !isActive)}
+                        onDelete={(id) => {
+                            const name = employees.find((e) => e.id === id)?.name ?? 'Empleado';
+                            void deleteEmployee(id).then(() => toast.success(`Empleado "${name}" eliminado correctamente.`));
+                        }}
+                        onToggleActive={(id, isActive) => {
+                            const name = employees.find((e) => e.id === id)?.name ?? 'Empleado';
+                            void setEmployeeActive(id, !isActive).then(() =>
+                                toast.success(isActive ? `Empleado "${name}" deshabilitado.` : `Empleado "${name}" habilitado.`),
+                            );
+                        }}
                     />
                 ) : null}
                 {section === 'payroll' ? (
