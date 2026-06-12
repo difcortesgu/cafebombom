@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { toast } from 'sonner-native';
 
@@ -7,7 +7,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { EntityCard } from '@/components/ui/entity-card';
+import { ListToolbar } from '@/components/ui/list-toolbar';
 import { useMeasuredGrid } from '@/hooks/use-measured-grid';
+import { useListControls } from '@/hooks/use-list-controls';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
@@ -18,14 +20,31 @@ type PaymentMethodsSectionProps = {
     onEdit: (method: { id: string; name: string; icon: string; is_active: boolean }) => void;
 };
 
+type PaymentSortKey = 'name';
+
+const SORT_OPTIONS = [
+    { key: 'name' as PaymentSortKey, labelAsc: t('common.sort.nameAZ'), labelDesc: t('common.sort.nameZA') },
+];
+
 export function PaymentMethodsSection({ gap, onAdd, onEdit }: PaymentMethodsSectionProps) {
     const palette = useAppColors();
     const { onLayout, cardWidth } = useMeasuredGrid(gap);
     const { methods, hydrateAll, toggleMethod, deleteMethod } = usePaymentMethodsStore();
+    const { searchQuery, setSearchQuery, sortKey, sortDirection, setSortKey } = useListControls<PaymentSortKey>('name');
 
     useEffect(() => {
         void hydrateAll();
     }, [hydrateAll]);
+
+    const processed = useMemo(() => {
+        const q = searchQuery.toLowerCase();
+        let list = methods.filter((m) => !q || m.name.toLowerCase().includes(q));
+        list = [...list].sort((a, b) => {
+            const cmp = a.name.localeCompare(b.name);
+            return sortDirection === 'asc' ? cmp : -cmp;
+        });
+        return list;
+    }, [methods, searchQuery, sortKey, sortDirection]);
 
     return (
         <ThemedCard style={styles.card}>
@@ -33,11 +52,23 @@ export function PaymentMethodsSection({ gap, onAdd, onEdit }: PaymentMethodsSect
                 <ThemedText type="subtitle" style={styles.headerTitle}>{t('settings.paymentMethods.title')}</ThemedText>
                 <ThemedButton icon="add-circle-outline" size="sm" label={t('settings.paymentMethods.addButton')} onPress={onAdd} />
             </View>
-            {methods.length === 0 ? (
-                <ThemedText style={styles.muted}>{t('settings.paymentMethods.empty')}</ThemedText>
+
+            <ListToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                sortOptions={SORT_OPTIONS}
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSortChange={setSortKey}
+            />
+
+            {processed.length === 0 ? (
+                <ThemedText style={styles.muted}>
+                    {methods.length === 0 ? t('settings.paymentMethods.empty') : t('common.filter.noResults')}
+                </ThemedText>
             ) : (
                 <View style={[styles.grid, { gap }]} onLayout={onLayout}>
-                    {methods.map((method) => (
+                    {processed.map((method) => (
                         <EntityCard
                             key={method.id}
                             width={cardWidth}

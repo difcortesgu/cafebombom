@@ -1,15 +1,17 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useMeasuredGrid } from '@/hooks/use-measured-grid';
 import { usePanelLifecycle } from '@/hooks/use-panel-lifecycle';
 import { useResponsiveOpen } from '@/hooks/use-responsive-open';
+import { useListControls } from '@/hooks/use-list-controls';
 
 import { RestockPanel } from '@/components/restock-panel';
 import { ThemedText } from '@/components/themed-text';
 import { EntityCard } from '@/components/ui/entity-card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { ListToolbar } from '@/components/ui/list-toolbar';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useInventoryStore } from '@/stores/inventory';
@@ -17,12 +19,40 @@ import { useInventoryStore } from '@/stores/inventory';
 const GRID_GAP = 12;
 const PADDING = 16;
 
+type RestockSortKey = 'name' | 'stock';
+type StockFilter = 'all' | 'critical' | 'low' | 'ok';
+
+const SORT_OPTIONS = [
+    { key: 'name' as RestockSortKey, labelAsc: t('common.sort.nameAZ'), labelDesc: t('common.sort.nameZA') },
+    { key: 'stock' as RestockSortKey, labelAsc: t('common.sort.stockAsc'), labelDesc: t('common.sort.stockDesc') },
+];
+
+const FILTER_OPTIONS = [
+    { key: 'all', label: t('common.filter.all') },
+    { key: 'critical', label: t('common.filter.critical') },
+    { key: 'low', label: t('common.filter.low') },
+    { key: 'ok', label: t('common.filter.ok') },
+];
+
 export default function RestockScreen() {
     const palette = useAppColors();
     const { ingredients, hydrate } = useInventoryStore();
     const { onLayout, cardWidth } = useMeasuredGrid(GRID_GAP);
     const { openOrNavigate } = useResponsiveOpen();
     const panel = usePanelLifecycle();
+    const { searchQuery, setSearchQuery, sortKey, sortDirection, setSortKey } = useListControls<RestockSortKey>('stock', 'asc');
+    const [selectedFilters, setSelectedFilters] = useState<Set<StockFilter>>(new Set());
+
+    function toggleFilter(key: string) {
+        if (key === 'all') { setSelectedFilters(new Set()); return; }
+        setSelectedFilters((prev) => {
+            const next = new Set(prev);
+            if (next.has(key as StockFilter)) { next.delete(key as StockFilter); } else { next.add(key as StockFilter); }
+            return next;
+        });
+    }
+
+    const activeFilterKey = selectedFilters.size === 0 ? 'all' : selectedFilters;
 
     const [panelIngredientId, setPanelIngredientId] = useState('');
 
@@ -37,19 +67,63 @@ export default function RestockScreen() {
         }, [hydrate]),
     );
 
+    const processed = useMemo(() => {
+        const q = searchQuery.toLowerCase();
+        let list = ingredients.filter((ing) => {
+            if (q && !ing.name.toLowerCase().includes(q)) return false;
+            if (selectedFilters.size > 0) {
+                const qty = Number(ing.quantity);
+                const threshold = Number(ing.low_stock_threshold);
+                const isCritical = qty <= threshold;
+                const isLow = !isCritical && qty <= threshold * 2;
+                const status: StockFilter = isCritical ? 'critical' : isLow ? 'low' : 'ok';
+                if (!selectedFilters.has(status)) return false;
+            }
+            return true;
+        });
+        list = [...list].sort((a, b) => {
+            let cmp = 0;
+            if (sortKey === 'name') {
+                cmp = a.name.localeCompare(b.name);
+            } else if (sortKey === 'stock') {
+                const tA = Number(a.low_stock_threshold);
+                const tB = Number(b.low_stock_threshold);
+                const ratioA = tA > 0 ? Number(a.quantity) / (tA * 2) : 1;
+                const ratioB = tB > 0 ? Number(b.quantity) / (tB * 2) : 1;
+                cmp = ratioA - ratioB;
+            }
+            return sortDirection === 'asc' ? cmp : -cmp;
+        });
+        return list;
+    }, [ingredients, searchQuery, selectedFilters, sortKey, sortDirection]);
+
     return (
         <View style={styles.screenContainer}>
             <ScrollView contentContainerStyle={styles.container}>
                 <ThemedText type="title">{t('restock.title')}</ThemedText>
                 <ThemedText style={{ color: palette.mutedText }}>{t('restock.subtitle')}</ThemedText>
 
-                {ingredients.length === 0 ? (
+                <ListToolbar
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    sortOptions={SORT_OPTIONS}
+                    activeSortKey={sortKey}
+                    sortDirection={sortDirection}
+                    onSortChange={setSortKey}
+                    filterOptions={FILTER_OPTIONS}
+                    activeFilterKey={activeFilterKey}
+                    onFilterChange={toggleFilter}
+                />
+
+                {processed.length === 0 ? (
                     <View style={[styles.emptyCard, { backgroundColor: palette.inputBackground, borderColor: palette.border }]}>
-                        <ThemedText style={{ color: palette.mutedText }}>{t('inventory.ingredients.empty')}</ThemedText>
+                        <ThemedText style={{ color: palette.mutedText }}>
+                            {ingredients.length === 0 ? t('inventory.ingredients.empty') : t('common.filter.noResults')}
+                        </ThemedText>
                     </View>
                 ) : (
                     <View style={[styles.grid, { gap: GRID_GAP }]} onLayout={onLayout}>
-                        {ingredients.map((ingredient) => {
+                        {processed.map((ingredient) => {
                             const qty = Number(ingredient.quantity);
                             const threshold = Number(ingredient.low_stock_threshold);
                             const isCritical = qty <= threshold;

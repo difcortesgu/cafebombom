@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
 import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { EntityCard } from '@/components/ui/entity-card';
+import { ListToolbar } from '@/components/ui/list-toolbar';
 import { useMeasuredGrid } from '@/hooks/use-measured-grid';
+import { useListControls } from '@/hooks/use-list-controls';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
@@ -20,6 +23,13 @@ type DiscountsSectionProps = {
     onAddProduct: () => void;
     onEdit: (discount: Discount) => void;
 };
+
+type DiscountSortKey = 'name' | 'value';
+
+const SORT_OPTIONS = [
+    { key: 'name' as DiscountSortKey, labelAsc: t('common.sort.nameAZ'), labelDesc: t('common.sort.nameZA') },
+    { key: 'value' as DiscountSortKey, labelAsc: t('common.sort.valueAsc'), labelDesc: t('common.sort.valueDesc') },
+];
 
 const formatDiscountDate = (unix: number | null): string => {
     if (!unix) return t('productForm.discounts.open');
@@ -114,9 +124,7 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
     const { onLayout, cardWidth } = useMeasuredGrid(gap);
     const { discounts, updateDiscount, deleteDiscount } = useSalesStore();
     const { products } = useProductsStore();
-
-    const globalDiscounts = discounts.filter((d) => d.scope === 'global');
-    const productDiscounts = discounts.filter((d) => d.scope === 'product');
+    const { searchQuery, setSearchQuery, sortKey, sortDirection, setSortKey } = useListControls<DiscountSortKey>('name');
 
     const handleToggle = (discount: Discount) =>
         void updateDiscount({
@@ -135,9 +143,32 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
             isActive: !discount.isActive,
         }).then(() => toast.success(discount.isActive ? `Descuento "${discount.name}" deshabilitado.` : `Descuento "${discount.name}" habilitado.`));
 
+    const sortedDiscounts = useMemo(() => {
+        const q = searchQuery.toLowerCase();
+        const filtered = discounts.filter((d) => !q || d.name.toLowerCase().includes(q));
+        return [...filtered].sort((a, b) => {
+            let cmp = 0;
+            if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
+            else if (sortKey === 'value') cmp = a.value - b.value;
+            return sortDirection === 'asc' ? cmp : -cmp;
+        });
+    }, [discounts, searchQuery, sortKey, sortDirection]);
+
+    const globalDiscounts = sortedDiscounts.filter((d) => d.scope === 'global');
+    const productDiscounts = sortedDiscounts.filter((d) => d.scope === 'product');
+
     return (
         <ThemedCard style={styles.card}>
             <ThemedText type="subtitle">{t('products.discounts.title')}</ThemedText>
+
+            <ListToolbar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                sortOptions={SORT_OPTIONS}
+                activeSortKey={sortKey}
+                sortDirection={sortDirection}
+                onSortChange={setSortKey}
+            />
 
             <View style={styles.subSection}>
                 <View style={styles.subHeader}>
@@ -145,7 +176,9 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
                     <ThemedButton icon="add-circle-outline" size="sm" label={t('products.discounts.create')} onPress={onAddGlobal} />
                 </View>
                 {globalDiscounts.length === 0 ? (
-                    <ThemedText style={styles.muted}>{t('products.discounts.subtitle')}</ThemedText>
+                    <ThemedText style={styles.muted}>
+                        {discounts.filter((d) => d.scope === 'global').length === 0 ? t('products.discounts.subtitle') : t('common.filter.noResults')}
+                    </ThemedText>
                 ) : (
                     <View style={[styles.grid, { gap }]} onLayout={onLayout}>
                         {globalDiscounts.map((discount) => (
@@ -170,7 +203,9 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
                     <ThemedButton icon="add-circle-outline" size="sm" label={t('products.discounts.createProduct')} onPress={onAddProduct} />
                 </View>
                 {productDiscounts.length === 0 ? (
-                    <ThemedText style={styles.muted}>{t('products.discounts.productSubtitle')}</ThemedText>
+                    <ThemedText style={styles.muted}>
+                        {discounts.filter((d) => d.scope === 'product').length === 0 ? t('products.discounts.productSubtitle') : t('common.filter.noResults')}
+                    </ThemedText>
                 ) : (
                     <View style={[styles.grid, { gap }]} onLayout={onLayout}>
                         {productDiscounts.map((discount) => {
