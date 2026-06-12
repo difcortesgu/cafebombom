@@ -33,40 +33,21 @@ export class AccountsService {
     return response.id || '';
   }
 
-  async addEmployee(payload: AddEmployeePayload): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>('/accounts/employees', payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async addEmployee(payload: AddEmployeePayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/accounts/employees', payload);
+    return response.id || '';
   }
 
-  async updateEmployee(payload: UpdateEmployeePayload): Promise<boolean> {
-    try {
-      await apiClient.put<{ ok: boolean }>(`/accounts/employees/${payload.id}`, payload);
-      return true;
-    } catch {
-      return false;
-    }
+  async updateEmployee(payload: UpdateEmployeePayload): Promise<void> {
+    await apiClient.put<{ ok: boolean }>(`/accounts/employees/${payload.id}`, payload);
   }
 
-  async deleteEmployee(id: string): Promise<boolean> {
-    try {
-      await apiClient.delete<{ ok: boolean }>(`/accounts/employees/${id}`);
-      return true;
-    } catch {
-      return false;
-    }
+  async deleteEmployee(id: string): Promise<void> {
+    await apiClient.delete<{ ok: boolean }>(`/accounts/employees/${id}`);
   }
 
-  async setEmployeeActive(id: string, isActive: boolean): Promise<boolean> {
-    try {
-      await apiClient.patch<{ ok: boolean }>(`/accounts/employees/${id}/active`, { isActive });
-      return true;
-    } catch {
-      return false;
-    }
+  async setEmployeeActive(id: string, isActive: boolean): Promise<void> {
+    await apiClient.patch<{ ok: boolean }>(`/accounts/employees/${id}/active`, { isActive });
   }
 
   async addPayroll(payload: AddPayrollPayload): Promise<string> {

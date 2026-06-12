@@ -13,14 +13,14 @@ type InventoryState = {
   hydrate: () => Promise<void>;
   addIngredient: (payload: AddIngredientPayload) => Promise<string>;
   updateIngredient: (payload: UpdateIngredientPayload) => Promise<void>;
-  deleteIngredient: (id: string) => Promise<string | null>;
-  setIngredientActive: (id: string, isActive: boolean) => Promise<string | null>;
-  addSupplier: (payload: AddSupplierPayload) => Promise<string | null>;
+  deleteIngredient: (id: string) => Promise<void>;
+  setIngredientActive: (id: string, isActive: boolean) => Promise<void>;
+  addSupplier: (payload: AddSupplierPayload) => Promise<string>;
   updateSupplier: (payload: UpdateSupplierPayload) => Promise<void>;
-  deleteSupplier: (id: string) => Promise<string | null>;
-  setSupplierActive: (id: string, isActive: boolean) => Promise<string | null>;
-  addUnit: (payload: AddUnitPayload) => Promise<InventoryUnit | null>;
-  deleteUnit: (payload: DeleteUnitPayload) => Promise<string | null>;
+  deleteSupplier: (id: string) => Promise<void>;
+  setSupplierActive: (id: string, isActive: boolean) => Promise<void>;
+  addUnit: (payload: AddUnitPayload) => Promise<InventoryUnit>;
+  deleteUnit: (payload: DeleteUnitPayload) => Promise<void>;
   addRestock: (payload: AddRestockPayload) => Promise<void>;
   lowStockCount: () => number;
   getLowStockItems: (limit?: number) => Ingredient[];
@@ -57,23 +57,13 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   deleteIngredient: async (id: string) => {
-    try {
-      await inventoryService.deleteIngredient(id);
-      await get().hydrate();
-      return null;
-    } catch (error) {
-      return error instanceof Error ? error.message : 'No se pudo eliminar el ingrediente.';
-    }
+    await inventoryService.deleteIngredient(id);
+    await get().hydrate();
   },
 
   setIngredientActive: async (id: string, isActive: boolean) => {
-    try {
-      await inventoryService.setIngredientActive(id, isActive);
-      await get().hydrate();
-      return null;
-    } catch (error) {
-      return error instanceof Error ? error.message : 'No se pudo actualizar el ingrediente.';
-    }
+    await inventoryService.setIngredientActive(id, isActive);
+    await get().hydrate();
   },
 
   addSupplier: async ({ name, phone, notes }: AddSupplierPayload) => {
@@ -88,23 +78,13 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   deleteSupplier: async (id: string) => {
-    try {
-      await inventoryService.deleteSupplier(id);
-      await get().hydrate();
-      return null;
-    } catch (error) {
-      return error instanceof Error ? error.message : 'No se pudo eliminar el proveedor.';
-    }
+    await inventoryService.deleteSupplier(id);
+    await get().hydrate();
   },
 
   setSupplierActive: async (id: string, isActive: boolean) => {
-    try {
-      await inventoryService.setSupplierActive(id, isActive);
-      await get().hydrate();
-      return null;
-    } catch (error) {
-      return error instanceof Error ? error.message : 'No se pudo actualizar el proveedor.';
-    }
+    await inventoryService.setSupplierActive(id, isActive);
+    await get().hydrate();
   },
 
   addUnit: async ({ name }: AddUnitPayload) => {
@@ -114,9 +94,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   },
 
   deleteUnit: async ({ id }: DeleteUnitPayload) => {
-    const error = await inventoryService.deleteUnit({ id });
+    await inventoryService.deleteUnit({ id });
     await get().hydrate();
-    return error;
   },
 
   addRestock: async ({

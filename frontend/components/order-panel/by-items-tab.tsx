@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { PaymentMethodBadge } from '@/components/payment-method-display';
 import { PendingPaymentItemRow, SelectedPaymentItemRow } from '@/components/payment-split-rows';
@@ -155,6 +156,7 @@ export function ByItemsTab({ sale, business, tipAmount, onPaymentComplete }: ByI
         setConfirmBusy(true);
         try {
             await createPartialPayment({ orderId: sale.id, paymentMethodId, lines, tipAmount: partTip > 0 ? partTip : undefined });
+            toast.success(t('toast.paymentAdded'));
             if (partTip > 0) {
                 setTipsPaidSoFar((prev) => prev + partTip);
             }
@@ -164,6 +166,8 @@ export function ByItemsTab({ sale, business, tipAmount, onPaymentComplete }: ByI
             if (newBoard.pending.length === 0 || newBoard.pending.every((item) => item.quantity_pending === 0)) {
                 onPaymentComplete?.();
             }
+        } catch {
+            toast.error(t('toast.error'));
         } finally {
             setConfirmBusy(false);
         }

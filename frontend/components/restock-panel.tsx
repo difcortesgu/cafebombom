@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { PaymentMethodChipSelector } from '@/components/ui/payment-method-chip-selector';
 import { SlidePanel } from '@/components/ui/slide-panel';
@@ -39,7 +38,7 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
     const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
     const paymentInitRef = useRef(false);
-    const { form, setForm, message, setMessage, fieldErrors, setFieldErrors } = useFormPanel<RestockForm>({
+    const { form, setForm, fieldErrors, setFieldErrors } = useFormPanel<RestockForm>({
         visible,
         createDefaultForm: () => {
             const ingredient = ingredients.find((i) => i.id === ingredientId);
@@ -93,13 +92,9 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
         const result = validateForm(restockFormSchema, form);
         if (!result.ok) {
             setFieldErrors(result.errors);
-            if (result.errors.ingredientId || result.errors.paymentMethodId) {
-                setMessage(t('inventoryForm.restock.required'));
-            }
             return;
         }
         setFieldErrors({});
-        setMessage('');
         await addRestock({
             ingredientId: form.ingredientId,
             quantityAdded: result.data.quantityAdded,
@@ -127,8 +122,6 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                 />
             )}
         >
-            <FormFeedback message={message} />
-
             <View style={styles.fieldGroup}>
                 <View style={styles.labelRow}>
                     <Ionicons name="leaf-outline" size={14} color={palette.mutedText} />
@@ -138,15 +131,13 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                     value={form.ingredientId}
                     onValueChange={(val) => {
                         const ingredient = ingredients.find((i) => i.id === val);
-                        setForm((f) => ({
-                            ...f,
-                            ingredientId: val,
-                            supplierId: ingredient?.supplier_id ?? '',
-                        }));
+                        setForm((f) => ({ ...f, ingredientId: val, supplierId: ingredient?.supplier_id ?? '' }));
+                        setFieldErrors((e) => ({ ...e, ingredientId: '' }));
                     }}
                     items={ingredientItems}
                     placeholder={t('inventoryForm.restock.selectPrompt')}
                     modalTitle={t('inventoryForm.restock.ingredient')}
+                    error={fieldErrors.ingredientId}
                 />
             </View>
 
@@ -187,7 +178,8 @@ export function RestockPanel({ visible, ingredientId, onClose, onExited }: Resto
                 <PaymentMethodChipSelector
                     methods={methods}
                     selectedId={form.paymentMethodId}
-                    onSelect={(id) => setForm((f) => ({ ...f, paymentMethodId: id }))}
+                    onSelect={(id) => { setForm((f) => ({ ...f, paymentMethodId: id })); setFieldErrors((e) => ({ ...e, paymentMethodId: '' })); }}
+                    error={fieldErrors.paymentMethodId}
                 />
             </View>
 

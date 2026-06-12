@@ -289,6 +289,25 @@ const catalogs: Record<Locale, Record<string, string>> = {
     'products.ingredients.alertTitle': 'Alerta de stock bajo',
     'products.ingredients.alertCount': 'ingrediente(s) por debajo del umbral.',
 
+    // Toast messages
+    'toast.saved': 'Guardado.',
+    'toast.created': 'Creado.',
+    'toast.updated': 'Actualizado.',
+    'toast.deleted': 'Eliminado.',
+    'toast.enabled': 'Habilitado.',
+    'toast.disabled': 'Deshabilitado.',
+    'toast.error': 'Ocurrió un error. Intenta de nuevo.',
+    'toast.sendToKitchen': 'Orden enviada a cocina.',
+    'toast.orderReady': 'Orden marcada como lista.',
+    'toast.orderPaid': 'Orden marcada como pagada.',
+    'toast.orderCancelled': 'Orden cancelada.',
+    'toast.paymentAdded': 'Pago registrado.',
+    'toast.cashRegisterOpened': 'Caja abierta.',
+    'toast.cashRegisterClosed': 'Caja cerrada.',
+    'toast.adjustmentAdded': 'Ajuste registrado.',
+    'toast.expenseAdded': 'Gasto registrado.',
+    'toast.payrollAdded': 'Pago de nómina registrado.',
+
     // Shared/common
     'common.back': 'Volver',
     'common.saveChanges': 'Guardar cambios',

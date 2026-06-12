@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { DateInput } from '@/components/ui/date-input';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { ThemedChip } from '@/components/ui/themed-chip';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -43,7 +43,6 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
     const [daysOfMonth, setDaysOfMonth] = useState<number[]>(discount?.daysOfMonth ?? []);
     const [hourStart, setHourStart] = useState<number | null>(discount?.hourStart ?? null);
     const [hourEnd, setHourEnd] = useState<number | null>(discount?.hourEnd ?? null);
-    const [message, setMessage] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -57,7 +56,7 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
         setDaysOfMonth(discount?.daysOfMonth ?? []);
         setHourStart(discount?.hourStart ?? null);
         setHourEnd(discount?.hourEnd ?? null);
-        setMessage('');
+        setErrors({});
     }, [discount]);
 
     const typeItems = [
@@ -88,17 +87,13 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
         });
         if (!result.ok) {
             setErrors(result.errors);
-            if (result.errors.productId) {
-                setMessage(t('products.discounts.productInvalid'));
-            }
             return;
         }
         if (scope === 'product' && !startsAt) {
-            setMessage(t('products.discounts.productInvalid'));
+            setErrors((e) => ({ ...e, productId: t('products.discounts.productInvalid') }));
             return;
         }
         setErrors({});
-        setMessage('');
         const numericValue = result.data.value;
         const schedule = {
             startsAt: startsAt ?? 0,
@@ -108,35 +103,39 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
             hourStart,
             hourEnd,
         };
-        if (isEdit && discount) {
-            await updateDiscount({
-                id: discount.id,
-                name: name.trim(),
-                scope,
-                productId: scope === 'product' ? productId : null,
-                type,
-                value: numericValue,
-                ...schedule,
-                isActive: discount.isActive,
-            });
-        } else {
-            await createDiscount({
-                name: name.trim(),
-                scope,
-                productId: scope === 'product' ? productId : null,
-                type,
-                value: numericValue,
-                ...schedule,
-                isActive: true,
-            });
+        try {
+            if (isEdit && discount) {
+                await updateDiscount({
+                    id: discount.id,
+                    name: name.trim(),
+                    scope,
+                    productId: scope === 'product' ? productId : null,
+                    type,
+                    value: numericValue,
+                    ...schedule,
+                    isActive: discount.isActive,
+                });
+                toast.success(t('toast.updated'));
+            } else {
+                await createDiscount({
+                    name: name.trim(),
+                    scope,
+                    productId: scope === 'product' ? productId : null,
+                    type,
+                    value: numericValue,
+                    ...schedule,
+                    isActive: true,
+                });
+                toast.success(t('toast.created'));
+            }
+            onClose();
+        } catch {
+            toast.error(t('toast.error'));
         }
-        onClose();
     }
 
     return (
         <>
-            <FormFeedback message={message} />
-
             {scope === 'product' ? (
                 <View style={styles.fieldGroup}>
                     <View style={styles.labelRow}>
@@ -145,10 +144,11 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                     </View>
                     <ThemedSelect
                         value={productId ?? ''}
-                        onValueChange={(v) => setProductId(v || null)}
+                        onValueChange={(v) => { setProductId(v || null); setErrors((e) => ({ ...e, productId: '' })); }}
                         items={productItems}
                         placeholder={t('products.discounts.selectProduct')}
                         modalTitle={t('products.discounts.selectProduct')}
+                        error={errors.productId}
                     />
                 </View>
             ) : null}
@@ -269,10 +269,10 @@ export function DiscountForm({ onClose, initialScope = 'global', discount }: Dis
                             value={hourEnd == null ? '' : String(hourEnd)}
                             onValueChange={(v) => setHourEnd(v === '' ? null : Number(v))}
                             items={hourItems}
+                            error={errors.hourEnd}
                         />
                     </View>
                 </View>
-                {errors.hourEnd ? <FormFeedback message={errors.hourEnd} /> : null}
             </View>
 
             <View style={styles.actionsRow}>

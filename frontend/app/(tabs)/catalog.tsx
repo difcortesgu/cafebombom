@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { IngredientPanelForm } from '@/components/catalog/ingredient-panel-form';
 import { IngredientsTab } from '@/components/catalog/ingredients-tab';
@@ -135,8 +136,26 @@ export default function CatalogScreen() {
                             () => openPanel({ type: 'product-edit', productId }),
                             { pathname: '/product-form', params: { id: productId } },
                         )}
-                        onDeleteProduct={(productId) => { void deleteProduct(productId); }}
-                        onToggleProductActive={(productId, isActive) => { void setProductActive(productId, !isActive); }}
+                        onDeleteProduct={(productId) => {
+                            void (async () => {
+                                try {
+                                    await deleteProduct(productId);
+                                    toast.success(t('toast.deleted'));
+                                } catch {
+                                    toast.error(t('toast.error'));
+                                }
+                            })();
+                        }}
+                        onToggleProductActive={(productId, isActive) => {
+                            void (async () => {
+                                try {
+                                    await setProductActive(productId, !isActive);
+                                    toast.success(isActive ? t('toast.disabled') : t('toast.enabled'));
+                                } catch {
+                                    toast.error(t('toast.error'));
+                                }
+                            })();
+                        }}
                     />
                 ) : null}
 
@@ -151,14 +170,22 @@ export default function CatalogScreen() {
                         )}
                         onDeleteIngredient={(ingredientId) => {
                             void (async () => {
-                                const error = await deleteIngredient(ingredientId);
-                                if (error) Alert.alert(t('common.delete'), error);
+                                try {
+                                    await deleteIngredient(ingredientId);
+                                    toast.success(t('inventory.ingredients.deleted'));
+                                } catch {
+                                    toast.error(t('common.errorGeneric'));
+                                }
                             })();
                         }}
                         onToggleIngredientActive={(ingredientId, isActive) => {
                             void (async () => {
-                                const error = await setIngredientActive(ingredientId, !isActive);
-                                if (error) Alert.alert(t('common.disable'), error);
+                                try {
+                                    await setIngredientActive(ingredientId, !isActive);
+                                    toast.success(isActive ? t('inventory.ingredients.disabled') : t('inventory.ingredients.enabled'));
+                                } catch {
+                                    toast.error(t('common.errorGeneric'));
+                                }
                             })();
                         }}
                     />
@@ -175,14 +202,22 @@ export default function CatalogScreen() {
                         )}
                         onDeleteSupplier={(supplierId) => {
                             void (async () => {
-                                const error = await deleteSupplier(supplierId);
-                                if (error) Alert.alert(t('common.delete'), error);
+                                try {
+                                    await deleteSupplier(supplierId);
+                                    toast.success(t('inventory.suppliers.deleted'));
+                                } catch {
+                                    toast.error(t('common.errorGeneric'));
+                                }
                             })();
                         }}
                         onToggleSupplierActive={(supplierId, isActive) => {
                             void (async () => {
-                                const error = await setSupplierActive(supplierId, !isActive);
-                                if (error) Alert.alert(t('common.disable'), error);
+                                try {
+                                    await setSupplierActive(supplierId, !isActive);
+                                    toast.success(isActive ? t('inventory.suppliers.disabled') : t('inventory.suppliers.enabled'));
+                                } catch {
+                                    toast.error(t('common.errorGeneric'));
+                                }
                             })();
                         }}
                     />

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -154,7 +155,7 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
                                 cardWidth={cardWidth}
                                 onToggle={() => handleToggle(discount)}
                                 onEdit={() => onEdit(discount)}
-                                onDelete={() => void deleteDiscount(discount.id)}
+                                onDelete={() => void (async () => { try { await deleteDiscount(discount.id); toast.success(t('toast.deleted')); } catch { toast.error(t('toast.error')); } })()}
                             />
                         ))}
                     </View>
@@ -182,7 +183,7 @@ export function DiscountsSection({ gap, onAddGlobal, onAddProduct, onEdit }: Dis
                                     cardWidth={cardWidth}
                                     onToggle={() => handleToggle(discount)}
                                     onEdit={() => onEdit(discount)}
-                                    onDelete={() => void deleteDiscount(discount.id)}
+                                    onDelete={() => void (async () => { try { await deleteDiscount(discount.id); toast.success(t('toast.deleted')); } catch { toast.error(t('toast.error')); } })()}
                                 />
                             );
                         })}

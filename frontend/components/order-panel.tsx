@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ByItemsTab } from '@/components/order-panel/by-items-tab';
 import { EqualSplitTab } from '@/components/order-panel/equal-split-tab';
@@ -307,6 +308,8 @@ export function OrderPanel({ visible, sale: saleProp, onClose, onExited, busines
             if (sale) {
                 void loadDetailData(sale);
             }
+        } catch {
+            toast.error(t('toast.error'));
         } finally {
             setActionBusy(false);
         }
@@ -343,10 +346,17 @@ export function OrderPanel({ visible, sale: saleProp, onClose, onExited, busines
                         setReceiptFromPayment(false);
                         void loadReceiptData(sale).then(() => navigateTo('receipt', 'forward'));
                     }}
-                    onSendToKitchen={() => void runStatusAction(() => sendToKitchen(sale.id)).then(() => handlePrintComanda(sale))}
-                    onMarkReady={() => void runStatusAction(() => markOrderReady(sale.id))}
+                    onSendToKitchen={() => void runStatusAction(async () => {
+                        await sendToKitchen(sale.id);
+                        toast.success(t('toast.sendToKitchen'));
+                    }).then(() => handlePrintComanda(sale))}
+                    onMarkReady={() => void runStatusAction(async () => {
+                        await markOrderReady(sale.id);
+                        toast.success(t('toast.orderReady'));
+                    })}
                     onCancelOrder={() => void runStatusAction(async () => {
                         await cancelOrder(sale.id);
+                        toast.success(t('toast.orderCancelled'));
                         onClose();
                     })}
                     onPrintComanda={() => void handlePrintComanda(sale)}

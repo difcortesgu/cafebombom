@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { ThemedSelect } from '@/components/ui/themed-select';
@@ -26,7 +26,6 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
     const [name, setName] = useState('');
     const [unit, setUnit] = useState('');
     const [lowStockThreshold, setLowStockThreshold] = useState('5');
-    const [message, setMessage] = useState('');
     const { errors, setErrors, validate } = useFieldErrors(ingredientFormSchema);
 
     const isEdit = mode !== 'create';
@@ -38,7 +37,7 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
     );
 
     useEffect(() => {
-        setMessage('');
+        setErrors({});
         if (mode === 'create') {
             setName('');
             setUnit(units[0]?.name ?? '');
@@ -57,25 +56,27 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
         const result = validateForm(ingredientFormSchema, { name, unit, lowStockThreshold });
         if (!result.ok) {
             setErrors(result.errors);
-            if (result.errors.unit) setMessage(t('ingredientForm.error.unitRequired'));
             return;
         }
         setErrors({});
-        setMessage('');
         const trimmedName = name.trim();
         const threshold = Number(lowStockThreshold || '0');
-        if (mode === 'create') {
-            await addIngredient({ name: trimmedName, unit: unit as any, lowStockThreshold: threshold });
-        } else {
-            await updateIngredient({ id: mode.ingredientId, name: trimmedName, unit: unit as any, low_stock_threshold: threshold });
+        try {
+            if (mode === 'create') {
+                await addIngredient({ name: trimmedName, unit: unit as any, lowStockThreshold: threshold });
+                toast.success(t('toast.created'));
+            } else {
+                await updateIngredient({ id: mode.ingredientId, name: trimmedName, unit: unit as any, low_stock_threshold: threshold });
+                toast.success(t('toast.updated'));
+            }
+            onClose();
+        } catch {
+            toast.error(t('toast.error'));
         }
-        onClose();
     }
 
     return (
         <>
-            <FormFeedback message={message} />
-
             <View style={styles.fieldGroup}>
                 <View style={styles.labelRow}>
                     <Ionicons name="text-outline" size={14} color={palette.mutedText} />
@@ -92,28 +93,34 @@ export function IngredientForm({ mode, onClose }: IngredientFormProps) {
                     </View>
                     <ThemedSelect
                         value={unit}
-                        onValueChange={setUnit}
+                        onValueChange={(v) => { setUnit(v); setErrors((e) => ({ ...e, unit: '' })); }}
                         items={unitOptions}
                         placeholder={t('ingredientForm.unit')}
                         modalTitle={t('ingredientForm.unit')}
+                        error={errors.unit}
                         canItemAction={() => true}
                         onItemAction={async (item) => {
                             const target = units.find((u) => u.name === item.value);
                             if (!target) return;
-                            const error = await deleteUnit({ id: target.id });
-                            if (error) { setMessage(error); return; }
-                            if (unit === item.value) {
-                                setUnit(units.find((u) => u.id !== target.id)?.name ?? '');
+                            try {
+                                await deleteUnit({ id: target.id });
+                                if (unit === item.value) {
+                                    setUnit(units.find((u) => u.id !== target.id)?.name ?? '');
+                                }
+                                toast.success(t('toast.deleted'));
+                            } catch (err) {
+                                toast.error(err instanceof Error ? err.message : t('toast.error'));
                             }
-                            setMessage('');
                         }}
                         onAddNew={async (newName) => {
                             const normalized = newName.trim().toLowerCase();
-                            if (!normalized) { setMessage(t('ingredientForm.error.newUnitRequired')); return; }
-                            const created = await addUnit({ name: normalized });
-                            if (!created) { setMessage(t('ingredientForm.error.unitAlreadyExists')); return; }
-                            setUnit(created.name);
-                            setMessage('');
+                            if (!normalized) return;
+                            try {
+                                const created = await addUnit({ name: normalized });
+                                setUnit(created.name);
+                            } catch {
+                                toast.error(t('ingredientForm.error.unitAlreadyExists'));
+                            }
                         }}
                         addNewPlaceholder={t('ingredientForm.newUnitPlaceholder')}
                     />

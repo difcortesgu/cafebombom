@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -59,14 +60,14 @@ export function PaymentMethodsSection({ gap, onAdd, onEdit }: PaymentMethodsSect
                                     icon: method.is_active ? 'pause-circle-outline' : 'checkmark-circle-outline',
                                     label: method.is_active ? t('common.disable') : t('common.enable'),
                                     tone: method.is_active ? 'warning' : 'success',
-                                    onPress: () => void toggleMethod(method.id, method.is_active),
+                                    onPress: () => void (async () => { try { await toggleMethod(method.id, method.is_active); toast.success(method.is_active ? t('toast.disabled') : t('toast.enabled')); } catch { toast.error(t('toast.error')); } })(),
                                 },
                                 {
                                     icon: 'trash-outline',
                                     label: t('common.delete'),
                                     tone: 'danger',
                                     collapseOnNarrow: true,
-                                    onPress: () => void deleteMethod(method.id),
+                                    onPress: () => void (async () => { try { await deleteMethod(method.id); toast.success(t('toast.deleted')); } catch { toast.error(t('toast.error')); } })(),
                                 },
                             ]}
                         />

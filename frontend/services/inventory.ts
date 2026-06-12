@@ -38,13 +38,9 @@ export class InventoryService {
     await apiClient.patch(`/inventory/ingredients/${id}/active`, { isActive });
   }
 
-  async addSupplier(payload: AddSupplierPayload): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>('/inventory/suppliers', payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async addSupplier(payload: AddSupplierPayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/inventory/suppliers', payload);
+    return response.id || '';
   }
 
   async updateSupplier(payload: UpdateSupplierPayload): Promise<void> {
@@ -64,24 +60,12 @@ export class InventoryService {
     return response.id || '';
   }
 
-  async addUnit(payload: AddUnitPayload): Promise<InventoryUnit | null> {
-    try {
-      const response = await apiClient.post<InventoryUnit>('/inventory/units', payload);
-      return response || null;
-    } catch {
-      return null;
-    }
+  async addUnit(payload: AddUnitPayload): Promise<InventoryUnit> {
+    const response = await apiClient.post<InventoryUnit>('/inventory/units', payload);
+    return response;
   }
 
-  async deleteUnit({ id }: DeleteUnitPayload): Promise<string | null> {
-    try {
-      await apiClient.delete<void>(`/inventory/units/${id}`);
-      return null;
-    } catch (error) {
-      if (error instanceof Error) {
-        return error.message;
-      }
-      return 'No se pudo eliminar la unidad.';
-    }
+  async deleteUnit({ id }: DeleteUnitPayload): Promise<void> {
+    await apiClient.delete<void>(`/inventory/units/${id}`);
   }
 }

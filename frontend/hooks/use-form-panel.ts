@@ -8,7 +8,6 @@ type UseFormPanelOptions<T> = {
 
 export function useFormPanel<T>({ visible, createDefaultForm, onOpen }: UseFormPanelOptions<T>) {
     const [form, setForm] = useState<T>(() => createDefaultForm());
-    const [message, setMessage] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const prevVisibleRef = useRef(false);
 
@@ -18,7 +17,6 @@ export function useFormPanel<T>({ visible, createDefaultForm, onOpen }: UseFormP
 
         if (visible && !wasVisible) {
             setForm(createDefaultForm());
-            setMessage('');
             setFieldErrors({});
             void onOpen?.();
         }
@@ -27,8 +25,6 @@ export function useFormPanel<T>({ visible, createDefaultForm, onOpen }: UseFormP
     return {
         form,
         setForm,
-        message,
-        setMessage,
         fieldErrors,
         setFieldErrors,
     };

@@ -37,22 +37,14 @@ export class ProductsService {
     };
   }
 
-  async createProduct(payload: CreateProductPayload): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>('/products', payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async createProduct(payload: CreateProductPayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/products', payload);
+    return response.id || '';
   }
 
-  async addCategory(payload: AddCategoryPayload): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>('/products/categories', payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async addCategory(payload: AddCategoryPayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/products/categories', payload);
+    return response.id || '';
   }
 
   /** Uploads a picked image to the server and returns a stable, renderable URL. */
@@ -94,13 +86,9 @@ export class ProductsService {
     await apiClient.delete(`/products/${payload.productId}/additional-ingredients/${payload.ingredientId}`);
   }
 
-  async setComboGroup(productId: string, payload: { name: string; minQuantity: number; maxQuantity: number }): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>(`/products/${productId}/combo-groups`, payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async setComboGroup(productId: string, payload: { name: string; minQuantity: number; maxQuantity: number }): Promise<string> {
+    const response = await apiClient.post<{ id: string }>(`/products/${productId}/combo-groups`, payload);
+    return response.id || '';
   }
 
   async removeComboGroup(productId: string, groupId: string): Promise<void> {

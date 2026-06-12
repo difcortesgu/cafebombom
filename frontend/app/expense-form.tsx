@@ -1,30 +1,28 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { ChipGroup } from '@/components/ui/chip-group';
 import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
-import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
 import { useFieldErrors } from '@/hooks/use-field-errors';
+import { toast } from 'sonner-native';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { validateForm } from '@/utils/validation';
 import { expenseFormSchema } from '@/utils/validation/schemas';
 
 export default function ExpenseFormScreen() {
     const router = useRouter();
-    const palette = useAppColors();
 
     const { addExpense } = useAccountsStore();
     const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
     const [form, setForm] = useState({ category: 'Insumos', amount: '', description: '', paymentMethodId: '' });
-    const [message, setMessage] = useState('');
     const { errors, setErrors, validate } = useFieldErrors(expenseFormSchema);
     const paymentInitRef = useRef(false);
 
@@ -47,17 +45,8 @@ export default function ExpenseFormScreen() {
         <FormScreen>
             <ThemedText type="title">{t('accounts.expenses.add')}</ThemedText>
 
-            {message ? (
-                <ThemedCard style={styles.card}>
-                    <ThemedText style={{ color: palette.danger }}>{message}</ThemedText>
-                </ThemedCard>
-            ) : null}
-
             <ThemedCard style={styles.card}>
-                <View style={styles.labelRow}>
-                    <Ionicons name="bag-outline" size={14} color={palette.mutedText} />
-                    <ThemedText style={styles.smallText}>{t('accountsForm.expense.category')}</ThemedText>
-                </View>
+                <ThemedText style={styles.smallText}>{t('accountsForm.expense.category')}</ThemedText>
                 <ThemedInput
                     value={form.category}
                     placeholder={t('accountsForm.expense.category')}
@@ -67,10 +56,7 @@ export default function ExpenseFormScreen() {
                     style={styles.input}
                 />
 
-                <View style={styles.labelRow}>
-                    <Ionicons name="cash-outline" size={14} color={palette.mutedText} />
-                    <ThemedText style={styles.smallText}>{t('accountsForm.expense.amount')}</ThemedText>
-                </View>
+                <ThemedText style={styles.smallText}>{t('accountsForm.expense.amount')}</ThemedText>
                 <ThemedInput
                     value={form.amount}
                     numeric="currency"
@@ -81,10 +67,7 @@ export default function ExpenseFormScreen() {
                     style={styles.input}
                 />
 
-                <View style={styles.labelRow}>
-                    <Ionicons name="document-text-outline" size={14} color={palette.mutedText} />
-                    <ThemedText style={styles.smallText}>{t('accountsForm.expense.description')}</ThemedText>
-                </View>
+                <ThemedText style={styles.smallText}>{t('accountsForm.expense.description')}</ThemedText>
                 <ThemedInput
                     value={form.description}
                     placeholder={t('accountsForm.expense.description')}
@@ -92,37 +75,13 @@ export default function ExpenseFormScreen() {
                     style={styles.input}
                 />
 
-                <View style={styles.labelRow}>
-                    <Ionicons name="card-outline" size={14} color={palette.mutedText} />
-                    <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
-                </View>
-                <View style={styles.chipRow}>
-                    {methods.map((method) => (
-                        <Pressable
-                            key={method.id}
-                            style={[
-                                styles.chip,
-                                { borderColor: palette.border },
-                                form.paymentMethodId === method.id && { backgroundColor: palette.accent, borderColor: palette.accent },
-                            ]}
-                            onPress={() => setForm((f) => ({ ...f, paymentMethodId: method.id }))}
-                        >
-                            <Ionicons
-                                name={method.icon as any}
-                                size={18}
-                                color={form.paymentMethodId === method.id ? palette.text : palette.mutedText}
-                            />
-                            <ThemedText
-                                style={[
-                                    styles.chipLabel,
-                                    form.paymentMethodId === method.id && { color: palette.text },
-                                ]}
-                            >
-                                {method.name}
-                            </ThemedText>
-                        </Pressable>
-                    ))}
-                </View>
+                <ThemedText style={styles.smallText}>{t('accountsForm.expense.paymentMethod')}</ThemedText>
+                <ChipGroup
+                    items={methods.map((m) => ({ value: m.id, label: m.name, icon: m.icon }))}
+                    value={form.paymentMethodId}
+                    onValueChange={(v) => { setForm((f) => ({ ...f, paymentMethodId: v })); setErrors((e) => ({ ...e, paymentMethodId: '' })); }}
+                    error={errors.paymentMethodId}
+                />
 
                 <View style={styles.actionsRow}>
                     <ThemedButton
@@ -133,17 +92,16 @@ export default function ExpenseFormScreen() {
                             const result = validateForm(expenseFormSchema, form);
                             if (!result.ok) {
                                 setErrors(result.errors);
-                                if (result.errors.paymentMethodId) setMessage(t('accountsForm.expense.required'));
                                 return;
                             }
                             setErrors({});
-                            setMessage('');
                             await addExpense({
                                 category: result.data.category,
                                 amount: result.data.amount,
                                 description: form.description,
                                 paymentMethodId: form.paymentMethodId,
                             });
+                            toast.success(t('toast.expenseAdded'));
                             router.back();
                         }}
                     />
@@ -164,11 +122,6 @@ const styles = StyleSheet.create({
     card: {
         gap: 10,
     },
-    labelRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
     smallText: {
         fontSize: 13,
         opacity: 0.9,
@@ -176,24 +129,6 @@ const styles = StyleSheet.create({
     input: {
         paddingHorizontal: 10,
         paddingVertical: 10,
-    },
-    chipRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderWidth: 1.5,
-        borderRadius: 12,
-    },
-    chipLabel: {
-        fontSize: 12,
-        fontWeight: '700',
     },
     actionsRow: {
         flexDirection: 'row',

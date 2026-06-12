@@ -59,13 +59,9 @@ export class SalesService {
     return response.tables || [];
   }
 
-  async createTable(payload: CreateTablePayload): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>('/sales/tables', payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async createTable(payload: CreateTablePayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/sales/tables', payload);
+    return response.id || '';
   }
 
   async updateTable(payload: UpdateTablePayload): Promise<void> {
@@ -80,13 +76,9 @@ export class SalesService {
     await apiClient.patch(`/sales/tables/${id}/active`, { isActive });
   }
 
-  async createSale(payload: CreateSalePayload): Promise<string | null> {
-    try {
-      const response = await apiClient.post<{ id: string }>('/sales', payload);
-      return response.id || null;
-    } catch {
-      return null;
-    }
+  async createSale(payload: CreateSalePayload): Promise<string> {
+    const response = await apiClient.post<{ id: string }>('/sales', payload);
+    return response.id || '';
   }
 
   async updateDraftOrder(payload: UpdateDraftOrderPayload): Promise<void> {

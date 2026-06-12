@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ComboConfigModal, type ComboItemCustomization, type CustomizationsByOptionId } from '@/components/combo-config-modal';
 import { ThemedText } from '@/components/themed-text';
@@ -231,13 +232,18 @@ export function SaleFormPanel({ orderId: editingOrderId, onComplete }: SaleFormP
             orderTypeSurcharge: surchargeBreakdown.total,
         };
 
-        if (editingOrderId) {
-            await updateDraftOrder({ orderId: editingOrderId, ...payload });
-        } else {
-            await createSale(payload);
+        try {
+            if (editingOrderId) {
+                await updateDraftOrder({ orderId: editingOrderId, ...payload });
+                toast.success(t('toast.updated'));
+            } else {
+                await createSale(payload);
+                toast.success(t('toast.created'));
+            }
+            onComplete();
+        } catch {
+            toast.error(t('toast.error'));
         }
-
-        onComplete();
     };
 
     // ─── Renders ───────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedInput } from '@/components/ui/themed-input';
@@ -20,6 +20,7 @@ type ThemedSelectProps = {
   addNewPlaceholder?: string;
   onAddNewPress?: () => Promise<void> | void;
   addNewLabel?: string;
+  error?: string | null;
 };
 
 export function ThemedSelect({
@@ -35,6 +36,7 @@ export function ThemedSelect({
   addNewPlaceholder,
   onAddNewPress,
   addNewLabel,
+  error,
 }: ThemedSelectProps) {
   const palette = useAppColors();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -194,12 +196,13 @@ export function ThemedSelect({
       {label ? <ThemedText style={styles.label}>{label}</ThemedText> : null}
       <Pressable
         ref={buttonRef}
-        style={[styles.button, { borderColor: palette.border, backgroundColor: palette.inputBackground }]}
+        style={[styles.button, { borderColor: error ? palette.danger : palette.border, backgroundColor: palette.inputBackground }]}
         onPress={handleOpen}>
         <ThemedText style={[styles.buttonText, selectedItem ? {} : { color: palette.placeholder }]}>
           {selectedItem?.label || placeholder || t('shared.select.placeholder')}
         </ThemedText>
       </Pressable>
+      {error ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}
 
       <Modal visible={isOpen} transparent animationType="fade">
         <View style={anchor ? styles.overlayTransparent : styles.overlay}>
@@ -320,6 +323,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
+  error: {
+    fontSize: 12,
+    marginLeft: 2,
+    marginTop: 2,
+  },
 });
 

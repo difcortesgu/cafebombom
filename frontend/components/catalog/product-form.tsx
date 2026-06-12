@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -132,6 +133,7 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
         }
 
         if (!isCombo && finalRecipe.length === 0) { setMessage(t('productForm.error.recipeRequired')); return; }
+        try {
 
         const parsedRecipe = finalRecipe.map((item) => ({
             ingredientId: item.ingredientId,
@@ -229,7 +231,11 @@ export function ProductForm({ mode, onClose }: ProductFormProps) {
                 }
             }
         }
-        onClose();
+            toast.success(mode === 'create' || mode === 'combo-create' ? t('toast.created') : t('toast.updated'));
+            onClose();
+        } catch {
+            toast.error(t('toast.error'));
+        }
     }
 
     // --- LÓGICA PARA RECETA ---

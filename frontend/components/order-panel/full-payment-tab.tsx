@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -56,7 +57,10 @@ export function FullPaymentTab({ sale, tipAmount, onPaymentComplete }: FullPayme
         setConfirmBusy(true);
         try {
             await markOrderPaid(sale.id, paymentMethodId, tipAmount > 0 ? tipAmount : undefined);
+            toast.success(t('toast.orderPaid'));
             onPaymentComplete?.();
+        } catch {
+            toast.error(t('toast.error'));
         } finally {
             setConfirmBusy(false);
         }

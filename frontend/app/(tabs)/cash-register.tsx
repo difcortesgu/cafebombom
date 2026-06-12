@@ -11,6 +11,7 @@ import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
+import { toast } from 'sonner-native';
 import { usePaymentMethodsStore } from '@/stores/payment-methods';
 import { money } from '@/utils/money';
 
@@ -158,6 +159,7 @@ export default function CashRegisterScreen() {
                                     await openCashRegister({ openingAmount: amount, notes: cajaForm.notes || undefined });
                                     setCajaForm({ amount: '0', notes: '' });
                                     setMessage('');
+                                    toast.success(t('toast.cashRegisterOpened'));
                                 } catch (error) {
                                     setMessage(error instanceof Error ? error.message : t('common.error'));
                                 }
@@ -219,6 +221,7 @@ export default function CashRegisterScreen() {
                                     await closeCashRegister({ sessionId: cashRegisterToday.id, closingAmount: amount, notes: cajaForm.notes || undefined });
                                     setCajaForm({ amount: '0', notes: '' });
                                     setMessage('');
+                                    toast.success(t('toast.cashRegisterClosed'));
                                 } catch (error) {
                                     setMessage(error instanceof Error ? error.message : t('common.error'));
                                 }

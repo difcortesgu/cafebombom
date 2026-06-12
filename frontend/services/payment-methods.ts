@@ -33,33 +33,16 @@ export class PaymentMethodsService {
         }
     }
 
-    async create(name: string, icon: string = 'wallet'): Promise<string | null> {
-        try {
-            const response = await apiClient.post<{ id: string }>('/payment-methods', { name, icon });
-            return response.id || null;
-        } catch (error) {
-            logger.error('Failed to create payment method:', error);
-            return null;
-        }
+    async create(name: string, icon: string = 'wallet'): Promise<string> {
+        const response = await apiClient.post<{ id: string }>('/payment-methods', { name, icon });
+        return response.id || '';
     }
 
-    async update(id: string, name: string, isActive: boolean, icon?: string): Promise<boolean> {
-        try {
-            await apiClient.put(`/payment-methods/${id}`, { name, isActive, ...(icon && { icon }) });
-            return true;
-        } catch (error) {
-            logger.error('Failed to update payment method:', error);
-            return false;
-        }
+    async update(id: string, name: string, isActive: boolean, icon?: string): Promise<void> {
+        await apiClient.put(`/payment-methods/${id}`, { name, isActive, ...(icon && { icon }) });
     }
 
-    async delete(id: string): Promise<boolean> {
-        try {
-            await apiClient.delete(`/payment-methods/${id}`);
-            return true;
-        } catch (error) {
-            logger.error('Failed to delete payment method:', error);
-            return false;
-        }
+    async delete(id: string): Promise<void> {
+        await apiClient.delete(`/payment-methods/${id}`);
     }
 }

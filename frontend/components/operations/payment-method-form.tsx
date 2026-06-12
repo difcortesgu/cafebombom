@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { PAYMENT_ICONS } from '@/constants/payment-icons';
@@ -25,7 +25,6 @@ export function PaymentMethodForm({ onClose, method }: PaymentMethodFormProps) {
 
     const [name, setName] = useState(method?.name ?? '');
     const [selectedIcon, setSelectedIcon] = useState(method?.icon ?? 'wallet');
-    const [message, setMessage] = useState('');
     const [nameError, setNameError] = useState('');
 
     async function submit() {
@@ -35,27 +34,23 @@ export function PaymentMethodForm({ onClose, method }: PaymentMethodFormProps) {
             return;
         }
         setNameError('');
-        if (isEditing && method) {
-            const ok = await updateMethod(method.id, name.trim(), method.is_active, selectedIcon);
-            if (!ok) {
-                setMessage(t('common.error'));
-                return;
+        try {
+            if (isEditing && method) {
+                await updateMethod(method.id, name.trim(), method.is_active, selectedIcon);
+                toast.success(t('toast.updated'));
+            } else {
+                await addMethod(name.trim(), selectedIcon);
+                toast.success(t('toast.created'));
             }
-        } else {
-            const id = await addMethod(name.trim(), selectedIcon);
-            if (!id) {
-                setMessage(t('common.error'));
-                return;
-            }
+            await hydrateAll();
+            onClose();
+        } catch {
+            toast.error(t('toast.error'));
         }
-        await hydrateAll();
-        onClose();
     }
 
     return (
         <>
-            <FormFeedback message={message} />
-
             <View style={styles.fieldGroup}>
                 <View style={styles.labelRow}>
                     <Ionicons name="text-outline" size={14} color={palette.mutedText} />

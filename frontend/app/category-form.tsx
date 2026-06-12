@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { FormScreen } from '@/components/ui/form-screen';
 import { ThemedButton } from '@/components/ui/themed-button';
-import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { t } from '@/i18n';
 import { useProductsStore } from '@/stores/products';
@@ -17,7 +17,6 @@ export default function CategoryFormScreen() {
     const addCategory = useProductsStore((state) => state.addCategory);
 
     const [name, setName] = useState('');
-    const [message, setMessage] = useState('');
     const [nameError, setNameError] = useState('');
 
     const submitCategory = async () => {
@@ -28,26 +27,20 @@ export default function CategoryFormScreen() {
         }
         setNameError('');
 
-        const categoryId = await addCategory({ name: name.trim() });
-        if (!categoryId) {
-            setMessage(t('categoryForm.duplicate'));
-            return;
+        try {
+            await addCategory({ name: name.trim() });
+            toast.success(t('toast.created'));
+            router.back();
+        } catch {
+            setNameError(t('categoryForm.duplicate'));
         }
-
-        router.back();
     };
 
     return (
         <FormScreen>
             <ThemedText type="title">{t('categoryForm.title')}</ThemedText>
 
-            {message ? (
-                <ThemedCard style={styles.messageCard}>
-                    <ThemedText>{message}</ThemedText>
-                </ThemedCard>
-            ) : null}
-
-            <ThemedCard style={styles.card}>
+            <View style={styles.card}>
                 <ThemedInput
                     placeholder={t('categoryForm.name')}
                     value={name}
@@ -59,15 +52,12 @@ export default function CategoryFormScreen() {
                     <ThemedButton style={styles.primaryButton} label={t('categoryForm.save')} onPress={submitCategory} />
                     <ThemedButton variant="secondary" style={styles.secondaryButton} label={t('common.back')} onPress={() => router.back()} />
                 </View>
-            </ThemedCard>
+            </View>
         </FormScreen>
     );
 }
 
 const styles = StyleSheet.create({
-    messageCard: {
-        padding: 12,
-    },
     card: {
         gap: 10,
     },

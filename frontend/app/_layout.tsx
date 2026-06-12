@@ -18,6 +18,7 @@ import 'react-native-reanimated';
 import { UpdateChecker } from '@/components/update-checker';
 import { useAppColors, useThemeMode } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
+import { Toaster } from 'sonner-native';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -92,6 +93,7 @@ export default function RootLayout() {
       </Stack>
       <UpdateChecker />
       <StatusBar style="auto" />
+      <Toaster position="top-center" richColors />
     </ThemeProvider>
     </SafeAreaProvider>
   );

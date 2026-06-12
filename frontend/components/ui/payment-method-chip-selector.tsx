@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -9,46 +9,53 @@ type PaymentMethodChipSelectorProps = {
     methods: PaymentMethodConfig[];
     selectedId: string;
     onSelect: (id: string) => void;
+    error?: string | null;
 };
 
-export function PaymentMethodChipSelector({ methods, selectedId, onSelect }: PaymentMethodChipSelectorProps) {
+export function PaymentMethodChipSelector({ methods, selectedId, onSelect, error }: PaymentMethodChipSelectorProps) {
     const palette = useAppColors();
 
     return (
-        <View style={styles.chipRow}>
-            {methods.map((method) => {
-                const isSelected = selectedId === method.id;
-                return (
-                    <Pressable
-                        key={method.id}
-                        style={[
-                            styles.chip,
-                            { borderColor: palette.border },
-                            isSelected && { backgroundColor: palette.accent, borderColor: palette.accent },
-                        ]}
-                        onPress={() => onSelect(method.id)}
-                    >
-                        <Ionicons
-                            name={method.icon as keyof typeof Ionicons.glyphMap}
-                            size={16}
-                            color={isSelected ? palette.text : palette.mutedText}
-                        />
-                        <ThemedText
+        <View style={styles.wrapper}>
+            <View style={styles.chipRow}>
+                {methods.map((method) => {
+                    const isSelected = selectedId === method.id;
+                    return (
+                        <Pressable
+                            key={method.id}
                             style={[
-                                styles.chipLabel,
-                                isSelected && { color: palette.text },
+                                styles.chip,
+                                { borderColor: error ? palette.danger : palette.border },
+                                isSelected && { backgroundColor: palette.accent, borderColor: palette.accent },
                             ]}
+                            onPress={() => onSelect(method.id)}
                         >
-                            {method.name}
-                        </ThemedText>
-                    </Pressable>
-                );
-            })}
+                            <Ionicons
+                                name={method.icon as keyof typeof Ionicons.glyphMap}
+                                size={16}
+                                color={isSelected ? palette.text : palette.mutedText}
+                            />
+                            <ThemedText
+                                style={[
+                                    styles.chipLabel,
+                                    isSelected && { color: palette.text },
+                                ]}
+                            >
+                                {method.name}
+                            </ThemedText>
+                        </Pressable>
+                    );
+                })}
+            </View>
+            {error ? <Text style={[styles.error, { color: palette.danger }]}>{error}</Text> : null}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
+    wrapper: {
+        gap: 4,
+    },
     chipRow: {
         flexDirection: 'row',
         gap: 8,
@@ -66,5 +73,9 @@ const styles = StyleSheet.create({
     chipLabel: {
         fontSize: 13,
         fontWeight: '600',
+    },
+    error: {
+        fontSize: 12,
+        marginLeft: 2,
     },
 });

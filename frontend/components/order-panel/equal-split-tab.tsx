@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -80,8 +81,11 @@ export function EqualSplitTab({ sale, tipAmount, onPaymentComplete }: EqualSplit
         const dominantMethodId = parts[0]?.method ?? (activeMethods[0]?.id ?? '');
         try {
             await markOrderPaid(sale.id, dominantMethodId, tipAmount > 0 ? tipAmount : undefined);
+            toast.success(t('toast.orderPaid'));
             setFinalized(true);
             onPaymentComplete?.();
+        } catch {
+            toast.error(t('toast.error'));
         } finally {
             setFinalizeBusy(false);
         }

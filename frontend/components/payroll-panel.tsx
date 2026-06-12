@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FormFeedback } from '@/components/ui/form-feedback';
+import { ChipGroup } from '@/components/ui/chip-group';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { PaymentMethodChipSelector } from '@/components/ui/payment-method-chip-selector';
 import { SlidePanel } from '@/components/ui/slide-panel';
@@ -42,7 +42,7 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
 
     const paymentInitRef = useRef(false);
     const employeeInitRef = useRef(false);
-    const { form, setForm, message, setMessage, fieldErrors, setFieldErrors } = useFormPanel<PayrollForm>({
+    const { form, setForm, fieldErrors, setFieldErrors } = useFormPanel<PayrollForm>({
         visible,
         createDefaultForm: () => DEFAULT_FORM,
         onOpen: () => {
@@ -74,13 +74,9 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
         const result = validateForm(payrollFormSchema, form);
         if (!result.ok) {
             setFieldErrors(result.errors);
-            if (result.errors.employeeId || result.errors.paymentMethodId) {
-                setMessage(t('accountsForm.payroll.required'));
-            }
             return;
         }
         setFieldErrors({});
-        setMessage('');
         const dayStart = new Date();
         dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date();
@@ -112,41 +108,17 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
                 />
             )}
         >
-            <FormFeedback message={message} />
-
             <View style={styles.fieldGroup}>
-                <View style={styles.labelRow}>
-                    <Ionicons name="person-outline" size={14} color={palette.mutedText} />
-                    <ThemedText style={styles.smallText}>{t('accountsForm.payroll.employee')}</ThemedText>
-                </View>
+                <ThemedText style={styles.smallText}>{t('accountsForm.payroll.employee')}</ThemedText>
                 {employees.length === 0 ? (
                     <ThemedText style={[styles.smallText, { color: palette.mutedText }]}>{t('team.noEmployees')}</ThemedText>
                 ) : (
-                    <View style={styles.chipRow}>
-                        {employees.map((employee) => (
-                            <Pressable
-                                key={employee.id}
-                                style={[
-                                    styles.chip,
-                                    { borderColor: palette.border },
-                                    form.employeeId === employee.id && {
-                                        backgroundColor: palette.accent,
-                                        borderColor: palette.accent,
-                                    },
-                                ]}
-                                onPress={() => setForm((f) => ({ ...f, employeeId: employee.id }))}
-                            >
-                                <ThemedText
-                                    style={[
-                                        styles.chipLabel,
-                                        form.employeeId === employee.id && { color: palette.text },
-                                    ]}
-                                >
-                                    {employee.name}
-                                </ThemedText>
-                            </Pressable>
-                        ))}
-                    </View>
+                    <ChipGroup
+                        items={employees.map((e) => ({ value: e.id, label: e.name }))}
+                        value={form.employeeId}
+                        onValueChange={(v) => { setForm((f) => ({ ...f, employeeId: v })); setFieldErrors((e) => ({ ...e, employeeId: '' })); }}
+                        error={fieldErrors.employeeId}
+                    />
                 )}
             </View>
 
@@ -173,7 +145,8 @@ export function PayrollPanel({ visible, onClose, onExited }: PayrollPanelProps) 
                 <PaymentMethodChipSelector
                     methods={methods}
                     selectedId={form.paymentMethodId}
-                    onSelect={(id) => setForm((f) => ({ ...f, paymentMethodId: id }))}
+                    onSelect={(id) => { setForm((f) => ({ ...f, paymentMethodId: id })); setFieldErrors((e) => ({ ...e, paymentMethodId: '' })); }}
+                    error={fieldErrors.paymentMethodId}
                 />
             </View>
         </SlidePanel>
@@ -196,24 +169,6 @@ const styles = StyleSheet.create({
     input: {
         paddingHorizontal: 10,
         paddingVertical: 10,
-    },
-    chipRow: {
-        flexDirection: 'row',
-        gap: 8,
-        flexWrap: 'wrap',
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderWidth: 1,
-        borderRadius: 8,
-    },
-    chipLabel: {
-        fontSize: 14,
-        fontWeight: '500',
     },
     saveButton: {
         flex: 1,

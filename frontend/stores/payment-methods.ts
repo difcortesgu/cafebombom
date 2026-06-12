@@ -8,10 +8,10 @@ interface PaymentMethodsStore {
     loading: boolean;
     hydrate: () => Promise<void>;
     hydrateAll: () => Promise<void>;
-    addMethod: (name: string, icon?: string) => Promise<string | null>;
-    updateMethod: (id: string, name: string, isActive: boolean, icon?: string) => Promise<boolean>;
-    toggleMethod: (id: string, isActive: boolean) => Promise<boolean>;
-    deleteMethod: (id: string) => Promise<boolean>;
+    addMethod: (name: string, icon?: string) => Promise<string>;
+    updateMethod: (id: string, name: string, isActive: boolean, icon?: string) => Promise<void>;
+    toggleMethod: (id: string, isActive: boolean) => Promise<void>;
+    deleteMethod: (id: string) => Promise<void>;
 }
 
 export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
@@ -41,66 +41,29 @@ export const usePaymentMethodsStore = create<PaymentMethodsStore>((set) => ({
     },
 
     addMethod: async (name: string, icon?: string) => {
-        try {
-            const id = await paymentMethodsService.create(name, icon);
-            if (id) {
-                // Refresh the list
-                const methods = await paymentMethodsService.getActive();
-                set({ methods });
-            }
-            return id;
-        } catch (error) {
-            logger.error('Failed to add payment method:', error);
-            return null;
-        }
+        const id = await paymentMethodsService.create(name, icon);
+        const methods = await paymentMethodsService.getActive();
+        set({ methods });
+        return id;
     },
 
     updateMethod: async (id: string, name: string, isActive: boolean, icon?: string) => {
-        try {
-            const success = await paymentMethodsService.update(id, name, isActive, icon);
-            if (success) {
-                // Refresh the list
-                const methods = await paymentMethodsService.getAll();
-                set({ methods });
-            }
-            return success;
-        } catch (error) {
-            logger.error('Failed to update payment method:', error);
-            return false;
-        }
+        await paymentMethodsService.update(id, name, isActive, icon);
+        const methods = await paymentMethodsService.getAll();
+        set({ methods });
     },
 
     toggleMethod: async (id: string, isActive: boolean) => {
-        try {
-            // Get current method to preserve name
-            const currentMethod = await paymentMethodsService.getById(id);
-            if (!currentMethod) return false;
-
-            const success = await paymentMethodsService.update(id, currentMethod.name, !isActive);
-            if (success) {
-                // Refresh the list
-                const methods = await paymentMethodsService.getAll();
-                set({ methods });
-            }
-            return success;
-        } catch (error) {
-            logger.error('Failed to toggle payment method:', error);
-            return false;
-        }
+        const currentMethod = await paymentMethodsService.getById(id);
+        if (!currentMethod) return;
+        await paymentMethodsService.update(id, currentMethod.name, !isActive);
+        const methods = await paymentMethodsService.getAll();
+        set({ methods });
     },
 
     deleteMethod: async (id: string) => {
-        try {
-            const success = await paymentMethodsService.delete(id);
-            if (success) {
-                // Refresh the list (getAll so disabled methods remain visible to admin)
-                const methods = await paymentMethodsService.getAll();
-                set({ methods });
-            }
-            return success;
-        } catch (error) {
-            logger.error('Failed to delete payment method:', error);
-            return false;
-        }
+        await paymentMethodsService.delete(id);
+        const methods = await paymentMethodsService.getAll();
+        set({ methods });
     },
 }));

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedButton } from '@/components/ui/themed-button';
@@ -51,12 +52,18 @@ export function SupplierPanelForm({ mode, onClose }: SupplierPanelFormProps) {
             return;
         }
         setErrors({});
-        if (mode === 'create') {
-            await addSupplier({ name: name.trim(), phone: phone.trim() || undefined, notes: notes.trim() || undefined });
-        } else {
-            await updateSupplier({ id: mode.supplierId, name: name.trim(), phone: phone.trim() || null, notes: notes.trim() || null });
+        try {
+            if (mode === 'create') {
+                await addSupplier({ name: name.trim(), phone: phone.trim() || undefined, notes: notes.trim() || undefined });
+                toast.success(t('toast.created'));
+            } else {
+                await updateSupplier({ id: mode.supplierId, name: name.trim(), phone: phone.trim() || null, notes: notes.trim() || null });
+                toast.success(t('toast.updated'));
+            }
+            onClose();
+        } catch {
+            setErrors({ name: t('toast.error') });
         }
-        onClose();
     }
 
     return (

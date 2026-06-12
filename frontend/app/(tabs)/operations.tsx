@@ -30,6 +30,7 @@ import { useResponsiveOpen } from '@/hooks/use-responsive-open';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { setupService } from '@/services';
+import { toast } from 'sonner-native';
 import { useInventoryStore } from '@/stores/inventory';
 import { useProductsStore } from '@/stores/products';
 import { useSalesStore } from '@/stores/sales';
@@ -346,16 +347,20 @@ export default function OperationsScreen() {
                             void (async () => {
                                 try {
                                     await deleteTable(tableId);
-                                    setTablesMessage(t('tables.deleted'));
+                                    toast.success(t('toast.deleted'));
                                 } catch {
-                                    setTablesMessage(t('sales.error.tableHasLinkedSales'));
+                                    toast.error(t('sales.error.tableHasLinkedSales'));
                                 }
                             })();
                         }}
                         onToggleActive={(tableId, isActive) => {
                             void (async () => {
-                                await setTableActive(tableId, !isActive);
-                                setTablesMessage(null);
+                                try {
+                                    await setTableActive(tableId, !isActive);
+                                    toast.success(isActive ? t('toast.disabled') : t('toast.enabled'));
+                                } catch {
+                                    toast.error(t('toast.error'));
+                                }
                             })();
                         }}
                     />

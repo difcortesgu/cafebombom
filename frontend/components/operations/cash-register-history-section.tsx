@@ -4,13 +4,13 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useIsWide } from '@/components/ui/centered-page';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { ThemedButton } from '@/components/ui/themed-button';
 import { ThemedCard } from '@/components/ui/themed-card';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
 import { t } from '@/i18n';
 import { useAccountsStore } from '@/stores/accounts';
+import { toast } from 'sonner-native';
 import type { CashRegisterHistoryDay } from '@/types/accounts';
 import { money } from '@/utils/money';
 
@@ -232,7 +232,6 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
     const { cashRegisterHistory, loadCashRegisterHistory, addCashRegisterAdjustment } = useAccountsStore();
     const [openingForm, setOpeningForm] = useState<AdjustmentForm>(emptyForm);
     const [closingForm, setClosingForm] = useState<AdjustmentForm>(emptyForm);
-    const [message, setMessage] = useState<string | null>(null);
     const [savingTarget, setSavingTarget] = useState<DayAdjustmentTarget | null>(null);
 
     const selectedDayData = useMemo(() => {
@@ -242,7 +241,6 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
     useEffect(() => {
         setOpeningForm(emptyForm);
         setClosingForm(emptyForm);
-        setMessage(null);
     }, [day.id]);
 
     const openingAdjustmentsTotal = useMemo(() => {
@@ -262,7 +260,7 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
         const magnitude = parseAmount(form.amount);
         const reason = form.reason.trim();
         if (!magnitude || !reason) {
-            setMessage(t('cashRegister.adjustmentRequired'));
+            toast.warning(t('cashRegister.adjustmentRequired'));
             return;
         }
 
@@ -282,9 +280,9 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
             } else {
                 setClosingForm(emptyForm);
             }
-            setMessage(null);
+            toast.success(t('toast.adjustmentAdded'));
         } catch (error) {
-            setMessage(error instanceof Error ? error.message : t('common.error'));
+            toast.error(error instanceof Error ? error.message : t('toast.error'));
         } finally {
             setSavingTarget(null);
         }
@@ -359,8 +357,6 @@ export function CashRegisterAdjustPanelContent({ day, onClose }: CashRegisterAdj
                     onSave={() => void handleSave('closing')}
                     saveLabel={t('cashRegister.saveClosingAdjustment')}
                 />
-
-                <FormFeedback message={message} />
 
                 <ThemedCard style={[styles.panelSummary, { borderColor: palette.border }]}>
                     <View style={styles.cardHeadingRow}>

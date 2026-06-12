@@ -35,8 +35,8 @@ type ProductsState = {
   comboGroupOptions: any[];
   loading: boolean;
   hydrate: () => Promise<void>;
-  addCategory: (payload: AddCategoryPayload) => Promise<string | null>;
-  createProduct: (payload: CreateProductPayload) => Promise<string | null>;
+  addCategory: (payload: AddCategoryPayload) => Promise<string>;
+  createProduct: (payload: CreateProductPayload) => Promise<string>;
   updateProduct: (payload: UpdateProductPayload) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   setProductActive: (id: string, isActive: boolean) => Promise<void>;
@@ -44,7 +44,7 @@ type ProductsState = {
   removeProductIngredient: (payload: RemoveProductIngredientPayload) => Promise<void>;
   setProductAdditionalIngredient: (payload: SetProductAdditionalIngredientPayload) => Promise<void>;
   removeProductAdditionalIngredient: (payload: RemoveProductAdditionalIngredientPayload) => Promise<void>;
-  setComboGroup: (productId: string, payload: { name: string; minQuantity: number; maxQuantity: number }) => Promise<string | null>;
+  setComboGroup: (productId: string, payload: { name: string; minQuantity: number; maxQuantity: number }) => Promise<string>;
   removeComboGroup: (productId: string, groupId: string) => Promise<void>;
   setComboGroupOption: (productId: string, groupId: string, payload: { productId: string; additionalPrice: number; isDefault: boolean }) => Promise<void>;
   removeComboGroupOption: (productId: string, groupId: string, optionProductId: string) => Promise<void>;

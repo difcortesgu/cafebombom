@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { toast } from 'sonner-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { ThemedInput } from '@/components/ui/themed-input';
 import { useAppColors } from '@/hooks/use-theme-color';
@@ -24,7 +24,6 @@ export function TableForm({ mode, onClose }: TableFormProps) {
 
     const [name, setName] = useState('');
     const [tableType, setTableType] = useState<TableType>('dine-in');
-    const [message, setMessage] = useState('');
     const [nameError, setNameError] = useState('');
 
     const isEdit = mode !== 'create';
@@ -36,7 +35,6 @@ export function TableForm({ mode, onClose }: TableFormProps) {
     ];
 
     useEffect(() => {
-        setMessage('');
         if (mode === 'create') {
             setName('');
             setTableType('dine-in');
@@ -57,18 +55,22 @@ export function TableForm({ mode, onClose }: TableFormProps) {
         }
         setNameError('');
         const { name: normalized } = result.data;
-        if (mode !== 'create') {
-            await updateTable({ id: mode.tableId, name: normalized, tableType });
-        } else {
-            await createTable({ name: normalized, tableType });
+        try {
+            if (mode !== 'create') {
+                await updateTable({ id: mode.tableId, name: normalized, tableType });
+                toast.success(t('toast.updated'));
+            } else {
+                await createTable({ name: normalized, tableType });
+                toast.success(t('toast.created'));
+            }
+            onClose();
+        } catch {
+            toast.error(t('toast.error'));
         }
-        onClose();
     }
 
     return (
         <>
-            <FormFeedback message={message} />
-
             <View style={styles.fieldGroup}>
                 <View style={styles.labelRow}>
                     <Ionicons name="text-outline" size={14} color={palette.mutedText} />

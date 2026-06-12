@@ -3,7 +3,6 @@ import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { FormFeedback } from '@/components/ui/form-feedback';
 import { PanelActionRow } from '@/components/ui/panel-action-row';
 import { PaymentMethodChipSelector } from '@/components/ui/payment-method-chip-selector';
 import { SlidePanel } from '@/components/ui/slide-panel';
@@ -43,7 +42,7 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
     const { methods, hydrate: hydratePaymentMethods } = usePaymentMethodsStore();
 
     const paymentInitRef = useRef(false);
-    const { form, setForm, message, setMessage, fieldErrors, setFieldErrors } = useFormPanel<ExpenseForm>({
+    const { form, setForm, fieldErrors, setFieldErrors } = useFormPanel<ExpenseForm>({
         visible,
         createDefaultForm: () => DEFAULT_FORM,
         onOpen: () => {
@@ -65,11 +64,9 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
         const result = validateForm(expenseFormSchema, form);
         if (!result.ok) {
             setFieldErrors(result.errors);
-            if (result.errors.paymentMethodId) setMessage(t('accountsForm.expense.required'));
             return;
         }
         setFieldErrors({});
-        setMessage('');
         await addExpense({
             category: result.data.category,
             amount: result.data.amount,
@@ -96,8 +93,6 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
                 />
             )}
         >
-            <FormFeedback message={message} />
-
             <View style={styles.fieldGroup}>
                 <View style={styles.labelRow}>
                     <Ionicons name="pricetag-outline" size={14} color={palette.mutedText} />
@@ -148,7 +143,8 @@ export function ExpensePanel({ visible, onClose, onExited }: ExpensePanelProps) 
                 <PaymentMethodChipSelector
                     methods={methods}
                     selectedId={form.paymentMethodId}
-                    onSelect={(id) => setForm((f) => ({ ...f, paymentMethodId: id }))}
+                    onSelect={(id) => { setForm((f) => ({ ...f, paymentMethodId: id })); setFieldErrors((e) => ({ ...e, paymentMethodId: '' })); }}
+                    error={fieldErrors.paymentMethodId}
                 />
             </View>
         </SlidePanel>
